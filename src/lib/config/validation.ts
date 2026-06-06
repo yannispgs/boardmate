@@ -61,7 +61,9 @@ export function validateConfigValues(
   fields: FieldSpec[],
   values: unknown,
 ): z.ZodSafeParseResult<ConfigValues> {
-  return buildConfigSchema(fields).safeParse(values) as z.ZodSafeParseResult<ConfigValues>;
+  return buildConfigSchema(fields).safeParse(
+    values,
+  ) as z.ZodSafeParseResult<ConfigValues>;
 }
 
 /** Initial values for a form built from a template (uses declared defaults). */

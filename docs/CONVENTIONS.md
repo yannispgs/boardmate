@@ -23,7 +23,7 @@ otherwise. **Updated on every remark from the project owner.**
 - Model invariants with **discriminated unions** and **branded types**
   (e.g. `PlayerId`) rather than bare strings.
 - Prefer `interface` for object shapes, `type` for unions/aliases.
-- No unused exports/vars (ESLint enforces).
+- No unused exports/vars (Biome enforces).
 
 ## 2. React 19 / Next.js 16 (App Router)
 
@@ -44,7 +44,8 @@ otherwise. **Updated on every remark from the project owner.**
 - Utility-first, CSS-first config (`@import "tailwindcss"` in `globals.css`).
 - Prefer design tokens/scale over arbitrary values (`p-4` over `p-[17px]`)
   unless there is a real reason.
-- Class order is normalized by `prettier-plugin-tailwindcss` (see §7).
+- Tailwind class sorting is not auto-enforced yet (Biome's `useSortedClasses`
+  is a nursery rule we may enable later).
 
 ## 4. Supabase
 
@@ -70,9 +71,12 @@ otherwise. **Updated on every remark from the project owner.**
 
 ## 7. Formatting, linting, naming
 
-- ESLint (`eslint-config-next`, flat config) — no warnings left in.
-- Prettier for formatting (+ `prettier-plugin-tailwindcss`). _To be added._
-- Indentation 2 spaces; double quotes; semicolons (matches the scaffold).
+- **Biome** (Rust) is the single linter **and** formatter — it replaces ESLint
+  and Prettier (chosen for speed + stability). Config: `biome.json`. Run
+  `npm run lint` (check) and `npm run format` (autofix). Tailwind v4 directives
+  are enabled in the CSS parser (`tailwindDirectives`).
+- Format: 2-space indent, double quotes, semicolons, 80-col width; imports are
+  organized by Biome. No errors/warnings left in.
 - **Naming**: React component files `PascalCase.tsx`; other modules
   `kebab-case.ts` / lowercase; identifiers and comments in **English**; JSDoc on
   exported APIs.
@@ -104,5 +108,10 @@ otherwise. **Updated on every remark from the project owner.**
   and keep this file updated on every remark).
 - _2026-06-06_ — Always deliver via Pull Requests (owner reviews & merges);
   PR descriptions must recap features/bugs/config/migrations.
+- _2026-06-07_ — Replaced ESLint (and the planned Prettier) with **Biome**
+  (single, much faster lint + format tool).
+- _2026-06-07_ — Players are **never deleted** from the DB — only deactivated
+  (`is_active`), which removes them from selection lists while preserving
+  history/stats.
 - _2026-06-07_ — Dependency versioning: full-version carets for non-critical
   deps; exact pins (no caret) for critical / non-semver deps (Next, TypeScript).
