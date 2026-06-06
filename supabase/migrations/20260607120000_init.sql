@@ -13,6 +13,8 @@
 create table public.players (
   id         uuid primary key default gen_random_uuid(),
   name       text not null check (length(btrim(name)) > 0),
+  -- Players are deactivated (hidden from selection), never deleted.
+  is_active  boolean not null default true,
   created_at timestamptz not null default now()
 );
 
@@ -117,7 +119,7 @@ declare
   t text;
 begin
   foreach t in array array[
-    'players', 'boardgames', 'config_templates',
+    'boardgames', 'config_templates',
     'configs', 'games', 'game_players', 'game_turns'
   ]
   loop
@@ -128,6 +130,16 @@ begin
     );
   end loop;
 end $$;
+
+-- players: read / create / update for authenticated, but NEVER delete.
+-- Players are deactivated (is_active = false), never removed (preserve stats).
+alter table public.players enable row level security;
+create policy players_authenticated_select on public.players
+  for select to authenticated using (true);
+create policy players_authenticated_insert on public.players
+  for insert to authenticated with check (true);
+create policy players_authenticated_update on public.players
+  for update to authenticated using (true) with check (true);
 
 -- =========================================================================
 -- Storage: public "logos" bucket (public read, authenticated write)
