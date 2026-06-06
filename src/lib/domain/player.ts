@@ -4,6 +4,11 @@ import type { PlayerId } from "./ids";
 export interface Player {
   id: PlayerId;
   name: string;
+  /**
+   * When false, the player is hidden from selection lists but kept in the
+   * database. Players are never hard-deleted, to preserve history & stats.
+   */
+  isActive: boolean;
   /** ISO 8601 timestamp. */
   createdAt: string;
 }

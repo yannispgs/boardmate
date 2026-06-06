@@ -34,7 +34,11 @@ export interface PlayerRepository {
   get(id: PlayerId): Promise<Player | null>;
   create(input: NewPlayer): Promise<Player>;
   update(id: PlayerId, patch: PlayerUpdate): Promise<Player>;
-  remove(id: PlayerId): Promise<void>;
+  /**
+   * Activate / deactivate a player. We never delete players from the DB; a
+   * deactivated player drops out of selection lists but keeps its history.
+   */
+  setActive(id: PlayerId, isActive: boolean): Promise<Player>;
   subscribe(onChange: () => void): Unsubscribe;
 }
 
