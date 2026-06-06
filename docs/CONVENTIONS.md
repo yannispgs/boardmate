@@ -89,6 +89,9 @@ otherwise. **Updated on every remark from the project owner.**
   The owner reviews and merges every PR himself (review + ownership).
 - **PR description** must recap the change: features added, bugs fixed,
   configuration/tooling updates, migrations, and anything notable to review.
+- **Tooling / dependency swaps go in their own `chore/` branch + PR** (e.g.
+  changing the linter/formatter), kept separate from feature work, with a
+  `chore` commit type.
 
 ## 9. Dependencies & versioning
 
@@ -115,3 +118,5 @@ otherwise. **Updated on every remark from the project owner.**
   history/stats.
 - _2026-06-07_ — Dependency versioning: full-version carets for non-critical
   deps; exact pins (no caret) for critical / non-semver deps (Next, TypeScript).
+- _2026-06-07_ — Tooling / dependency swaps go in a dedicated `chore/` PR,
+  separate from feature PRs.
