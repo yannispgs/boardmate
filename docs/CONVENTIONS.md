@@ -86,6 +86,16 @@ otherwise. **Updated on every remark from the project owner.**
 - **PR description** must recap the change: features added, bugs fixed,
   configuration/tooling updates, migrations, and anything notable to review.
 
+## 9. Dependencies & versioning
+
+- **No "major-only" ranges** in `package.json` (never `^4`). Pin the **full
+  current version** with a caret for non-critical deps (e.g. `^4.3.0`).
+- **No caret at all** (exact pin) for **critical deps and/or deps known not to
+  follow semver** — e.g. **Next.js** (can break in patch releases) and
+  **TypeScript** (a minor can break type-checking).
+- Keep `package.json` and `package-lock.json` in sync (run `npm install` after a
+  change) and commit the lockfile.
+
 ---
 
 ### Changelog of conventions
@@ -94,3 +104,5 @@ otherwise. **Updated on every remark from the project owner.**
   and keep this file updated on every remark).
 - _2026-06-06_ — Always deliver via Pull Requests (owner reviews & merges);
   PR descriptions must recap features/bugs/config/migrations.
+- _2026-06-07_ — Dependency versioning: full-version carets for non-critical
+  deps; exact pins (no caret) for critical / non-semver deps (Next, TypeScript).
