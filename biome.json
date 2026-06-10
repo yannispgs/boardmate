@@ -7,7 +7,11 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["**", "!package-lock.json"]
+    "includes": [
+      "**",
+      "!package-lock.json",
+      "!src/lib/supabase/database.types.ts"
+    ]
   },
   "formatter": {
     "enabled": true,
