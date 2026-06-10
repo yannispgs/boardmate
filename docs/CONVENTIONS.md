@@ -103,6 +103,21 @@ otherwise. **Updated on every remark from the project owner.**
 - Keep `package.json` and `package-lock.json` in sync (run `npm install` after a
   change) and commit the lockfile.
 
+## 10. CI / CD
+
+- **CI** (GitHub Actions, `.github/workflows/ci.yml`): every PR and every push
+  to `main` runs Biome (`npm run lint`), `tsc --noEmit`, and `next build`.
+- **Releases & CHANGELOG**: automated with **release-please**
+  (`.github/workflows/release-please.yml` + `release-please-config.json` +
+  `.release-please-manifest.json`). It reads Conventional Commits on `main`,
+  keeps an open **release PR** that bumps the SemVer version + regenerates
+  `CHANGELOG.md`, and on merge tags the commit and publishes a GitHub Release.
+  The owner merges the release PR like any other. Pre-1.0: breaking changes bump
+  the **minor** (`bump-minor-pre-major`). Never hand-edit `CHANGELOG.md` or the
+  version in `package.json` — release-please owns them.
+- **CD**: deployment on **Vercel** via its native Git integration (preview
+  deploy per PR, production on `main`). _Set up at the deployment phase._
+
 ---
 
 ### Changelog of conventions
@@ -120,3 +135,8 @@ otherwise. **Updated on every remark from the project owner.**
   deps; exact pins (no caret) for critical / non-semver deps (Next, TypeScript).
 - _2026-06-07_ — Tooling / dependency swaps go in a dedicated `chore/` PR,
   separate from feature PRs.
+- _2026-06-07_ — Added CI (GitHub Actions: Biome + `tsc` + build); CD on Vercel
+  documented (native Git integration, set up at the deployment phase).
+- _2026-06-10_ — Automated versioning + CHANGELOG with **release-please**
+  (Conventional-Commits-driven release PR; owner merges it). SemVer, pre-1.0
+  breaking → minor bump.
