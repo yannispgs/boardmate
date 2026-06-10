@@ -1,3 +1,6 @@
+import { signOut } from "@/lib/auth/actions";
+import { getCurrentUser } from "@/lib/auth/session";
+
 const TOOLS = [
   { name: "Chronomètre", emoji: "⏱️", status: "v1" },
   { name: "Joueurs", emoji: "👥", status: "v1" },
@@ -7,7 +10,9 @@ const TOOLS = [
   { name: "Statistiques", emoji: "📊", status: "bientôt" },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const user = await getCurrentUser();
+
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center gap-10 px-6 py-16">
       <header className="flex flex-col items-center gap-3 text-center">
@@ -18,6 +23,19 @@ export default function Home() {
         <p className="text-zinc-500 dark:text-zinc-400">
           Outils pour vos soirées jeux de société
         </p>
+        {user ? (
+          <div className="flex items-center gap-3 text-sm text-zinc-500 dark:text-zinc-400">
+            <span>{user.email}</span>
+            <form action={signOut}>
+              <button
+                type="submit"
+                className="rounded-md border border-black/10 px-2 py-1 font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+              >
+                Se déconnecter
+              </button>
+            </form>
+          </div>
+        ) : null}
       </header>
 
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
