@@ -121,6 +121,14 @@ otherwise. **Updated on every remark from the project owner.**
   (e.g. `actions/checkout@<sha> # v6.0.3`). Never reference an action by a
   mutable tag (`@v6`, `@main`) — a tag can be repointed to malicious code, a
   commit digest is immutable. When bumping, take the latest version (see §9).
+- **Releases & CHANGELOG**: automated with **release-please**
+  (`.github/workflows/release-please.yml` + `release-please-config.json` +
+  `.release-please-manifest.json`). It reads Conventional Commits on `main`,
+  keeps an open **release PR** that bumps the SemVer version + regenerates
+  `CHANGELOG.md`, and on merge tags the commit and publishes a GitHub Release.
+  The owner merges the release PR like any other. Pre-1.0: breaking changes bump
+  the **minor** (`bump-minor-pre-major`). Never hand-edit `CHANGELOG.md` or the
+  version in `package.json` — release-please owns them.
 - **CD**: deployment on **Vercel** via its native Git integration (preview
   deploy per PR, production on `main`). _Set up at the deployment phase._
 
@@ -150,3 +158,6 @@ otherwise. **Updated on every remark from the project owner.**
 - _2026-06-09_ — Switched the package manager to **Yarn 4** (Corepack,
   `nodeLinker: node-modules`) and the runtime to **Node 24** (`engines`,
   `.nvmrc`, CI). Lockfile is now `yarn.lock`; CI uses `yarn install --immutable`.
+- _2026-06-10_ — Automated versioning + CHANGELOG with **release-please**
+  (Conventional-Commits-driven release PR; owner merges it). SemVer, pre-1.0
+  breaking → minor bump.
