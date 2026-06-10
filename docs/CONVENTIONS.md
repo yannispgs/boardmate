@@ -73,7 +73,7 @@ otherwise. **Updated on every remark from the project owner.**
 
 - **Biome** (Rust) is the single linter **and** formatter — it replaces ESLint
   and Prettier (chosen for speed + stability). Config: `biome.json`. Run
-  `npm run lint` (check) and `npm run format` (autofix). Tailwind v4 directives
+  `yarn lint` (check) and `yarn format` (autofix). Tailwind v4 directives
   are enabled in the CSS parser (`tailwindDirectives`).
 - Format: 2-space indent, double quotes, semicolons, 80-col width; imports are
   organized by Biome. No errors/warnings left in.
@@ -93,20 +93,34 @@ otherwise. **Updated on every remark from the project owner.**
   changing the linter/formatter), kept separate from feature work, with a
   `chore` commit type.
 
-## 9. Dependencies & versioning
+## 9. Package manager & dependencies
 
+- **Package manager: Yarn 4** (Berry), pinned via the `packageManager` field and
+  run through **Corepack** (`corepack enable`). `nodeLinker: node-modules` (in
+  `.yarnrc.yml`) for maximum compatibility with Next.js — no Plug'n'Play.
+- **Node 24** is the supported runtime (`engines.node`, `.nvmrc`). Use it locally
+  and in CI.
+- Install/update with `yarn install` (use `yarn install --immutable` in CI).
+  Keep `package.json` and **`yarn.lock`** in sync and commit the lockfile.
 - **No "major-only" ranges** in `package.json` (never `^4`). Pin the **full
   current version** with a caret for non-critical deps (e.g. `^4.3.0`).
 - **No caret at all** (exact pin) for **critical deps and/or deps known not to
   follow semver** — e.g. **Next.js** (can break in patch releases) and
   **TypeScript** (a minor can break type-checking).
-- Keep `package.json` and `package-lock.json` in sync (run `npm install` after a
-  change) and commit the lockfile.
+- When **updating** a dependency or tool, move to the **latest available
+  version** (newest major included), not just the latest patch of the current
+  major.
 
 ## 10. CI / CD
 
 - **CI** (GitHub Actions, `.github/workflows/ci.yml`): every PR and every push
-  to `main` runs Biome (`npm run lint`), `tsc --noEmit`, and `next build`.
+  to `main` enables Corepack, sets up **Node 24**, runs `yarn install
+  --immutable`, then Biome (`yarn lint`), `yarn tsc --noEmit`, and `yarn build`.
+- **GitHub Actions security**: every `uses:` is pinned to a **full commit SHA**,
+  with the human-readable version in a trailing comment
+  (e.g. `actions/checkout@<sha> # v6.0.3`). Never reference an action by a
+  mutable tag (`@v6`, `@main`) — a tag can be repointed to malicious code, a
+  commit digest is immutable. When bumping, take the latest version (see §9).
 - **Releases & CHANGELOG**: automated with **release-please**
   (`.github/workflows/release-please.yml` + `release-please-config.json` +
   `.release-please-manifest.json`). It reads Conventional Commits on `main`,
@@ -137,6 +151,13 @@ otherwise. **Updated on every remark from the project owner.**
   separate from feature PRs.
 - _2026-06-07_ — Added CI (GitHub Actions: Biome + `tsc` + build); CD on Vercel
   documented (native Git integration, set up at the deployment phase).
+- _2026-06-09_ — Pin every GitHub Actions `uses:` to a full commit SHA (version
+  in a trailing comment) to prevent supply-chain attacks via mutable tags.
+- _2026-06-09_ — When updating a dependency/tool, take the latest available
+  version (newest major included).
+- _2026-06-09_ — Switched the package manager to **Yarn 4** (Corepack,
+  `nodeLinker: node-modules`) and the runtime to **Node 24** (`engines`,
+  `.nvmrc`, CI). Lockfile is now `yarn.lock`; CI uses `yarn install --immutable`.
 - _2026-06-10_ — Automated versioning + CHANGELOG with **release-please**
   (Conventional-Commits-driven release PR; owner merges it). SemVer, pre-1.0
   breaking → minor bump.
