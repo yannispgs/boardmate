@@ -17,33 +17,45 @@ jobs:
     name: Lint & format
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-      - uses: ./.github/actions/setup
-      - run: yarn lint
+      - name: Checkout source code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Set up Node & dependencies
+        uses: ./.github/actions/setup
+      - name: Linting & format check
+        run: yarn lint
 
   typecheck:
     name: Typecheck
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-      - uses: ./.github/actions/setup
-      - run: yarn tsc --noEmit
+      - name: Checkout source code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Set up Node & dependencies
+        uses: ./.github/actions/setup
+      - name: Type checking
+        run: yarn tsc --noEmit
 
   test:
     name: Unit tests
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-      - uses: ./.github/actions/setup
-      - run: yarn test
+      - name: Checkout source code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Set up Node & dependencies
+        uses: ./.github/actions/setup
+      - name: Run unit tests
+        run: yarn test
 
   build:
     name: Build
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-      - uses: ./.github/actions/setup
-      - run: yarn build
+      - name: Checkout source code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Set up Node & dependencies
+        uses: ./.github/actions/setup
+      - name: Build the app
+        run: yarn build
         # NEXT_PUBLIC_* are inlined at build time. These are non-secret
         # build-only placeholders so pages that instantiate the Supabase client
         # can be prerendered in CI (the build never connects). Real values come
