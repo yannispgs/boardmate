@@ -10,29 +10,56 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Independent parallel jobs: each fails on its own so it's obvious what broke,
+# and they run concurrently instead of one long sequential job.
 jobs:
-  quality:
-    name: Lint, typecheck & build
-    runs-on: ubuntu-latest
+  lint:
+    name: Lint & format
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version: 24
-          cache: yarn
-
-      - name: Install dependencies
-        run: yarn install --immutable
-
-      - name: Lint & format check (Biome)
+      - name: Checkout source code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Set up Node & dependencies
+        uses: ./.github/actions/setup
+      - name: Linting & format check
         run: yarn lint
 
-      - name: Typecheck
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Set up Node & dependencies
+        uses: ./.github/actions/setup
+      - name: Type checking
         run: yarn tsc --noEmit
 
-      - name: Build
+  test:
+    name: Unit tests
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Set up Node & dependencies
+        uses: ./.github/actions/setup
+      - name: Run unit tests
+        run: yarn test
+
+  build:
+    name: Build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Set up Node & dependencies
+        uses: ./.github/actions/setup
+      - name: Build the app
         run: yarn build
+        # NEXT_PUBLIC_* are inlined at build time. These are non-secret
+        # build-only placeholders so pages that instantiate the Supabase client
+        # can be prerendered in CI (the build never connects). Real values come
+        # from Vercel/Supabase at runtime, and from `supabase start` for tests.
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-build-placeholder-anon-key
