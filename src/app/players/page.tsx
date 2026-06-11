@@ -7,6 +7,10 @@ export const metadata: Metadata = {
   title: "Joueurs — Boardmate",
 };
 
+// Authenticated, data-driven page — render at request time (where the public
+// Supabase env is available), never prerendered statically at build.
+export const dynamic = "force-dynamic";
+
 export default function PlayersPage() {
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-6 py-10">
