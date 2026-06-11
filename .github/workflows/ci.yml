@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   quality:
-    name: Lint, typecheck & build
+    name: Lint, typecheck, test & build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -34,5 +34,15 @@ jobs:
       - name: Typecheck
         run: yarn tsc --noEmit
 
+      - name: Test (unit)
+        run: yarn test
+
       - name: Build
         run: yarn build
+        # NEXT_PUBLIC_* are inlined at build time. These are non-secret
+        # build-only placeholders so pages that instantiate the Supabase client
+        # can be prerendered in CI (the build never connects). Real values come
+        # from Vercel/Supabase at runtime, and from `supabase start` for tests.
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-build-placeholder-anon-key
