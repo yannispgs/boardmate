@@ -132,6 +132,32 @@ otherwise. **Updated on every remark from the project owner.**
 - **CD**: deployment on **Vercel** via its native Git integration (preview
   deploy per PR, production on `main`). _Set up at the deployment phase._
 
+## 11. Testing
+
+Test at the layer where the risk lives, not "everything". Two suites, kept
+separate so the fast one never needs a database:
+
+- **Unit (`yarn test`)** — **Vitest**, `node` env, **no DB**. Covers pure logic:
+  dynamic Zod/`FieldSpec` config validation, and later the turn/round engine and
+  time aggregation. Config: `vitest.config.ts` (`src/**/*.test.ts`). Runs in the
+  `Unit tests` CI job with no services.
+- **Integration / RLS (`yarn test:integration`)** — **Vitest** against a **local
+  Supabase** stack (`supabase start`, Docker), **never a hosted project**. Config:
+  `vitest.integration.config.ts` (`tests/integration/**/*.test.ts`, serial). These
+  assert the real security model: **RLS denies the `anon` role on every table**
+  (OWASP **A01**), authenticated CRUD works, **players are never deletable** (no
+  DELETE policy → a delete affects zero rows and the row survives — _not_ an
+  error), and the `logos` bucket is public-read / authenticated-write. Real
+  authenticated sessions are minted server-side (`auth.admin.createUser` +
+  `signInWithPassword`) — **no inbox needed**. Local Supabase ships fixed default
+  keys, so **no secrets** are required; connection details come from
+  `supabase status` (`tests/integration/env.ts`). Runs in the
+  `Integration & RLS tests` CI job, which boots `supabase start` on the runner.
+- **E2E (later)** — a **few** Playwright paths only (login via the local mail
+  catcher, add/deactivate player, one full game). Deferred.
+- **Skip**: per-component/snapshot tests, mocking the Supabase client,
+  perf/load, visual-regression (Vercel preview + occasional screenshot suffices).
+
 ---
 
 ### Changelog of conventions
@@ -161,3 +187,6 @@ otherwise. **Updated on every remark from the project owner.**
 - _2026-06-10_ — Automated versioning + CHANGELOG with **release-please**
   (Conventional-Commits-driven release PR; owner merges it). SemVer, pre-1.0
   breaking → minor bump.
+- _2026-06-11_ — Testing strategy (§11): split **unit** (`yarn test`, no DB) from
+  **integration/RLS** (`yarn test:integration`, local Supabase via Docker); the
+  latter enforces the RLS/access-control model (OWASP A01) in a dedicated CI job.
