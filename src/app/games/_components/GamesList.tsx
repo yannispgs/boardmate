@@ -37,20 +37,24 @@ export function GamesList() {
       ) : (
         <ul className="flex flex-col gap-2">
           {games.map((game) => (
-            <li
-              key={game.id}
-              className="flex items-center justify-between rounded-xl border border-black/10 bg-white px-4 py-3 dark:border-white/10 dark:bg-zinc-900"
-            >
-              <div className="flex flex-col">
-                <span className="font-medium">{nameOf(game.boardgameId)}</span>
-                <span className="text-xs text-zinc-500">
-                  Manche {game.round} · tour {game.turn} ·{" "}
-                  {new Date(game.startedAt).toLocaleDateString("fr-FR")}
+            <li key={game.id}>
+              <Link
+                href={`/games/${game.id}/play`}
+                className="flex items-center justify-between rounded-xl border border-black/10 bg-white px-4 py-3 transition hover:border-indigo-400 dark:border-white/10 dark:bg-zinc-900"
+              >
+                <div className="flex flex-col">
+                  <span className="font-medium">
+                    {nameOf(game.boardgameId)}
+                  </span>
+                  <span className="text-xs text-zinc-500">
+                    Manche {game.round} · tour {game.turn} ·{" "}
+                    {new Date(game.startedAt).toLocaleDateString("fr-FR")}
+                  </span>
+                </div>
+                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
+                  Reprendre
                 </span>
-              </div>
-              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
-                En cours
-              </span>
+              </Link>
             </li>
           ))}
         </ul>
