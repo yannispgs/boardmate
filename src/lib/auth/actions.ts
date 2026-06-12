@@ -1,29 +1,29 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 
-/** Result of a magic-link request, surfaced back to the login form. */
+/** Result of requesting a login code, surfaced back to the login form. */
 export interface SignInState {
   error?: string;
   sent?: boolean;
+  /** Echoed back so step 2 knows which address to verify. */
+  email?: string;
+}
+
+/** Result of verifying a login code. */
+export interface VerifyState {
+  error?: string;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Best-effort request origin, for the magic-link redirect target. */
-async function requestOrigin(): Promise<string> {
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  return `${proto}://${host}`;
-}
-
 /**
- * Sends a magic link (email OTP). On success the user receives a link to
- * `/auth/callback`, which exchanges the code for a session.
+ * Sends a 6-digit login code by email (Supabase email OTP). This is the same
+ * OTP that backs magic links — we just verify the code in-app instead of
+ * following a link, which is friendlier and avoids cross-domain redirect
+ * configuration.
  */
 export async function signInWithEmail(
   _prev: SignInState,
@@ -38,17 +38,50 @@ export async function signInWithEmail(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: { emailRedirectTo: `${await requestOrigin()}/auth/callback` },
-  });
+  const { error } = await supabase.auth.signInWithOtp({ email });
 
   if (error) {
     return {
       error: "Envoi impossible pour le moment. Réessaie dans un instant.",
+      email,
     };
   }
-  return { sent: true };
+  return { sent: true, email };
+}
+
+/**
+ * Verifies the emailed code and establishes the session (cookies are set by the
+ * server client), then redirects home.
+ */
+export async function verifyCode(
+  _prev: VerifyState,
+  formData: FormData,
+): Promise<VerifyState> {
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
+  const token = String(formData.get("token") ?? "").replace(/\D/g, "");
+
+  if (!EMAIL_RE.test(email)) {
+    return { error: "Adresse e-mail manquante. Recommence." };
+  }
+  if (token.length !== 6) {
+    return { error: "Le code fait 6 chiffres." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.verifyOtp({
+    email,
+    token,
+    type: "email",
+  });
+
+  if (error) {
+    return { error: "Code invalide ou expiré. Redemande un code." };
+  }
+
+  // redirect() throws NEXT_REDIRECT — must stay outside any try/catch.
+  redirect("/");
 }
 
 /** Signs out and returns to the login page. */
