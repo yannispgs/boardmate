@@ -13,6 +13,11 @@ import {
 let user: TestUser;
 const createdIds: string[] = [];
 
+// Boardgame names are globally unique; suffix them per run so they never
+// collide with seeded data (e.g. Catan) or rows left by a prior failed run.
+const RUN = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+const uniq = (base: string) => `${base} ${RUN}`;
+
 beforeAll(async () => {
   user = await createTestUser();
 });
@@ -32,13 +37,13 @@ function repo() {
 describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
   it("maps a created row to the domain shape with defaults", async () => {
     const bg = await repo().create({
-      name: "Catan",
+      name: uniq("Catan"),
       minPlayers: 3,
       maxPlayers: 4,
     });
     createdIds.push(bg.id);
 
-    expect(bg.name).toBe("Catan");
+    expect(bg.name).toBe(uniq("Catan"));
     expect(bg.minPlayers).toBe(3);
     expect(bg.maxPlayers).toBe(4);
     expect(bg.kind).toBe("competitive"); // DB default
@@ -51,7 +56,7 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
 
   it("persists the full field set and reads it back", async () => {
     const created = await repo().create({
-      name: "Scythe",
+      name: uniq("Scythe"),
       minPlayers: 1,
       maxPlayers: 5,
       recMinPlayers: 3,
@@ -74,20 +79,20 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
   });
 
   it("updates a subset of fields", async () => {
-    const created = await repo().create({ name: "Wingspan" });
+    const created = await repo().create({ name: uniq("Wingspan") });
     createdIds.push(created.id);
 
     const updated = await repo().update(created.id, {
       avgDurationMin: 60,
       tags: ["oiseaux"],
     });
-    expect(updated.name).toBe("Wingspan"); // untouched
+    expect(updated.name).toBe(uniq("Wingspan")); // untouched
     expect(updated.avgDurationMin).toBe(60);
     expect(updated.tags).toEqual(["oiseaux"]);
   });
 
   it("removes a boardgame that has no games", async () => {
-    const created = await repo().create({ name: "Throwaway" });
+    const created = await repo().create({ name: uniq("Throwaway") });
     const removed = await repo().get(created.id);
     expect(removed).not.toBeNull();
 

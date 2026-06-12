@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { type FormEvent, useRef, useState } from "react";
 
 import type { Boardgame, BoardgameId, NewBoardgame } from "@/lib/domain";
@@ -320,6 +321,12 @@ export function BoardgamesManager() {
                 <span className="truncate font-medium">{b.name}</span>
                 <span className="text-xs text-zinc-500">{formatMeta(b)}</span>
               </div>
+              <Link
+                href={`/boardgames/${b.id}/configs`}
+                className="rounded-md border border-black/10 px-2 py-1 text-sm transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+              >
+                Configs
+              </Link>
               <button
                 type="button"
                 onClick={() => startEdit(b)}
