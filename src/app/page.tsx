@@ -1,14 +1,24 @@
+import Link from "next/link";
+
 import { signOut } from "@/lib/auth/actions";
 import { getCurrentUser } from "@/lib/auth/session";
 
-const TOOLS = [
+const TOOLS: {
+  name: string;
+  emoji: string;
+  status: string;
+  href?: string;
+}[] = [
   { name: "Chronomètre", emoji: "⏱️", status: "v1" },
-  { name: "Joueurs", emoji: "👥", status: "v1" },
+  { name: "Joueurs", emoji: "👥", status: "v1", href: "/players" },
   { name: "Jeux", emoji: "🎲", status: "v1" },
   { name: "Parties", emoji: "🃏", status: "v1" },
   { name: "Lancer de dés", emoji: "🎯", status: "bientôt" },
   { name: "Statistiques", emoji: "📊", status: "bientôt" },
 ];
+
+const cardClass =
+  "flex flex-col items-center gap-1 rounded-xl border border-black/10 bg-white p-4 text-center dark:border-white/10 dark:bg-zinc-900";
 
 export default async function Home() {
   const user = await getCurrentUser();
@@ -39,20 +49,33 @@ export default async function Home() {
       </header>
 
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {TOOLS.map((tool) => (
-          <li
-            key={tool.name}
-            className="flex flex-col items-center gap-1 rounded-xl border border-black/10 bg-white p-4 text-center dark:border-white/10 dark:bg-zinc-900"
-          >
-            <span aria-hidden className="text-2xl">
-              {tool.emoji}
-            </span>
-            <span className="text-sm font-medium">{tool.name}</span>
-            <span className="text-[11px] uppercase tracking-wide text-zinc-400">
-              {tool.status}
-            </span>
-          </li>
-        ))}
+        {TOOLS.map((tool) => {
+          const content = (
+            <>
+              <span aria-hidden className="text-2xl">
+                {tool.emoji}
+              </span>
+              <span className="text-sm font-medium">{tool.name}</span>
+              <span className="text-[11px] uppercase tracking-wide text-zinc-400">
+                {tool.status}
+              </span>
+            </>
+          );
+          return (
+            <li key={tool.name}>
+              {tool.href ? (
+                <Link
+                  href={tool.href}
+                  className={`${cardClass} transition hover:border-indigo-400`}
+                >
+                  {content}
+                </Link>
+              ) : (
+                <div className={cardClass}>{content}</div>
+              )}
+            </li>
+          );
+        })}
       </ul>
 
       <p className="text-center text-xs text-zinc-400">
