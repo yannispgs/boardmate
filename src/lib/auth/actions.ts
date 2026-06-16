@@ -65,8 +65,10 @@ export async function verifyCode(
   if (!EMAIL_RE.test(email)) {
     return { error: "Adresse e-mail manquante. Recommence." };
   }
-  if (token.length !== 6) {
-    return { error: "Le code fait 6 chiffres." };
+  // Supabase OTP length is configurable (6–10 digits); don't hard-code it —
+  // just sanity-check the range and let verifyOtp be the real validator.
+  if (token.length < 6 || token.length > 10) {
+    return { error: "Code invalide. Vérifie l'e-mail reçu." };
   }
 
   const supabase = await createClient();

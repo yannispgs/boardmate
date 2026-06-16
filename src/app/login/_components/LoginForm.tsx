@@ -66,7 +66,7 @@ function CodeForm({ email, onBack }: { email: string; onBack: () => void }) {
         </span>
         <p className="font-medium">Entre ton code</p>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          On a envoyé un code à 6 chiffres à <strong>{email}</strong>.
+          On a envoyé un code à <strong>{email}</strong>.
         </p>
       </div>
 
@@ -78,9 +78,9 @@ function CodeForm({ email, onBack }: { email: string; onBack: () => void }) {
           inputMode="numeric"
           autoComplete="one-time-code"
           pattern="[0-9]*"
-          maxLength={6}
+          maxLength={10}
           required
-          placeholder="123456"
+          placeholder="12345678"
           className={`${inputClass} text-center text-2xl tracking-[0.4em]`}
         />
       </label>
