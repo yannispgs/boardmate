@@ -32,14 +32,19 @@ jobs:
           ANON: ${{ secrets[matrix.secret] }}
         run: |
           set -euo pipefail
-          # A select hits PostgREST -> Postgres (RLS returns an empty set for
-          # anon, but the query still runs), which resets the inactivity timer.
-          code=$(curl -sS -o /dev/null -w "%{http_code}" \
+          # A select hits PostgREST -> Postgres, which resets the inactivity
+          # timer. The query still reaches Postgres even when it is refused at
+          # the table level (e.g. a 42501 grant denial surfaces as HTTP 401),
+          # so any 2xx-4xx means the project processed the request = activity.
+          # Only a 5xx or no response (000) means it is down/unreachable.
+          code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 30 \
             "${{ matrix.url }}/rest/v1/players?select=id&limit=1" \
             -H "apikey: ${ANON}" \
             -H "Authorization: Bearer ${ANON}")
           echo "${{ matrix.name }} REST ping -> HTTP ${code}"
-          if [ "$code" != "200" ]; then
-            echo "::error::unexpected status ${code} from ${{ matrix.name }}"
+          if [ "$code" -ge 200 ] && [ "$code" -lt 500 ]; then
+            echo "project responded — inactivity timer reset"
+          else
+            echo "::error::no healthy response from ${{ matrix.name }} (HTTP ${code})"
             exit 1
           fi
