@@ -1,0 +1,45 @@
+name: Supabase keep-alive
+
+# Free-tier Supabase projects auto-pause after 7 days without any API request.
+# This pings each project's REST API daily with a real (RLS-filtered) query so
+# neither the prod nor the dev project ever pauses. The anon keys are public
+# (browser-shipped) but kept as secrets to keep them out of run logs.
+
+on:
+  schedule:
+    # Daily at 06:37 UTC — frequent enough to survive a skipped/delayed run
+    # well within the 7-day window; off the top-of-hour scheduler rush.
+    - cron: "37 6 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    name: Ping ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: prod
+            url: https://eoateljqcdvwrqthwlma.supabase.co
+            secret: SUPABASE_PROD_ANON_KEY
+          - name: dev
+            url: https://vwhhrolttzpymylokhqn.supabase.co
+            secret: SUPABASE_DEV_ANON_KEY
+    steps:
+      - name: Query the REST API (counts as activity)
+        env:
+          ANON: ${{ secrets[matrix.secret] }}
+        run: |
+          set -euo pipefail
+          # A select hits PostgREST -> Postgres (RLS returns an empty set for
+          # anon, but the query still runs), which resets the inactivity timer.
+          code=$(curl -sS -o /dev/null -w "%{http_code}" \
+            "${{ matrix.url }}/rest/v1/players?select=id&limit=1" \
+            -H "apikey: ${ANON}" \
+            -H "Authorization: Bearer ${ANON}")
+          echo "${{ matrix.name }} REST ping -> HTTP ${code}"
+          if [ "$code" != "200" ]; then
+            echo "::error::unexpected status ${code} from ${{ matrix.name }}"
+            exit 1
+          fi
