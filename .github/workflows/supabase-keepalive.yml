@@ -2,8 +2,11 @@ name: Supabase keep-alive
 
 # Free-tier Supabase projects auto-pause after 7 days without any API request.
 # This pings each project's REST API daily with a real (RLS-filtered) query so
-# neither the prod nor the dev project ever pauses. The anon keys are public
-# (browser-shipped) but kept as secrets to keep them out of run logs.
+# neither the prod nor the dev project ever pauses.
+# Project URLs come from repo variables (vars.SUPABASE_PROD_URL /
+# SUPABASE_DEV_URL) so they're defined once and reusable by other workflows.
+# The anon keys are public (browser-shipped) but kept as secrets to stay out of
+# run logs.
 
 on:
   schedule:
@@ -21,24 +24,29 @@ jobs:
       matrix:
         include:
           - name: prod
-            url: https://eoateljqcdvwrqthwlma.supabase.co
+            url_var: SUPABASE_PROD_URL
             secret: SUPABASE_PROD_ANON_KEY
           - name: dev
-            url: https://vwhhrolttzpymylokhqn.supabase.co
+            url_var: SUPABASE_DEV_URL
             secret: SUPABASE_DEV_ANON_KEY
     steps:
       - name: Query the REST API (counts as activity)
         env:
           ANON: ${{ secrets[matrix.secret] }}
+          URL: ${{ vars[matrix.url_var] }}
         run: |
           set -euo pipefail
+          if [ -z "${URL}" ]; then
+            echo "::error::repo variable ${{ matrix.url_var }} is not set"
+            exit 1
+          fi
           # A select hits PostgREST -> Postgres, which resets the inactivity
           # timer. The query still reaches Postgres even when it is refused at
           # the table level (e.g. a 42501 grant denial surfaces as HTTP 401),
           # so any 2xx-4xx means the project processed the request = activity.
           # Only a 5xx or no response (000) means it is down/unreachable.
           code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 30 \
-            "${{ matrix.url }}/rest/v1/players?select=id&limit=1" \
+            "${URL}/rest/v1/players?select=id&limit=1" \
             -H "apikey: ${ANON}" \
             -H "Authorization: Bearer ${ANON}")
           echo "${{ matrix.name }} REST ping -> HTTP ${code}"
