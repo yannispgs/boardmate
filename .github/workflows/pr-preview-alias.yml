@@ -60,6 +60,6 @@ jobs:
           fi
 
           npx --yes "vercel@${VERCEL_CLI_VERSION}" alias set "$url" \
-            "pr-${PR_NUMBER}.board-mate.app" \
+            "pr-${PR_NUMBER}.${PREVIEW_DOMAIN}" \
             --token "${VERCEL_TOKEN}" --scope "${VERCEL_TEAM}"
-          echo "Preview aliased: https://pr-${PR_NUMBER}.board-mate.app"
+          echo "Preview aliased: https://pr-${PR_NUMBER}.${PREVIEW_DOMAIN}"
