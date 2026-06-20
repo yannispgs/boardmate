@@ -23,14 +23,20 @@ jobs:
       - name: Resolve the Vercel preview deployment and alias it
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
-          VERCEL_TEAM: yannis-projects-04d6384f
-          VERCEL_PROJECT: prj_B4BAXMxprM5H5fF8j5JworK9hcc4
+          # Centralised repo variables (defined once, reusable by other jobs).
+          VERCEL_TEAM: ${{ vars.VERCEL_TEAM_ID }}
+          VERCEL_PROJECT: ${{ vars.VERCEL_PROJECT_ID }}
+          PREVIEW_DOMAIN: ${{ vars.PREVIEW_BASE_DOMAIN }}
           # Pinned Vercel CLI (bump like any dependency).
           VERCEL_CLI_VERSION: "54.12.2"
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
+          if [ -z "${VERCEL_TEAM}" ] || [ -z "${VERCEL_PROJECT}" ] || [ -z "${PREVIEW_DOMAIN}" ]; then
+            echo "::error::missing repo variable (VERCEL_TEAM_ID / VERCEL_PROJECT_ID / PREVIEW_BASE_DOMAIN)"
+            exit 1
+          fi
           api="https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT}&teamId=${VERCEL_TEAM}&meta-githubCommitSha=${HEAD_SHA}&limit=1"
 
           # The Git-integration deployment may still be building; poll until it
