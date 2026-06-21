@@ -63,6 +63,12 @@ function toInput(form: FormState, logoUrl: string | null): NewBoardgame {
 const field =
   "rounded-lg border border-black/15 bg-white px-3 py-2 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900";
 
+interface ConfirmRequest {
+  message: string;
+  confirmLabel: string;
+  onConfirm: () => void | Promise<void>;
+}
+
 export function BoardgamesManager() {
   const {
     boardgames,
@@ -81,6 +87,9 @@ export function BoardgamesManager() {
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  // In-app confirmation (replaces window.confirm, which browsers suppress).
+  const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const editing = editingId !== null;
@@ -147,19 +156,35 @@ export function BoardgamesManager() {
     }
   }
 
-  async function handleDelete(b: Boardgame) {
-    if (!confirm(`Supprimer « ${b.name} » ?`)) return;
+  function handleDelete(b: Boardgame) {
+    setConfirm({
+      message: `Supprimer « ${b.name} » ? Cette action est définitive.`,
+      confirmLabel: "Supprimer",
+      onConfirm: () => deleteBoardgame(b),
+    });
+  }
+
+  async function deleteBoardgame(b: Boardgame) {
+    setActionError(null);
     try {
       await removeBoardgame(b.id);
       if (editingId === b.id) closeForm();
     } catch {
       // A boardgame that already has games cannot be deleted (DB restricts it).
-      alert("Suppression impossible : ce jeu a déjà des parties enregistrées.");
+      setActionError(
+        `« ${b.name} » a déjà des parties enregistrées : impossible de le supprimer.`,
+      );
     }
   }
 
   return (
     <div className="flex flex-col gap-6">
+      {actionError ? (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {actionError}
+        </p>
+      ) : null}
+
       {error ? (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
           {error}
@@ -362,6 +387,59 @@ export function BoardgamesManager() {
           + Ajouter un jeu
         </button>
       )}
+
+      {confirm ? (
+        <ConfirmDialog
+          message={confirm.message}
+          confirmLabel={confirm.confirmLabel}
+          onCancel={() => setConfirm(null)}
+          onConfirm={() => {
+            const run = confirm.onConfirm;
+            setConfirm(null);
+            void run();
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function ConfirmDialog({
+  message,
+  confirmLabel,
+  onConfirm,
+  onCancel,
+}: {
+  message: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+    >
+      <div className="w-full max-w-sm rounded-xl border border-black/10 bg-white p-5 shadow-xl dark:border-white/10 dark:bg-zinc-900">
+        <p className="whitespace-pre-line text-sm">{message}</p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-lg border border-black/10 px-4 py-2 text-sm transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500"
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
