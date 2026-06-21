@@ -149,6 +149,7 @@ export function BoardgamesManager() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoSource, setLogoSource] = useState<LogoSource>("file");
   const [logoUrlInput, setLogoUrlInput] = useState("");
+  const [fileName, setFileName] = useState<string | null>(null);
   const [checkingUrl, setCheckingUrl] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -166,6 +167,7 @@ export function BoardgamesManager() {
     setLogoUrl(null);
     setLogoSource("file");
     setLogoUrlInput("");
+    setFileName(null);
     setFormError(null);
     if (fileRef.current) fileRef.current.value = "";
   }
@@ -195,6 +197,7 @@ export function BoardgamesManager() {
   async function handleLogo(event: FormEvent<HTMLInputElement>) {
     const file = event.currentTarget.files?.[0];
     if (!file) return;
+    setFileName(file.name);
     setUploading(true);
     setFormError(null);
     try {
@@ -213,6 +216,7 @@ export function BoardgamesManager() {
       // Going back to file input: drop any pasted URL preview.
       setLogoUrl(null);
       setLogoUrlInput("");
+      setFileName(null);
       if (fileRef.current) fileRef.current.value = "";
     }
   }
@@ -523,13 +527,36 @@ export function BoardgamesManager() {
                 />
               ) : null}
               {logoSource === "file" ? (
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/png,image/jpeg"
-                  onChange={handleLogo}
-                  className="text-sm"
-                />
+                <div className="flex min-w-0 items-center gap-2">
+                  <label className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-black/15 px-3 py-2 text-sm font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-4 w-4"
+                      aria-hidden="true"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" x2="12" y1="3" y2="15" />
+                    </svg>
+                    {fileName ? "Changer d'image" : "Choisir une image"}
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept="image/png,image/jpeg"
+                      onChange={handleLogo}
+                      className="sr-only"
+                    />
+                  </label>
+                  <span className="min-w-0 truncate text-xs text-zinc-500">
+                    {fileName ?? "PNG ou JPEG"}
+                  </span>
+                </div>
               ) : (
                 <input
                   type="url"
