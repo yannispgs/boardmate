@@ -15,12 +15,19 @@ export function PlayersManager() {
   const { players, loading, error, addPlayer, setActive, removePlayer } =
     usePlayers();
   const [name, setName] = useState("");
+  const [formOpen, setFormOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const active = players.filter((p) => p.isActive);
   const inactive = players.filter((p) => !p.isActive);
+
+  function closeForm() {
+    setName("");
+    setNameError(null);
+    setFormOpen(false);
+  }
 
   async function handleAdd(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -47,7 +54,7 @@ export function PlayersManager() {
     setActionError(null);
     try {
       await addPlayer({ name: trimmed });
-      setName("");
+      closeForm();
     } catch (e) {
       // Safety net if someone else took the name between the check and submit.
       if (e instanceof DuplicateNameError) {
@@ -85,39 +92,6 @@ export function PlayersManager() {
 
   return (
     <div className="flex flex-col gap-6">
-      <form onSubmit={handleAdd} className="flex flex-col gap-1">
-        <div className="flex gap-2">
-          <input
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              if (nameError) setNameError(null);
-            }}
-            placeholder="Nom du joueur"
-            aria-label="Nom du joueur"
-            aria-invalid={nameError ? true : undefined}
-            maxLength={40}
-            className={`flex-1 rounded-lg border bg-white px-3 py-2 outline-none dark:bg-zinc-900 ${
-              nameError
-                ? "border-red-500 focus:border-red-500"
-                : "border-black/15 focus:border-indigo-500 dark:border-white/15"
-            }`}
-          />
-          <button
-            type="submit"
-            disabled={submitting || name.trim() === ""}
-            className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
-          >
-            Ajouter
-          </button>
-        </div>
-        {nameError ? (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-            {nameError}
-          </p>
-        ) : null}
-      </form>
-
       {actionError ? (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
           {actionError}
@@ -130,11 +104,12 @@ export function PlayersManager() {
         </p>
       ) : null}
 
+      {/* Existing players first */}
       {loading ? (
         <p className="text-sm text-zinc-500">Chargement…</p>
       ) : players.length === 0 ? (
         <p className="text-sm text-zinc-500">
-          Aucun joueur pour l&apos;instant. Ajoute le premier ci-dessus.
+          Aucun joueur pour l&apos;instant.
         </p>
       ) : (
         <div className="flex flex-col gap-6">
@@ -156,6 +131,61 @@ export function PlayersManager() {
             />
           ) : null}
         </div>
+      )}
+
+      {/* Add a player: the form lives below the list, behind a button */}
+      {formOpen ? (
+        <form
+          onSubmit={handleAdd}
+          className="flex flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10"
+        >
+          <h2 className="text-sm font-semibold">Nouveau joueur</h2>
+          <input
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              if (nameError) setNameError(null);
+            }}
+            placeholder="Nom du joueur"
+            aria-label="Nom du joueur"
+            aria-invalid={nameError ? true : undefined}
+            maxLength={40}
+            className={`rounded-lg border bg-white px-3 py-2 outline-none dark:bg-zinc-900 ${
+              nameError
+                ? "border-red-500 focus:border-red-500"
+                : "border-black/15 focus:border-indigo-500 dark:border-white/15"
+            }`}
+          />
+          {nameError ? (
+            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+              {nameError}
+            </p>
+          ) : null}
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={submitting || name.trim() === ""}
+              className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
+            >
+              Ajouter
+            </button>
+            <button
+              type="button"
+              onClick={closeForm}
+              className="rounded-lg border border-black/10 px-4 py-2 transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+            >
+              Annuler
+            </button>
+          </div>
+        </form>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setFormOpen(true)}
+          className="self-start rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
+        >
+          + Ajouter un joueur
+        </button>
       )}
     </div>
   );
