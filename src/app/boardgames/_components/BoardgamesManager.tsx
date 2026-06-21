@@ -63,6 +63,69 @@ function toInput(form: FormState, logoUrl: string | null): NewBoardgame {
 const field =
   "rounded-lg border border-black/15 bg-white px-3 py-2 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900";
 
+type LogoSource = "file" | "url";
+
+const isPng = (b: Uint8Array): boolean =>
+  b.length >= 4 &&
+  b[0] === 0x89 &&
+  b[1] === 0x50 &&
+  b[2] === 0x4e &&
+  b[3] === 0x47;
+
+const isJpeg = (b: Uint8Array): boolean =>
+  b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
+
+/** Resolves true if the browser can render the URL as an image (CORS-proof). */
+function loadsAsImage(url: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const done = (ok: boolean) => {
+      img.onload = null;
+      img.onerror = null;
+      resolve(ok);
+    };
+    img.onload = () => done(img.naturalWidth > 0);
+    img.onerror = () => done(false);
+    img.src = url;
+  });
+}
+
+/**
+ * Validates a logo URL. The app is private (auth-gated), so the goal is "is this
+ * a real PNG/JPEG image" for UX, not security. When the remote server allows
+ * CORS we read the magic bytes and confirm PNG/JPEG exactly; otherwise we fall
+ * back to a render test (the browser loads cross-origin images for display even
+ * when it can't read their bytes).
+ */
+async function validateLogoUrl(
+  url: string,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return { ok: false, reason: "URL invalide." };
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return {
+      ok: false,
+      reason: "L'URL doit commencer par http:// ou https://.",
+    };
+  }
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return { ok: false, reason: "Image inaccessible." };
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (isPng(bytes) || isJpeg(bytes)) return { ok: true };
+    return { ok: false, reason: "Le fichier n'est pas un PNG ou un JPEG." };
+  } catch {
+    // CORS or network error: confirm at least that it renders as an image.
+    return (await loadsAsImage(url))
+      ? { ok: true }
+      : { ok: false, reason: "Image inaccessible ou format non supporté." };
+  }
+}
+
 interface ConfirmRequest {
   message: string;
   confirmLabel: string;
@@ -84,6 +147,9 @@ export function BoardgamesManager() {
   const [editingId, setEditingId] = useState<BoardgameId | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoSource, setLogoSource] = useState<LogoSource>("file");
+  const [logoUrlInput, setLogoUrlInput] = useState("");
+  const [checkingUrl, setCheckingUrl] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -98,6 +164,8 @@ export function BoardgamesManager() {
     setForm(EMPTY);
     setEditingId(null);
     setLogoUrl(null);
+    setLogoSource("file");
+    setLogoUrlInput("");
     setFormError(null);
     if (fileRef.current) fileRef.current.value = "";
   }
@@ -116,6 +184,10 @@ export function BoardgamesManager() {
     setForm(fromBoardgame(b));
     setEditingId(b.id);
     setLogoUrl(b.logoUrl);
+    // Show an existing logo as an editable URL (works whether it was uploaded
+    // to Storage or pasted as an external link); the user can switch to "file".
+    setLogoSource(b.logoUrl ? "url" : "file");
+    setLogoUrlInput(b.logoUrl ?? "");
     setFormError(null);
     setFormOpen(true);
   }
@@ -134,13 +206,61 @@ export function BoardgamesManager() {
     }
   }
 
+  function switchSource(next: LogoSource) {
+    setLogoSource(next);
+    setFormError(null);
+    if (next === "file") {
+      // Going back to file input: drop any pasted URL preview.
+      setLogoUrl(null);
+      setLogoUrlInput("");
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  // Validates the pasted URL and, if valid, uses it as the logo (live preview).
+  async function checkLogoUrl() {
+    const url = logoUrlInput.trim();
+    if (url === "") {
+      setLogoUrl(null);
+      setFormError(null);
+      return;
+    }
+    setCheckingUrl(true);
+    setFormError(null);
+    const result = await validateLogoUrl(url);
+    if (result.ok) {
+      setLogoUrl(url);
+    } else {
+      setLogoUrl(null);
+      setFormError(result.reason);
+    }
+    setCheckingUrl(false);
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (form.name.trim() === "") return;
     setSubmitting(true);
     setFormError(null);
     try {
-      const input = toInput(form, logoUrl);
+      // Resolve the logo from the active source. In URL mode, (re)validate the
+      // pasted link so an unchecked or edited URL can't be saved.
+      let resolvedLogo = logoUrl;
+      if (logoSource === "url") {
+        const url = logoUrlInput.trim();
+        if (url === "") {
+          resolvedLogo = null;
+        } else {
+          const result = await validateLogoUrl(url);
+          if (!result.ok) {
+            setFormError(result.reason);
+            setSubmitting(false);
+            return;
+          }
+          resolvedLogo = url;
+        }
+      }
+      const input = toInput(form, resolvedLogo);
       if (editingId) {
         await editBoardgame(editingId, input);
       } else {
@@ -225,9 +345,24 @@ export function BoardgamesManager() {
               <button
                 type="button"
                 onClick={() => startEdit(b)}
-                className="rounded-md border border-black/10 px-2 py-1 text-sm transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+                aria-label={`Modifier ${b.name}`}
+                title="Modifier"
+                className="rounded-md border border-black/10 p-1.5 transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
               >
-                Modifier
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4 w-4"
+                  aria-hidden="true"
+                >
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                </svg>
               </button>
               <button
                 type="button"
@@ -348,28 +483,71 @@ export function BoardgamesManager() {
               />
             </label>
           </div>
-          <div className="flex items-center gap-3">
-            {logoUrl ? (
-              // biome-ignore lint/performance/noImgElement: arbitrary Storage URLs, no next/image loader configured yet
-              <img
-                src={logoUrl}
-                alt="Logo"
-                className="h-12 w-12 rounded-lg object-cover"
-              />
-            ) : null}
-            <label className="flex flex-col gap-1 text-xs text-zinc-500">
-              Logo
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/png,image/jpeg"
-                onChange={handleLogo}
-                className="text-sm"
-              />
-            </label>
-            {uploading ? (
-              <span className="text-xs text-zinc-500">Envoi…</span>
-            ) : null}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-zinc-500">Logo</span>
+              <div className="flex overflow-hidden rounded-lg border border-black/15 text-xs dark:border-white/15">
+                <button
+                  type="button"
+                  onClick={() => switchSource("file")}
+                  aria-pressed={logoSource === "file"}
+                  className={`px-3 py-1 transition ${
+                    logoSource === "file"
+                      ? "bg-indigo-600 text-white"
+                      : "hover:bg-black/5 dark:hover:bg-white/5"
+                  }`}
+                >
+                  Fichier
+                </button>
+                <button
+                  type="button"
+                  onClick={() => switchSource("url")}
+                  aria-pressed={logoSource === "url"}
+                  className={`px-3 py-1 transition ${
+                    logoSource === "url"
+                      ? "bg-indigo-600 text-white"
+                      : "hover:bg-black/5 dark:hover:bg-white/5"
+                  }`}
+                >
+                  URL
+                </button>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              {logoUrl ? (
+                // biome-ignore lint/performance/noImgElement: arbitrary Storage URLs, no next/image loader configured yet
+                <img
+                  src={logoUrl}
+                  alt="Logo"
+                  className="h-12 w-12 shrink-0 rounded-lg object-cover"
+                />
+              ) : null}
+              {logoSource === "file" ? (
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  onChange={handleLogo}
+                  className="text-sm"
+                />
+              ) : (
+                <input
+                  type="url"
+                  inputMode="url"
+                  value={logoUrlInput}
+                  onChange={(e) => setLogoUrlInput(e.target.value)}
+                  onBlur={checkLogoUrl}
+                  placeholder="https://exemple.com/logo.png"
+                  aria-label="URL du logo (PNG ou JPEG)"
+                  className={`flex-1 ${field}`}
+                />
+              )}
+              {uploading || checkingUrl ? (
+                <span className="text-xs text-zinc-500">
+                  {uploading ? "Envoi…" : "Vérification…"}
+                </span>
+              ) : null}
+            </div>
           </div>
 
           {formError ? (
@@ -381,7 +559,12 @@ export function BoardgamesManager() {
           <div className="flex gap-2">
             <button
               type="submit"
-              disabled={submitting || uploading || form.name.trim() === ""}
+              disabled={
+                submitting ||
+                uploading ||
+                checkingUrl ||
+                form.name.trim() === ""
+              }
               className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
             >
               {editing ? "Enregistrer" : "Ajouter"}
