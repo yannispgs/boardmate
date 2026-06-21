@@ -1,34 +1,34 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
-import { type SignInState, signInWithEmail } from "@/lib/auth/actions";
+import {
+  type SignInState,
+  signInWithEmail,
+  verifyCode,
+} from "@/lib/auth/actions";
 
-const initialState: SignInState = {};
+const inputClass =
+  "rounded-lg border border-black/15 bg-white px-3 py-2 text-base outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900";
+const buttonClass =
+  "rounded-lg bg-indigo-600 px-3 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60";
 
 export function LoginForm({ initialError }: { initialError?: string }) {
-  const [state, formAction, pending] = useActionState(
-    signInWithEmail,
-    initialState,
-  );
-  const error = state.error ?? initialError;
+  const [sendState, sendAction, sending] = useActionState<
+    SignInState,
+    FormData
+  >(signInWithEmail, {});
+  // Lets the user go back to the email step ("wrong address / resend").
+  const [restart, setRestart] = useState(false);
 
-  if (state.sent) {
-    return (
-      <div className="flex flex-col items-center gap-2 text-center">
-        <span aria-hidden className="text-4xl">
-          📬
-        </span>
-        <p className="font-medium">Vérifie ta boîte mail</p>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          On t&apos;a envoyé un lien de connexion. Clique dessus pour entrer.
-        </p>
-      </div>
-    );
+  if (sendState.sent && sendState.email && !restart) {
+    return <CodeForm email={sendState.email} onBack={() => setRestart(true)} />;
   }
 
+  const error = sendState.error ?? initialError;
+
   return (
-    <form action={formAction} className="flex flex-col gap-3">
+    <form action={sendAction} className="flex flex-col gap-3">
       <label className="flex flex-col gap-1 text-sm font-medium">
         Adresse e-mail
         <input
@@ -37,16 +37,13 @@ export function LoginForm({ initialError }: { initialError?: string }) {
           required
           autoComplete="email"
           placeholder="toi@exemple.com"
-          className="rounded-lg border border-black/15 bg-white px-3 py-2 text-base outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900"
+          defaultValue={sendState.email}
+          className={inputClass}
         />
       </label>
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-lg bg-indigo-600 px-3 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
-      >
-        {pending ? "Envoi…" : "Recevoir un lien de connexion"}
+      <button type="submit" disabled={sending} className={buttonClass}>
+        {sending ? "Envoi…" : "Recevoir un code"}
       </button>
 
       {error ? (
@@ -54,6 +51,57 @@ export function LoginForm({ initialError }: { initialError?: string }) {
           {error}
         </p>
       ) : null}
+    </form>
+  );
+}
+
+function CodeForm({ email, onBack }: { email: string; onBack: () => void }) {
+  const [state, action, verifying] = useActionState(verifyCode, {});
+
+  return (
+    <form action={action} className="flex flex-col gap-3">
+      <div className="flex flex-col items-center gap-1 text-center">
+        <span aria-hidden className="text-4xl">
+          🔢
+        </span>
+        <p className="font-medium">Entre ton code</p>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          On a envoyé un code à <strong>{email}</strong>.
+        </p>
+      </div>
+
+      <input type="hidden" name="email" value={email} />
+      <label className="flex flex-col gap-1 text-sm font-medium">
+        Code de connexion
+        <input
+          name="token"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          pattern="[0-9]*"
+          maxLength={10}
+          required
+          placeholder="12345678"
+          className={`${inputClass} text-center text-2xl tracking-[0.4em]`}
+        />
+      </label>
+
+      <button type="submit" disabled={verifying} className={buttonClass}>
+        {verifying ? "Vérification…" : "Se connecter"}
+      </button>
+
+      {state.error ? (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {state.error}
+        </p>
+      ) : null}
+
+      <button
+        type="button"
+        onClick={onBack}
+        className="text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+      >
+        Changer d&apos;adresse ou renvoyer un code
+      </button>
     </form>
   );
 }
