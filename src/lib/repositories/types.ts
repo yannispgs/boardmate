@@ -32,13 +32,21 @@ export type Unsubscribe = () => void;
 export interface PlayerRepository {
   list(): Promise<Player[]>;
   get(id: PlayerId): Promise<Player | null>;
+  /** Rejects with `DuplicateNameError` if the name is already taken. */
   create(input: NewPlayer): Promise<Player>;
+  /** Rejects with `DuplicateNameError` if the new name is already taken. */
   update(id: PlayerId, patch: PlayerUpdate): Promise<Player>;
   /**
-   * Activate / deactivate a player. We never delete players from the DB; a
-   * deactivated player drops out of selection lists but keeps its history.
+   * Activate / deactivate a player. A deactivated player drops out of
+   * selection lists but keeps its history — the right choice once a player has
+   * played and can no longer be deleted.
    */
   setActive(id: PlayerId, isActive: boolean): Promise<Player>;
+  /**
+   * Permanently deletes a player. Only possible while they have no game
+   * history; rejects with `PlayerInUseError` once they've taken part in a game.
+   */
+  remove(id: PlayerId): Promise<void>;
   subscribe(onChange: () => void): Unsubscribe;
 }
 

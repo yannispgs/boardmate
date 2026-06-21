@@ -1,10 +1,18 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { NewPlayer, Player, PlayerId, PlayerUpdate } from "@/lib/domain";
+import {
+  DuplicateNameError,
+  PlayerInUseError,
+} from "@/lib/repositories/errors";
 import type { PlayerRepository, Unsubscribe } from "@/lib/repositories/types";
 import type { Database } from "@/lib/supabase/database.types";
 
 type PlayerRow = Database["public"]["Tables"]["players"]["Row"];
+
+// Postgres error codes surfaced by PostgREST.
+const UNIQUE_VIOLATION = "23505";
+const FK_VIOLATION = "23503";
 
 /** Maps a raw DB row to the domain `Player` (snake_case -> camelCase). */
 function toPlayer(row: PlayerRow): Player {
@@ -12,6 +20,8 @@ function toPlayer(row: PlayerRow): Player {
     id: row.id as PlayerId,
     name: row.name,
     isActive: row.is_active,
+    // Denormalized column kept up to date by a DB trigger on game_players.
+    hasPlayed: row.has_played,
     createdAt: row.created_at,
   };
 }
@@ -48,7 +58,10 @@ export function createPlayerRepository(
         .insert({ name: input.name })
         .select("*")
         .single();
-      if (error) throw new Error(`Création du joueur: ${error.message}`);
+      if (error) {
+        if (error.code === UNIQUE_VIOLATION) throw new DuplicateNameError();
+        throw new Error(`Création du joueur: ${error.message}`);
+      }
       return toPlayer(data);
     },
 
@@ -58,7 +71,10 @@ export function createPlayerRepository(
         .eq("id", id)
         .select("*")
         .single();
-      if (error) throw new Error(`Mise à jour du joueur: ${error.message}`);
+      if (error) {
+        if (error.code === UNIQUE_VIOLATION) throw new DuplicateNameError();
+        throw new Error(`Mise à jour du joueur: ${error.message}`);
+      }
       return toPlayer(data);
     },
 
@@ -70,6 +86,17 @@ export function createPlayerRepository(
         .single();
       if (error) throw new Error(`Activation du joueur: ${error.message}`);
       return toPlayer(data);
+    },
+
+    async remove(id: PlayerId) {
+      // The on-delete-restrict FKs from game_players/game_turns make Postgres
+      // reject the delete (23503) if the player has played — surfaced as a
+      // typed PlayerInUseError. No prior count needed; the check is atomic.
+      const { error } = await players().delete().eq("id", id);
+      if (error) {
+        if (error.code === FK_VIOLATION) throw new PlayerInUseError();
+        throw new Error(`Suppression du joueur: ${error.message}`);
+      }
     },
 
     subscribe(onChange: () => void): Unsubscribe {
