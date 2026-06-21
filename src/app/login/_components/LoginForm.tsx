@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 
 import {
   type SignInState,
@@ -55,11 +55,28 @@ export function LoginForm({ initialError }: { initialError?: string }) {
   );
 }
 
+// A new code invalidates the previous one, and emails can take a few minutes
+// to arrive — so the resend button is rate-limited client-side to 60s to stop
+// users from invalidating an in-flight code and restarting the wait.
+const RESEND_COOLDOWN_S = 60;
+
 function CodeForm({ email, onBack }: { email: string; onBack: () => void }) {
-  const [state, action, verifying] = useActionState(verifyCode, {});
+  const [verifyState, verifyAction, verifying] = useActionState(verifyCode, {});
+  const [resendState, resendAction, resending] = useActionState<
+    SignInState,
+    FormData
+  >(signInWithEmail, {});
+  // A code was just sent when we landed here, so start the cooldown immediately.
+  const [cooldown, setCooldown] = useState(RESEND_COOLDOWN_S);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const id = setTimeout(() => setCooldown((c) => Math.max(0, c - 1)), 1000);
+    return () => clearTimeout(id);
+  }, [cooldown]);
 
   return (
-    <form action={action} className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3">
       <div className="flex flex-col items-center gap-1 text-center">
         <span aria-hidden className="text-4xl">
           🔢
@@ -70,38 +87,64 @@ function CodeForm({ email, onBack }: { email: string; onBack: () => void }) {
         </p>
       </div>
 
-      <input type="hidden" name="email" value={email} />
-      <label className="flex flex-col gap-1 text-sm font-medium">
-        Code de connexion
-        <input
-          name="token"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          pattern="[0-9]*"
-          maxLength={10}
-          required
-          placeholder="12345678"
-          className={`${inputClass} text-center text-2xl tracking-[0.4em]`}
-        />
-      </label>
+      <form action={verifyAction} className="flex flex-col gap-3">
+        <input type="hidden" name="email" value={email} />
+        <label className="flex flex-col gap-1 text-sm font-medium">
+          Code de connexion
+          <input
+            name="token"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            pattern="[0-9]*"
+            maxLength={10}
+            required
+            placeholder="12345678"
+            className={`${inputClass} text-center text-2xl tracking-[0.4em]`}
+          />
+        </label>
+        <button type="submit" disabled={verifying} className={buttonClass}>
+          {verifying ? "Vérification…" : "Se connecter"}
+        </button>
+        {verifyState.error ? (
+          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+            {verifyState.error}
+          </p>
+        ) : null}
+      </form>
 
-      <button type="submit" disabled={verifying} className={buttonClass}>
-        {verifying ? "Vérification…" : "Se connecter"}
-      </button>
+      <p className="text-center text-xs text-zinc-500 dark:text-zinc-400">
+        Le code peut mettre quelques minutes à arriver.
+      </p>
 
-      {state.error ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {state.error}
-        </p>
-      ) : null}
-
-      <button
-        type="button"
-        onClick={onBack}
-        className="text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
-      >
-        Changer d&apos;adresse ou renvoyer un code
-      </button>
-    </form>
+      <div className="flex flex-col items-center gap-2 text-sm">
+        <form action={resendAction}>
+          <input type="hidden" name="email" value={email} />
+          <button
+            type="submit"
+            disabled={cooldown > 0 || resending}
+            onClick={() => setCooldown(RESEND_COOLDOWN_S)}
+            className="text-zinc-500 hover:text-zinc-800 disabled:opacity-60 dark:hover:text-zinc-200"
+          >
+            {resending
+              ? "Envoi…"
+              : cooldown > 0
+                ? `Renvoyer le code (${cooldown}s)`
+                : "Renvoyer le code"}
+          </button>
+        </form>
+        {resendState.error ? (
+          <p role="alert" className="text-red-600 dark:text-red-400">
+            {resendState.error}
+          </p>
+        ) : null}
+        <button
+          type="button"
+          onClick={onBack}
+          className="text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+        >
+          Changer d&apos;adresse
+        </button>
+      </div>
+    </div>
   );
 }
