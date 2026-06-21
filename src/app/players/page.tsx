@@ -20,7 +20,7 @@ export default function PlayersPage() {
         <h1 className="text-3xl font-semibold tracking-tight">Joueurs</h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
           Les joueurs désactivés sortent des sélections mais gardent leur
-          historique — rien n&apos;est jamais supprimé.
+          historique.
         </p>
       </header>
 
