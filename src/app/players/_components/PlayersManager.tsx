@@ -78,6 +78,37 @@ export function PlayersManager() {
     }
   }
 
+  async function deactivate(player: Player) {
+    setActionError(null);
+    try {
+      await setActive(player.id, false);
+    } catch {
+      setActionError("Désactivation impossible. Réessaie.");
+    }
+  }
+
+  function handleToggle(player: Player, nextActive: boolean) {
+    // Reactivating, or hiding a player who never played, is harmless — do it
+    // straight away. Only confirm when deactivating a player with history,
+    // since they can no longer be deleted.
+    if (nextActive) {
+      void setActive(player.id, true);
+      return;
+    }
+    if (!player.hasPlayed) {
+      void deactivate(player);
+      return;
+    }
+    setConfirm({
+      message:
+        `Désactiver « ${player.name} » ?\n\n` +
+        "Il a déjà participé à une partie : il sortira des sélections mais " +
+        "gardera son historique. Tu pourras le réactiver à tout moment.",
+      confirmLabel: "Désactiver",
+      onConfirm: () => deactivate(player),
+    });
+  }
+
   function handleDelete(player: Player) {
     setConfirm({
       message: `Supprimer « ${player.name} » ? Cette action est définitive.`,
@@ -128,7 +159,7 @@ export function PlayersManager() {
           <PlayerList
             title="Joueurs actifs"
             players={active}
-            onToggle={(p) => setActive(p.id, false)}
+            onToggle={(p) => handleToggle(p, false)}
             actionLabel="Désactiver"
             onDelete={handleDelete}
           />
@@ -136,7 +167,7 @@ export function PlayersManager() {
             <PlayerList
               title="Désactivés"
               players={inactive}
-              onToggle={(p) => setActive(p.id, true)}
+              onToggle={(p) => handleToggle(p, true)}
               actionLabel="Réactiver"
               onDelete={handleDelete}
               dimmed

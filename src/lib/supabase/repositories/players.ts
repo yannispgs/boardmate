@@ -14,12 +14,22 @@ type PlayerRow = Database["public"]["Tables"]["players"]["Row"];
 const UNIQUE_VIOLATION = "23505";
 const FK_VIOLATION = "23503";
 
+// Embeds an aggregate count of game participations so the UI knows whether a
+// player has played (and is therefore undeletable). PostgREST returns it as a
+// one-element array `[{ count }]`.
+const SELECT = "*, game_players(count)";
+
+type PlayerRowWithGames = PlayerRow & {
+  game_players: { count: number }[];
+};
+
 /** Maps a raw DB row to the domain `Player` (snake_case -> camelCase). */
-function toPlayer(row: PlayerRow): Player {
+function toPlayer(row: PlayerRowWithGames): Player {
   return {
     id: row.id as PlayerId,
     name: row.name,
     isActive: row.is_active,
+    hasPlayed: (row.game_players[0]?.count ?? 0) > 0,
     createdAt: row.created_at,
   };
 }
@@ -36,7 +46,7 @@ export function createPlayerRepository(
   return {
     async list() {
       const { data, error } = await players()
-        .select("*")
+        .select(SELECT)
         .order("name", { ascending: true });
       if (error) throw new Error(`Lecture des joueurs: ${error.message}`);
       return data.map(toPlayer);
@@ -44,7 +54,7 @@ export function createPlayerRepository(
 
     async get(id: PlayerId) {
       const { data, error } = await players()
-        .select("*")
+        .select(SELECT)
         .eq("id", id)
         .maybeSingle();
       if (error) throw new Error(`Lecture du joueur: ${error.message}`);
@@ -54,7 +64,7 @@ export function createPlayerRepository(
     async create(input: NewPlayer) {
       const { data, error } = await players()
         .insert({ name: input.name })
-        .select("*")
+        .select(SELECT)
         .single();
       if (error) {
         if (error.code === UNIQUE_VIOLATION) throw new DuplicateNameError();
@@ -67,7 +77,7 @@ export function createPlayerRepository(
       const { data, error } = await players()
         .update({ name: patch.name })
         .eq("id", id)
-        .select("*")
+        .select(SELECT)
         .single();
       if (error) {
         if (error.code === UNIQUE_VIOLATION) throw new DuplicateNameError();
@@ -80,7 +90,7 @@ export function createPlayerRepository(
       const { data, error } = await players()
         .update({ is_active: isActive })
         .eq("id", id)
-        .select("*")
+        .select(SELECT)
         .single();
       if (error) throw new Error(`Activation du joueur: ${error.message}`);
       return toPlayer(data);

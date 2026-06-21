@@ -50,6 +50,7 @@ describe("players adapter — row ↔ domain mapping", () => {
 
     expect(player.name).toBe(uniq("Mapping Mia"));
     expect(player.isActive).toBe(true); // is_active -> isActive
+    expect(player.hasPlayed).toBe(false); // no participations yet
     expect(typeof player.createdAt).toBe("string"); // created_at -> createdAt
     expect(typeof player.id).toBe("string");
     // No raw DB keys leak through the adapter.
@@ -144,6 +145,43 @@ describe("players adapter — deletion & unique name", () => {
       await expect(repo().remove(created.id)).rejects.toBeInstanceOf(
         PlayerInUseError,
       );
+    } finally {
+      await admin.from("games").delete().eq("id", gid); // cascades game_players
+      await admin.from("boardgames").delete().eq("id", bid);
+    }
+  });
+
+  it("flags hasPlayed once the player has a game participation", async () => {
+    const admin = serviceClient();
+    const created = await repo().create({ name: uniq("Played Pat") });
+    createdIds.push(created.id);
+
+    // Fresh player: no history yet.
+    expect((await repo().get(created.id))?.hasPlayed).toBe(false);
+
+    const bid = (
+      await admin
+        .from("boardgames")
+        .insert({ name: uniq("BG hasPlayed") })
+        .select("id")
+        .single()
+    ).data?.id as string;
+    const gid = (
+      await admin
+        .from("games")
+        .insert({ boardgame_id: bid })
+        .select("id")
+        .single()
+    ).data?.id as string;
+    await admin
+      .from("game_players")
+      .insert({ game_id: gid, player_id: created.id, seat_order: 0 });
+
+    try {
+      // Now reported as having played, via both get and list.
+      expect((await repo().get(created.id))?.hasPlayed).toBe(true);
+      const listed = (await repo().list()).find((p) => p.id === created.id);
+      expect(listed?.hasPlayed).toBe(true);
     } finally {
       await admin.from("games").delete().eq("id", gid); // cascades game_players
       await admin.from("boardgames").delete().eq("id", bid);
