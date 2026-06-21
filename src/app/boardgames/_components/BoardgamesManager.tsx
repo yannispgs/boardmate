@@ -60,6 +60,9 @@ function toInput(form: FormState, logoUrl: string | null): NewBoardgame {
   };
 }
 
+const field =
+  "rounded-lg border border-black/15 bg-white px-3 py-2 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900";
+
 export function BoardgamesManager() {
   const {
     boardgames,
@@ -73,6 +76,7 @@ export function BoardgamesManager() {
 
   const [form, setForm] = useState<FormState>(EMPTY);
   const [editingId, setEditingId] = useState<BoardgameId | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -89,11 +93,22 @@ export function BoardgamesManager() {
     if (fileRef.current) fileRef.current.value = "";
   }
 
+  function closeForm() {
+    resetForm();
+    setFormOpen(false);
+  }
+
+  function openCreate() {
+    resetForm();
+    setFormOpen(true);
+  }
+
   function startEdit(b: Boardgame) {
     setForm(fromBoardgame(b));
     setEditingId(b.id);
     setLogoUrl(b.logoUrl);
     setFormError(null);
+    setFormOpen(true);
   }
 
   async function handleLogo(event: FormEvent<HTMLInputElement>) {
@@ -122,7 +137,7 @@ export function BoardgamesManager() {
       } else {
         await addBoardgame(input);
       }
-      resetForm();
+      closeForm();
     } catch {
       setFormError(
         editing ? "Modification impossible." : "Ajout impossible. Réessaie.",
@@ -136,164 +151,26 @@ export function BoardgamesManager() {
     if (!confirm(`Supprimer « ${b.name} » ?`)) return;
     try {
       await removeBoardgame(b.id);
-      if (editingId === b.id) resetForm();
+      if (editingId === b.id) closeForm();
     } catch {
       // A boardgame that already has games cannot be deleted (DB restricts it).
       alert("Suppression impossible : ce jeu a déjà des parties enregistrées.");
     }
   }
 
-  const field =
-    "rounded-lg border border-black/15 bg-white px-3 py-2 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900";
-
   return (
-    <div className="flex flex-col gap-8">
-      <form
-        onSubmit={handleSubmit}
-        className="flex flex-col gap-3 rounded-xl border border-black/10 p-4 dark:border-white/10"
-      >
-        <h2 className="text-sm font-semibold">
-          {editing ? "Modifier le jeu" : "Nouveau jeu"}
-        </h2>
-        <input
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-          placeholder="Nom du jeu"
-          aria-label="Nom du jeu"
-          maxLength={80}
-          className={field}
-        />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <label className="flex flex-col gap-1 text-xs text-zinc-500">
-            Joueurs min
-            <input
-              type="number"
-              min={1}
-              value={form.minPlayers}
-              onChange={(e) => setForm({ ...form, minPlayers: e.target.value })}
-              className={field}
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-zinc-500">
-            Joueurs max
-            <input
-              type="number"
-              min={1}
-              value={form.maxPlayers}
-              onChange={(e) => setForm({ ...form, maxPlayers: e.target.value })}
-              className={field}
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-zinc-500">
-            Conseillé min
-            <input
-              type="number"
-              min={1}
-              value={form.recMinPlayers}
-              onChange={(e) =>
-                setForm({ ...form, recMinPlayers: e.target.value })
-              }
-              className={field}
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-zinc-500">
-            Conseillé max
-            <input
-              type="number"
-              min={1}
-              value={form.recMaxPlayers}
-              onChange={(e) =>
-                setForm({ ...form, recMaxPlayers: e.target.value })
-              }
-              className={field}
-            />
-          </label>
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 text-xs text-zinc-500">
-            Durée moyenne (min)
-            <input
-              type="number"
-              min={0}
-              value={form.avgDurationMin}
-              onChange={(e) =>
-                setForm({ ...form, avgDurationMin: e.target.value })
-              }
-              className={field}
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-zinc-500">
-            Tags (séparés par des virgules)
-            <input
-              value={form.tags}
-              onChange={(e) => setForm({ ...form, tags: e.target.value })}
-              placeholder="famille, stratégie"
-              className={field}
-            />
-          </label>
-        </div>
-        <div className="flex items-center gap-3">
-          {logoUrl ? (
-            // biome-ignore lint/performance/noImgElement: arbitrary Storage URLs, no next/image loader configured yet
-            <img
-              src={logoUrl}
-              alt="Logo"
-              className="h-12 w-12 rounded-lg object-cover"
-            />
-          ) : null}
-          <label className="flex flex-col gap-1 text-xs text-zinc-500">
-            Logo
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/png,image/jpeg"
-              onChange={handleLogo}
-              className="text-sm"
-            />
-          </label>
-          {uploading ? (
-            <span className="text-xs text-zinc-500">Envoi…</span>
-          ) : null}
-        </div>
-
-        {formError ? (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-            {formError}
-          </p>
-        ) : null}
-
-        <div className="flex gap-2">
-          <button
-            type="submit"
-            disabled={submitting || uploading || form.name.trim() === ""}
-            className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
-          >
-            {editing ? "Enregistrer" : "Ajouter"}
-          </button>
-          {editing ? (
-            <button
-              type="button"
-              onClick={resetForm}
-              className="rounded-lg border border-black/10 px-4 py-2 transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
-            >
-              Annuler
-            </button>
-          ) : null}
-        </div>
-      </form>
-
+    <div className="flex flex-col gap-6">
       {error ? (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
           {error}
         </p>
       ) : null}
 
+      {/* Existing boardgames first */}
       {loading ? (
         <p className="text-sm text-zinc-500">Chargement…</p>
       ) : boardgames.length === 0 ? (
-        <p className="text-sm text-zinc-500">
-          Aucun jeu pour l&apos;instant. Ajoute le premier ci-dessus.
-        </p>
+        <p className="text-sm text-zinc-500">Aucun jeu pour l&apos;instant.</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {boardgames.map((b) => (
@@ -337,6 +214,153 @@ export function BoardgamesManager() {
             </li>
           ))}
         </ul>
+      )}
+
+      {/* Add a boardgame: the creation form lives below the list, behind a button */}
+      {formOpen ? (
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col gap-3 rounded-xl border border-black/10 p-4 dark:border-white/10"
+        >
+          <h2 className="text-sm font-semibold">
+            {editing ? "Modifier le jeu" : "Nouveau jeu"}
+          </h2>
+          <input
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            placeholder="Nom du jeu"
+            aria-label="Nom du jeu"
+            maxLength={80}
+            className={field}
+          />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <label className="flex flex-col gap-1 text-xs text-zinc-500">
+              Joueurs min
+              <input
+                type="number"
+                min={1}
+                value={form.minPlayers}
+                onChange={(e) =>
+                  setForm({ ...form, minPlayers: e.target.value })
+                }
+                className={field}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-zinc-500">
+              Joueurs max
+              <input
+                type="number"
+                min={1}
+                value={form.maxPlayers}
+                onChange={(e) =>
+                  setForm({ ...form, maxPlayers: e.target.value })
+                }
+                className={field}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-zinc-500">
+              Conseillé min
+              <input
+                type="number"
+                min={1}
+                value={form.recMinPlayers}
+                onChange={(e) =>
+                  setForm({ ...form, recMinPlayers: e.target.value })
+                }
+                className={field}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-zinc-500">
+              Conseillé max
+              <input
+                type="number"
+                min={1}
+                value={form.recMaxPlayers}
+                onChange={(e) =>
+                  setForm({ ...form, recMaxPlayers: e.target.value })
+                }
+                className={field}
+              />
+            </label>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 text-xs text-zinc-500">
+              Durée moyenne (min)
+              <input
+                type="number"
+                min={0}
+                value={form.avgDurationMin}
+                onChange={(e) =>
+                  setForm({ ...form, avgDurationMin: e.target.value })
+                }
+                className={field}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-zinc-500">
+              Tags (séparés par des virgules)
+              <input
+                value={form.tags}
+                onChange={(e) => setForm({ ...form, tags: e.target.value })}
+                placeholder="famille, stratégie"
+                className={field}
+              />
+            </label>
+          </div>
+          <div className="flex items-center gap-3">
+            {logoUrl ? (
+              // biome-ignore lint/performance/noImgElement: arbitrary Storage URLs, no next/image loader configured yet
+              <img
+                src={logoUrl}
+                alt="Logo"
+                className="h-12 w-12 rounded-lg object-cover"
+              />
+            ) : null}
+            <label className="flex flex-col gap-1 text-xs text-zinc-500">
+              Logo
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/png,image/jpeg"
+                onChange={handleLogo}
+                className="text-sm"
+              />
+            </label>
+            {uploading ? (
+              <span className="text-xs text-zinc-500">Envoi…</span>
+            ) : null}
+          </div>
+
+          {formError ? (
+            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+              {formError}
+            </p>
+          ) : null}
+
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={submitting || uploading || form.name.trim() === ""}
+              className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
+            >
+              {editing ? "Enregistrer" : "Ajouter"}
+            </button>
+            <button
+              type="button"
+              onClick={closeForm}
+              className="rounded-lg border border-black/10 px-4 py-2 transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+            >
+              Annuler
+            </button>
+          </div>
+        </form>
+      ) : (
+        <button
+          type="button"
+          onClick={openCreate}
+          className="self-start rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
+        >
+          + Ajouter un jeu
+        </button>
       )}
     </div>
   );
