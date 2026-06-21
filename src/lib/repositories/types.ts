@@ -55,6 +55,16 @@ export interface BoardgameRepository {
   get(id: BoardgameId): Promise<Boardgame | null>;
   create(input: NewBoardgame): Promise<Boardgame>;
   update(id: BoardgameId, patch: BoardgameUpdate): Promise<Boardgame>;
+  /**
+   * Activate / deactivate a boardgame. A deactivated boardgame drops out of
+   * selection lists but keeps its history — the right choice once it has games
+   * and can no longer be deleted.
+   */
+  setActive(id: BoardgameId, isActive: boolean): Promise<Boardgame>;
+  /**
+   * Permanently deletes a boardgame. Only possible while it has no games;
+   * rejects with `BoardgameInUseError` once a game has been played with it.
+   */
   remove(id: BoardgameId): Promise<void>;
   /** Uploads a logo image and returns its public URL. */
   uploadLogo(file: File): Promise<string>;
