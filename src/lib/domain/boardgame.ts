@@ -20,6 +20,18 @@ export interface Boardgame {
   kind: BoardgameKind;
   avgDurationMin: number | null;
   tags: string[];
+  /**
+   * When false, the boardgame is hidden from selection lists but kept in the
+   * database. Deactivate (instead of delete) once it has games, to preserve
+   * history.
+   */
+  isActive: boolean;
+  /**
+   * True once at least one game has been played with this boardgame. Such a
+   * boardgame can no longer be deleted (only deactivated), so the UI confirms
+   * before hiding it.
+   */
+  hasGames: boolean;
   createdAt: string;
 }
 

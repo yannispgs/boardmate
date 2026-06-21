@@ -4,6 +4,7 @@ import { type FormEvent, useRef, useState } from "react";
 
 import type { Boardgame, BoardgameId, NewBoardgame } from "@/lib/domain";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
+import { BoardgameInUseError } from "@/lib/repositories/errors";
 
 interface FormState {
   name: string;
@@ -139,9 +140,13 @@ export function BoardgamesManager() {
     error,
     addBoardgame,
     editBoardgame,
+    setActive,
     removeBoardgame,
     uploadLogo,
   } = useBoardgames();
+
+  const active = boardgames.filter((b) => b.isActive);
+  const inactive = boardgames.filter((b) => !b.isActive);
 
   const [form, setForm] = useState<FormState>(EMPTY);
   const [editingId, setEditingId] = useState<BoardgameId | null>(null);
@@ -280,6 +285,37 @@ export function BoardgamesManager() {
     }
   }
 
+  async function deactivate(b: Boardgame) {
+    setActionError(null);
+    try {
+      await setActive(b.id, false);
+    } catch {
+      setActionError("Désactivation impossible. Réessaie.");
+    }
+  }
+
+  function handleToggle(b: Boardgame, nextActive: boolean) {
+    // Reactivating, or hiding a boardgame that was never played, is harmless —
+    // do it straight away. Only confirm when deactivating one with games, since
+    // it can no longer be deleted.
+    if (nextActive) {
+      void setActive(b.id, true);
+      return;
+    }
+    if (!b.hasGames) {
+      void deactivate(b);
+      return;
+    }
+    setConfirm({
+      message:
+        `Désactiver « ${b.name} » ?\n\n` +
+        "Des parties y sont déjà enregistrées : il sortira des sélections mais " +
+        "gardera son historique. Tu pourras le réactiver à tout moment.",
+      confirmLabel: "Désactiver",
+      onConfirm: () => deactivate(b),
+    });
+  }
+
   function handleDelete(b: Boardgame) {
     setConfirm({
       message: `Supprimer « ${b.name} » ? Cette action est définitive.`,
@@ -293,11 +329,15 @@ export function BoardgamesManager() {
     try {
       await removeBoardgame(b.id);
       if (editingId === b.id) closeForm();
-    } catch {
-      // A boardgame that already has games cannot be deleted (DB restricts it).
-      setActionError(
-        `« ${b.name} » a déjà des parties enregistrées : impossible de le supprimer.`,
-      );
+    } catch (e) {
+      if (e instanceof BoardgameInUseError) {
+        setActionError(
+          `« ${b.name} » a déjà des parties enregistrées : impossible de le ` +
+            "supprimer. Tu peux le désactiver à la place.",
+        );
+      } else {
+        setActionError("Suppression impossible. Réessaie.");
+      }
     }
   }
 
@@ -321,80 +361,28 @@ export function BoardgamesManager() {
       ) : boardgames.length === 0 ? (
         <p className="text-sm text-zinc-500">Aucun jeu pour l&apos;instant.</p>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {boardgames.map((b) => (
-            <li
-              key={b.id}
-              className="flex items-center gap-3 rounded-xl border border-black/10 bg-white px-4 py-3 dark:border-white/10 dark:bg-zinc-900"
-            >
-              {b.logoUrl ? (
-                // biome-ignore lint/performance/noImgElement: arbitrary Storage URLs, no next/image loader configured yet
-                <img
-                  src={b.logoUrl}
-                  alt=""
-                  className="h-10 w-10 shrink-0 rounded-lg object-cover"
-                />
-              ) : (
-                <span
-                  aria-hidden
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-black/5 text-lg dark:bg-white/5"
-                >
-                  🎲
-                </span>
-              )}
-              <div className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate font-medium">{b.name}</span>
-                <span className="text-xs text-zinc-500">{formatMeta(b)}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => startEdit(b)}
-                aria-label={`Modifier ${b.name}`}
-                title="Modifier"
-                className="rounded-md border border-black/10 p-1.5 transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-4 w-4"
-                  aria-hidden="true"
-                >
-                  <path d="M12 20h9" />
-                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDelete(b)}
-                aria-label={`Supprimer ${b.name}`}
-                title="Supprimer"
-                className="rounded-md border border-black/10 p-1.5 text-red-600 transition hover:bg-red-50 dark:border-white/15 dark:text-red-400 dark:hover:bg-red-950/40"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-4 w-4"
-                  aria-hidden="true"
-                >
-                  <path d="M3 6h18" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  <line x1="10" x2="10" y1="11" y2="17" />
-                  <line x1="14" x2="14" y1="11" y2="17" />
-                </svg>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="flex flex-col gap-6">
+          <BoardgameList
+            title="Jeux actifs"
+            boardgames={active}
+            onEdit={startEdit}
+            onToggle={(b) => handleToggle(b, false)}
+            actionLabel="Désactiver"
+            onDelete={handleDelete}
+          />
+          {inactive.length > 0 ? (
+            <BoardgameList
+              title="Désactivés"
+              boardgames={inactive}
+              onEdit={startEdit}
+              onToggle={(b) => handleToggle(b, true)}
+              actionLabel="Réactiver"
+              onDelete={handleDelete}
+              dimmed
+              collapsible
+            />
+          ) : null}
+        </div>
       )}
 
       {/* Add a boardgame: the creation form lives below the list, behind a button */}
@@ -668,6 +656,181 @@ function ConfirmDialog({
         </div>
       </div>
     </div>
+  );
+}
+
+const headingClass =
+  "text-xs font-semibold uppercase tracking-wide text-zinc-400";
+
+function BoardgameList({
+  title,
+  boardgames,
+  onEdit,
+  onToggle,
+  actionLabel,
+  onDelete,
+  dimmed = false,
+  collapsible = false,
+}: {
+  title: string;
+  boardgames: Boardgame[];
+  onEdit: (b: Boardgame) => void;
+  onToggle: (b: Boardgame) => void;
+  actionLabel: string;
+  onDelete: (b: Boardgame) => void;
+  dimmed?: boolean;
+  /** Render as a disclosure, collapsed by default (hides deactivated games). */
+  collapsible?: boolean;
+}) {
+  if (boardgames.length === 0) return null;
+
+  const list = (
+    <ul className="flex flex-col gap-2">
+      {boardgames.map((b) => (
+        <li
+          key={b.id}
+          className={`flex items-center gap-3 rounded-xl border border-black/10 bg-white px-4 py-3 dark:border-white/10 dark:bg-zinc-900 ${
+            dimmed ? "opacity-60" : ""
+          }`}
+        >
+          {b.logoUrl ? (
+            // biome-ignore lint/performance/noImgElement: arbitrary Storage URLs, no next/image loader configured yet
+            <img
+              src={b.logoUrl}
+              alt=""
+              className="h-10 w-10 shrink-0 rounded-lg object-cover"
+            />
+          ) : (
+            <span
+              aria-hidden
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-black/5 text-lg dark:bg-white/5"
+            >
+              🎲
+            </span>
+          )}
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span className="truncate font-medium">{b.name}</span>
+            <span className="text-xs text-zinc-500">{formatMeta(b)}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => onEdit(b)}
+            aria-label={`Modifier ${b.name}`}
+            title="Modifier"
+            className="rounded-md border border-black/10 p-1.5 transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+              aria-hidden="true"
+            >
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={() => onToggle(b)}
+            aria-label={`${actionLabel} ${b.name}`}
+            title={actionLabel}
+            className="rounded-md border border-black/10 p-1.5 transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+              aria-hidden="true"
+            >
+              {dimmed ? (
+                // Eye — réactiver (le jeu réapparaît dans les sélections)
+                <>
+                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                  <circle cx="12" cy="12" r="3" />
+                </>
+              ) : (
+                // Eye-off — désactiver (le jeu sort des sélections)
+                <>
+                  <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                  <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+                  <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+                  <line x1="2" x2="22" y1="2" y2="22" />
+                </>
+              )}
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete(b)}
+            aria-label={`Supprimer ${b.name}`}
+            title="Supprimer"
+            className="rounded-md border border-black/10 p-1.5 text-red-600 transition hover:bg-red-50 dark:border-white/15 dark:text-red-400 dark:hover:bg-red-950/40"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+              aria-hidden="true"
+            >
+              <path d="M3 6h18" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              <line x1="10" x2="10" y1="11" y2="17" />
+              <line x1="14" x2="14" y1="11" y2="17" />
+            </svg>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+
+  if (collapsible) {
+    return (
+      <details className="group flex flex-col gap-2">
+        <summary
+          className={`flex cursor-pointer list-none items-center gap-1.5 ${headingClass}`}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-3.5 w-3.5 transition-transform group-open:rotate-90"
+            aria-hidden="true"
+          >
+            <path d="m9 18 6-6-6-6" />
+          </svg>
+          {title} · {boardgames.length}
+        </summary>
+        <div className="mt-2">{list}</div>
+      </details>
+    );
+  }
+
+  return (
+    <section className="flex flex-col gap-2">
+      <h2 className={headingClass}>
+        {title} · {boardgames.length}
+      </h2>
+      {list}
+    </section>
   );
 }
 

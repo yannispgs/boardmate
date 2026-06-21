@@ -7,6 +7,7 @@ import type {
   BoardgameUpdate,
   NewBoardgame,
 } from "@/lib/domain";
+import { BoardgameInUseError } from "@/lib/repositories/errors";
 import type {
   BoardgameRepository,
   Unsubscribe,
@@ -17,6 +18,9 @@ type BoardgameRow = Database["public"]["Tables"]["boardgames"]["Row"];
 type BoardgameWrite = Database["public"]["Tables"]["boardgames"]["Update"];
 
 const LOGO_BUCKET = "logos";
+
+// Postgres error code surfaced by PostgREST on a foreign-key violation.
+const FK_VIOLATION = "23503";
 
 /** Maps a raw DB row to the domain `Boardgame` (snake_case -> camelCase). */
 function toBoardgame(row: BoardgameRow): Boardgame {
@@ -31,6 +35,9 @@ function toBoardgame(row: BoardgameRow): Boardgame {
     kind: row.kind as BoardgameKind,
     avgDurationMin: row.avg_duration_min,
     tags: row.tags,
+    isActive: row.is_active,
+    // Denormalized column kept up to date by a DB trigger on games.
+    hasGames: row.has_games,
     createdAt: row.created_at,
   };
 }
@@ -104,11 +111,25 @@ export function createBoardgameRepository(
       return toBoardgame(data);
     },
 
+    async setActive(id: BoardgameId, isActive: boolean) {
+      const { data, error } = await boardgames()
+        .update({ is_active: isActive })
+        .eq("id", id)
+        .select("*")
+        .single();
+      if (error) throw new Error(`Activation du jeu: ${error.message}`);
+      return toBoardgame(data);
+    },
+
     async remove(id: BoardgameId) {
-      // The DB restricts deletion of a boardgame that already has games
-      // (on delete restrict), preserving history; surfaced as an error here.
+      // games.boardgame_id is on-delete-restrict, so Postgres rejects the delete
+      // (23503) once the boardgame has games — surfaced as a typed
+      // BoardgameInUseError. No prior count needed; the check is atomic.
       const { error } = await boardgames().delete().eq("id", id);
-      if (error) throw new Error(`Suppression du jeu: ${error.message}`);
+      if (error) {
+        if (error.code === FK_VIOLATION) throw new BoardgameInUseError();
+        throw new Error(`Suppression du jeu: ${error.message}`);
+      }
     },
 
     async uploadLogo(file: File) {
