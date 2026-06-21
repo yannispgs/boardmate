@@ -1,0 +1,65 @@
+name: PR preview alias
+
+# Gives every PR a stable, predictable preview URL on our own domain:
+#   https://pr-<number>.board-mate.app
+# Vercel's Git integration already builds a preview per push (with a random
+# hash URL); this job waits for that deployment and aliases it to the clean
+# pr-<number> name so reviewers always know where to look.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# One alias run per PR; newer pushes supersede in-flight ones.
+concurrency:
+  group: pr-alias-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  alias:
+    name: Alias preview to pr-<n>.board-mate.app
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Resolve the Vercel preview deployment and alias it
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
+          # Centralised repo variables (defined once, reusable by other jobs).
+          VERCEL_TEAM: ${{ vars.VERCEL_TEAM_ID }}
+          VERCEL_PROJECT: ${{ vars.VERCEL_PROJECT_ID }}
+          PREVIEW_DOMAIN: ${{ vars.PREVIEW_BASE_DOMAIN }}
+          # Pinned Vercel CLI (bump like any dependency).
+          VERCEL_CLI_VERSION: "54.12.2"
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          if [ -z "${VERCEL_TEAM}" ] || [ -z "${VERCEL_PROJECT}" ] || [ -z "${PREVIEW_DOMAIN}" ]; then
+            echo "::error::missing repo variable (VERCEL_TEAM_ID / VERCEL_PROJECT_ID / PREVIEW_BASE_DOMAIN)"
+            exit 1
+          fi
+          api="https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT}&teamId=${VERCEL_TEAM}&meta-githubCommitSha=${HEAD_SHA}&limit=1"
+
+          # The Git-integration deployment may still be building; poll until it
+          # is READY (give up gracefully after ~10 min).
+          url=""
+          for attempt in $(seq 1 40); do
+            resp=$(curl -sS -H "Authorization: Bearer ${VERCEL_TOKEN}" "$api")
+            state=$(echo "$resp" | jq -r '.deployments[0].state // .deployments[0].readyState // empty')
+            candidate=$(echo "$resp" | jq -r '.deployments[0].url // empty')
+            echo "attempt ${attempt}: state=${state:-none} url=${candidate:-none}"
+            case "$state" in
+              READY) url="$candidate"; break ;;
+              ERROR|CANCELED) echo "deployment ${state} — nothing to alias"; exit 0 ;;
+            esac
+            sleep 15
+          done
+
+          if [ -z "$url" ]; then
+            echo "::warning::No READY preview deployment found for ${HEAD_SHA} in time"
+            exit 0
+          fi
+
+          npx --yes "vercel@${VERCEL_CLI_VERSION}" alias set "$url" \
+            "pr-${PR_NUMBER}.${PREVIEW_DOMAIN}" \
+            --token "${VERCEL_TOKEN}" --scope "${VERCEL_TEAM}"
+          echo "Preview aliased: https://pr-${PR_NUMBER}.${PREVIEW_DOMAIN}"

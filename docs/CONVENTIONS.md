@@ -130,7 +130,13 @@ otherwise. **Updated on every remark from the project owner.**
   the **minor** (`bump-minor-pre-major`). Never hand-edit `CHANGELOG.md` or the
   version in `package.json` — release-please owns them.
 - **CD**: deployment on **Vercel** via its native Git integration (preview
-  deploy per PR, production on `main`). _Set up at the deployment phase._
+  deploy per PR, production on `main`).
+- **Per-PR preview URL**: every PR is reachable at a stable, predictable
+  **`https://pr-<number>.board-mate.app`** (our own domain). A workflow
+  (`.github/workflows/pr-preview-alias.yml`) waits for Vercel's preview build
+  and aliases it to that name, so reviewers never hunt for a random hash URL.
+  Needs the `VERCEL_API_TOKEN` repo secret. Previews run against the **dev**
+  Supabase backend (Preview env); production (`main`) uses the prod backend.
 
 ## 11. Testing
 
