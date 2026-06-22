@@ -117,12 +117,20 @@ function CodeForm({ email, onBack }: { email: string; onBack: () => void }) {
       </p>
 
       <div className="flex flex-col items-center gap-2 text-sm">
-        <form action={resendAction}>
+        {/* Start the cooldown from inside the form action, not the button's
+            onClick: setting state in onClick disables the submit button before
+            React dispatches the (transition-based) action, which cancels the
+            submission entirely — so the resend never fired. */}
+        <form
+          action={(formData) => {
+            setCooldown(RESEND_COOLDOWN_S);
+            resendAction(formData);
+          }}
+        >
           <input type="hidden" name="email" value={email} />
           <button
             type="submit"
             disabled={cooldown > 0 || resending}
-            onClick={() => setCooldown(RESEND_COOLDOWN_S)}
             className="text-zinc-500 hover:text-zinc-800 disabled:opacity-60 dark:hover:text-zinc-200"
           >
             {resending
