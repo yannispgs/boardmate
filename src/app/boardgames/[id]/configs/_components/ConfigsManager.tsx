@@ -3,7 +3,6 @@
 import { type FormEvent, useState } from "react";
 import { buildDefaults, validateConfigValues } from "@/lib/config/validation";
 import type { BoardgameId, Config, ConfigId, ConfigValues } from "@/lib/domain";
-import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useConfigs } from "@/lib/hooks/use-configs";
 import { ConfigField } from "./ConfigField";
 
@@ -16,8 +15,6 @@ interface ConfirmRequest {
 export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
   const { template, configs, loading, error, saveConfig, removeConfig } =
     useConfigs(boardgameId);
-  const { boardgames } = useBoardgames();
-  const boardgame = boardgames.find((b) => b.id === boardgameId);
 
   const [name, setName] = useState("");
   const [values, setValues] = useState<ConfigValues>({});
@@ -139,14 +136,6 @@ export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Which boardgame these configs belong to. */}
-      <p className="text-sm text-zinc-500 dark:text-zinc-400">
-        Jeu :{" "}
-        <span className="font-medium text-current">
-          {boardgame?.name ?? "…"}
-        </span>
-      </p>
-
       {actionError ? (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
           {actionError}
