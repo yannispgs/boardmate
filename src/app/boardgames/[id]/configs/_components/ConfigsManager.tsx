@@ -2,7 +2,6 @@
 
 import { type FormEvent, useState } from "react";
 import { ConfirmDialog, type ConfirmRequest } from "@/components/ConfirmDialog";
-import { CopyIcon, PencilIcon, TrashIcon } from "@/components/icons";
 import { buildDefaults, validateConfigValues } from "@/lib/config/validation";
 import type {
   BoardgameId,
@@ -12,6 +11,7 @@ import type {
   ConfigValues,
 } from "@/lib/domain";
 import { useConfigs } from "@/lib/hooks/use-configs";
+import { ConfigCardList } from "./ConfigCardList";
 import { ConfigField } from "./ConfigField";
 
 interface FormInit {
@@ -19,9 +19,6 @@ interface FormInit {
   values: ConfigValues;
   editingId: ConfigId | null;
 }
-
-const iconButton =
-  "rounded-md border border-black/10 p-1.5 transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5";
 
 export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
   const { template, configs, loading, error, saveConfig, removeConfig } =
@@ -114,7 +111,7 @@ export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
         </p>
       ) : null}
 
-      <ConfigList
+      <ConfigCardList
         configs={configs}
         onDuplicate={startDuplicate}
         onEdit={startEdit}
@@ -152,68 +149,6 @@ export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
         />
       ) : null}
     </div>
-  );
-}
-
-function ConfigList({
-  configs,
-  onDuplicate,
-  onEdit,
-  onDelete,
-}: {
-  configs: Config[];
-  onDuplicate: (config: Config) => void;
-  onEdit: (config: Config) => void;
-  onDelete: (config: Config) => void;
-}) {
-  if (configs.length === 0) {
-    return (
-      <p className="text-sm text-zinc-500">
-        Aucune configuration pour l&apos;instant.
-      </p>
-    );
-  }
-
-  return (
-    <ul className="flex flex-col gap-2">
-      {configs.map((config) => (
-        <li
-          key={config.id}
-          className="flex items-center justify-between gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 dark:border-white/10 dark:bg-zinc-900"
-        >
-          <span className="min-w-0 flex-1 truncate font-medium">
-            {config.name}
-          </span>
-          <button
-            type="button"
-            onClick={() => onDuplicate(config)}
-            aria-label={`Dupliquer ${config.name}`}
-            title="Dupliquer"
-            className={iconButton}
-          >
-            <CopyIcon />
-          </button>
-          <button
-            type="button"
-            onClick={() => onEdit(config)}
-            aria-label={`Modifier ${config.name}`}
-            title="Modifier"
-            className={iconButton}
-          >
-            <PencilIcon />
-          </button>
-          <button
-            type="button"
-            onClick={() => onDelete(config)}
-            aria-label={`Supprimer ${config.name}`}
-            title="Supprimer"
-            className="rounded-md border border-black/10 p-1.5 text-red-600 transition hover:bg-red-50 dark:border-white/15 dark:text-red-400 dark:hover:bg-red-950/40"
-          >
-            <TrashIcon />
-          </button>
-        </li>
-      ))}
-    </ul>
   );
 }
 
