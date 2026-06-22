@@ -108,34 +108,92 @@ describe("RLS — authenticated CRUD on players", () => {
   });
 });
 
-describe("RLS — players are never deletable", () => {
-  it("silently affects no rows and the player survives a delete", async () => {
-    // There is deliberately no DELETE policy on players (history/stats are
-    // preserved via is_active). Under RLS a delete with no matching policy is
-    // NOT an error — it simply affects zero rows. The row must still exist.
+describe("players deletion — only before they've played", () => {
+  it("authenticated can delete a player with no game history", async () => {
     const admin = serviceClient();
     const { data: seeded } = await admin
       .from("players")
-      .insert({ name: "Undeletable" })
+      .insert({ name: `Deletable-${Date.now()}` })
       .select("*")
       .single();
     const id = seeded?.id as string;
+
+    const del = await authedClient(user.accessToken)
+      .from("players")
+      .delete()
+      .eq("id", id)
+      .select("*");
+    expect(del.error).toBeNull();
+    expect(del.data?.length).toBe(1); // the row was actually deleted
+
+    const gone = await admin
+      .from("players")
+      .select("id")
+      .eq("id", id)
+      .maybeSingle();
+    expect(gone.data).toBeNull();
+  });
+
+  it("refuses to delete a player who has taken part in a game", async () => {
+    // The on-delete-restrict FK from game_players blocks it (23503).
+    const admin = serviceClient();
+    const pid = (
+      await admin
+        .from("players")
+        .insert({ name: `Played-${Date.now()}` })
+        .select("id")
+        .single()
+    ).data?.id as string;
+    const bid = (
+      await admin
+        .from("boardgames")
+        .insert({ name: `BG-${Date.now()}` })
+        .select("id")
+        .single()
+    ).data?.id as string;
+    const gid = (
+      await admin
+        .from("games")
+        .insert({ boardgame_id: bid })
+        .select("id")
+        .single()
+    ).data?.id as string;
+    await admin
+      .from("game_players")
+      .insert({ game_id: gid, player_id: pid, seat_order: 0 });
 
     try {
       const del = await authedClient(user.accessToken)
         .from("players")
         .delete()
-        .eq("id", id)
+        .eq("id", pid)
         .select("*");
-      expect(del.error).toBeNull(); // no error...
-      expect(del.data).toEqual([]); // ...but zero rows deleted
-
+      expect(del.error?.code).toBe("23503"); // FK restrict
       const still = await admin
         .from("players")
         .select("id")
-        .eq("id", id)
+        .eq("id", pid)
         .maybeSingle();
-      expect(still.data?.id).toBe(id); // the player is still there
+      expect(still.data?.id).toBe(pid); // still there
+    } finally {
+      await admin.from("games").delete().eq("id", gid); // cascades game_players
+      await admin.from("boardgames").delete().eq("id", bid);
+      await admin.from("players").delete().eq("id", pid);
+    }
+  });
+
+  it("rejects a duplicate name (case/space-insensitive)", async () => {
+    const admin = serviceClient();
+    const base = `Uniq-${Date.now()}`;
+    const id = (
+      await admin.from("players").insert({ name: base }).select("id").single()
+    ).data?.id as string;
+    try {
+      const dup = await authedClient(user.accessToken)
+        .from("players")
+        .insert({ name: `  ${base.toLowerCase()}  ` })
+        .select("*");
+      expect(dup.error?.code).toBe("23505"); // unique index violation
     } finally {
       await admin.from("players").delete().eq("id", id);
     }

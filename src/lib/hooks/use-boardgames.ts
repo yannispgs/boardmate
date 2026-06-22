@@ -16,6 +16,7 @@ interface UseBoardgames {
   error: string | null;
   addBoardgame: (input: NewBoardgame) => Promise<void>;
   editBoardgame: (id: BoardgameId, patch: BoardgameUpdate) => Promise<void>;
+  setActive: (id: BoardgameId, isActive: boolean) => Promise<void>;
   removeBoardgame: (id: BoardgameId) => Promise<void>;
   uploadLogo: (file: File) => Promise<string>;
 }
@@ -65,6 +66,14 @@ export function useBoardgames(): UseBoardgames {
     [repo, refresh],
   );
 
+  const setActive = useCallback(
+    async (id: BoardgameId, isActive: boolean) => {
+      await repo.setActive(id, isActive);
+      await refresh();
+    },
+    [repo, refresh],
+  );
+
   const removeBoardgame = useCallback(
     async (id: BoardgameId) => {
       await repo.remove(id);
@@ -81,6 +90,7 @@ export function useBoardgames(): UseBoardgames {
     error,
     addBoardgame,
     editBoardgame,
+    setActive,
     removeBoardgame,
     uploadLogo,
   };
