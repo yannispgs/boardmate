@@ -54,6 +54,8 @@ function toBoardgame(row: BoardgameRow): Boardgame {
     kind: row.kind as BoardgameKind,
     avgDurationMin: row.avg_duration_min,
     tags: row.tags,
+    isActive: row.is_active,
+    hasGames: row.has_games,
     createdAt: row.created_at,
   };
 }
@@ -73,6 +75,7 @@ function toPlayer(row: PlayerRow): Player {
     id: row.id as PlayerId,
     name: row.name,
     isActive: row.is_active,
+    hasPlayed: row.has_played,
     createdAt: row.created_at,
   };
 }
