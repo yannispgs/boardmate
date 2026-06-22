@@ -38,7 +38,9 @@ export type Database = {
         Row: {
           avg_duration_min: number | null
           created_at: string
+          has_games: boolean
           id: string
+          is_active: boolean
           kind: string
           logo_url: string | null
           max_players: number | null
@@ -51,7 +53,9 @@ export type Database = {
         Insert: {
           avg_duration_min?: number | null
           created_at?: string
+          has_games?: boolean
           id?: string
+          is_active?: boolean
           kind?: string
           logo_url?: string | null
           max_players?: number | null
@@ -64,7 +68,9 @@ export type Database = {
         Update: {
           avg_duration_min?: number | null
           created_at?: string
+          has_games?: boolean
           id?: string
+          is_active?: boolean
           kind?: string
           logo_url?: string | null
           max_players?: number | null

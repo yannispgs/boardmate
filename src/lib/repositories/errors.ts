@@ -19,3 +19,11 @@ export class PlayerInUseError extends Error {
     this.name = "PlayerInUseError";
   }
 }
+
+/** A boardgame can't be deleted because it already has games. */
+export class BoardgameInUseError extends Error {
+  constructor(message = "Ce jeu a déjà des parties enregistrées.") {
+    super(message);
+    this.name = "BoardgameInUseError";
+  }
+}

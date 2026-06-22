@@ -11,7 +11,7 @@ const TOOLS: {
 }[] = [
   { name: "Chronomètre", emoji: "⏱️", status: "v1" },
   { name: "Joueurs", emoji: "👥", status: "v1", href: "/players" },
-  { name: "Jeux", emoji: "🎲", status: "v1" },
+  { name: "Jeux", emoji: "🎲", status: "v1", href: "/boardgames" },
   { name: "Parties", emoji: "🃏", status: "v1" },
   { name: "Lancer de dés", emoji: "🎯", status: "bientôt" },
   { name: "Statistiques", emoji: "📊", status: "bientôt" },
