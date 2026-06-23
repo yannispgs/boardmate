@@ -1,21 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { type FormEvent, type RefObject, useRef, useState } from "react";
 
 import { ConfirmDialog, type ConfirmRequest } from "@/components/ConfirmDialog";
-import {
-  ChevronRightIcon,
-  EyeIcon,
-  EyeOffIcon,
-  PencilIcon,
-  SlidersIcon,
-  TrashIcon,
-  UploadIcon,
-} from "@/components/icons";
+import { UploadIcon } from "@/components/icons";
 import type { Boardgame, BoardgameId, NewBoardgame } from "@/lib/domain";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { BoardgameInUseError } from "@/lib/repositories/errors";
+import { BoardgameCardList } from "./BoardgameCardList";
 
 interface FormState {
   name: string;
@@ -74,10 +66,6 @@ function toInput(form: FormState, logoUrl: string | null): NewBoardgame {
 
 const field =
   "rounded-lg border border-black/15 bg-white px-3 py-2 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900";
-const iconButton =
-  "rounded-md border border-black/10 p-1.5 transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5";
-const headingClass =
-  "text-xs font-semibold uppercase tracking-wide text-zinc-400";
 
 type LogoSource = "file" | "url";
 
@@ -265,7 +253,7 @@ export function BoardgamesManager() {
         <p className="text-sm text-zinc-500">Aucun jeu pour l&apos;instant.</p>
       ) : (
         <div className="flex flex-col gap-6">
-          <BoardgameList
+          <BoardgameCardList
             title="Jeux actifs"
             boardgames={active}
             onEdit={openForm}
@@ -274,7 +262,7 @@ export function BoardgamesManager() {
             onDelete={handleDelete}
           />
           {inactive.length > 0 ? (
-            <BoardgameList
+            <BoardgameCardList
               title="Désactivés"
               boardgames={inactive}
               onEdit={openForm}
@@ -660,132 +648,4 @@ function LogoPicker({
       </div>
     </div>
   );
-}
-
-function BoardgameList({
-  title,
-  boardgames,
-  onEdit,
-  onToggle,
-  actionLabel,
-  onDelete,
-  dimmed = false,
-  collapsible = false,
-}: {
-  title: string;
-  boardgames: Boardgame[];
-  onEdit: (b: Boardgame) => void;
-  onToggle: (b: Boardgame) => void;
-  actionLabel: string;
-  onDelete: (b: Boardgame) => void;
-  dimmed?: boolean;
-  /** Render as a disclosure, collapsed by default (hides deactivated games). */
-  collapsible?: boolean;
-}) {
-  if (boardgames.length === 0) return null;
-
-  const list = (
-    <ul className="flex flex-col gap-2">
-      {boardgames.map((b) => (
-        <li
-          key={b.id}
-          className={`flex items-center gap-3 rounded-xl border border-black/10 bg-white px-4 py-3 dark:border-white/10 dark:bg-zinc-900 ${
-            dimmed ? "opacity-60" : ""
-          }`}
-        >
-          {b.logoUrl ? (
-            // biome-ignore lint/performance/noImgElement: arbitrary Storage URLs, no next/image loader configured yet
-            <img
-              src={b.logoUrl}
-              alt=""
-              className="h-10 w-10 shrink-0 rounded-lg object-cover"
-            />
-          ) : (
-            <span
-              aria-hidden
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-black/5 text-lg dark:bg-white/5"
-            >
-              🎲
-            </span>
-          )}
-          <div className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate font-medium">{b.name}</span>
-            <span className="text-xs text-zinc-500">{formatMeta(b)}</span>
-          </div>
-          <Link
-            href={`/boardgames/${b.id}/configs`}
-            aria-label={`Configurations de ${b.name}`}
-            title="Configurations"
-            className={iconButton}
-          >
-            <SlidersIcon />
-          </Link>
-          <button
-            type="button"
-            onClick={() => onEdit(b)}
-            aria-label={`Modifier ${b.name}`}
-            title="Modifier"
-            className={iconButton}
-          >
-            <PencilIcon />
-          </button>
-          <button
-            type="button"
-            onClick={() => onToggle(b)}
-            aria-label={`${actionLabel} ${b.name}`}
-            title={actionLabel}
-            className={iconButton}
-          >
-            {dimmed ? <EyeIcon /> : <EyeOffIcon />}
-          </button>
-          <button
-            type="button"
-            onClick={() => onDelete(b)}
-            aria-label={`Supprimer ${b.name}`}
-            title="Supprimer"
-            className="rounded-md border border-black/10 p-1.5 text-red-600 transition hover:bg-red-50 dark:border-white/15 dark:text-red-400 dark:hover:bg-red-950/40"
-          >
-            <TrashIcon />
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
-
-  if (collapsible) {
-    return (
-      <details className="group flex flex-col gap-2">
-        <summary
-          className={`flex cursor-pointer list-none items-center gap-1.5 ${headingClass}`}
-        >
-          <ChevronRightIcon className="h-3.5 w-3.5 transition-transform group-open:rotate-90" />
-          {title} · {boardgames.length}
-        </summary>
-        <div className="mt-2">{list}</div>
-      </details>
-    );
-  }
-
-  return (
-    <section className="flex flex-col gap-2">
-      <h2 className={headingClass}>
-        {title} · {boardgames.length}
-      </h2>
-      {list}
-    </section>
-  );
-}
-
-function formatMeta(b: Boardgame): string {
-  const parts: string[] = [];
-  if (b.minPlayers != null && b.maxPlayers != null) {
-    parts.push(
-      b.minPlayers === b.maxPlayers
-        ? `${b.minPlayers} joueurs`
-        : `${b.minPlayers}–${b.maxPlayers} joueurs`,
-    );
-  }
-  if (b.avgDurationMin != null) parts.push(`~${b.avgDurationMin} min`);
-  if (b.tags.length > 0) parts.push(b.tags.join(" · "));
-  return parts.join(" · ") || "Aucune info";
 }
