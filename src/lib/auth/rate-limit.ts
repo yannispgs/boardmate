@@ -28,7 +28,7 @@ async function clientKey(): Promise<string> {
  * open if the limiter errors — Supabase's own coarse limits remain the backstop
  * — so a limiter glitch never locks legitimate users out.
  */
-export async function enforceAuthRateLimit(): Promise<RateLimitResult> {
+async function enforceAuthRateLimit(): Promise<RateLimitResult> {
   // Production only. Previews/local stay unthrottled (easier to test, and
   // previews aren't the public surface). VERCEL_ENV is "production" only on the
   // prod deployment.
@@ -52,10 +52,22 @@ export async function enforceAuthRateLimit(): Promise<RateLimitResult> {
 }
 
 /** Human-friendly French delay, e.g. "5 min" or "45 s". */
-export function formatRetryDelay(seconds: number): string {
+function formatRetryDelay(seconds: number): string {
   if (seconds >= 60) {
     const min = Math.ceil(seconds / 60);
     return `${min} min`;
   }
   return `${Math.max(1, seconds)} s`;
+}
+
+/**
+ * Enforces the auth rate limit and, when the caller is throttled, returns the
+ * user-facing error message (with the retry delay); otherwise `null`. Lets the
+ * auth actions guard themselves with a single call instead of repeating the
+ * check + message.
+ */
+export async function authRateLimitError(): Promise<string | null> {
+  const limit = await enforceAuthRateLimit();
+  if (limit.allowed) return null;
+  return `Trop de tentatives. Réessaie dans ${formatRetryDelay(limit.retryAfterS)}.`;
 }

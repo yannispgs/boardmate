@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 
-import { enforceAuthRateLimit, formatRetryDelay } from "@/lib/auth/rate-limit";
+import { authRateLimitError } from "@/lib/auth/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 
 /** Result of requesting a login code, surfaced back to the login form. */
@@ -38,13 +38,8 @@ export async function signInWithEmail(
     return { error: "Renseigne une adresse e-mail valide." };
   }
 
-  const limit = await enforceAuthRateLimit();
-  if (!limit.allowed) {
-    return {
-      error: `Trop de tentatives. Réessaie dans ${formatRetryDelay(limit.retryAfterS)}.`,
-      email,
-    };
-  }
+  const rateLimited = await authRateLimitError();
+  if (rateLimited) return { error: rateLimited, email };
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({ email });
@@ -80,12 +75,8 @@ export async function verifyCode(
     return { error: "Code invalide. Vérifie l'e-mail reçu." };
   }
 
-  const limit = await enforceAuthRateLimit();
-  if (!limit.allowed) {
-    return {
-      error: `Trop de tentatives. Réessaie dans ${formatRetryDelay(limit.retryAfterS)}.`,
-    };
-  }
+  const rateLimited = await authRateLimitError();
+  if (rateLimited) return { error: rateLimited };
 
   const supabase = await createClient();
   const { error } = await supabase.auth.verifyOtp({
