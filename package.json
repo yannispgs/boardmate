@@ -14,7 +14,8 @@
     "format": "biome check --write",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:integration": "vitest run --config vitest.integration.config.ts"
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:coverage": "vitest run --config vitest.coverage.config.ts --coverage"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",
@@ -30,6 +31,7 @@
     "@types/node": "^24.13.1",
     "@types/react": "^19.2.16",
     "@types/react-dom": "^19.2.3",
+    "@vitest/coverage-v8": "^4.1.8",
     "tailwindcss": "^4.3.0",
     "typescript": "5.9.3",
     "vitest": "^4.1.8"
