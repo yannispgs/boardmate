@@ -7,6 +7,7 @@ export default defineConfig({
   // Resolve the `@/*` path alias from tsconfig (native in Vite 7+).
   resolve: { tsconfigPaths: true },
   test: {
+    name: "integration",
     environment: "node",
     include: ["tests/integration/**/*.test.ts"],
     // A global setup loads the local Supabase connection details into env.
