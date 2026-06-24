@@ -2,8 +2,13 @@ export * from "./types";
 
 import { createClient } from "@/lib/supabase/client";
 import { createBoardgameRepository } from "@/lib/supabase/repositories/boardgames";
+import { createConfigRepository } from "@/lib/supabase/repositories/configs";
 import { createPlayerRepository } from "@/lib/supabase/repositories/players";
-import type { BoardgameRepository, PlayerRepository } from "./types";
+import type {
+  BoardgameRepository,
+  ConfigRepository,
+  PlayerRepository,
+} from "./types";
 
 /**
  * Composition root: wires repository interfaces to the active vendor adapter.
@@ -27,4 +32,13 @@ export function getBoardgameRepository(): BoardgameRepository {
     boardgameRepository = createBoardgameRepository(createClient());
   }
   return boardgameRepository;
+}
+
+let configRepository: ConfigRepository | null = null;
+
+export function getConfigRepository(): ConfigRepository {
+  if (!configRepository) {
+    configRepository = createConfigRepository(createClient());
+  }
+  return configRepository;
 }

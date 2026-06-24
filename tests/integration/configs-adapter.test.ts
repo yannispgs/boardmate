@@ -1,0 +1,122 @@
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import type { BoardgameId, ConfigId } from "@/lib/domain";
+import { createConfigRepository } from "@/lib/supabase/repositories/configs";
+import {
+  authedClient,
+  createTestUser,
+  deleteTestUser,
+  serviceClient,
+  type TestUser,
+} from "./client";
+
+// Seeded by migration 20260612054230_seed_catan_config_template.sql.
+const CATAN_ID = "78047bc0-5293-4787-be48-ba7339d48c2d" as BoardgameId;
+
+let user: TestUser;
+const createdIds: string[] = [];
+
+beforeAll(async () => {
+  user = await createTestUser();
+});
+
+afterAll(async () => {
+  const admin = serviceClient();
+  if (createdIds.length > 0) {
+    await admin.from("configs").delete().in("id", createdIds);
+  }
+  if (user) await deleteTestUser(user.id);
+});
+
+function repo() {
+  return createConfigRepository(authedClient(user.accessToken));
+}
+
+describe("configs adapter — templates", () => {
+  it("reads the seeded Catan template with its FieldSpec[]", async () => {
+    const template = await repo().getTemplate(CATAN_ID);
+    expect(template).not.toBeNull();
+    expect(template?.boardgameId).toBe(CATAN_ID);
+    const keys = template?.fields.map((f) => f.key);
+    expect(keys).toContain("pointsToWin");
+    expect(keys).toContain("longestRoad");
+    const points = template?.fields.find((f) => f.key === "pointsToWin");
+    expect(points?.type).toBe("integer");
+  });
+
+  it("returns null template for a boardgame without one", async () => {
+    const none = await repo().getTemplate(
+      "00000000-0000-0000-0000-000000000000" as BoardgameId,
+    );
+    expect(none).toBeNull();
+  });
+
+  it("listTemplates includes Catan", async () => {
+    const all = await repo().listTemplates();
+    expect(all.some((t) => t.boardgameId === CATAN_ID)).toBe(true);
+  });
+});
+
+describe("configs adapter — instances CRUD & jsonb round-trip", () => {
+  it("creates a config and round-trips its values", async () => {
+    const values = { pointsToWin: 12, longestRoad: true, largestArmy: false };
+    const config = await repo().create({
+      boardgameId: CATAN_ID,
+      name: "Partie longue",
+      values,
+    });
+    createdIds.push(config.id);
+
+    expect(config.boardgameId).toBe(CATAN_ID);
+    expect(config.name).toBe("Partie longue");
+    expect(config.values).toEqual(values); // jsonb preserved
+    expect(typeof config.createdAt).toBe("string");
+    expect(config).not.toHaveProperty("boardgame_id");
+  });
+
+  it("lists configs filtered by boardgame", async () => {
+    const created = await repo().create({
+      boardgameId: CATAN_ID,
+      name: "Partie rapide",
+      values: { pointsToWin: 8 },
+    });
+    createdIds.push(created.id);
+
+    const list = await repo().list(CATAN_ID);
+    expect(list.every((c) => c.boardgameId === CATAN_ID)).toBe(true);
+    expect(list.some((c) => c.id === created.id)).toBe(true);
+  });
+
+  it("updates name and values", async () => {
+    const created = await repo().create({
+      boardgameId: CATAN_ID,
+      name: "Avant",
+      values: { pointsToWin: 10 },
+    });
+    createdIds.push(created.id);
+
+    const updated = await repo().update(created.id, {
+      name: "Après",
+      values: { pointsToWin: 15, harborMaster: true },
+    });
+    expect(updated.name).toBe("Après");
+    expect(updated.values).toEqual({ pointsToWin: 15, harborMaster: true });
+  });
+
+  it("removes a config", async () => {
+    const created = await repo().create({
+      boardgameId: CATAN_ID,
+      name: "Jetable",
+      values: {},
+    });
+    await repo().remove(created.id);
+    expect(await repo().get(created.id)).toBeNull();
+  });
+
+  it("returns null from get for an unknown id", async () => {
+    const missing = await repo().get(
+      "00000000-0000-0000-0000-000000000000" as ConfigId,
+    );
+    expect(missing).toBeNull();
+  });
+});
