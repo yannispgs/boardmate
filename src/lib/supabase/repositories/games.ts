@@ -1,12 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type {
-  Boardgame,
   BoardgameId,
-  BoardgameKind,
-  Config,
   ConfigId,
-  ConfigValues,
   Game,
   GameId,
   GamePlayer,
@@ -21,6 +17,9 @@ import type {
 import { advanceTurn as nextTurnState } from "@/lib/game/turn";
 import type { GameRepository, Unsubscribe } from "@/lib/repositories/types";
 import type { Database } from "@/lib/supabase/database.types";
+import { toBoardgame } from "@/lib/supabase/repositories/boardgames";
+import { toConfig } from "@/lib/supabase/repositories/configs";
+import { toPlayer } from "@/lib/supabase/repositories/players";
 
 type GameRow = Database["public"]["Tables"]["games"]["Row"];
 type BoardgameRow = Database["public"]["Tables"]["boardgames"]["Row"];
@@ -39,44 +38,6 @@ function toGame(row: GameRow): Game {
     currentPlayerId: (row.current_player_id as PlayerId | null) ?? null,
     startedAt: row.started_at,
     endedAt: row.ended_at,
-  };
-}
-
-function toBoardgame(row: BoardgameRow): Boardgame {
-  return {
-    id: row.id as BoardgameId,
-    name: row.name,
-    logoUrl: row.logo_url,
-    minPlayers: row.min_players,
-    maxPlayers: row.max_players,
-    recMinPlayers: row.rec_min_players,
-    recMaxPlayers: row.rec_max_players,
-    kind: row.kind as BoardgameKind,
-    avgDurationMin: row.avg_duration_min,
-    tags: row.tags,
-    isActive: row.is_active,
-    hasGames: row.has_games,
-    createdAt: row.created_at,
-  };
-}
-
-function toConfig(row: ConfigRow): Config {
-  return {
-    id: row.id as ConfigId,
-    boardgameId: row.boardgame_id as BoardgameId,
-    name: row.name,
-    values: (row.values ?? {}) as ConfigValues,
-    createdAt: row.created_at,
-  };
-}
-
-function toPlayer(row: PlayerRow): Player {
-  return {
-    id: row.id as PlayerId,
-    name: row.name,
-    isActive: row.is_active,
-    hasPlayed: row.has_played,
-    createdAt: row.created_at,
   };
 }
 
