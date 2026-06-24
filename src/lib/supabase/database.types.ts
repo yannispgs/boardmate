@@ -34,6 +34,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      auth_rate_limits: {
+        Row: {
+          blocked_until: string | null
+          count: number
+          key: string
+          updated_at: string
+          violations: number
+          window_start: string
+        }
+        Insert: {
+          blocked_until?: string | null
+          count?: number
+          key: string
+          updated_at?: string
+          violations?: number
+          window_start?: string
+        }
+        Update: {
+          blocked_until?: string | null
+          count?: number
+          key?: string
+          updated_at?: string
+          violations?: number
+          window_start?: string
+        }
+        Relationships: []
+      }
       boardgames: {
         Row: {
           avg_duration_min: number | null
@@ -305,7 +332,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      check_auth_rate_limit: {
+        Args: {
+          p_base_block_s?: number
+          p_key: string
+          p_max?: number
+          p_max_block_s?: number
+          p_window_s?: number
+        }
+        Returns: {
+          allowed: boolean
+          retry_after_s: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

@@ -21,6 +21,7 @@ const TABLES = [
   "games",
   "game_players",
   "game_turns",
+  "auth_rate_limits",
 ] as const;
 
 let user: TestUser;
