@@ -39,7 +39,9 @@ export async function signInWithEmail(
   }
 
   const rateLimited = await authRateLimitError();
-  if (rateLimited) return { error: rateLimited, email };
+  if (rateLimited) {
+    return { error: rateLimited, email };
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({ email });
@@ -76,7 +78,9 @@ export async function verifyCode(
   }
 
   const rateLimited = await authRateLimitError();
-  if (rateLimited) return { error: rateLimited };
+  if (rateLimited) {
+    return { error: rateLimited };
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.verifyOtp({

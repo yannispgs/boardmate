@@ -40,7 +40,9 @@ describe("auth rate limit", () => {
 
   it("keeps refusing while blocked, without re-escalating immediately", async () => {
     const key = uniqueKey();
-    for (let i = 1; i <= 5; i++) await hit(key);
+    for (let i = 1; i <= 5; i++) {
+      await hit(key);
+    }
     const first = await hit(key); // triggers the block
     const second = await hit(key); // still blocked
     expect(first.allowed).toBe(false);
@@ -59,7 +61,7 @@ describe("auth rate limit", () => {
     expect(block1.allowed).toBe(false);
     expect(block1.retry_after_s).toBeLessThanOrEqual(1);
 
-    await new Promise((r) => setTimeout(r, 1200)); // let the 1s block expire
+    await new Promise(r => setTimeout(r, 1200)); // let the 1s block expire
 
     expect((await hit(key, opts)).allowed).toBe(true); // fresh window
     const block2 = await hit(key, opts); // 2nd offence → ~2s (1 * 2^1)

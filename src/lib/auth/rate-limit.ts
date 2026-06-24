@@ -40,7 +40,9 @@ async function enforceAuthRateLimit(): Promise<RateLimitResult> {
     const { data, error } = await supabase.rpc("check_auth_rate_limit", {
       p_key: await clientKey(),
     });
-    if (error) return { allowed: true, retryAfterS: 0 };
+    if (error) {
+      return { allowed: true, retryAfterS: 0 };
+    }
     const row = Array.isArray(data) ? data[0] : data;
     return {
       allowed: row?.allowed ?? true,
@@ -68,6 +70,8 @@ function formatRetryDelay(seconds: number): string {
  */
 export async function authRateLimitError(): Promise<string | null> {
   const limit = await enforceAuthRateLimit();
-  if (limit.allowed) return null;
+  if (limit.allowed) {
+    return null;
+  }
   return `Trop de tentatives. Réessaie dans ${formatRetryDelay(limit.retryAfterS)}.`;
 }
