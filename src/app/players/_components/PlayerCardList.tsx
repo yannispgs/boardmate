@@ -29,11 +29,13 @@ export function PlayerCardList({
   dimmed?: boolean;
   collapsible?: boolean;
 }) {
-  if (players.length === 0) return null;
+  if (players.length === 0) {
+    return null;
+  }
 
   const cards = (
     <ul className="flex flex-col gap-2">
-      {players.map((player) => (
+      {players.map(player => (
         <PlayerCard
           key={player.id}
           player={player}

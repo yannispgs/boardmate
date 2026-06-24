@@ -70,8 +70,10 @@ function CodeForm({ email, onBack }: { email: string; onBack: () => void }) {
   const [cooldown, setCooldown] = useState(RESEND_COOLDOWN_S);
 
   useEffect(() => {
-    if (cooldown <= 0) return;
-    const id = setTimeout(() => setCooldown((c) => Math.max(0, c - 1)), 1000);
+    if (cooldown <= 0) {
+      return;
+    }
+    const id = setTimeout(() => setCooldown(c => Math.max(0, c - 1)), 1000);
     return () => clearTimeout(id);
   }, [cooldown]);
 
@@ -122,7 +124,7 @@ function CodeForm({ email, onBack }: { email: string; onBack: () => void }) {
             React dispatches the (transition-based) action, which cancels the
             submission entirely — so the resend never fired. */}
         <form
-          action={(formData) => {
+          action={formData => {
             setCooldown(RESEND_COOLDOWN_S);
             resendAction(formData);
           }}

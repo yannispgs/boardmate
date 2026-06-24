@@ -25,7 +25,9 @@ afterAll(async () => {
   if (createdIds.length > 0) {
     await admin.from("configs").delete().in("id", createdIds);
   }
-  if (user) await deleteTestUser(user.id);
+  if (user) {
+    await deleteTestUser(user.id);
+  }
 });
 
 function repo() {
@@ -37,10 +39,10 @@ describe("configs adapter — templates", () => {
     const template = await repo().getTemplate(CATAN_ID);
     expect(template).not.toBeNull();
     expect(template?.boardgameId).toBe(CATAN_ID);
-    const keys = template?.fields.map((f) => f.key);
+    const keys = template?.fields.map(f => f.key);
     expect(keys).toContain("pointsToWin");
     expect(keys).toContain("longestRoad");
-    const points = template?.fields.find((f) => f.key === "pointsToWin");
+    const points = template?.fields.find(f => f.key === "pointsToWin");
     expect(points?.type).toBe("integer");
   });
 
@@ -53,7 +55,7 @@ describe("configs adapter — templates", () => {
 
   it("listTemplates includes Catan", async () => {
     const all = await repo().listTemplates();
-    expect(all.some((t) => t.boardgameId === CATAN_ID)).toBe(true);
+    expect(all.some(t => t.boardgameId === CATAN_ID)).toBe(true);
   });
 });
 
@@ -83,8 +85,8 @@ describe("configs adapter — instances CRUD & jsonb round-trip", () => {
     createdIds.push(created.id);
 
     const list = await repo().list(CATAN_ID);
-    expect(list.every((c) => c.boardgameId === CATAN_ID)).toBe(true);
-    expect(list.some((c) => c.id === created.id)).toBe(true);
+    expect(list.every(c => c.boardgameId === CATAN_ID)).toBe(true);
+    expect(list.some(c => c.id === created.id)).toBe(true);
   });
 
   it("updates name and values", async () => {

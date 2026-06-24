@@ -43,7 +43,9 @@ function fromBoardgame(b: Boardgame): FormState {
 
 const toNum = (s: string): number | null => {
   const t = s.trim();
-  if (t === "") return null;
+  if (t === "") {
+    return null;
+  }
   const n = Number(t);
   return Number.isFinite(n) ? n : null;
 };
@@ -59,7 +61,7 @@ function toInput(form: FormState, logoUrl: string | null): NewBoardgame {
     avgDurationMin: toNum(form.avgDurationMin),
     tags: form.tags
       .split(",")
-      .map((t) => t.trim())
+      .map(t => t.trim())
       .filter(Boolean),
   };
 }
@@ -81,7 +83,7 @@ const isJpeg = (b: Uint8Array): boolean =>
 
 /** Resolves true if the browser can render the URL as an image (CORS-proof). */
 function loadsAsImage(url: string): Promise<boolean> {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     const img = new Image();
     const done = (ok: boolean) => {
       img.onload = null;
@@ -118,9 +120,13 @@ async function validateLogoUrl(
   }
   try {
     const res = await fetch(url);
-    if (!res.ok) return { ok: false, reason: "Image inaccessible." };
+    if (!res.ok) {
+      return { ok: false, reason: "Image inaccessible." };
+    }
     const bytes = new Uint8Array(await res.arrayBuffer());
-    if (isPng(bytes) || isJpeg(bytes)) return { ok: true };
+    if (isPng(bytes) || isJpeg(bytes)) {
+      return { ok: true };
+    }
     return { ok: false, reason: "Le fichier n'est pas un PNG ou un JPEG." };
   } catch {
     // CORS or network error: confirm at least that it renders as an image.
@@ -142,8 +148,8 @@ export function BoardgamesManager() {
     uploadLogo,
   } = useBoardgames();
 
-  const active = boardgames.filter((b) => b.isActive);
-  const inactive = boardgames.filter((b) => !b.isActive);
+  const active = boardgames.filter(b => b.isActive);
+  const inactive = boardgames.filter(b => !b.isActive);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingBoardgame, setEditingBoardgame] = useState<Boardgame | null>(
@@ -155,7 +161,7 @@ export function BoardgamesManager() {
 
   function openForm(target: Boardgame | null) {
     setEditingBoardgame(target);
-    setFormKey((k) => k + 1); // remount the form with fresh initial state
+    setFormKey(k => k + 1); // remount the form with fresh initial state
     setFormOpen(true);
   }
 
@@ -219,7 +225,9 @@ export function BoardgamesManager() {
     setActionError(null);
     try {
       await removeBoardgame(b.id);
-      if (editingBoardgame?.id === b.id) closeForm();
+      if (editingBoardgame?.id === b.id) {
+        closeForm();
+      }
     } catch (e) {
       if (e instanceof BoardgameInUseError) {
         setActionError(
@@ -257,7 +265,7 @@ export function BoardgamesManager() {
             title="Jeux actifs"
             boardgames={active}
             onEdit={openForm}
-            onToggle={(b) => handleToggle(b, false)}
+            onToggle={b => handleToggle(b, false)}
             actionLabel="Désactiver"
             onDelete={handleDelete}
           />
@@ -266,7 +274,7 @@ export function BoardgamesManager() {
               title="Désactivés"
               boardgames={inactive}
               onEdit={openForm}
-              onToggle={(b) => handleToggle(b, true)}
+              onToggle={b => handleToggle(b, true)}
               actionLabel="Réactiver"
               onDelete={handleDelete}
               dimmed
@@ -347,7 +355,9 @@ function BoardgameForm({
 
   async function handleLogo(event: FormEvent<HTMLInputElement>) {
     const file = event.currentTarget.files?.[0];
-    if (!file) return;
+    if (!file) {
+      return;
+    }
     setFileName(file.name);
     setUploading(true);
     setFormError(null);
@@ -368,7 +378,9 @@ function BoardgameForm({
       setLogoUrl(null);
       setLogoUrlInput("");
       setFileName(null);
-      if (fileRef.current) fileRef.current.value = "";
+      if (fileRef.current) {
+        fileRef.current.value = "";
+      }
     }
   }
 
@@ -394,7 +406,9 @@ function BoardgameForm({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (form.name.trim() === "") return;
+    if (form.name.trim() === "") {
+      return;
+    }
     setSubmitting(true);
     setFormError(null);
     try {
@@ -435,7 +449,7 @@ function BoardgameForm({
       </h2>
       <input
         value={form.name}
-        onChange={(e) => setForm({ ...form, name: e.target.value })}
+        onChange={e => setForm({ ...form, name: e.target.value })}
         placeholder="Nom du jeu"
         aria-label="Nom du jeu"
         maxLength={80}
@@ -448,7 +462,7 @@ function BoardgameForm({
             type="number"
             min={1}
             value={form.minPlayers}
-            onChange={(e) => setForm({ ...form, minPlayers: e.target.value })}
+            onChange={e => setForm({ ...form, minPlayers: e.target.value })}
             className={field}
           />
         </label>
@@ -458,7 +472,7 @@ function BoardgameForm({
             type="number"
             min={1}
             value={form.maxPlayers}
-            onChange={(e) => setForm({ ...form, maxPlayers: e.target.value })}
+            onChange={e => setForm({ ...form, maxPlayers: e.target.value })}
             className={field}
           />
         </label>
@@ -468,9 +482,7 @@ function BoardgameForm({
             type="number"
             min={1}
             value={form.recMinPlayers}
-            onChange={(e) =>
-              setForm({ ...form, recMinPlayers: e.target.value })
-            }
+            onChange={e => setForm({ ...form, recMinPlayers: e.target.value })}
             className={field}
           />
         </label>
@@ -480,9 +492,7 @@ function BoardgameForm({
             type="number"
             min={1}
             value={form.recMaxPlayers}
-            onChange={(e) =>
-              setForm({ ...form, recMaxPlayers: e.target.value })
-            }
+            onChange={e => setForm({ ...form, recMaxPlayers: e.target.value })}
             className={field}
           />
         </label>
@@ -494,9 +504,7 @@ function BoardgameForm({
             type="number"
             min={0}
             value={form.avgDurationMin}
-            onChange={(e) =>
-              setForm({ ...form, avgDurationMin: e.target.value })
-            }
+            onChange={e => setForm({ ...form, avgDurationMin: e.target.value })}
             className={field}
           />
         </label>
@@ -504,7 +512,7 @@ function BoardgameForm({
           Tags (séparés par des virgules)
           <input
             value={form.tags}
-            onChange={(e) => setForm({ ...form, tags: e.target.value })}
+            onChange={e => setForm({ ...form, tags: e.target.value })}
             placeholder="famille, stratégie"
             className={field}
           />
@@ -633,7 +641,7 @@ function LogoPicker({
             type="url"
             inputMode="url"
             value={logoUrlInput}
-            onChange={(e) => onUrlChange(e.target.value)}
+            onChange={e => onUrlChange(e.target.value)}
             onBlur={onUrlBlur}
             placeholder="https://exemple.com/logo.png"
             aria-label="URL du logo (PNG ou JPEG)"

@@ -31,7 +31,7 @@ export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
 
   function openForm(init: FormInit) {
     setFormInit(init);
-    setFormKey((k) => k + 1); // remount the form with fresh initial state
+    setFormKey(k => k + 1); // remount the form with fresh initial state
   }
 
   function openCreate() {
@@ -81,13 +81,17 @@ export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
     setActionError(null);
     try {
       await removeConfig(config.id);
-      if (formInit?.editingId === config.id) setFormInit(null);
+      if (formInit?.editingId === config.id) {
+        setFormInit(null);
+      }
     } catch {
       setActionError("Suppression impossible.");
     }
   }
 
-  if (loading) return <p className="text-sm text-zinc-500">Chargement…</p>;
+  if (loading) {
+    return <p className="text-sm text-zinc-500">Chargement…</p>;
+  }
 
   if (!template) {
     return (
@@ -178,14 +182,18 @@ function ConfigForm({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmed = name.trim();
-    if (trimmed === "") return;
+    if (trimmed === "") {
+      return;
+    }
 
     const result = validateConfigValues(template.fields, values);
     if (!result.success) {
       const errs: Record<string, string> = {};
       for (const issue of result.error.issues) {
         const key = String(issue.path[0] ?? "");
-        if (key && !errs[key]) errs[key] = issue.message;
+        if (key && !errs[key]) {
+          errs[key] = issue.message;
+        }
       }
       setFieldErrors(errs);
       setFormError("Certains champs sont invalides.");
@@ -216,20 +224,20 @@ function ConfigForm({
         <span className="font-medium">Nom</span>
         <input
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={e => setName(e.target.value)}
           placeholder="ex. Partie rapide"
           maxLength={80}
           className="rounded-lg border border-black/15 bg-white px-3 py-2 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900"
         />
       </label>
 
-      {template.fields.map((field) => (
+      {template.fields.map(field => (
         <ConfigField
           key={field.key}
           field={field}
           value={values[field.key]}
           error={fieldErrors[field.key]}
-          onChange={(v) => setValues((prev) => ({ ...prev, [field.key]: v }))}
+          onChange={v => setValues(prev => ({ ...prev, [field.key]: v }))}
         />
       ))}
 

@@ -29,11 +29,13 @@ export function BoardgameCardList({
   dimmed?: boolean;
   collapsible?: boolean;
 }) {
-  if (boardgames.length === 0) return null;
+  if (boardgames.length === 0) {
+    return null;
+  }
 
   const cards = (
     <ul className="flex flex-col gap-2">
-      {boardgames.map((b) => (
+      {boardgames.map(b => (
         <BoardgameCard
           key={b.id}
           boardgame={b}
