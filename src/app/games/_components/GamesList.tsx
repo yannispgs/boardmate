@@ -11,7 +11,7 @@ export function GamesList() {
   const { boardgames } = useBoardgames();
 
   const nameOf = (id: BoardgameId) =>
-    boardgames.find((b) => b.id === id)?.name ?? "Partie";
+    boardgames.find(b => b.id === id)?.name ?? "Partie";
 
   return (
     <div className="flex flex-col gap-6">
@@ -36,7 +36,7 @@ export function GamesList() {
         </p>
       ) : (
         <ul className="flex flex-col gap-2">
-          {games.map((game) => (
+          {games.map(game => (
             <li
               key={game.id}
               className="flex items-center justify-between rounded-xl border border-black/10 bg-white px-4 py-3 dark:border-white/10 dark:bg-zinc-900"

@@ -87,7 +87,9 @@ export function createGameRepository(
         .select("*")
         .eq("status", status)
         .order("started_at", { ascending: false });
-      if (error) throw new Error(`Lecture des parties: ${error.message}`);
+      if (error) {
+        throw new Error(`Lecture des parties: ${error.message}`);
+      }
       return data.map(toGame);
     },
 
@@ -96,13 +98,17 @@ export function createGameRepository(
         .select(POPULATED_SELECT)
         .eq("id", id)
         .maybeSingle();
-      if (error) throw new Error(`Lecture de la partie: ${error.message}`);
-      if (!data) return null;
+      if (error) {
+        throw new Error(`Lecture de la partie: ${error.message}`);
+      }
+      if (!data) {
+        return null;
+      }
       const row = data as unknown as PopulatedRow;
 
       const players = [...row.game_players]
         .sort((a, b) => a.seat_order - b.seat_order)
-        .map((gp) => ({
+        .map(gp => ({
           gameId: gp.game_id as GameId,
           playerId: gp.player_id as PlayerId,
           seatOrder: gp.seat_order,
@@ -116,7 +122,7 @@ export function createGameRepository(
         config: row.config ? toConfig(row.config) : null,
         players,
         currentPlayer:
-          players.find((p) => p.playerId === row.current_player_id)?.player ??
+          players.find(p => p.playerId === row.current_player_id)?.player ??
           null,
         turns: row.game_turns.map(toGameTurn),
       };
@@ -135,7 +141,9 @@ export function createGameRepository(
         })
         .select("*")
         .single();
-      if (error) throw new Error(`Création de la partie: ${error.message}`);
+      if (error) {
+        throw new Error(`Création de la partie: ${error.message}`);
+      }
 
       const rows = input.playerIds.map((playerId, index) => ({
         game_id: game.id,
@@ -157,7 +165,9 @@ export function createGameRepository(
         .select("round, turn, current_player_id")
         .eq("id", id)
         .single();
-      if (error) throw new Error(`Lecture de la partie: ${error.message}`);
+      if (error) {
+        throw new Error(`Lecture de la partie: ${error.message}`);
+      }
 
       const { data: seats, error: seatsError } = await supabase
         .from("game_players")
@@ -199,7 +209,9 @@ export function createGameRepository(
       const { error } = await games()
         .update({ status: "ended", ended_at: new Date().toISOString() })
         .eq("id", id);
-      if (error) throw new Error(`Fin de la partie: ${error.message}`);
+      if (error) {
+        throw new Error(`Fin de la partie: ${error.message}`);
+      }
 
       const { error: winnerError } = await supabase
         .from("game_players")

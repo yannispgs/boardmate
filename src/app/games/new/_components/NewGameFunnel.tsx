@@ -24,7 +24,9 @@ export function NewGameFunnel() {
   const [error, setError] = useState<string | null>(null);
 
   async function launch(playerIds: PlayerId[]) {
-    if (!boardgame) return;
+    if (!boardgame) {
+      return;
+    }
     setCreating(true);
     setError(null);
     try {
@@ -48,7 +50,7 @@ export function NewGameFunnel() {
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
-            {boardgames.map((b) => (
+            {boardgames.map(b => (
               <li key={b.id}>
                 <button
                   type="button"
@@ -74,7 +76,7 @@ export function NewGameFunnel() {
       <ConfigStep
         boardgameId={boardgame.id}
         onBack={() => setStep(1)}
-        onPick={(cid) => {
+        onPick={cid => {
           setConfigId(cid);
           setStep(3);
         }}
@@ -154,7 +156,7 @@ function ConfigStep({
         {loading ? (
           <li className="text-sm text-zinc-500">Chargement…</li>
         ) : (
-          configs.map((c) => (
+          configs.map(c => (
             <li key={c.id}>
               <button
                 type="button"
@@ -189,11 +191,11 @@ function PlayersStep({
   const { players, loading } = usePlayers();
   const [selected, setSelected] = useState<PlayerId[]>([]);
 
-  const active = players.filter((p) => p.isActive);
+  const active = players.filter(p => p.isActive);
 
   function toggle(id: PlayerId) {
-    setSelected((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    setSelected(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id],
     );
   }
 
@@ -211,7 +213,7 @@ function PlayersStep({
         </p>
       ) : (
         <ul className="flex flex-col gap-2">
-          {active.map((p) => {
+          {active.map(p => {
             const order = selected.indexOf(p.id);
             const picked = order !== -1;
             return (
