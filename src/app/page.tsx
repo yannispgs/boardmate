@@ -49,7 +49,7 @@ export default async function Home() {
       </header>
 
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {TOOLS.map((tool) => {
+        {TOOLS.map(tool => {
           const content = (
             <>
               <span aria-hidden className="text-2xl">

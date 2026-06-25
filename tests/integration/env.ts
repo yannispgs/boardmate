@@ -14,7 +14,9 @@ let cached: LocalSupabaseEnv | null = null;
  * to `supabase status` so the suite "just works" locally after `supabase start`.
  */
 export function localSupabaseEnv(): LocalSupabaseEnv {
-  if (cached) return cached;
+  if (cached) {
+    return cached;
+  }
 
   const url = process.env.SUPABASE_URL ?? process.env.API_URL;
   const anonKey = process.env.SUPABASE_ANON_KEY ?? process.env.ANON_KEY;

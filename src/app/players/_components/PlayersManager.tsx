@@ -24,8 +24,8 @@ export function PlayersManager() {
   // In-app confirmation (replaces window.confirm, which browsers suppress).
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
 
-  const active = players.filter((p) => p.isActive);
-  const inactive = players.filter((p) => !p.isActive);
+  const active = players.filter(p => p.isActive);
+  const inactive = players.filter(p => !p.isActive);
 
   function closeForm() {
     setName("");
@@ -36,10 +36,12 @@ export function PlayersManager() {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmed = name.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      return;
+    }
 
     // Reject a duplicate name up front (case/space-insensitive).
-    if (players.some((p) => normalize(p.name) === normalize(trimmed))) {
+    if (players.some(p => normalize(p.name) === normalize(trimmed))) {
       setNameError("Ce nom est déjà pris.");
       return;
     }
@@ -155,7 +157,7 @@ export function PlayersManager() {
           <PlayerCardList
             title="Joueurs actifs"
             players={active}
-            onToggle={(p) => handleToggle(p, false)}
+            onToggle={p => handleToggle(p, false)}
             actionLabel="Désactiver"
             onDelete={handleDelete}
           />
@@ -163,7 +165,7 @@ export function PlayersManager() {
             <PlayerCardList
               title="Désactivés"
               players={inactive}
-              onToggle={(p) => handleToggle(p, true)}
+              onToggle={p => handleToggle(p, true)}
               actionLabel="Réactiver"
               onDelete={handleDelete}
               dimmed
@@ -182,9 +184,11 @@ export function PlayersManager() {
           <h2 className="text-sm font-semibold">Nouveau joueur</h2>
           <input
             value={name}
-            onChange={(e) => {
+            onChange={e => {
               setName(e.target.value);
-              if (nameError) setNameError(null);
+              if (nameError) {
+                setNameError(null);
+              }
             }}
             placeholder="Nom du joueur"
             aria-label="Nom du joueur"

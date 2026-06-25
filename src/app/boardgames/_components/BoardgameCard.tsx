@@ -22,8 +22,12 @@ function formatMeta(b: Boardgame): string {
         : `${b.minPlayers}–${b.maxPlayers} joueurs`,
     );
   }
-  if (b.avgDurationMin != null) parts.push(`~${b.avgDurationMin} min`);
-  if (b.tags.length > 0) parts.push(b.tags.join(" · "));
+  if (b.avgDurationMin != null) {
+    parts.push(`~${b.avgDurationMin} min`);
+  }
+  if (b.tags.length > 0) {
+    parts.push(b.tags.join(" · "));
+  }
   return parts.join(" · ") || "Aucune info";
 }
 

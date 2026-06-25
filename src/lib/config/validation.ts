@@ -24,34 +24,50 @@ function baseFieldToZod(field: FieldSpec): z.ZodType {
   switch (field.type) {
     case "integer": {
       let s = z.number().int();
-      if (field.min != null) s = s.min(field.min);
-      if (field.max != null) s = s.max(field.max);
+      if (field.min != null) {
+        s = s.min(field.min);
+      }
+      if (field.max != null) {
+        s = s.max(field.max);
+      }
       return s;
     }
     case "number": {
       let s = z.number();
-      if (field.min != null) s = s.min(field.min);
-      if (field.max != null) s = s.max(field.max);
+      if (field.min != null) {
+        s = s.min(field.min);
+      }
+      if (field.max != null) {
+        s = s.max(field.max);
+      }
       return s;
     }
     case "text": {
       let s = z.string();
-      if (field.minLength != null) s = s.min(field.minLength);
-      if (field.maxLength != null) s = s.max(field.maxLength);
+      if (field.minLength != null) {
+        s = s.min(field.minLength);
+      }
+      if (field.maxLength != null) {
+        s = s.max(field.maxLength);
+      }
       return s;
     }
     case "boolean":
       return z.boolean();
     case "enum": {
-      const values = field.options.map((o) => o.value);
+      const values = field.options.map(o => o.value);
       return z.enum(values as [string, ...string[]]);
     }
     case "object":
       return buildConfigSchema(field.fields);
     case "array": {
       let s = z.array(fieldToZod(field.items));
-      if (field.minItems != null) s = s.min(field.minItems);
-      if (field.maxItems != null) s = s.max(field.maxItems);
+      if (field.minItems != null) {
+        s = s.min(field.minItems);
+      }
+      if (field.maxItems != null) {
+        s = s.max(field.maxItems);
+      }
       return s;
     }
   }
@@ -71,7 +87,9 @@ export function buildDefaults(fields: FieldSpec[]): ConfigValues {
   const out: ConfigValues = {};
   for (const field of fields) {
     const value = defaultFor(field);
-    if (value !== undefined) out[field.key] = value;
+    if (value !== undefined) {
+      out[field.key] = value;
+    }
   }
   return out;
 }

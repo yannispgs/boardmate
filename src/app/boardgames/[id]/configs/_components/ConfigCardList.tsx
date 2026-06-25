@@ -25,7 +25,7 @@ export function ConfigCardList({
 
   return (
     <ul className="flex flex-col gap-2">
-      {configs.map((config) => (
+      {configs.map(config => (
         <ConfigCard
           key={config.id}
           config={config}
