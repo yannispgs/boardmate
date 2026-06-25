@@ -1,21 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { type FormEvent, type RefObject, useRef, useState } from "react";
 
 import { ConfirmDialog, type ConfirmRequest } from "@/components/ConfirmDialog";
-import {
-  ChevronRightIcon,
-  EyeIcon,
-  EyeOffIcon,
-  PencilIcon,
-  SlidersIcon,
-  TrashIcon,
-  UploadIcon,
-} from "@/components/icons";
+import { UploadIcon } from "@/components/icons";
 import type { Boardgame, BoardgameId, NewBoardgame } from "@/lib/domain";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { BoardgameInUseError } from "@/lib/repositories/errors";
+import { BoardgameCardList } from "./BoardgameCardList";
 
 interface FormState {
   name: string;
@@ -51,7 +43,9 @@ function fromBoardgame(b: Boardgame): FormState {
 
 const toNum = (s: string): number | null => {
   const t = s.trim();
-  if (t === "") return null;
+  if (t === "") {
+    return null;
+  }
   const n = Number(t);
   return Number.isFinite(n) ? n : null;
 };
@@ -67,17 +61,13 @@ function toInput(form: FormState, logoUrl: string | null): NewBoardgame {
     avgDurationMin: toNum(form.avgDurationMin),
     tags: form.tags
       .split(",")
-      .map((t) => t.trim())
+      .map(t => t.trim())
       .filter(Boolean),
   };
 }
 
 const field =
   "rounded-lg border border-black/15 bg-white px-3 py-2 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900";
-const iconButton =
-  "rounded-md border border-black/10 p-1.5 transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5";
-const headingClass =
-  "text-xs font-semibold uppercase tracking-wide text-zinc-400";
 
 type LogoSource = "file" | "url";
 
@@ -93,7 +83,7 @@ const isJpeg = (b: Uint8Array): boolean =>
 
 /** Resolves true if the browser can render the URL as an image (CORS-proof). */
 function loadsAsImage(url: string): Promise<boolean> {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     const img = new Image();
     const done = (ok: boolean) => {
       img.onload = null;
@@ -130,9 +120,13 @@ async function validateLogoUrl(
   }
   try {
     const res = await fetch(url);
-    if (!res.ok) return { ok: false, reason: "Image inaccessible." };
+    if (!res.ok) {
+      return { ok: false, reason: "Image inaccessible." };
+    }
     const bytes = new Uint8Array(await res.arrayBuffer());
-    if (isPng(bytes) || isJpeg(bytes)) return { ok: true };
+    if (isPng(bytes) || isJpeg(bytes)) {
+      return { ok: true };
+    }
     return { ok: false, reason: "Le fichier n'est pas un PNG ou un JPEG." };
   } catch {
     // CORS or network error: confirm at least that it renders as an image.
@@ -154,8 +148,8 @@ export function BoardgamesManager() {
     uploadLogo,
   } = useBoardgames();
 
-  const active = boardgames.filter((b) => b.isActive);
-  const inactive = boardgames.filter((b) => !b.isActive);
+  const active = boardgames.filter(b => b.isActive);
+  const inactive = boardgames.filter(b => !b.isActive);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingBoardgame, setEditingBoardgame] = useState<Boardgame | null>(
@@ -167,7 +161,7 @@ export function BoardgamesManager() {
 
   function openForm(target: Boardgame | null) {
     setEditingBoardgame(target);
-    setFormKey((k) => k + 1); // remount the form with fresh initial state
+    setFormKey(k => k + 1); // remount the form with fresh initial state
     setFormOpen(true);
   }
 
@@ -231,7 +225,9 @@ export function BoardgamesManager() {
     setActionError(null);
     try {
       await removeBoardgame(b.id);
-      if (editingBoardgame?.id === b.id) closeForm();
+      if (editingBoardgame?.id === b.id) {
+        closeForm();
+      }
     } catch (e) {
       if (e instanceof BoardgameInUseError) {
         setActionError(
@@ -265,20 +261,20 @@ export function BoardgamesManager() {
         <p className="text-sm text-zinc-500">Aucun jeu pour l&apos;instant.</p>
       ) : (
         <div className="flex flex-col gap-6">
-          <BoardgameList
+          <BoardgameCardList
             title="Jeux actifs"
             boardgames={active}
             onEdit={openForm}
-            onToggle={(b) => handleToggle(b, false)}
+            onToggle={b => handleToggle(b, false)}
             actionLabel="Désactiver"
             onDelete={handleDelete}
           />
           {inactive.length > 0 ? (
-            <BoardgameList
+            <BoardgameCardList
               title="Désactivés"
               boardgames={inactive}
               onEdit={openForm}
-              onToggle={(b) => handleToggle(b, true)}
+              onToggle={b => handleToggle(b, true)}
               actionLabel="Réactiver"
               onDelete={handleDelete}
               dimmed
@@ -359,7 +355,9 @@ function BoardgameForm({
 
   async function handleLogo(event: FormEvent<HTMLInputElement>) {
     const file = event.currentTarget.files?.[0];
-    if (!file) return;
+    if (!file) {
+      return;
+    }
     setFileName(file.name);
     setUploading(true);
     setFormError(null);
@@ -380,7 +378,9 @@ function BoardgameForm({
       setLogoUrl(null);
       setLogoUrlInput("");
       setFileName(null);
-      if (fileRef.current) fileRef.current.value = "";
+      if (fileRef.current) {
+        fileRef.current.value = "";
+      }
     }
   }
 
@@ -406,7 +406,9 @@ function BoardgameForm({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (form.name.trim() === "") return;
+    if (form.name.trim() === "") {
+      return;
+    }
     setSubmitting(true);
     setFormError(null);
     try {
@@ -447,7 +449,7 @@ function BoardgameForm({
       </h2>
       <input
         value={form.name}
-        onChange={(e) => setForm({ ...form, name: e.target.value })}
+        onChange={e => setForm({ ...form, name: e.target.value })}
         placeholder="Nom du jeu"
         aria-label="Nom du jeu"
         maxLength={80}
@@ -460,7 +462,7 @@ function BoardgameForm({
             type="number"
             min={1}
             value={form.minPlayers}
-            onChange={(e) => setForm({ ...form, minPlayers: e.target.value })}
+            onChange={e => setForm({ ...form, minPlayers: e.target.value })}
             className={field}
           />
         </label>
@@ -470,7 +472,7 @@ function BoardgameForm({
             type="number"
             min={1}
             value={form.maxPlayers}
-            onChange={(e) => setForm({ ...form, maxPlayers: e.target.value })}
+            onChange={e => setForm({ ...form, maxPlayers: e.target.value })}
             className={field}
           />
         </label>
@@ -480,9 +482,7 @@ function BoardgameForm({
             type="number"
             min={1}
             value={form.recMinPlayers}
-            onChange={(e) =>
-              setForm({ ...form, recMinPlayers: e.target.value })
-            }
+            onChange={e => setForm({ ...form, recMinPlayers: e.target.value })}
             className={field}
           />
         </label>
@@ -492,9 +492,7 @@ function BoardgameForm({
             type="number"
             min={1}
             value={form.recMaxPlayers}
-            onChange={(e) =>
-              setForm({ ...form, recMaxPlayers: e.target.value })
-            }
+            onChange={e => setForm({ ...form, recMaxPlayers: e.target.value })}
             className={field}
           />
         </label>
@@ -506,9 +504,7 @@ function BoardgameForm({
             type="number"
             min={0}
             value={form.avgDurationMin}
-            onChange={(e) =>
-              setForm({ ...form, avgDurationMin: e.target.value })
-            }
+            onChange={e => setForm({ ...form, avgDurationMin: e.target.value })}
             className={field}
           />
         </label>
@@ -516,7 +512,7 @@ function BoardgameForm({
           Tags (séparés par des virgules)
           <input
             value={form.tags}
-            onChange={(e) => setForm({ ...form, tags: e.target.value })}
+            onChange={e => setForm({ ...form, tags: e.target.value })}
             placeholder="famille, stratégie"
             className={field}
           />
@@ -645,7 +641,7 @@ function LogoPicker({
             type="url"
             inputMode="url"
             value={logoUrlInput}
-            onChange={(e) => onUrlChange(e.target.value)}
+            onChange={e => onUrlChange(e.target.value)}
             onBlur={onUrlBlur}
             placeholder="https://exemple.com/logo.png"
             aria-label="URL du logo (PNG ou JPEG)"
@@ -660,132 +656,4 @@ function LogoPicker({
       </div>
     </div>
   );
-}
-
-function BoardgameList({
-  title,
-  boardgames,
-  onEdit,
-  onToggle,
-  actionLabel,
-  onDelete,
-  dimmed = false,
-  collapsible = false,
-}: {
-  title: string;
-  boardgames: Boardgame[];
-  onEdit: (b: Boardgame) => void;
-  onToggle: (b: Boardgame) => void;
-  actionLabel: string;
-  onDelete: (b: Boardgame) => void;
-  dimmed?: boolean;
-  /** Render as a disclosure, collapsed by default (hides deactivated games). */
-  collapsible?: boolean;
-}) {
-  if (boardgames.length === 0) return null;
-
-  const list = (
-    <ul className="flex flex-col gap-2">
-      {boardgames.map((b) => (
-        <li
-          key={b.id}
-          className={`flex items-center gap-3 rounded-xl border border-black/10 bg-white px-4 py-3 dark:border-white/10 dark:bg-zinc-900 ${
-            dimmed ? "opacity-60" : ""
-          }`}
-        >
-          {b.logoUrl ? (
-            // biome-ignore lint/performance/noImgElement: arbitrary Storage URLs, no next/image loader configured yet
-            <img
-              src={b.logoUrl}
-              alt=""
-              className="h-10 w-10 shrink-0 rounded-lg object-cover"
-            />
-          ) : (
-            <span
-              aria-hidden
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-black/5 text-lg dark:bg-white/5"
-            >
-              🎲
-            </span>
-          )}
-          <div className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate font-medium">{b.name}</span>
-            <span className="text-xs text-zinc-500">{formatMeta(b)}</span>
-          </div>
-          <Link
-            href={`/boardgames/${b.id}/configs`}
-            aria-label={`Configurations de ${b.name}`}
-            title="Configurations"
-            className={iconButton}
-          >
-            <SlidersIcon />
-          </Link>
-          <button
-            type="button"
-            onClick={() => onEdit(b)}
-            aria-label={`Modifier ${b.name}`}
-            title="Modifier"
-            className={iconButton}
-          >
-            <PencilIcon />
-          </button>
-          <button
-            type="button"
-            onClick={() => onToggle(b)}
-            aria-label={`${actionLabel} ${b.name}`}
-            title={actionLabel}
-            className={iconButton}
-          >
-            {dimmed ? <EyeIcon /> : <EyeOffIcon />}
-          </button>
-          <button
-            type="button"
-            onClick={() => onDelete(b)}
-            aria-label={`Supprimer ${b.name}`}
-            title="Supprimer"
-            className="rounded-md border border-black/10 p-1.5 text-red-600 transition hover:bg-red-50 dark:border-white/15 dark:text-red-400 dark:hover:bg-red-950/40"
-          >
-            <TrashIcon />
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
-
-  if (collapsible) {
-    return (
-      <details className="group flex flex-col gap-2">
-        <summary
-          className={`flex cursor-pointer list-none items-center gap-1.5 ${headingClass}`}
-        >
-          <ChevronRightIcon className="h-3.5 w-3.5 transition-transform group-open:rotate-90" />
-          {title} · {boardgames.length}
-        </summary>
-        <div className="mt-2">{list}</div>
-      </details>
-    );
-  }
-
-  return (
-    <section className="flex flex-col gap-2">
-      <h2 className={headingClass}>
-        {title} · {boardgames.length}
-      </h2>
-      {list}
-    </section>
-  );
-}
-
-function formatMeta(b: Boardgame): string {
-  const parts: string[] = [];
-  if (b.minPlayers != null && b.maxPlayers != null) {
-    parts.push(
-      b.minPlayers === b.maxPlayers
-        ? `${b.minPlayers} joueurs`
-        : `${b.minPlayers}–${b.maxPlayers} joueurs`,
-    );
-  }
-  if (b.avgDurationMin != null) parts.push(`~${b.avgDurationMin} min`);
-  if (b.tags.length > 0) parts.push(b.tags.join(" · "));
-  return parts.join(" · ") || "Aucune info";
 }

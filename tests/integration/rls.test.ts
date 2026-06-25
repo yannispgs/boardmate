@@ -21,6 +21,7 @@ const TABLES = [
   "games",
   "game_players",
   "game_turns",
+  "auth_rate_limits",
 ] as const;
 
 let user: TestUser;
@@ -30,11 +31,13 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  if (user) await deleteTestUser(user.id);
+  if (user) {
+    await deleteTestUser(user.id);
+  }
 });
 
 describe("RLS — anonymous access is denied (OWASP A01)", () => {
-  it.each(TABLES)("rejects an anonymous insert into %s", async (table) => {
+  it.each(TABLES)("rejects an anonymous insert into %s", async table => {
     // Untyped client: the test is generic over the table union and the payload
     // is deliberately empty — RLS must reject before any column validation.
     const anon = anonClient() as SupabaseClient;

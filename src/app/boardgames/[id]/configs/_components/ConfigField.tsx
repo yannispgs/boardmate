@@ -38,7 +38,7 @@ export function ConfigField({
           <input
             type="checkbox"
             checked={value === true}
-            onChange={(e) => onChange(e.target.checked)}
+            onChange={e => onChange(e.target.checked)}
             className="h-4 w-4"
           />
           {label}
@@ -82,7 +82,7 @@ function Control({
           min={field.min}
           max={field.max}
           value={typeof value === "number" ? value : ""}
-          onChange={(e) =>
+          onChange={e =>
             onChange(e.target.value === "" ? undefined : Number(e.target.value))
           }
           className={inputClass}
@@ -96,7 +96,7 @@ function Control({
           minLength={field.minLength}
           maxLength={field.maxLength}
           value={typeof value === "string" ? value : ""}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={e => onChange(e.target.value)}
           className={inputClass}
         />
       );
@@ -105,10 +105,10 @@ function Control({
         <select
           id={field.key}
           value={typeof value === "string" ? value : ""}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={e => onChange(e.target.value)}
           className={inputClass}
         >
-          {field.options.map((opt) => (
+          {field.options.map(opt => (
             <option key={opt.value} value={opt.value}>
               {opt.label}
             </option>

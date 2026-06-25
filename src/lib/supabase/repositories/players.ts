@@ -40,7 +40,9 @@ export function createPlayerRepository(
       const { data, error } = await players()
         .select("*")
         .order("name", { ascending: true });
-      if (error) throw new Error(`Lecture des joueurs: ${error.message}`);
+      if (error) {
+        throw new Error(`Lecture des joueurs: ${error.message}`);
+      }
       return data.map(toPlayer);
     },
 
@@ -49,7 +51,9 @@ export function createPlayerRepository(
         .select("*")
         .eq("id", id)
         .maybeSingle();
-      if (error) throw new Error(`Lecture du joueur: ${error.message}`);
+      if (error) {
+        throw new Error(`Lecture du joueur: ${error.message}`);
+      }
       return data ? toPlayer(data) : null;
     },
 
@@ -59,7 +63,9 @@ export function createPlayerRepository(
         .select("*")
         .single();
       if (error) {
-        if (error.code === UNIQUE_VIOLATION) throw new DuplicateNameError();
+        if (error.code === UNIQUE_VIOLATION) {
+          throw new DuplicateNameError();
+        }
         throw new Error(`Création du joueur: ${error.message}`);
       }
       return toPlayer(data);
@@ -72,7 +78,9 @@ export function createPlayerRepository(
         .select("*")
         .single();
       if (error) {
-        if (error.code === UNIQUE_VIOLATION) throw new DuplicateNameError();
+        if (error.code === UNIQUE_VIOLATION) {
+          throw new DuplicateNameError();
+        }
         throw new Error(`Mise à jour du joueur: ${error.message}`);
       }
       return toPlayer(data);
@@ -84,7 +92,9 @@ export function createPlayerRepository(
         .eq("id", id)
         .select("*")
         .single();
-      if (error) throw new Error(`Activation du joueur: ${error.message}`);
+      if (error) {
+        throw new Error(`Activation du joueur: ${error.message}`);
+      }
       return toPlayer(data);
     },
 
@@ -94,7 +104,9 @@ export function createPlayerRepository(
       // typed PlayerInUseError. No prior count needed; the check is atomic.
       const { error } = await players().delete().eq("id", id);
       if (error) {
-        if (error.code === FK_VIOLATION) throw new PlayerInUseError();
+        if (error.code === FK_VIOLATION) {
+          throw new PlayerInUseError();
+        }
         throw new Error(`Suppression du joueur: ${error.message}`);
       }
     },

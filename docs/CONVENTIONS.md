@@ -80,6 +80,16 @@ otherwise. **Updated on every remark from the project owner.**
 - **Naming**: React component files `PascalCase.tsx`; other modules
   `kebab-case.ts` / lowercase; identifiers and comments in **English**; JSDoc on
   exported APIs.
+- **Style conventions (owner, 2026-06-24):**
+  1. **Never an inline `return`** — control-flow bodies always use braces +
+     newline + indentation, even for a lone `return`. _Enforced by Biome
+     (`style/useBlockStatements`)._
+  2. **No parentheses around a single arrow-function parameter** (`x => …`, not
+     `(x) => …`). _Enforced by Biome (`arrowParentheses: "asNeeded"`)._
+  3. **Blank lines** (Biome can't enforce — apply by hand): one blank line
+     **before every `return`**, and **before & after each `if` / `for` / `try`
+     block** and each **group of `expect(...)`** in tests — _except_ when there
+     is no other statement before/after at that indentation level.
 
 ## 8. Git & pull requests
 
@@ -196,3 +206,7 @@ separate so the fast one never needs a database:
 - _2026-06-11_ — Testing strategy (§11): split **unit** (`yarn test`, no DB) from
   **integration/RLS** (`yarn test:integration`, local Supabase via Docker); the
   latter enforces the RLS/access-control model (OWASP A01) in a dedicated CI job.
+- _2026-06-24_ — Style conventions (§7): no inline `return` (always braces,
+  Biome `useBlockStatements`); no parens around a single arrow param
+  (`arrowParentheses: "asNeeded"`); blank lines around `return`/`if`/`for`/`try`
+  and `expect` groups (manual — Biome has no equivalent rule).

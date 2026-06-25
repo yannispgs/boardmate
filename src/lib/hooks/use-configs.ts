@@ -51,11 +51,15 @@ export function useConfigs(boardgameId: BoardgameId): UseConfigs {
     let active = true;
     repo
       .getTemplate(boardgameId)
-      .then((t) => {
-        if (active) setTemplate(t);
+      .then(t => {
+        if (active) {
+          setTemplate(t);
+        }
       })
       .catch(() => {
-        if (active) setError("Impossible de charger le modèle.");
+        if (active) {
+          setError("Impossible de charger le modèle.");
+        }
       });
     void refresh();
     const unsubscribe = repo.subscribe(() => {

@@ -28,7 +28,9 @@ afterAll(async () => {
   if (createdIds.length > 0) {
     await admin.from("boardgames").delete().in("id", createdIds);
   }
-  if (user) await deleteTestUser(user.id);
+  if (user) {
+    await deleteTestUser(user.id);
+  }
 });
 
 function repo() {
@@ -76,8 +78,8 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
     expect(fetched?.tags).toEqual(["stratégie", "4x"]);
 
     const all = await repo().list();
-    expect(all.some((b) => b.id === created.id)).toBe(true);
-    const names = all.map((b) => b.name);
+    expect(all.some(b => b.id === created.id)).toBe(true);
+    const names = all.map(b => b.name);
     expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
   });
 
@@ -133,7 +135,7 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
     try {
       // The trigger flips has_games; the FK restricts deletion.
       expect((await repo().get(created.id))?.hasGames).toBe(true);
-      const listed = (await repo().list()).find((b) => b.id === created.id);
+      const listed = (await repo().list()).find(b => b.id === created.id);
       expect(listed?.hasGames).toBe(true);
       await expect(repo().remove(created.id)).rejects.toBeInstanceOf(
         BoardgameInUseError,
@@ -163,5 +165,24 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
     // Cleanup the uploaded object.
     const path = url.split("/logos/")[1];
     await serviceClient().storage.from("logos").remove([path]);
+  });
+});
+
+describe("boardgames adapter — error mapping", () => {
+  const BAD_UUID = "not-a-uuid" as BoardgameId;
+
+  it("rethrows a generic error when create hits a check violation", async () => {
+    // Whitespace-only name violates the length check (23514) → generic rethrow.
+    await expect(repo().create({ name: "   " })).rejects.toThrow();
+  });
+
+  it("rethrows a generic error on an invalid id (get/update/setActive/remove)", async () => {
+    await expect(repo().get(BAD_UUID)).rejects.toThrow();
+
+    await expect(repo().update(BAD_UUID, { name: "X" })).rejects.toThrow();
+
+    await expect(repo().setActive(BAD_UUID, false)).rejects.toThrow();
+
+    await expect(repo().remove(BAD_UUID)).rejects.toThrow();
   });
 });

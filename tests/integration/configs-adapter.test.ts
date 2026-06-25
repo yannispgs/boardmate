@@ -25,7 +25,9 @@ afterAll(async () => {
   if (createdIds.length > 0) {
     await admin.from("configs").delete().in("id", createdIds);
   }
-  if (user) await deleteTestUser(user.id);
+  if (user) {
+    await deleteTestUser(user.id);
+  }
 });
 
 function repo() {
@@ -37,10 +39,10 @@ describe("configs adapter — templates", () => {
     const template = await repo().getTemplate(CATAN_ID);
     expect(template).not.toBeNull();
     expect(template?.boardgameId).toBe(CATAN_ID);
-    const keys = template?.fields.map((f) => f.key);
+    const keys = template?.fields.map(f => f.key);
     expect(keys).toContain("pointsToWin");
     expect(keys).toContain("longestRoad");
-    const points = template?.fields.find((f) => f.key === "pointsToWin");
+    const points = template?.fields.find(f => f.key === "pointsToWin");
     expect(points?.type).toBe("integer");
   });
 
@@ -53,7 +55,7 @@ describe("configs adapter — templates", () => {
 
   it("listTemplates includes Catan", async () => {
     const all = await repo().listTemplates();
-    expect(all.some((t) => t.boardgameId === CATAN_ID)).toBe(true);
+    expect(all.some(t => t.boardgameId === CATAN_ID)).toBe(true);
   });
 });
 
@@ -83,8 +85,8 @@ describe("configs adapter — instances CRUD & jsonb round-trip", () => {
     createdIds.push(created.id);
 
     const list = await repo().list(CATAN_ID);
-    expect(list.every((c) => c.boardgameId === CATAN_ID)).toBe(true);
-    expect(list.some((c) => c.id === created.id)).toBe(true);
+    expect(list.every(c => c.boardgameId === CATAN_ID)).toBe(true);
+    expect(list.some(c => c.id === created.id)).toBe(true);
   });
 
   it("updates name and values", async () => {
@@ -118,5 +120,32 @@ describe("configs adapter — instances CRUD & jsonb round-trip", () => {
       "00000000-0000-0000-0000-000000000000" as ConfigId,
     );
     expect(missing).toBeNull();
+  });
+});
+
+describe("configs adapter — error mapping", () => {
+  const BAD_UUID = "not-a-uuid";
+
+  it("rethrows a generic error when create hits a check violation", async () => {
+    // Whitespace-only name violates the length check (23514) → generic rethrow.
+    await expect(
+      repo().create({ boardgameId: CATAN_ID, name: "   ", values: {} }),
+    ).rejects.toThrow();
+  });
+
+  it("rethrows a generic error on an invalid id (get/update/remove)", async () => {
+    await expect(repo().get(BAD_UUID as ConfigId)).rejects.toThrow();
+
+    await expect(
+      repo().update(BAD_UUID as ConfigId, { name: "X" }),
+    ).rejects.toThrow();
+
+    await expect(repo().remove(BAD_UUID as ConfigId)).rejects.toThrow();
+  });
+
+  it("rethrows a generic error from getTemplate/list on an invalid id", async () => {
+    await expect(repo().getTemplate(BAD_UUID as BoardgameId)).rejects.toThrow();
+
+    await expect(repo().list(BAD_UUID as BoardgameId)).rejects.toThrow();
   });
 });

@@ -36,7 +36,9 @@ afterAll(async () => {
   if (createdIds.length > 0) {
     await admin.from("players").delete().in("id", createdIds);
   }
-  if (user) await deleteTestUser(user.id);
+  if (user) {
+    await deleteTestUser(user.id);
+  }
 });
 
 function repo() {
@@ -66,9 +68,9 @@ describe("players adapter — row ↔ domain mapping", () => {
     expect(fetched).toEqual(created);
 
     const all = await repo().list();
-    expect(all.some((p) => p.id === created.id)).toBe(true);
+    expect(all.some(p => p.id === created.id)).toBe(true);
     // list() is ordered by name ascending.
-    const names = all.map((p) => p.name);
+    const names = all.map(p => p.name);
     expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
   });
 
@@ -180,11 +182,46 @@ describe("players adapter — deletion & unique name", () => {
     try {
       // Now reported as having played, via both get and list.
       expect((await repo().get(created.id))?.hasPlayed).toBe(true);
-      const listed = (await repo().list()).find((p) => p.id === created.id);
+      const listed = (await repo().list()).find(p => p.id === created.id);
       expect(listed?.hasPlayed).toBe(true);
     } finally {
       await admin.from("games").delete().eq("id", gid); // cascades game_players
       await admin.from("boardgames").delete().eq("id", bid);
     }
+  });
+});
+
+describe("players adapter — error mapping", () => {
+  const BAD_UUID = "not-a-uuid" as PlayerId;
+
+  it("throws DuplicateNameError when renaming to an existing name", async () => {
+    const target = await repo().create({ name: uniq("Rename Target") });
+    const other = await repo().create({ name: uniq("Rename Other") });
+    createdIds.push(target.id, other.id);
+
+    await expect(
+      repo().update(other.id, { name: uniq("rename target").toUpperCase() }),
+    ).rejects.toBeInstanceOf(DuplicateNameError);
+  });
+
+  it("rethrows a generic error when create hits a non-unique violation", async () => {
+    // A whitespace-only name violates the length check (23514), not the unique
+    // index (23505), so it falls through to the generic rethrow.
+    await expect(repo().create({ name: "   " })).rejects.toThrow();
+  });
+
+  it("rethrows a generic error when update hits a non-unique violation", async () => {
+    const created = await repo().create({ name: uniq("Generic Update") });
+    createdIds.push(created.id);
+
+    await expect(repo().update(created.id, { name: "   " })).rejects.toThrow();
+  });
+
+  it("rethrows a generic error on an invalid id (get/setActive/remove)", async () => {
+    await expect(repo().get(BAD_UUID)).rejects.toThrow();
+
+    await expect(repo().setActive(BAD_UUID, false)).rejects.toThrow();
+
+    await expect(repo().remove(BAD_UUID)).rejects.toThrow();
   });
 });

@@ -2,7 +2,6 @@
 
 import { type FormEvent, useState } from "react";
 import { ConfirmDialog, type ConfirmRequest } from "@/components/ConfirmDialog";
-import { CopyIcon, PencilIcon, TrashIcon } from "@/components/icons";
 import { buildDefaults, validateConfigValues } from "@/lib/config/validation";
 import type {
   BoardgameId,
@@ -12,6 +11,7 @@ import type {
   ConfigValues,
 } from "@/lib/domain";
 import { useConfigs } from "@/lib/hooks/use-configs";
+import { ConfigCardList } from "./ConfigCardList";
 import { ConfigField } from "./ConfigField";
 
 interface FormInit {
@@ -19,9 +19,6 @@ interface FormInit {
   values: ConfigValues;
   editingId: ConfigId | null;
 }
-
-const iconButton =
-  "rounded-md border border-black/10 p-1.5 transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5";
 
 export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
   const { template, configs, loading, error, saveConfig, removeConfig } =
@@ -34,7 +31,7 @@ export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
 
   function openForm(init: FormInit) {
     setFormInit(init);
-    setFormKey((k) => k + 1); // remount the form with fresh initial state
+    setFormKey(k => k + 1); // remount the form with fresh initial state
   }
 
   function openCreate() {
@@ -84,13 +81,17 @@ export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
     setActionError(null);
     try {
       await removeConfig(config.id);
-      if (formInit?.editingId === config.id) setFormInit(null);
+      if (formInit?.editingId === config.id) {
+        setFormInit(null);
+      }
     } catch {
       setActionError("Suppression impossible.");
     }
   }
 
-  if (loading) return <p className="text-sm text-zinc-500">Chargement…</p>;
+  if (loading) {
+    return <p className="text-sm text-zinc-500">Chargement…</p>;
+  }
 
   if (!template) {
     return (
@@ -114,7 +115,7 @@ export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
         </p>
       ) : null}
 
-      <ConfigList
+      <ConfigCardList
         configs={configs}
         onDuplicate={startDuplicate}
         onEdit={startEdit}
@@ -155,68 +156,6 @@ export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
   );
 }
 
-function ConfigList({
-  configs,
-  onDuplicate,
-  onEdit,
-  onDelete,
-}: {
-  configs: Config[];
-  onDuplicate: (config: Config) => void;
-  onEdit: (config: Config) => void;
-  onDelete: (config: Config) => void;
-}) {
-  if (configs.length === 0) {
-    return (
-      <p className="text-sm text-zinc-500">
-        Aucune configuration pour l&apos;instant.
-      </p>
-    );
-  }
-
-  return (
-    <ul className="flex flex-col gap-2">
-      {configs.map((config) => (
-        <li
-          key={config.id}
-          className="flex items-center justify-between gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 dark:border-white/10 dark:bg-zinc-900"
-        >
-          <span className="min-w-0 flex-1 truncate font-medium">
-            {config.name}
-          </span>
-          <button
-            type="button"
-            onClick={() => onDuplicate(config)}
-            aria-label={`Dupliquer ${config.name}`}
-            title="Dupliquer"
-            className={iconButton}
-          >
-            <CopyIcon />
-          </button>
-          <button
-            type="button"
-            onClick={() => onEdit(config)}
-            aria-label={`Modifier ${config.name}`}
-            title="Modifier"
-            className={iconButton}
-          >
-            <PencilIcon />
-          </button>
-          <button
-            type="button"
-            onClick={() => onDelete(config)}
-            aria-label={`Supprimer ${config.name}`}
-            title="Supprimer"
-            className="rounded-md border border-black/10 p-1.5 text-red-600 transition hover:bg-red-50 dark:border-white/15 dark:text-red-400 dark:hover:bg-red-950/40"
-          >
-            <TrashIcon />
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 function ConfigForm({
   template,
   init,
@@ -243,14 +182,18 @@ function ConfigForm({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmed = name.trim();
-    if (trimmed === "") return;
+    if (trimmed === "") {
+      return;
+    }
 
     const result = validateConfigValues(template.fields, values);
     if (!result.success) {
       const errs: Record<string, string> = {};
       for (const issue of result.error.issues) {
         const key = String(issue.path[0] ?? "");
-        if (key && !errs[key]) errs[key] = issue.message;
+        if (key && !errs[key]) {
+          errs[key] = issue.message;
+        }
       }
       setFieldErrors(errs);
       setFormError("Certains champs sont invalides.");
@@ -281,20 +224,20 @@ function ConfigForm({
         <span className="font-medium">Nom</span>
         <input
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={e => setName(e.target.value)}
           placeholder="ex. Partie rapide"
           maxLength={80}
           className="rounded-lg border border-black/15 bg-white px-3 py-2 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900"
         />
       </label>
 
-      {template.fields.map((field) => (
+      {template.fields.map(field => (
         <ConfigField
           key={field.key}
           field={field}
           value={values[field.key]}
           error={fieldErrors[field.key]}
-          onChange={(v) => setValues((prev) => ({ ...prev, [field.key]: v }))}
+          onChange={v => setValues(prev => ({ ...prev, [field.key]: v }))}
         />
       ))}
 
