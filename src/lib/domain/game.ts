@@ -25,6 +25,15 @@ export interface Game {
 }
 
 /**
+ * A game enriched with its participants in play order — what the games list
+ * needs to show the player count and enumerate players (without the full
+ * `PopulatedGame` payload).
+ */
+export interface GameListItem extends Game {
+  players: Array<{ id: PlayerId; name: string }>;
+}
+
+/**
  * Participation row: one per (game, player). This per-participation grain is
  * what makes statistics natural (GROUP BY player, JOIN boardgame). v1 only
  * records `isWinner`; score / placement / faction become extra columns later.

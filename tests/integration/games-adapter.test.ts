@@ -134,6 +134,10 @@ describe("games adapter — listing & ending", () => {
     const ongoing = await repo().list();
     expect(ongoing.some(g => g.id === game.id)).toBe(true);
 
+    // The list carries participants in play order (seat_order).
+    const listed = ongoing.find(g => g.id === game.id);
+    expect(listed?.players.map(p => p.id)).toEqual(playerIds);
+
     await repo().end(game.id, playerIds[1]);
 
     const stillOngoing = await repo().list();

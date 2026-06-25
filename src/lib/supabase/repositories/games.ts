@@ -5,6 +5,7 @@ import type {
   ConfigId,
   Game,
   GameId,
+  GameListItem,
   GamePlayer,
   GameStatus,
   GameTurn,
@@ -39,6 +40,23 @@ function toGame(row: GameRow): Game {
     startedAt: row.started_at,
     endedAt: row.ended_at,
   };
+}
+
+// Shape returned by the games-list select (game + its participants, with the
+// player name embedded).
+type GameListRow = GameRow & {
+  game_players: Array<{
+    seat_order: number;
+    player: { id: string; name: string };
+  }>;
+};
+
+function toGameListItem(row: GameListRow): GameListItem {
+  const players = [...row.game_players]
+    .sort((a, b) => a.seat_order - b.seat_order)
+    .map(gp => ({ id: gp.player.id as PlayerId, name: gp.player.name }));
+
+  return { ...toGame(row), players };
 }
 
 function toGameTurn(row: GameTurnRow): GameTurn {
@@ -84,13 +102,14 @@ export function createGameRepository(
     async list(filter?: { status?: GameStatus }) {
       const status = filter?.status ?? "ongoing";
       const { data, error } = await games()
-        .select("*")
+        .select("*, game_players(seat_order, player:players(id, name))")
         .eq("status", status)
         .order("started_at", { ascending: false });
       if (error) {
         throw new Error(`Lecture des parties: ${error.message}`);
       }
-      return data.map(toGame);
+
+      return (data as unknown as GameListRow[]).map(toGameListItem);
     },
 
     async getPopulated(id: GameId) {

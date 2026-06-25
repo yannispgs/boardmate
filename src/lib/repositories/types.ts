@@ -15,6 +15,7 @@ import type {
   ConfigValues,
   Game,
   GameId,
+  GameListItem,
   GameStatus,
   NewBoardgame,
   NewConfig,
@@ -88,8 +89,11 @@ export interface ConfigRepository {
 }
 
 export interface GameRepository {
-  /** Defaults to ongoing games only when no filter is given. */
-  list(filter?: { status?: GameStatus }): Promise<Game[]>;
+  /**
+   * Defaults to ongoing games only when no filter is given. Each item carries
+   * its participants in play order (for the games list).
+   */
+  list(filter?: { status?: GameStatus }): Promise<GameListItem[]>;
   getPopulated(id: GameId): Promise<PopulatedGame | null>;
   create(input: NewGame): Promise<Game>;
   /** Records the elapsed (active) time for the current turn and rotates. */

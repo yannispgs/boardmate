@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import type { Game, GameStatus, NewGame } from "@/lib/domain";
+import type { Game, GameListItem, GameStatus, NewGame } from "@/lib/domain";
 import { getGameRepository } from "@/lib/repositories";
 
 interface UseGames {
-  games: Game[];
+  games: GameListItem[];
   loading: boolean;
   error: string | null;
   createGame: (input: NewGame) => Promise<Game>;
@@ -18,7 +18,7 @@ interface UseGames {
  */
 export function useGames(status: GameStatus = "ongoing"): UseGames {
   const repo = getGameRepository();
-  const [games, setGames] = useState<Game[]>([]);
+  const [games, setGames] = useState<GameListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
