@@ -7,12 +7,12 @@ import {
 } from "@/lib/repositories/errors";
 import type { PlayerRepository, Unsubscribe } from "@/lib/repositories/types";
 import type { Database } from "@/lib/supabase/database.types";
+import {
+  FK_VIOLATION,
+  UNIQUE_VIOLATION,
+} from "@/lib/supabase/repositories/pg-error-codes";
 
 type PlayerRow = Database["public"]["Tables"]["players"]["Row"];
-
-// Postgres error codes surfaced by PostgREST.
-const UNIQUE_VIOLATION = "23505";
-const FK_VIOLATION = "23503";
 
 /** Maps a raw DB row to the domain `Player` (snake_case -> camelCase). */
 function toPlayer(row: PlayerRow): Player {

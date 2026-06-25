@@ -1,9 +1,8 @@
 "use client";
 
 import { type FormEvent, type RefObject, useRef, useState } from "react";
-
-import { ConfirmDialog, type ConfirmRequest } from "@/components/ConfirmDialog";
 import { UploadIcon } from "@/components/icons";
+import { useConfirm } from "@/components/use-confirm";
 import type { Boardgame, BoardgameId, NewBoardgame } from "@/lib/domain";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { BoardgameInUseError } from "@/lib/repositories/errors";
@@ -157,7 +156,7 @@ export function BoardgamesManager() {
   );
   const [formKey, setFormKey] = useState(0);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
+  const { requestConfirm, confirmDialog } = useConfirm();
 
   function openForm(target: Boardgame | null) {
     setEditingBoardgame(target);
@@ -203,7 +202,7 @@ export function BoardgamesManager() {
       void deactivate(b);
       return;
     }
-    setConfirm({
+    requestConfirm({
       message:
         `Désactiver « ${b.name} » ?\n\n` +
         "Des parties y sont déjà enregistrées : il sortira des sélections mais " +
@@ -214,7 +213,7 @@ export function BoardgamesManager() {
   }
 
   function handleDelete(b: Boardgame) {
-    setConfirm({
+    requestConfirm({
       message: `Supprimer « ${b.name} » ? Cette action est définitive.`,
       confirmLabel: "Supprimer",
       onConfirm: () => deleteBoardgame(b),
@@ -303,18 +302,7 @@ export function BoardgamesManager() {
         </button>
       )}
 
-      {confirm ? (
-        <ConfirmDialog
-          message={confirm.message}
-          confirmLabel={confirm.confirmLabel}
-          onCancel={() => setConfirm(null)}
-          onConfirm={() => {
-            const run = confirm.onConfirm;
-            setConfirm(null);
-            void run();
-          }}
-        />
-      ) : null}
+      {confirmDialog}
     </div>
   );
 }
