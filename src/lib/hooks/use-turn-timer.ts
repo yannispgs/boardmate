@@ -32,12 +32,12 @@ export function useTurnTimer(): UseTurnTimer {
       const now = performance.now();
       const last = lastTick.current ?? now;
       lastTick.current = now;
-      setElapsedMs((ms) => ms + (now - last));
+      setElapsedMs(ms => ms + (now - last));
     }, 200);
     return () => clearInterval(id);
   }, [running]);
 
-  const toggle = useCallback(() => setRunning((r) => !r), []);
+  const toggle = useCallback(() => setRunning(r => !r), []);
   const pause = useCallback(() => setRunning(false), []);
   const reset = useCallback(() => {
     setElapsedMs(0);

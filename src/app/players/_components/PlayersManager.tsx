@@ -2,60 +2,140 @@
 
 import { type FormEvent, useState } from "react";
 
+import { ConfirmDialog, type ConfirmRequest } from "@/components/ConfirmDialog";
 import type { Player } from "@/lib/domain";
 import { usePlayers } from "@/lib/hooks/use-players";
+import {
+  DuplicateNameError,
+  PlayerInUseError,
+} from "@/lib/repositories/errors";
+import { PlayerCardList } from "./PlayerCardList";
+
+const normalize = (s: string) => s.trim().toLowerCase();
 
 export function PlayersManager() {
-  const { players, loading, error, addPlayer, setActive } = usePlayers();
+  const { players, loading, error, addPlayer, setActive, removePlayer } =
+    usePlayers();
   const [name, setName] = useState("");
+  const [formOpen, setFormOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  // In-app confirmation (replaces window.confirm, which browsers suppress).
+  const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
 
-  const active = players.filter((p) => p.isActive);
-  const inactive = players.filter((p) => !p.isActive);
+  const active = players.filter(p => p.isActive);
+  const inactive = players.filter(p => !p.isActive);
 
-  async function handleAdd(event: FormEvent<HTMLFormElement>) {
+  function closeForm() {
+    setName("");
+    setNameError(null);
+    setFormOpen(false);
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmed = name.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      return;
+    }
 
+    // Reject a duplicate name up front (case/space-insensitive).
+    if (players.some(p => normalize(p.name) === normalize(trimmed))) {
+      setNameError("Ce nom est déjà pris.");
+      return;
+    }
+    setNameError(null);
+
+    // Players can only be deleted before they've played — confirm first.
+    setConfirm({
+      message:
+        `Créer le joueur « ${trimmed} » ?\n\n` +
+        "Un joueur ne pourra plus être supprimé dès qu'il aura participé à " +
+        "une partie (il pourra seulement être désactivé).",
+      confirmLabel: "Créer le joueur",
+      onConfirm: () => createPlayer(trimmed),
+    });
+  }
+
+  async function createPlayer(trimmed: string) {
     setSubmitting(true);
-    setFormError(null);
+    setActionError(null);
     try {
       await addPlayer({ name: trimmed });
-      setName("");
-    } catch {
-      setFormError("Ajout impossible. Réessaie.");
+      closeForm();
+    } catch (e) {
+      // Safety net if someone else took the name between the check and submit.
+      if (e instanceof DuplicateNameError) {
+        setNameError("Ce nom est déjà pris.");
+      } else {
+        setActionError("Ajout impossible. Réessaie.");
+      }
     } finally {
       setSubmitting(false);
     }
   }
 
+  async function deactivate(player: Player) {
+    setActionError(null);
+    try {
+      await setActive(player.id, false);
+    } catch {
+      setActionError("Désactivation impossible. Réessaie.");
+    }
+  }
+
+  function handleToggle(player: Player, nextActive: boolean) {
+    // Reactivating, or hiding a player who never played, is harmless — do it
+    // straight away. Only confirm when deactivating a player with history,
+    // since they can no longer be deleted.
+    if (nextActive) {
+      void setActive(player.id, true);
+      return;
+    }
+    if (!player.hasPlayed) {
+      void deactivate(player);
+      return;
+    }
+    setConfirm({
+      message:
+        `Désactiver « ${player.name} » ?\n\n` +
+        "Il a déjà participé à une partie : il sortira des sélections mais " +
+        "gardera son historique. Tu pourras le réactiver à tout moment.",
+      confirmLabel: "Désactiver",
+      onConfirm: () => deactivate(player),
+    });
+  }
+
+  function handleDelete(player: Player) {
+    setConfirm({
+      message: `Supprimer « ${player.name} » ? Cette action est définitive.`,
+      confirmLabel: "Supprimer",
+      onConfirm: () => deletePlayer(player),
+    });
+  }
+
+  async function deletePlayer(player: Player) {
+    setActionError(null);
+    try {
+      await removePlayer(player.id);
+    } catch (e) {
+      if (e instanceof PlayerInUseError) {
+        setActionError(
+          `« ${player.name} » a déjà participé à une partie : impossible de ` +
+            "le supprimer. Tu peux le désactiver à la place.",
+        );
+      } else {
+        setActionError("Suppression impossible. Réessaie.");
+      }
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
-      <form onSubmit={handleAdd} className="flex gap-2">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Nom du joueur"
-          aria-label="Nom du joueur"
-          maxLength={40}
-          className="flex-1 rounded-lg border border-black/15 bg-white px-3 py-2 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900"
-        />
-        <button
-          type="submit"
-          disabled={submitting || name.trim() === ""}
-          className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
-        >
-          Ajouter
-        </button>
-      </form>
-      {formError ? (
-        <p
-          role="alert"
-          className="-mt-4 text-sm text-red-600 dark:text-red-400"
-        >
-          {formError}
+      {actionError ? (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {actionError}
         </p>
       ) : null}
 
@@ -65,74 +145,105 @@ export function PlayersManager() {
         </p>
       ) : null}
 
+      {/* Existing players first */}
       {loading ? (
         <p className="text-sm text-zinc-500">Chargement…</p>
       ) : players.length === 0 ? (
         <p className="text-sm text-zinc-500">
-          Aucun joueur pour l&apos;instant. Ajoute le premier ci-dessus.
+          Aucun joueur pour l&apos;instant.
         </p>
       ) : (
         <div className="flex flex-col gap-6">
-          <PlayerList
+          <PlayerCardList
             title="Joueurs actifs"
             players={active}
-            onToggle={(p) => setActive(p.id, false)}
+            onToggle={p => handleToggle(p, false)}
             actionLabel="Désactiver"
+            onDelete={handleDelete}
           />
           {inactive.length > 0 ? (
-            <PlayerList
+            <PlayerCardList
               title="Désactivés"
               players={inactive}
-              onToggle={(p) => setActive(p.id, true)}
+              onToggle={p => handleToggle(p, true)}
               actionLabel="Réactiver"
+              onDelete={handleDelete}
               dimmed
+              collapsible
             />
           ) : null}
         </div>
       )}
-    </div>
-  );
-}
 
-function PlayerList({
-  title,
-  players,
-  onToggle,
-  actionLabel,
-  dimmed = false,
-}: {
-  title: string;
-  players: Player[];
-  onToggle: (player: Player) => void;
-  actionLabel: string;
-  dimmed?: boolean;
-}) {
-  if (players.length === 0) return null;
-
-  return (
-    <section className="flex flex-col gap-2">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
-        {title} · {players.length}
-      </h2>
-      <ul className="flex flex-col gap-2">
-        {players.map((player) => (
-          <li
-            key={player.id}
-            className={`flex items-center justify-between rounded-xl border border-black/10 bg-white px-4 py-3 dark:border-white/10 dark:bg-zinc-900 ${
-              dimmed ? "opacity-60" : ""
+      {/* Add a player: the form lives below the list, behind a button */}
+      {formOpen ? (
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10"
+        >
+          <h2 className="text-sm font-semibold">Nouveau joueur</h2>
+          <input
+            value={name}
+            onChange={e => {
+              setName(e.target.value);
+              if (nameError) {
+                setNameError(null);
+              }
+            }}
+            placeholder="Nom du joueur"
+            aria-label="Nom du joueur"
+            aria-invalid={nameError ? true : undefined}
+            maxLength={40}
+            className={`rounded-lg border bg-white px-3 py-2 outline-none dark:bg-zinc-900 ${
+              nameError
+                ? "border-red-500 focus:border-red-500"
+                : "border-black/15 focus:border-indigo-500 dark:border-white/15"
             }`}
-          >
-            <span className="font-medium">{player.name}</span>
+          />
+          {nameError ? (
+            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+              {nameError}
+            </p>
+          ) : null}
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={submitting || name.trim() === ""}
+              className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
+            >
+              Ajouter
+            </button>
             <button
               type="button"
-              onClick={() => onToggle(player)}
-              className="rounded-md border border-black/10 px-2 py-1 text-sm transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+              onClick={closeForm}
+              className="rounded-lg border border-black/10 px-4 py-2 transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
             >
-              {actionLabel}
+              Annuler
             </button>
-          </li>
-        ))}
-      </ul>
-    </section>
+          </div>
+        </form>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setFormOpen(true)}
+          className="self-start rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
+        >
+          + Ajouter un joueur
+        </button>
+      )}
+
+      {confirm ? (
+        <ConfirmDialog
+          message={confirm.message}
+          confirmLabel={confirm.confirmLabel}
+          onCancel={() => setConfirm(null)}
+          onConfirm={() => {
+            const run = confirm.onConfirm;
+            setConfirm(null);
+            void run();
+          }}
+        />
+      ) : null}
+    </div>
   );
 }

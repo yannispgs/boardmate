@@ -24,7 +24,7 @@ function toTemplate(row: TemplateRow): ConfigTemplate {
 }
 
 /** Maps a configs row to the domain `Config` (snake_case -> camelCase). */
-function toConfig(row: ConfigRow): Config {
+export function toConfig(row: ConfigRow): Config {
   return {
     id: row.id as ConfigId,
     boardgameId: row.boardgame_id as BoardgameId,
@@ -52,22 +52,29 @@ export function createConfigRepository(
         .select("*")
         .eq("boardgame_id", boardgameId)
         .maybeSingle();
-      if (error) throw new Error(`Lecture du modèle: ${error.message}`);
+      if (error) {
+        throw new Error(`Lecture du modèle: ${error.message}`);
+      }
       return data ? toTemplate(data) : null;
     },
 
     async listTemplates() {
       const { data, error } = await templates().select("*");
-      if (error) throw new Error(`Lecture des modèles: ${error.message}`);
+      if (error) {
+        throw new Error(`Lecture des modèles: ${error.message}`);
+      }
       return data.map(toTemplate);
     },
 
     async list(boardgameId?: BoardgameId) {
       let query = configs().select("*").order("name", { ascending: true });
-      if (boardgameId) query = query.eq("boardgame_id", boardgameId);
+      if (boardgameId) {
+        query = query.eq("boardgame_id", boardgameId);
+      }
       const { data, error } = await query;
-      if (error)
+      if (error) {
         throw new Error(`Lecture des configurations: ${error.message}`);
+      }
       return data.map(toConfig);
     },
 
@@ -76,8 +83,9 @@ export function createConfigRepository(
         .select("*")
         .eq("id", id)
         .maybeSingle();
-      if (error)
+      if (error) {
         throw new Error(`Lecture de la configuration: ${error.message}`);
+      }
       return data ? toConfig(data) : null;
     },
 
@@ -90,8 +98,9 @@ export function createConfigRepository(
         })
         .select("*")
         .single();
-      if (error)
+      if (error) {
         throw new Error(`Création de la configuration: ${error.message}`);
+      }
       return toConfig(data);
     },
 
@@ -100,22 +109,28 @@ export function createConfigRepository(
       patch: { name?: string; values?: ConfigValues },
     ) {
       const row: Database["public"]["Tables"]["configs"]["Update"] = {};
-      if (patch.name !== undefined) row.name = patch.name;
-      if (patch.values !== undefined) row.values = patch.values as Json;
+      if (patch.name !== undefined) {
+        row.name = patch.name;
+      }
+      if (patch.values !== undefined) {
+        row.values = patch.values as Json;
+      }
       const { data, error } = await configs()
         .update(row)
         .eq("id", id)
         .select("*")
         .single();
-      if (error)
+      if (error) {
         throw new Error(`Mise à jour de la configuration: ${error.message}`);
+      }
       return toConfig(data);
     },
 
     async remove(id: ConfigId) {
       const { error } = await configs().delete().eq("id", id);
-      if (error)
+      if (error) {
         throw new Error(`Suppression de la configuration: ${error.message}`);
+      }
     },
 
     subscribe(onChange: () => void): Unsubscribe {

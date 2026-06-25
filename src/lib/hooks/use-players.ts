@@ -12,6 +12,7 @@ interface UsePlayers {
   addPlayer: (input: NewPlayer) => Promise<void>;
   setActive: (id: PlayerId, isActive: boolean) => Promise<void>;
   rename: (id: PlayerId, name: string) => Promise<void>;
+  removePlayer: (id: PlayerId) => Promise<void>;
 }
 
 /**
@@ -67,5 +68,21 @@ export function usePlayers(): UsePlayers {
     [repo, refresh],
   );
 
-  return { players, loading, error, addPlayer, setActive, rename };
+  const removePlayer = useCallback(
+    async (id: PlayerId) => {
+      await repo.remove(id);
+      await refresh();
+    },
+    [repo, refresh],
+  );
+
+  return {
+    players,
+    loading,
+    error,
+    addPlayer,
+    setActive,
+    rename,
+    removePlayer,
+  };
 }

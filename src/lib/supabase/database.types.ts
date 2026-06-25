@@ -7,18 +7,67 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
+      auth_rate_limits: {
+        Row: {
+          blocked_until: string | null
+          count: number
+          key: string
+          updated_at: string
+          violations: number
+          window_start: string
+        }
+        Insert: {
+          blocked_until?: string | null
+          count?: number
+          key: string
+          updated_at?: string
+          violations?: number
+          window_start?: string
+        }
+        Update: {
+          blocked_until?: string | null
+          count?: number
+          key?: string
+          updated_at?: string
+          violations?: number
+          window_start?: string
+        }
+        Relationships: []
+      }
       boardgames: {
         Row: {
           avg_duration_min: number | null
           created_at: string
+          has_games: boolean
           id: string
+          is_active: boolean
           kind: string
           logo_url: string | null
           max_players: number | null
@@ -31,7 +80,9 @@ export type Database = {
         Insert: {
           avg_duration_min?: number | null
           created_at?: string
+          has_games?: boolean
           id?: string
+          is_active?: boolean
           kind?: string
           logo_url?: string | null
           max_players?: number | null
@@ -44,7 +95,9 @@ export type Database = {
         Update: {
           avg_duration_min?: number | null
           created_at?: string
+          has_games?: boolean
           id?: string
+          is_active?: boolean
           kind?: string
           logo_url?: string | null
           max_players?: number | null
@@ -253,18 +306,21 @@ export type Database = {
       players: {
         Row: {
           created_at: string
+          has_played: boolean
           id: string
           is_active: boolean
           name: string
         }
         Insert: {
           created_at?: string
+          has_played?: boolean
           id?: string
           is_active?: boolean
           name: string
         }
         Update: {
           created_at?: string
+          has_played?: boolean
           id?: string
           is_active?: boolean
           name?: string
@@ -276,7 +332,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      check_auth_rate_limit: {
+        Args: {
+          p_base_block_s?: number
+          p_key: string
+          p_max?: number
+          p_max_block_s?: number
+          p_window_s?: number
+        }
+        Returns: {
+          allowed: boolean
+          retry_after_s: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
@@ -405,7 +473,11 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },
 } as const
+

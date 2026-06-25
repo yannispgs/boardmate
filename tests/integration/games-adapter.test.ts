@@ -43,10 +43,14 @@ beforeAll(async () => {
 
 afterAll(async () => {
   const admin = serviceClient();
-  for (const id of gameIds) await admin.from("games").delete().eq("id", id);
+  for (const id of gameIds) {
+    await admin.from("games").delete().eq("id", id);
+  }
   await admin.from("configs").delete().eq("id", configId);
   await admin.from("players").delete().in("id", playerIds);
-  if (user) await deleteTestUser(user.id);
+  if (user) {
+    await deleteTestUser(user.id);
+  }
 });
 
 function repo() {
@@ -80,8 +84,8 @@ describe("games adapter — creation & population", () => {
     const populated = await repo().getPopulated(created.id);
     expect(populated?.boardgame.name).toBe("Catan");
     expect(populated?.config?.id).toBe(configId);
-    expect(populated?.players.map((p) => p.playerId)).toEqual(playerIds);
-    expect(populated?.players.map((p) => p.seatOrder)).toEqual([0, 1, 2]);
+    expect(populated?.players.map(p => p.playerId)).toEqual(playerIds);
+    expect(populated?.players.map(p => p.seatOrder)).toEqual([0, 1, 2]);
     expect(populated?.currentPlayer?.id).toBe(playerIds[0]);
     expect(populated?.turns).toEqual([]);
   });
@@ -128,19 +132,19 @@ describe("games adapter — listing & ending", () => {
     gameIds.push(game.id);
 
     const ongoing = await repo().list();
-    expect(ongoing.some((g) => g.id === game.id)).toBe(true);
+    expect(ongoing.some(g => g.id === game.id)).toBe(true);
 
     await repo().end(game.id, playerIds[1]);
 
     const stillOngoing = await repo().list();
-    expect(stillOngoing.some((g) => g.id === game.id)).toBe(false);
+    expect(stillOngoing.some(g => g.id === game.id)).toBe(false);
     const ended = await repo().list({ status: "ended" });
-    expect(ended.some((g) => g.id === game.id)).toBe(true);
+    expect(ended.some(g => g.id === game.id)).toBe(true);
 
     const populated = await repo().getPopulated(game.id);
     expect(populated?.status).toBe("ended");
     expect(populated?.endedAt).not.toBeNull();
-    const winner = populated?.players.find((p) => p.isWinner);
+    const winner = populated?.players.find(p => p.isWinner);
     expect(winner?.playerId).toBe(playerIds[1]);
   });
 });

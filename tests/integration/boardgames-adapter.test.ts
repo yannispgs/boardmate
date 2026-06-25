@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { BoardgameId } from "@/lib/domain";
+import { BoardgameInUseError } from "@/lib/repositories/errors";
 import { createBoardgameRepository } from "@/lib/supabase/repositories/boardgames";
 import {
   authedClient,
@@ -27,7 +28,9 @@ afterAll(async () => {
   if (createdIds.length > 0) {
     await admin.from("boardgames").delete().in("id", createdIds);
   }
-  if (user) await deleteTestUser(user.id);
+  if (user) {
+    await deleteTestUser(user.id);
+  }
 });
 
 function repo() {
@@ -48,6 +51,8 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
     expect(bg.maxPlayers).toBe(4);
     expect(bg.kind).toBe("competitive"); // DB default
     expect(bg.tags).toEqual([]); // DB default
+    expect(bg.isActive).toBe(true); // DB default
+    expect(bg.hasGames).toBe(false); // no games yet
     expect(bg.logoUrl).toBeNull();
     expect(typeof bg.createdAt).toBe("string");
     expect(bg).not.toHaveProperty("min_players");
@@ -73,8 +78,8 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
     expect(fetched?.tags).toEqual(["stratégie", "4x"]);
 
     const all = await repo().list();
-    expect(all.some((b) => b.id === created.id)).toBe(true);
-    const names = all.map((b) => b.name);
+    expect(all.some(b => b.id === created.id)).toBe(true);
+    const names = all.map(b => b.name);
     expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
   });
 
@@ -100,6 +105,46 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
     expect(await repo().get(created.id)).toBeNull();
   });
 
+  it("deactivates a boardgame (is_active -> false) without deleting it", async () => {
+    const created = await repo().create({ name: "Deactivate BG" });
+    createdIds.push(created.id);
+
+    const deactivated = await repo().setActive(created.id, false);
+    expect(deactivated.isActive).toBe(false);
+
+    const still = await repo().get(created.id);
+    expect(still?.isActive).toBe(false);
+  });
+
+  it("flags hasGames and blocks deletion once a game exists", async () => {
+    const admin = serviceClient();
+    const created = await repo().create({ name: "Played BG" });
+    createdIds.push(created.id);
+
+    // Fresh boardgame: no games yet.
+    expect((await repo().get(created.id))?.hasGames).toBe(false);
+
+    const gid = (
+      await admin
+        .from("games")
+        .insert({ boardgame_id: created.id })
+        .select("id")
+        .single()
+    ).data?.id as string;
+
+    try {
+      // The trigger flips has_games; the FK restricts deletion.
+      expect((await repo().get(created.id))?.hasGames).toBe(true);
+      const listed = (await repo().list()).find(b => b.id === created.id);
+      expect(listed?.hasGames).toBe(true);
+      await expect(repo().remove(created.id)).rejects.toBeInstanceOf(
+        BoardgameInUseError,
+      );
+    } finally {
+      await admin.from("games").delete().eq("id", gid);
+    }
+  });
+
   it("returns null from get for an unknown id", async () => {
     const missing = await repo().get(
       "00000000-0000-0000-0000-000000000000" as BoardgameId,
@@ -120,5 +165,24 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
     // Cleanup the uploaded object.
     const path = url.split("/logos/")[1];
     await serviceClient().storage.from("logos").remove([path]);
+  });
+});
+
+describe("boardgames adapter — error mapping", () => {
+  const BAD_UUID = "not-a-uuid" as BoardgameId;
+
+  it("rethrows a generic error when create hits a check violation", async () => {
+    // Whitespace-only name violates the length check (23514) → generic rethrow.
+    await expect(repo().create({ name: "   " })).rejects.toThrow();
+  });
+
+  it("rethrows a generic error on an invalid id (get/update/setActive/remove)", async () => {
+    await expect(repo().get(BAD_UUID)).rejects.toThrow();
+
+    await expect(repo().update(BAD_UUID, { name: "X" })).rejects.toThrow();
+
+    await expect(repo().setActive(BAD_UUID, false)).rejects.toThrow();
+
+    await expect(repo().remove(BAD_UUID)).rejects.toThrow();
   });
 });

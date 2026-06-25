@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 
+import { authRateLimitError } from "@/lib/auth/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 
 /** Result of requesting a login code, surfaced back to the login form. */
@@ -37,6 +38,11 @@ export async function signInWithEmail(
     return { error: "Renseigne une adresse e-mail valide." };
   }
 
+  const rateLimited = await authRateLimitError();
+  if (rateLimited) {
+    return { error: rateLimited, email };
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({ email });
 
@@ -69,6 +75,11 @@ export async function verifyCode(
   // just sanity-check the range and let verifyOtp be the real validator.
   if (token.length < 6 || token.length > 10) {
     return { error: "Code invalide. Vérifie l'e-mail reçu." };
+  }
+
+  const rateLimited = await authRateLimitError();
+  if (rateLimited) {
+    return { error: rateLimited };
   }
 
   const supabase = await createClient();

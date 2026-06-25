@@ -87,3 +87,33 @@ jobs:
         # tests/integration/env.ts), so no secrets are needed — local Supabase
         # ships fixed default keys.
         run: yarn test:integration
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf # v2.1.1
+        with:
+          version: 2.105.0
+      - name: Set up Node & dependencies
+        uses: ./.github/actions/setup
+      - name: Start local Supabase (Docker)
+        run: supabase start
+      - name: Run tests with coverage (unit + integration)
+        # Both suites in one run so the report reflects everything they cover.
+        run: yarn test:coverage
+      - name: Upload coverage to Codecov
+        # Codecov computes the project (total) + patch (changed-lines) coverage,
+        # decorates the PR, and gates per codecov.yml. Token avoids the
+        # tokenless shared-IP throttle (stored as a GitHub Actions secret).
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          files: ./coverage/lcov.info
+          fail_ci_if_error: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

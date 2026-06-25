@@ -32,13 +32,21 @@ export type Unsubscribe = () => void;
 export interface PlayerRepository {
   list(): Promise<Player[]>;
   get(id: PlayerId): Promise<Player | null>;
+  /** Rejects with `DuplicateNameError` if the name is already taken. */
   create(input: NewPlayer): Promise<Player>;
+  /** Rejects with `DuplicateNameError` if the new name is already taken. */
   update(id: PlayerId, patch: PlayerUpdate): Promise<Player>;
   /**
-   * Activate / deactivate a player. We never delete players from the DB; a
-   * deactivated player drops out of selection lists but keeps its history.
+   * Activate / deactivate a player. A deactivated player drops out of
+   * selection lists but keeps its history — the right choice once a player has
+   * played and can no longer be deleted.
    */
   setActive(id: PlayerId, isActive: boolean): Promise<Player>;
+  /**
+   * Permanently deletes a player. Only possible while they have no game
+   * history; rejects with `PlayerInUseError` once they've taken part in a game.
+   */
+  remove(id: PlayerId): Promise<void>;
   subscribe(onChange: () => void): Unsubscribe;
 }
 
@@ -47,6 +55,16 @@ export interface BoardgameRepository {
   get(id: BoardgameId): Promise<Boardgame | null>;
   create(input: NewBoardgame): Promise<Boardgame>;
   update(id: BoardgameId, patch: BoardgameUpdate): Promise<Boardgame>;
+  /**
+   * Activate / deactivate a boardgame. A deactivated boardgame drops out of
+   * selection lists but keeps its history — the right choice once it has games
+   * and can no longer be deleted.
+   */
+  setActive(id: BoardgameId, isActive: boolean): Promise<Boardgame>;
+  /**
+   * Permanently deletes a boardgame. Only possible while it has no games;
+   * rejects with `BoardgameInUseError` once a game has been played with it.
+   */
   remove(id: BoardgameId): Promise<void>;
   /** Uploads a logo image and returns its public URL. */
   uploadLogo(file: File): Promise<string>;

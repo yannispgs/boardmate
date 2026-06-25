@@ -36,7 +36,9 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   }, [load]);
 
   async function handleNext() {
-    if (!game || busy) return;
+    if (!game || busy) {
+      return;
+    }
     setBusy(true);
     try {
       await repo.advanceTurn(game.id, timer.elapsedS);
@@ -50,7 +52,9 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   }
 
   async function handleEnd(winnerId: PlayerId) {
-    if (!game || busy) return;
+    if (!game || busy) {
+      return;
+    }
     setBusy(true);
     try {
       await repo.end(game.id, winnerId);
@@ -62,7 +66,9 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
     }
   }
 
-  if (loading) return <p className="text-sm text-zinc-500">Chargement…</p>;
+  if (loading) {
+    return <p className="text-sm text-zinc-500">Chargement…</p>;
+  }
   if (error && !game) {
     return <p className="text-sm text-red-600 dark:text-red-400">{error}</p>;
   }
@@ -71,7 +77,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   }
 
   if (game.status === "ended") {
-    const winner = game.players.find((p) => p.isWinner)?.player;
+    const winner = game.players.find(p => p.isWinner)?.player;
     return <Congrats winnerName={winner?.name ?? null} />;
   }
 
@@ -94,7 +100,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
 
       <DurationEditor
         durationS={durationS}
-        onChange={(s) => setDurationS(s)}
+        onChange={s => setDurationS(s)}
         onPause={timer.pause}
       />
 
@@ -114,13 +120,13 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
       </button>
 
       <WinnerPicker
-        players={game.players.map((p) => p.player)}
+        players={game.players.map(p => p.player)}
         onPick={handleEnd}
         disabled={busy}
       />
 
       <PlayerOrder
-        players={game.players.map((p) => p.player)}
+        players={game.players.map(p => p.player)}
         currentId={game.currentPlayerId}
       />
     </div>
@@ -161,10 +167,18 @@ function TimerRing({
   // Beep at 10s left and a final ring at 0 (Web Audio, no asset needed).
   const beepedAt = useRef<Set<number>>(new Set());
   useEffect(() => {
-    if (!running) return;
-    if (remainingS === 10) playTone(880, 0.12, beepedAt.current, 10);
-    if (remainingS === 0) playTone(440, 0.4, beepedAt.current, 0);
-    if (remainingS > 10) beepedAt.current.clear();
+    if (!running) {
+      return;
+    }
+    if (remainingS === 10) {
+      playTone(880, 0.12, beepedAt.current, 10);
+    }
+    if (remainingS === 0) {
+      playTone(440, 0.4, beepedAt.current, 0);
+    }
+    if (remainingS > 10) {
+      beepedAt.current.clear();
+    }
   }, [remainingS, running]);
 
   return (
@@ -241,7 +255,9 @@ function DurationEditor({
 
   function apply() {
     const n = Number(value);
-    if (Number.isFinite(n) && n > 0) onChange(Math.round(n));
+    if (Number.isFinite(n) && n > 0) {
+      onChange(Math.round(n));
+    }
     setOpen(false);
   }
 
@@ -263,7 +279,7 @@ function DurationEditor({
         type="number"
         min={1}
         value={value}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={e => setValue(e.target.value)}
         aria-label="Durée du tour en secondes"
         className="w-24 rounded-lg border border-black/15 bg-white px-3 py-2 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900"
       />
@@ -311,7 +327,7 @@ function WinnerPicker({
   return (
     <div className="flex w-full max-w-xs flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10">
       <p className="text-sm font-semibold">Qui a gagné ?</p>
-      {players.map((p) => (
+      {players.map(p => (
         <button
           key={p.id}
           type="button"
@@ -342,7 +358,7 @@ function PlayerOrder({
 }) {
   return (
     <ul className="flex flex-wrap justify-center gap-2">
-      {players.map((player) => (
+      {players.map(player => (
         <li
           key={player.id}
           className={`rounded-full border px-3 py-1 text-sm ${
@@ -389,14 +405,18 @@ function playTone(
   fired: Set<number>,
   key: number,
 ) {
-  if (fired.has(key)) return;
+  if (fired.has(key)) {
+    return;
+  }
   fired.add(key);
   try {
     const Ctor =
       window.AudioContext ||
       (window as unknown as { webkitAudioContext?: typeof AudioContext })
         .webkitAudioContext;
-    if (!Ctor) return;
+    if (!Ctor) {
+      return;
+    }
     const ctx = new Ctor();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();

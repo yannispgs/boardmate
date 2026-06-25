@@ -10,9 +10,15 @@ const RED = "#A30000";
 
 /** Returns the ring colour for `remainingS` out of a `durationS` turn. */
 export function countdownColor(remainingS: number, durationS: number): string {
-  if (durationS <= 0 || remainingS <= 0) return RED;
+  if (durationS <= 0 || remainingS <= 0) {
+    return RED;
+  }
   const fraction = remainingS / durationS;
-  if (fraction > 0.5) return GREEN;
-  if (fraction > 0.25) return YELLOW;
+  if (fraction > 0.5) {
+    return GREEN;
+  }
+  if (fraction > 0.25) {
+    return YELLOW;
+  }
   return ORANGE;
 }

@@ -7,6 +7,7 @@ import type {
   BoardgameUpdate,
   NewBoardgame,
 } from "@/lib/domain";
+import { BoardgameInUseError } from "@/lib/repositories/errors";
 import type {
   BoardgameRepository,
   Unsubscribe,
@@ -18,8 +19,11 @@ type BoardgameWrite = Database["public"]["Tables"]["boardgames"]["Update"];
 
 const LOGO_BUCKET = "logos";
 
+// Postgres error code surfaced by PostgREST on a foreign-key violation.
+const FK_VIOLATION = "23503";
+
 /** Maps a raw DB row to the domain `Boardgame` (snake_case -> camelCase). */
-function toBoardgame(row: BoardgameRow): Boardgame {
+export function toBoardgame(row: BoardgameRow): Boardgame {
   return {
     id: row.id as BoardgameId,
     name: row.name,
@@ -31,6 +35,9 @@ function toBoardgame(row: BoardgameRow): Boardgame {
     kind: row.kind as BoardgameKind,
     avgDurationMin: row.avg_duration_min,
     tags: row.tags,
+    isActive: row.is_active,
+    // Denormalized column kept up to date by a DB trigger on games.
+    hasGames: row.has_games,
     createdAt: row.created_at,
   };
 }
@@ -42,18 +49,33 @@ function toBoardgame(row: BoardgameRow): Boardgame {
  */
 function toRow(input: NewBoardgame | BoardgameUpdate): BoardgameWrite {
   const row: BoardgameWrite = {};
-  if (input.name !== undefined) row.name = input.name;
-  if (input.logoUrl !== undefined) row.logo_url = input.logoUrl;
-  if (input.minPlayers !== undefined) row.min_players = input.minPlayers;
-  if (input.maxPlayers !== undefined) row.max_players = input.maxPlayers;
-  if (input.recMinPlayers !== undefined)
+  if (input.name !== undefined) {
+    row.name = input.name;
+  }
+  if (input.logoUrl !== undefined) {
+    row.logo_url = input.logoUrl;
+  }
+  if (input.minPlayers !== undefined) {
+    row.min_players = input.minPlayers;
+  }
+  if (input.maxPlayers !== undefined) {
+    row.max_players = input.maxPlayers;
+  }
+  if (input.recMinPlayers !== undefined) {
     row.rec_min_players = input.recMinPlayers;
-  if (input.recMaxPlayers !== undefined)
+  }
+  if (input.recMaxPlayers !== undefined) {
     row.rec_max_players = input.recMaxPlayers;
-  if (input.kind !== undefined) row.kind = input.kind;
-  if (input.avgDurationMin !== undefined)
+  }
+  if (input.kind !== undefined) {
+    row.kind = input.kind;
+  }
+  if (input.avgDurationMin !== undefined) {
     row.avg_duration_min = input.avgDurationMin;
-  if (input.tags !== undefined) row.tags = input.tags;
+  }
+  if (input.tags !== undefined) {
+    row.tags = input.tags;
+  }
   return row;
 }
 
@@ -71,7 +93,9 @@ export function createBoardgameRepository(
       const { data, error } = await boardgames()
         .select("*")
         .order("name", { ascending: true });
-      if (error) throw new Error(`Lecture des jeux: ${error.message}`);
+      if (error) {
+        throw new Error(`Lecture des jeux: ${error.message}`);
+      }
       return data.map(toBoardgame);
     },
 
@@ -80,7 +104,9 @@ export function createBoardgameRepository(
         .select("*")
         .eq("id", id)
         .maybeSingle();
-      if (error) throw new Error(`Lecture du jeu: ${error.message}`);
+      if (error) {
+        throw new Error(`Lecture du jeu: ${error.message}`);
+      }
       return data ? toBoardgame(data) : null;
     },
 
@@ -90,7 +116,9 @@ export function createBoardgameRepository(
         .insert({ ...toRow(input), name: input.name })
         .select("*")
         .single();
-      if (error) throw new Error(`Création du jeu: ${error.message}`);
+      if (error) {
+        throw new Error(`Création du jeu: ${error.message}`);
+      }
       return toBoardgame(data);
     },
 
@@ -100,15 +128,35 @@ export function createBoardgameRepository(
         .eq("id", id)
         .select("*")
         .single();
-      if (error) throw new Error(`Mise à jour du jeu: ${error.message}`);
+      if (error) {
+        throw new Error(`Mise à jour du jeu: ${error.message}`);
+      }
+      return toBoardgame(data);
+    },
+
+    async setActive(id: BoardgameId, isActive: boolean) {
+      const { data, error } = await boardgames()
+        .update({ is_active: isActive })
+        .eq("id", id)
+        .select("*")
+        .single();
+      if (error) {
+        throw new Error(`Activation du jeu: ${error.message}`);
+      }
       return toBoardgame(data);
     },
 
     async remove(id: BoardgameId) {
-      // The DB restricts deletion of a boardgame that already has games
-      // (on delete restrict), preserving history; surfaced as an error here.
+      // games.boardgame_id is on-delete-restrict, so Postgres rejects the delete
+      // (23503) once the boardgame has games — surfaced as a typed
+      // BoardgameInUseError. No prior count needed; the check is atomic.
       const { error } = await boardgames().delete().eq("id", id);
-      if (error) throw new Error(`Suppression du jeu: ${error.message}`);
+      if (error) {
+        if (error.code === FK_VIOLATION) {
+          throw new BoardgameInUseError();
+        }
+        throw new Error(`Suppression du jeu: ${error.message}`);
+      }
     },
 
     async uploadLogo(file: File) {
@@ -119,7 +167,9 @@ export function createBoardgameRepository(
         contentType: file.type || undefined,
         upsert: false,
       });
-      if (error) throw new Error(`Envoi du logo: ${error.message}`);
+      if (error) {
+        throw new Error(`Envoi du logo: ${error.message}`);
+      }
       return bucket.getPublicUrl(path).data.publicUrl;
     },
 
