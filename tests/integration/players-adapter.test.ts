@@ -188,3 +188,38 @@ describe("players adapter — deletion & unique name", () => {
     }
   });
 });
+
+describe("players adapter — error mapping", () => {
+  const BAD_UUID = "not-a-uuid" as PlayerId;
+
+  it("throws DuplicateNameError when renaming to an existing name", async () => {
+    const target = await repo().create({ name: uniq("Rename Target") });
+    const other = await repo().create({ name: uniq("Rename Other") });
+    createdIds.push(target.id, other.id);
+
+    await expect(
+      repo().update(other.id, { name: uniq("rename target").toUpperCase() }),
+    ).rejects.toBeInstanceOf(DuplicateNameError);
+  });
+
+  it("rethrows a generic error when create hits a non-unique violation", async () => {
+    // A whitespace-only name violates the length check (23514), not the unique
+    // index (23505), so it falls through to the generic rethrow.
+    await expect(repo().create({ name: "   " })).rejects.toThrow();
+  });
+
+  it("rethrows a generic error when update hits a non-unique violation", async () => {
+    const created = await repo().create({ name: uniq("Generic Update") });
+    createdIds.push(created.id);
+
+    await expect(repo().update(created.id, { name: "   " })).rejects.toThrow();
+  });
+
+  it("rethrows a generic error on an invalid id (get/setActive/remove)", async () => {
+    await expect(repo().get(BAD_UUID)).rejects.toThrow();
+
+    await expect(repo().setActive(BAD_UUID, false)).rejects.toThrow();
+
+    await expect(repo().remove(BAD_UUID)).rejects.toThrow();
+  });
+});

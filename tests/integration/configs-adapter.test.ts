@@ -120,3 +120,30 @@ describe("configs adapter — instances CRUD & jsonb round-trip", () => {
     expect(missing).toBeNull();
   });
 });
+
+describe("configs adapter — error mapping", () => {
+  const BAD_UUID = "not-a-uuid";
+
+  it("rethrows a generic error when create hits a check violation", async () => {
+    // Whitespace-only name violates the length check (23514) → generic rethrow.
+    await expect(
+      repo().create({ boardgameId: CATAN_ID, name: "   ", values: {} }),
+    ).rejects.toThrow();
+  });
+
+  it("rethrows a generic error on an invalid id (get/update/remove)", async () => {
+    await expect(repo().get(BAD_UUID as ConfigId)).rejects.toThrow();
+
+    await expect(
+      repo().update(BAD_UUID as ConfigId, { name: "X" }),
+    ).rejects.toThrow();
+
+    await expect(repo().remove(BAD_UUID as ConfigId)).rejects.toThrow();
+  });
+
+  it("rethrows a generic error from getTemplate/list on an invalid id", async () => {
+    await expect(repo().getTemplate(BAD_UUID as BoardgameId)).rejects.toThrow();
+
+    await expect(repo().list(BAD_UUID as BoardgameId)).rejects.toThrow();
+  });
+});

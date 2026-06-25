@@ -165,3 +165,22 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
     await serviceClient().storage.from("logos").remove([path]);
   });
 });
+
+describe("boardgames adapter — error mapping", () => {
+  const BAD_UUID = "not-a-uuid" as BoardgameId;
+
+  it("rethrows a generic error when create hits a check violation", async () => {
+    // Whitespace-only name violates the length check (23514) → generic rethrow.
+    await expect(repo().create({ name: "   " })).rejects.toThrow();
+  });
+
+  it("rethrows a generic error on an invalid id (get/update/setActive/remove)", async () => {
+    await expect(repo().get(BAD_UUID)).rejects.toThrow();
+
+    await expect(repo().update(BAD_UUID, { name: "X" })).rejects.toThrow();
+
+    await expect(repo().setActive(BAD_UUID, false)).rejects.toThrow();
+
+    await expect(repo().remove(BAD_UUID)).rejects.toThrow();
+  });
+});
