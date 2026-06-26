@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { Tooltip } from "@/components/Tooltip";
 import type { GameListItem } from "@/lib/domain";
 
 /** Full start timestamp (date + HH:mm:ss), shown when hovering the date. */
@@ -18,8 +19,8 @@ function fullStart(iso: string): string {
 
 /**
  * One ongoing game in the list: boardgame, progress, start date and player
- * count. The date reveals the full timestamp on hover, and the player count
- * reveals the participants in play order.
+ * count, linking to the play screen. The date reveals the full timestamp on
+ * hover, and the player count reveals the participants in play order.
  */
 export function GameCard({
   game,
@@ -32,7 +33,6 @@ export function GameCard({
   const playOrder =
     game.players.map((p, i) => `${i + 1}. ${p.name}`).join("\n") ||
     "Aucun joueur";
-  const hint = "cursor-help underline decoration-dotted underline-offset-2";
 
   return (
     <li>
@@ -44,13 +44,13 @@ export function GameCard({
           <span className="font-medium">{boardgameName}</span>
           <span className="text-xs text-zinc-500">
             Manche {game.round} · tour {game.turn} ·{" "}
-            <span title={fullStart(game.startedAt)} className={hint}>
+            <Tooltip label={fullStart(game.startedAt)}>
               {new Date(game.startedAt).toLocaleDateString("fr-FR")}
-            </span>{" "}
+            </Tooltip>{" "}
             ·{" "}
-            <span title={playOrder} className={hint}>
+            <Tooltip label={playOrder}>
               {count} {count > 1 ? "joueurs" : "joueur"}
-            </span>
+            </Tooltip>
           </span>
         </div>
         <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
