@@ -11,8 +11,7 @@ export function GamesList() {
   const { games, loading, error } = useGames("ongoing");
   const { boardgames } = useBoardgames();
 
-  const nameOf = (id: BoardgameId) =>
-    boardgames.find(b => b.id === id)?.name ?? "Partie";
+  const boardgameFor = (id: BoardgameId) => boardgames.find(b => b.id === id);
 
   return (
     <div className="flex flex-col gap-6">
@@ -36,7 +35,7 @@ export function GamesList() {
           Aucune partie en cours. Lance-en une !
         </p>
       ) : (
-        <GameCardList games={games} nameOf={nameOf} />
+        <GameCardList games={games} boardgameFor={boardgameFor} />
       )}
     </div>
   );
