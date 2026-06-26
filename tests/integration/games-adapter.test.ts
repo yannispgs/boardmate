@@ -152,3 +152,28 @@ describe("games adapter — listing & ending", () => {
     expect(winner?.playerId).toBe(playerIds[1]);
   });
 });
+
+describe("games adapter — error mapping", () => {
+  const BAD_UUID = "not-a-uuid";
+
+  it("rethrows a generic error on an invalid id (getPopulated/advanceTurn/end)", async () => {
+    // An invalid UUID is a 22P02 DB error → the generic rethrow in each method.
+    await expect(repo().getPopulated(BAD_UUID as GameId)).rejects.toThrow();
+
+    await expect(repo().advanceTurn(BAD_UUID as GameId, 10)).rejects.toThrow();
+
+    await expect(
+      repo().end(BAD_UUID as GameId, playerIds[0]),
+    ).rejects.toThrow();
+  });
+
+  it("rethrows a generic error when create references a bad boardgame id", async () => {
+    await expect(
+      repo().create({
+        boardgameId: BAD_UUID as BoardgameId,
+        configId: null,
+        playerIds: [],
+      }),
+    ).rejects.toThrow();
+  });
+});
