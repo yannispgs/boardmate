@@ -86,7 +86,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   return (
     <div className="flex flex-col items-center gap-8">
       <p className="text-sm uppercase tracking-wide text-zinc-400">
-        Manche {game.round} · Tour {game.turn}
+        Tour {game.round}
       </p>
 
       <CurrentPlayer name={game.currentPlayer?.name ?? "—"} />
