@@ -1,0 +1,67 @@
+import { expect, test } from "@playwright/test";
+
+import {
+  adminClient,
+  CATAN_MIN_PLAYERS,
+  CATAN_NAME,
+  seedPlayers,
+} from "./utils/supabase";
+
+/**
+ * One full game, end to end: walk the new-game funnel (jeu → config → joueurs),
+ * land on the play screen, advance a turn, then end the game and pick a winner.
+ * Players are seeded via the service role; the seeded Catan boardgame is used.
+ */
+test("plays a full game from the funnel to the winner", async ({ page }) => {
+  const players = await seedPlayers(CATAN_MIN_PLAYERS);
+  let gameId: string | null = null;
+
+  try {
+    await page.goto("/games/new");
+
+    // 1 · pick the boardgame.
+    await page.getByRole("button", { name: CATAN_NAME, exact: true }).click();
+
+    // 2 · play without a config.
+    await page
+      .getByRole("button", { name: "Sans configuration", exact: true })
+      .click();
+
+    // 3 · pick the players in order, then launch.
+    for (const name of players) {
+      await page.getByRole("button", { name, exact: true }).click();
+    }
+    await page.getByRole("button", { name: "Lancer la partie" }).click();
+
+    // Landed on the play screen for the freshly created game.
+    await expect(page).toHaveURL(/\/games\/[0-9a-f-]+\/play$/);
+    gameId = page.url().match(/games\/([0-9a-f-]+)\/play/)?.[1] ?? null;
+
+    const currentName = page
+      .getByText("Au tour de", { exact: true })
+      .locator("xpath=following-sibling::span[1]");
+
+    // The first seated player is up.
+    await expect(currentName).toHaveText(players[0]);
+
+    // Advance one turn → the second player is now up.
+    await page.getByRole("button", { name: "Tour suivant →" }).click();
+    await expect(currentName).toHaveText(players[1]);
+
+    // End the game and crown a winner.
+    await page.getByRole("button", { name: "Terminer la partie" }).click();
+    await expect(page.getByText("Qui a gagné ?")).toBeVisible();
+    await page.getByRole("button", { name: players[0], exact: true }).click();
+
+    await expect(
+      page.getByRole("heading", { name: "Partie terminée !" }),
+    ).toBeVisible();
+    await expect(page.getByText(`Bravo ${players[0]}`)).toBeVisible();
+  } finally {
+    const admin = adminClient();
+    if (gameId) {
+      await admin.from("games").delete().eq("id", gameId);
+    }
+    await admin.from("players").delete().in("name", players);
+  }
+});
