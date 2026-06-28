@@ -50,11 +50,50 @@ function PlayOrder({
 }
 
 /**
+ * The same play order as the tooltip, but rendered inline as small chips —
+ * shown only on touch devices (`@media (hover: none)`), where the hover tooltip
+ * never fires, so the participants stay reachable without a mouse.
+ */
+function InlinePlayOrder({
+  players,
+  currentPlayerId,
+}: {
+  players: GameListItem["players"];
+  currentPlayerId: PlayerId | null;
+}) {
+  if (players.length === 0) {
+    return null;
+  }
+
+  return (
+    <ul className="mt-1.5 hidden flex-wrap gap-1 [@media(hover:none)]:flex">
+      {players.map((p, i) => {
+        const isCurrent = p.id === currentPlayerId;
+
+        return (
+          <li
+            key={p.id}
+            className={`rounded-full border px-2 py-0.5 text-[11px] ${
+              isCurrent
+                ? "border-indigo-400 font-semibold text-indigo-600 dark:text-indigo-400"
+                : "border-black/10 text-zinc-500 dark:border-white/10"
+            }`}
+          >
+            {i + 1}. {p.name}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/**
  * One ongoing game in the list: the boardgame logo, name, progress, start date
  * and player count. The date reveals the full timestamp on hover, and the
  * player count reveals the participants in play order — emphasising whose turn
  * it is. A `round` is one full table cycle (everyone has played once); for an
- * ongoing game we also surface whose turn it is right now.
+ * ongoing game we also surface whose turn it is right now. On touch devices,
+ * where hover doesn't exist, the play order is shown inline instead.
  */
 export function GameCard({
   game,
@@ -110,6 +149,10 @@ export function GameCard({
               Au tour de {currentPlayer.name}
             </span>
           ) : null}
+          <InlinePlayOrder
+            players={game.players}
+            currentPlayerId={game.currentPlayerId}
+          />
         </div>
       </div>
       <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
