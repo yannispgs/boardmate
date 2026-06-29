@@ -1,6 +1,13 @@
 "use client";
 
-import { type FormEvent, type RefObject, useRef, useState } from "react";
+import {
+  type ClipboardEvent,
+  type FormEvent,
+  type RefObject,
+  useRef,
+  useState,
+} from "react";
+
 import { UploadIcon } from "@/components/icons";
 import { useConfirm } from "@/components/use-confirm";
 import type { Boardgame, BoardgameId, NewBoardgame } from "@/lib/domain";
@@ -68,7 +75,10 @@ function toInput(form: FormState, logoUrl: string | null): NewBoardgame {
 const field =
   "rounded-lg border border-black/15 bg-white px-3 py-2 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900";
 
-type LogoSource = "file" | "url";
+type LogoSource = "file" | "url" | "paste";
+
+/** Image MIME types accepted everywhere a logo can come in (file/paste). */
+const LOGO_MIME = ["image/png", "image/jpeg"];
 
 const isPng = (b: Uint8Array): boolean =>
   b.length >= 4 &&
@@ -341,12 +351,10 @@ function BoardgameForm({
   const [formError, setFormError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  async function handleLogo(event: FormEvent<HTMLInputElement>) {
-    const file = event.currentTarget.files?.[0];
-    if (!file) {
-      return;
-    }
-    setFileName(file.name);
+  // Uploads any logo image (picked file or pasted from the clipboard) to Storage
+  // and previews it. `label` is what the UI shows as the chosen source.
+  async function uploadFile(file: File, label: string) {
+    setFileName(label);
     setUploading(true);
     setFormError(null);
     try {
@@ -358,11 +366,20 @@ function BoardgameForm({
     }
   }
 
+  function handleLogo(event: FormEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    void uploadFile(file, file.name);
+  }
+
   function switchSource(next: LogoSource) {
     setLogoSource(next);
     setFormError(null);
-    if (next === "file") {
-      // Going back to file input: drop any pasted URL preview.
+    if (next !== "url") {
+      // Leaving URL mode (to file or paste): drop any URL preview/input.
       setLogoUrl(null);
       setLogoUrlInput("");
       setFileName(null);
@@ -519,6 +536,8 @@ function BoardgameForm({
         onPickFile={handleLogo}
         onUrlChange={setLogoUrlInput}
         onUrlBlur={checkLogoUrl}
+        onPasteImage={file => void uploadFile(file, "Image collée")}
+        onPasteError={setFormError}
       />
 
       {formError ? (
@@ -561,6 +580,8 @@ function LogoPicker({
   onPickFile,
   onUrlChange,
   onUrlBlur,
+  onPasteImage,
+  onPasteError,
 }: {
   logoUrl: string | null;
   logoSource: LogoSource;
@@ -573,7 +594,48 @@ function LogoPicker({
   onPickFile: (event: FormEvent<HTMLInputElement>) => void;
   onUrlChange: (value: string) => void;
   onUrlBlur: () => void;
+  onPasteImage: (file: File) => void;
+  onPasteError: (message: string) => void;
 }) {
+  // Pull an accepted image out of a paste event (Ctrl/Cmd+V into the drop zone).
+  function handlePaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+    const item = Array.from(event.clipboardData?.items ?? []).find(i =>
+      LOGO_MIME.includes(i.type),
+    );
+
+    if (!item) {
+      onPasteError("Le presse-papier ne contient pas d'image PNG ou JPEG.");
+      return;
+    }
+
+    const file = item.getAsFile();
+    if (file) {
+      onPasteImage(file);
+    }
+  }
+
+  // Convenience for the click path: read the clipboard via the async API (needs
+  // permission + a secure context). Falls back to the paste zone on failure.
+  async function readClipboard() {
+    try {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const type = item.types.find(t => LOGO_MIME.includes(t));
+        if (type) {
+          const blob = await item.getType(type);
+          const ext = type === "image/png" ? "png" : "jpg";
+          onPasteImage(new File([blob], `collage.${ext}`, { type }));
+          return;
+        }
+      }
+      onPasteError("Aucune image dans le presse-papier.");
+    } catch {
+      onPasteError(
+        "Accès au presse-papier refusé. Colle l'image (Ctrl/Cmd + V) dans la zone.",
+      );
+    }
+  }
+
   const tab = (source: LogoSource, label: string) => (
     <button
       type="button"
@@ -596,6 +658,7 @@ function LogoPicker({
         <div className="flex overflow-hidden rounded-lg border border-black/15 text-xs dark:border-white/15">
           {tab("file", "Fichier")}
           {tab("url", "URL")}
+          {tab("paste", "Coller")}
         </div>
       </div>
       <div className="flex items-center gap-3">
@@ -624,7 +687,7 @@ function LogoPicker({
               {fileName ?? "PNG ou JPEG"}
             </span>
           </div>
-        ) : (
+        ) : logoSource === "url" ? (
           <input
             type="url"
             inputMode="url"
@@ -635,6 +698,26 @@ function LogoPicker({
             aria-label="URL du logo (PNG ou JPEG)"
             className={`flex-1 ${field}`}
           />
+        ) : (
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <textarea
+              readOnly
+              onPaste={handlePaste}
+              aria-label="Zone de collage du logo"
+              placeholder={
+                fileName ?? "Clique ici puis colle une image (Ctrl/Cmd + V)"
+              }
+              rows={2}
+              className={`flex-1 resize-none cursor-text text-sm ${field}`}
+            />
+            <button
+              type="button"
+              onClick={readClipboard}
+              className="self-start text-xs text-indigo-600 hover:underline dark:text-indigo-400"
+            >
+              Coller depuis le presse-papier
+            </button>
+          </div>
         )}
         {uploading || checkingUrl ? (
           <span className="text-xs text-zinc-500">

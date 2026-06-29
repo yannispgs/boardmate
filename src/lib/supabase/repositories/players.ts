@@ -15,7 +15,7 @@ import {
 type PlayerRow = Database["public"]["Tables"]["players"]["Row"];
 
 /** Maps a raw DB row to the domain `Player` (snake_case -> camelCase). */
-function toPlayer(row: PlayerRow): Player {
+export function toPlayer(row: PlayerRow): Player {
   return {
     id: row.id as PlayerId,
     name: row.name,

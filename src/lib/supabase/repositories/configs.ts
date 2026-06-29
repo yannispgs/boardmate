@@ -24,7 +24,7 @@ function toTemplate(row: TemplateRow): ConfigTemplate {
 }
 
 /** Maps a configs row to the domain `Config` (snake_case -> camelCase). */
-function toConfig(row: ConfigRow): Config {
+export function toConfig(row: ConfigRow): Config {
   return {
     id: row.id as ConfigId,
     boardgameId: row.boardgame_id as BoardgameId,
