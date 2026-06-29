@@ -256,7 +256,7 @@ function TimerRing({
       <span
         aria-hidden
         className="pointer-events-none absolute inset-0 flex items-center justify-center transition-opacity duration-200"
-        style={{ opacity: paused ? 0.2 : 0 }}
+        style={{ opacity: paused ? 0.25 : 0 }}
       >
         <svg
           width="168"
