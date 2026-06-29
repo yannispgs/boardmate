@@ -102,10 +102,12 @@ export function GameCard({
   game,
   boardgameName,
   logoUrl,
+  ended = false,
 }: {
   game: GameListItem;
   boardgameName: string;
   logoUrl: string | null;
+  ended?: boolean;
 }) {
   const count = game.players.length;
   const currentPlayer = game.players.find(p => p.id === game.currentPlayerId);
@@ -114,7 +116,9 @@ export function GameCard({
     <li>
       <Link
         href={`/games/${game.id}/play`}
-        className="flex items-center justify-between gap-3 rounded-xl border border-black/10 bg-white px-4 py-3 transition hover:border-indigo-400 dark:border-white/10 dark:bg-zinc-900"
+        className={`flex items-center justify-between gap-3 rounded-xl border border-black/10 bg-white px-4 py-3 transition hover:border-indigo-400 dark:border-white/10 dark:bg-zinc-900 ${
+          ended ? "opacity-60" : ""
+        }`}
       >
         <div className="flex min-w-0 items-center gap-3">
           {logoUrl ? (
@@ -162,9 +166,15 @@ export function GameCard({
             />
           </div>
         </div>
-        <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
-          Reprendre
-        </span>
+        {ended ? (
+          <span className="shrink-0 rounded-full bg-black/5 px-2 py-0.5 text-xs font-medium text-zinc-500 dark:bg-white/10 dark:text-zinc-400">
+            Terminée
+          </span>
+        ) : (
+          <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
+            Reprendre
+          </span>
+        )}
       </Link>
     </li>
   );

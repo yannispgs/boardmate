@@ -8,7 +8,7 @@ import { useGames } from "@/lib/hooks/use-games";
 import { GameCardList } from "./GameCardList";
 
 export function GamesList() {
-  const { games, loading, error } = useGames("ongoing");
+  const { games, endedGames, loading, error } = useGames();
   const { boardgames } = useBoardgames();
 
   const boardgameFor = (id: BoardgameId) => boardgames.find(b => b.id === id);
@@ -30,12 +30,26 @@ export function GamesList() {
 
       {loading ? (
         <p className="text-sm text-zinc-500">Chargement…</p>
-      ) : games.length === 0 ? (
-        <p className="text-sm text-zinc-500">
-          Aucune partie en cours. Lance-en une !
-        </p>
+      ) : games.length === 0 && endedGames.length === 0 ? (
+        <p className="text-sm text-zinc-500">Aucune partie. Lance-en une !</p>
       ) : (
-        <GameCardList games={games} boardgameFor={boardgameFor} />
+        <div className="flex flex-col gap-6">
+          {games.length > 0 ? (
+            <GameCardList games={games} boardgameFor={boardgameFor} />
+          ) : (
+            <p className="text-sm text-zinc-500">Aucune partie en cours.</p>
+          )}
+
+          {endedGames.length > 0 ? (
+            <GameCardList
+              games={endedGames}
+              boardgameFor={boardgameFor}
+              ended
+              collapsible
+              title="Terminées"
+            />
+          ) : null}
+        </div>
       )}
     </div>
   );

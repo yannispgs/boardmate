@@ -149,6 +149,31 @@ const RING_STROKE = 14;
 const RING_R = (RING_SIZE - RING_STROKE) / 2;
 const RING_C = 2 * Math.PI * RING_R;
 
+/** Neutral "on hold" colour (violet-500) the ring/readout adopt while paused. */
+const PAUSE_COLOR = "#8b5cf6";
+
+/**
+ * The big ring readout. Under a minute we show raw seconds; from a minute up we
+ * switch to m:ss so long turns (e.g. "3:00") stay readable instead of "180".
+ */
+function formatCountdown(remainingS: number): { value: string; label: string } {
+  if (remainingS <= 0) {
+    return { value: "0", label: "temps écoulé" };
+  }
+
+  if (remainingS >= 60) {
+    const minutes = Math.floor(remainingS / 60);
+    const seconds = remainingS % 60;
+
+    return {
+      value: `${minutes}:${String(seconds).padStart(2, "0")}`,
+      label: minutes > 1 ? "minutes" : "minute",
+    };
+  }
+
+  return { value: String(remainingS), label: "secondes" };
+}
+
 function TimerRing({
   remainingS,
   durationS,
@@ -160,22 +185,29 @@ function TimerRing({
   running: boolean;
   onToggle: () => void;
 }) {
-  const color = countdownColor(remainingS, durationS);
+  const paused = !running;
+  const ringColor = paused
+    ? PAUSE_COLOR
+    : countdownColor(remainingS, durationS);
   const progress = Math.max(0, Math.min(1, remainingS / durationS));
-  const overtime = remainingS <= 0;
+  const display = formatCountdown(remainingS);
 
-  // Beep at 10s left and a final ring at 0 (Web Audio, no asset needed).
+  // A light tick on each of the last 10 seconds, then a stronger ring at 0
+  // (Web Audio, no asset needed). Paused → silent (the effect bails on !running).
   const beepedAt = useRef<Set<number>>(new Set());
   useEffect(() => {
     if (!running) {
       return;
     }
-    if (remainingS === 10) {
-      playTone(880, 0.12, beepedAt.current, 10);
+
+    if (remainingS >= 1 && remainingS <= 10) {
+      playTone(880, 0.07, beepedAt.current, remainingS, 0.08);
     }
+
     if (remainingS === 0) {
-      playTone(440, 0.4, beepedAt.current, 0);
+      playTone(440, 0.4, beepedAt.current, 0, 0.2);
     }
+
     if (remainingS > 10) {
       beepedAt.current.clear();
     }
@@ -192,7 +224,6 @@ function TimerRing({
         width={RING_SIZE}
         height={RING_SIZE}
         viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}
-        className={running ? "" : "opacity-40"}
       >
         <title>Chronomètre du tour</title>
         <circle
@@ -209,23 +240,48 @@ function TimerRing({
           cy={RING_SIZE / 2}
           r={RING_R}
           fill="none"
-          stroke={color}
+          stroke={ringColor}
           strokeWidth={RING_STROKE}
           strokeLinecap="round"
           strokeDasharray={RING_C}
           strokeDashoffset={RING_C * (1 - progress)}
           transform={`rotate(-90 ${RING_SIZE / 2} ${RING_SIZE / 2})`}
-          style={{ transition: "stroke-dashoffset 0.3s linear" }}
+          style={{
+            transition: "stroke-dashoffset 0.3s linear, stroke 0.2s ease",
+          }}
         />
       </svg>
+
+      {/* Big pause glyph fading in behind the readout while on hold. */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 flex items-center justify-center transition-opacity duration-200"
+        style={{ opacity: paused ? 0.2 : 0 }}
+      >
+        <svg
+          width="168"
+          height="168"
+          viewBox="0 0 24 24"
+          fill={PAUSE_COLOR}
+          aria-hidden
+        >
+          <title>Pause</title>
+          <rect x="6" y="5" width="4" height="14" rx="1.5" />
+          <rect x="14" y="5" width="4" height="14" rx="1.5" />
+        </svg>
+      </span>
+
       <span className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-5xl font-bold tabular-nums" style={{ color }}>
-          {overtime ? "0" : remainingS}
+        <span
+          className="text-5xl font-bold tabular-nums"
+          style={{ color: ringColor, transition: "color 0.2s ease" }}
+        >
+          {display.value}
         </span>
         <span className="text-xs uppercase tracking-wide text-zinc-400">
-          {overtime ? "temps écoulé" : "secondes"}
+          {display.label}
         </span>
-        {!running ? (
+        {paused ? (
           <span className="mt-1 text-xs font-semibold text-zinc-500">
             EN PAUSE
           </span>
@@ -404,6 +460,7 @@ function playTone(
   durationS: number,
   fired: Set<number>,
   key: number,
+  volume = 0.2,
 ) {
   if (fired.has(key)) {
     return;
@@ -421,7 +478,7 @@ function playTone(
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.frequency.value = freq;
-    gain.gain.value = 0.2;
+    gain.gain.value = volume;
     osc.connect(gain).connect(ctx.destination);
     osc.start();
     osc.stop(ctx.currentTime + durationS);
