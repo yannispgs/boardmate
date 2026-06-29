@@ -15,7 +15,7 @@ const UNIQUE_VIOLATION = "23505";
 const FK_VIOLATION = "23503";
 
 /** Maps a raw DB row to the domain `Player` (snake_case -> camelCase). */
-function toPlayer(row: PlayerRow): Player {
+export function toPlayer(row: PlayerRow): Player {
   return {
     id: row.id as PlayerId,
     name: row.name,

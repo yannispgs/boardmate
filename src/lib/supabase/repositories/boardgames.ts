@@ -23,7 +23,7 @@ const LOGO_BUCKET = "logos";
 const FK_VIOLATION = "23503";
 
 /** Maps a raw DB row to the domain `Boardgame` (snake_case -> camelCase). */
-function toBoardgame(row: BoardgameRow): Boardgame {
+export function toBoardgame(row: BoardgameRow): Boardgame {
   return {
     id: row.id as BoardgameId,
     name: row.name,
