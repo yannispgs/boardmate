@@ -19,13 +19,14 @@ export function adminClient(): SupabaseClient {
 
 /**
  * Inserts `count` active players with unique names (the DB enforces
- * case-insensitive uniqueness) and returns their names in order.
+ * case-insensitive uniqueness) and returns their names in order. Names stay
+ * within the 20-char limit (base36 timestamp keeps them short).
  */
 export async function seedPlayers(count: number): Promise<string[]> {
-  const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const stamp = Date.now().toString(36);
   const names = Array.from(
     { length: count },
-    (_, i) => `E2E Joueur ${i + 1} ${stamp}`,
+    (_, i) => `E2E J${i + 1}-${stamp}`,
   );
 
   const { error } = await adminClient()

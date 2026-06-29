@@ -8,7 +8,8 @@ import { adminClient } from "./utils/supabase";
  * "Désactivés" disclosure — then reactivate. Reuses the shared session.
  */
 test("creates, deactivates and reactivates a player", async ({ page }) => {
-  const name = `E2E Cycle ${Date.now()}`;
+  // Keep within the 20-char player-name limit (base36 timestamp stays short).
+  const name = `E2E ${Date.now().toString(36)}`;
 
   await page.goto("/players");
 
