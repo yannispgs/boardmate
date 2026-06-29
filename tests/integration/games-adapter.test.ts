@@ -21,10 +21,11 @@ beforeAll(async () => {
   user = await createTestUser();
   const admin = serviceClient();
   // Three players seated p0, p1, p2 (service role bypasses RLS for setup).
+  // Names stay ≤ 20 chars (DB constraint): a base36 timestamp keeps them short.
   for (const name of ["P-un", "P-deux", "P-trois"]) {
     const { data } = await admin
       .from("players")
-      .insert({ name: `${name}-${Date.now()}` })
+      .insert({ name: `${name}-${Date.now().toString(36)}` })
       .select("id")
       .single();
     playerIds.push(data?.id as PlayerId);

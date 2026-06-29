@@ -116,7 +116,7 @@ describe("players deletion — only before they've played", () => {
     const admin = serviceClient();
     const { data: seeded } = await admin
       .from("players")
-      .insert({ name: `Deletable-${Date.now()}` })
+      .insert({ name: `Del-${Date.now().toString(36)}` })
       .select("*")
       .single();
     const id = seeded?.id as string;
@@ -187,7 +187,10 @@ describe("players deletion — only before they've played", () => {
 
   it("rejects a duplicate name (case/space-insensitive)", async () => {
     const admin = serviceClient();
-    const base = `Uniq-${Date.now()}`;
+    // base36 keeps it short enough that the space-padded duplicate below still
+    // fits the 20-char limit, so the test hits the unique index (23505), not the
+    // length check (23514).
+    const base = `Uniq-${Date.now().toString(36)}`;
     const id = (
       await admin.from("players").insert({ name: base }).select("id").single()
     ).data?.id as string;
