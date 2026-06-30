@@ -193,7 +193,7 @@ export function PlayersManager() {
             placeholder="Nom du joueur"
             aria-label="Nom du joueur"
             aria-invalid={nameError ? true : undefined}
-            maxLength={40}
+            maxLength={20}
             className={`rounded-lg border bg-white px-3 py-2 outline-none dark:bg-zinc-900 ${
               nameError
                 ? "border-red-500 focus:border-red-500"

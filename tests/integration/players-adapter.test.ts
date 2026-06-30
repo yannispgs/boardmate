@@ -18,10 +18,13 @@ import {
 // local database: it must map DB rows (snake_case) to the domain `Player`
 // (camelCase), and translate DB failures into typed domain errors.
 
-// Player names are globally unique (case-insensitive) — suffix them per run so
-// they never collide with seeded data or rows left by a prior failed run.
-const RUN = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-const uniq = (base: string) => `${base} ${RUN}`;
+// Player names are globally unique (case-insensitive) AND capped at 20 chars
+// (DB constraint). A compact run token up front guarantees uniqueness across
+// runs/rows; the base (spaces stripped) is just for readability and is truncated
+// to keep the whole name within the limit.
+const RUN = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 4)}`;
+const uniq = (base: string) =>
+  `${RUN}-${base.replace(/\s+/g, "")}`.slice(0, 20);
 
 let user: TestUser;
 const createdIds: string[] = [];
@@ -101,6 +104,22 @@ describe("players adapter — row ↔ domain mapping", () => {
 
     const still = await repo().get(created.id);
     expect(still?.isActive).toBe(false);
+  });
+});
+
+describe("players adapter — name length", () => {
+  it("rejects a name longer than 20 characters", async () => {
+    await expect(repo().create({ name: "A".repeat(21) })).rejects.toThrow();
+  });
+
+  it("accepts a name of exactly 20 characters", async () => {
+    const name = `len20-${RUN}`.slice(0, 20).padEnd(20, "z");
+    expect(name).toHaveLength(20);
+
+    const created = await repo().create({ name });
+    createdIds.push(created.id);
+
+    expect(created.name).toBe(name);
   });
 });
 
