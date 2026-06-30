@@ -9,7 +9,6 @@ const TOOLS: {
   status: string;
   href?: string;
 }[] = [
-  { name: "Chronomètre", emoji: "⏱️", status: "v1" },
   { name: "Joueurs", emoji: "👥", status: "v1", href: "/players" },
   { name: "Jeux", emoji: "🎲", status: "v1", href: "/boardgames" },
   { name: "Parties", emoji: "🃏", status: "v1", href: "/games" },
