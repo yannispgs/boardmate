@@ -35,6 +35,22 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
     void load();
   }, [load]);
 
+  // Unlock audio on the first interaction with the play screen: mobile browsers
+  // only let an AudioContext start from a user gesture, so without this the
+  // last-10-seconds ticks never play. Resuming on every pointer/key event keeps
+  // it unlocked for the rest of the game (resume is a no-op once running).
+  useEffect(() => {
+    const handle = () => unlockAudio();
+
+    window.addEventListener("pointerdown", handle);
+    window.addEventListener("keydown", handle);
+
+    return () => {
+      window.removeEventListener("pointerdown", handle);
+      window.removeEventListener("keydown", handle);
+    };
+  }, []);
+
   async function handleNext() {
     if (!game || busy) {
       return;
@@ -454,7 +470,47 @@ function Congrats({ winnerName }: { winnerName: string | null }) {
   );
 }
 
-/** Plays a short tone via Web Audio; deduped per `key` so it fires once. */
+// A single shared AudioContext, reused for every beep. Mobile browsers cap the
+// number of AudioContexts (iOS allows only a handful) and suspend any created
+// outside a user gesture — so creating one per beep (the previous approach)
+// silently stopped firing after the first second or two on phones. We keep one
+// and resume it on interaction instead.
+let sharedCtx: AudioContext | null = null;
+
+function getAudioContext(): AudioContext | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const Ctor =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext;
+  if (!Ctor) {
+    return null;
+  }
+  if (!sharedCtx) {
+    try {
+      sharedCtx = new Ctor();
+    } catch {
+      return null;
+    }
+  }
+
+  return sharedCtx;
+}
+
+/**
+ * Resumes the shared AudioContext. Must be called from within a user gesture to
+ * unlock audio on mobile (browsers start the context suspended otherwise).
+ */
+function unlockAudio() {
+  const ctx = getAudioContext();
+  if (ctx && ctx.state === "suspended") {
+    void ctx.resume();
+  }
+}
+
+/** Plays a short tone on the shared context; deduped per `key` so it fires once. */
 function playTone(
   freq: number,
   durationS: number,
@@ -466,23 +522,29 @@ function playTone(
     return;
   }
   fired.add(key);
+
+  const ctx = getAudioContext();
+  if (!ctx) {
+    return;
+  }
+  // Best-effort resume in case it drifted to suspended (no-op if already running).
+  if (ctx.state === "suspended") {
+    void ctx.resume();
+  }
+
   try {
-    const Ctor =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext?: typeof AudioContext })
-        .webkitAudioContext;
-    if (!Ctor) {
-      return;
-    }
-    const ctx = new Ctor();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.frequency.value = freq;
     gain.gain.value = volume;
     osc.connect(gain).connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + durationS);
-    osc.onended = () => void ctx.close();
+    const now = ctx.currentTime;
+    osc.start(now);
+    osc.stop(now + durationS);
+    osc.onended = () => {
+      osc.disconnect();
+      gain.disconnect();
+    };
   } catch {
     // Audio is best-effort; ignore unsupported environments.
   }
