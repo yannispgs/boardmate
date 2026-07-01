@@ -90,6 +90,12 @@ describe("games adapter — creation & population", () => {
     expect(populated?.currentPlayer?.id).toBe(playerIds[0]);
     expect(populated?.turns).toEqual([]);
   });
+
+  it("returns null from getPopulated for an unknown id", async () => {
+    const missing = crypto.randomUUID() as GameId;
+
+    expect(await repo().getPopulated(missing)).toBeNull();
+  });
 });
 
 describe("games adapter — turn rotation & time logging", () => {

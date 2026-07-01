@@ -40,6 +40,7 @@ export function createPlayerRepository(
       const { data, error } = await players()
         .select("*")
         .order("name", { ascending: true });
+      /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */
       if (error) {
         throw new Error(`Lecture des joueurs: ${error.message}`);
       }
@@ -111,6 +112,7 @@ export function createPlayerRepository(
       }
     },
 
+    /* c8 ignore start -- Realtime channel glue, exercised via e2e/manual */
     subscribe(onChange: () => void): Unsubscribe {
       const channel = supabase
         .channel("public:players")
@@ -124,5 +126,6 @@ export function createPlayerRepository(
         void supabase.removeChannel(channel);
       };
     },
+    /* c8 ignore stop */
   };
 }

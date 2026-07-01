@@ -198,6 +198,20 @@ separate so the fast one never needs a database:
     `yarn test:e2e:full` (all projects, CI), `yarn test:e2e:ui`. New exhaustive
     scenarios are added **untagged** so they run only in the full suite; promote
     one to `@critical` when it becomes a must-pass gate.
+- **Coverage (`yarn test:coverage`)** — Vitest v8, **unit + integration merged**,
+  scoped to `src/lib/**` (`vitest.coverage.config.ts`), uploaded to Codecov. The
+  UI (`src/app`) and request-scoped glue (React hooks, SDK client/server
+  factories, proxy, env loader, composition root, auth Server Actions/session)
+  are **excluded** — they're covered by e2e + Vercel previews, not the
+  unit/integration suites. **Target: 100%** on what remains. Genuinely
+  untestable-without-fault-injection code is marked, not faked:
+  **`/* c8 ignore … */`** on (a) the Realtime `subscribe()` channel glue, (b)
+  defensive DB-error guards (`if (error) throw …` on healthy selects/updates),
+  and (c) defensive `?? null` / `|| …` fallbacks — each with a one-line reason.
+  Never mock the Supabase client to hit a branch; either trigger it for real
+  (constraint violations, not-found) or `c8 ignore` it with justification. Pure
+  logic buried in a glue file is **extracted** to its own module so it can be
+  unit-tested and measured (e.g. `auth/retry-delay.ts` out of `rate-limit.ts`).
 - **Skip**: per-component/snapshot tests, mocking the Supabase client,
   perf/load, visual-regression (Vercel preview + occasional screenshot suffices).
 
@@ -249,3 +263,9 @@ separate so the fast one never needs a database:
   all scenarios on both engines) runs non-blocking on push to `main` and on
   demand via a separate `e2e-full.yml` workflow. New scenarios are added
   untagged (full-only) until promoted.
+- _2026-07-01_ — Coverage target is **100%** on the measured `src/lib/**` scope
+  (§11): reach it with real unit/integration tests, and mark the rest with
+  documented `/* c8 ignore … */` (Realtime `subscribe()` glue, defensive
+  DB-error guards, `?? null`/`|| …` fallbacks) — **never** by mocking the
+  Supabase client. Extract pure logic out of glue files to unit-test it
+  (`auth/retry-delay.ts`).

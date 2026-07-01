@@ -19,6 +19,7 @@ function toTemplate(row: TemplateRow): ConfigTemplate {
   return {
     boardgameId: row.boardgame_id as BoardgameId,
     // `fields` is authored by us as data, so the shape is trusted here.
+    /* c8 ignore next -- `?? []` is a defensive fallback; the column is NOT NULL */
     fields: (row.fields ?? []) as unknown as FieldSpec[],
   };
 }
@@ -29,6 +30,7 @@ export function toConfig(row: ConfigRow): Config {
     id: row.id as ConfigId,
     boardgameId: row.boardgame_id as BoardgameId,
     name: row.name,
+    /* c8 ignore next -- `?? {}` is a defensive fallback; the column is NOT NULL */
     values: (row.values ?? {}) as ConfigValues,
     createdAt: row.created_at,
   };
@@ -60,6 +62,7 @@ export function createConfigRepository(
 
     async listTemplates() {
       const { data, error } = await templates().select("*");
+      /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */
       if (error) {
         throw new Error(`Lecture des modèles: ${error.message}`);
       }
@@ -133,6 +136,7 @@ export function createConfigRepository(
       }
     },
 
+    /* c8 ignore start -- Realtime channel glue, exercised via e2e/manual */
     subscribe(onChange: () => void): Unsubscribe {
       const channel = supabase
         .channel("public:configs")
@@ -146,5 +150,6 @@ export function createConfigRepository(
         void supabase.removeChannel(channel);
       };
     },
+    /* c8 ignore stop */
   };
 }

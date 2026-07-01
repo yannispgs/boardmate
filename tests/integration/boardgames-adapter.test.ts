@@ -90,10 +90,14 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
     const updated = await repo().update(created.id, {
       avgDurationMin: 60,
       tags: ["oiseaux"],
+      logoUrl: "https://example.com/logo.png",
+      kind: "cooperative",
     });
     expect(updated.name).toBe(uniq("Wingspan")); // untouched
     expect(updated.avgDurationMin).toBe(60);
     expect(updated.tags).toEqual(["oiseaux"]);
+    expect(updated.logoUrl).toBe("https://example.com/logo.png");
+    expect(updated.kind).toBe("cooperative");
   });
 
   it("removes a boardgame that has no games", async () => {
