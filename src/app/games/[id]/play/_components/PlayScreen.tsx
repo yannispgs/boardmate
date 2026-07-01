@@ -37,18 +37,21 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   }, [load]);
 
   // Unlock audio on the first interaction with the play screen: mobile browsers
-  // only let an AudioContext start from a user gesture, so without this the
-  // last-10-seconds ticks never play. Resuming on every pointer/key event keeps
-  // it unlocked for the rest of the game (resume is a no-op once running).
+  // only let an AudioContext start from a user gesture. iOS in particular needs
+  // a touchend/click (not just pointerdown), so we listen broadly; re-running on
+  // each event keeps it unlocked for the rest of the game.
   useEffect(() => {
     const handle = () => unlockAudio();
+    const events = ["touchend", "pointerup", "mousedown", "keydown"] as const;
 
-    window.addEventListener("pointerdown", handle);
-    window.addEventListener("keydown", handle);
+    for (const e of events) {
+      window.addEventListener(e, handle);
+    }
 
     return () => {
-      window.removeEventListener("pointerdown", handle);
-      window.removeEventListener("keydown", handle);
+      for (const e of events) {
+        window.removeEventListener(e, handle);
+      }
     };
   }, []);
 
@@ -482,8 +485,21 @@ function getAudioContext(): AudioContext | null {
  */
 function unlockAudio() {
   const ctx = getAudioContext();
-  if (ctx && ctx.state === "suspended") {
+  if (!ctx) {
+    return;
+  }
+  if (ctx.state === "suspended") {
     void ctx.resume();
+  }
+  // iOS won't unlock the audio output on resume() alone — it needs an actual
+  // (silent) sound started from within the user gesture. Kick a 1-sample buffer.
+  try {
+    const src = ctx.createBufferSource();
+    src.buffer = ctx.createBuffer(1, 1, 22050);
+    src.connect(ctx.destination);
+    src.start(0);
+  } catch {
+    // best-effort
   }
 }
 

@@ -12,9 +12,11 @@ import type { PlayerId } from "@/lib/domain";
  * once that round has started. Each round is bounded: its first player has no
  * left chevron, its last no right chevron.
  *
- * The scroll offset is computed analytically from the (measured) tag widths and
- * set as the strip transform in render, so the CSS transition animates reliably
- * (measuring layout in an effect broke the transition on mobile).
+ * Items are placed at ABSOLUTE x-offsets in a stable coordinate space (a round
+ * has a fixed width, repeated), and only the strip's transform changes per turn.
+ * That keeps the CSS transition well-defined — a sliding window with flex margins
+ * shifts the coordinate origin as items mount/unmount, which broke the animation
+ * on mobile (it jumped instead of sliding).
  */
 
 const PAD_X = 16; // horizontal text padding inside a tag
@@ -61,6 +63,7 @@ interface TagItem {
   turn: number;
   name: string;
   w: number;
+  left: number;
   firstOfRound: boolean;
   lastOfRound: boolean;
   isCurrent: boolean;
@@ -69,6 +72,7 @@ interface TagItem {
 interface BarItem {
   kind: "bar";
   round: number;
+  left: number;
   faded: boolean;
 }
 type Item = TagItem | BarItem;
@@ -84,6 +88,23 @@ export function TurnFlow({
 }) {
   const n = players.length;
 
+  // Stable per-round layout: each seat's x within a round, and the round width.
+  const geom = useMemo(() => {
+    const seatX: number[] = [];
+    let x = BAR_W + BAR_GAP; // after the round's opening bar
+    for (let i = 0; i < players.length; i++) {
+      seatX[i] = x;
+      const lastOfRound = i === players.length - 1;
+      const width =
+        (lastOfRound
+          ? Math.round(measureName(players[i].name)) + PAD_X * 2
+          : Math.round(measureName(players[i].name)) + PAD_X * 2 + P) + 1;
+      x += width + (lastOfRound ? BAR_GAP : GAP);
+    }
+
+    return { seatX, roundWidth: x };
+  }, [players]);
+
   const widths = useMemo(
     () => players.map(p => Math.round(measureName(p.name)) + PAD_X * 2),
     [players],
@@ -95,56 +116,48 @@ export function TurnFlow({
   );
   const current = (round - 1) * n + curSeat; // global turn index
 
-  // Build the visible window and, in the same pass, accumulate x-offsets so we
-  // know exactly where the current tag sits (→ how far to slide the strip).
-  const { items, scrollX } = useMemo(() => {
+  const items = useMemo<Item[]>(() => {
     if (n === 0) {
-      return { items: [] as Item[], scrollX: 0 };
+      return [];
     }
 
     const out: Item[] = [];
-    let x = 0;
-    let currentLeft = 0;
     const start = Math.max(0, current - 1);
-
     for (let turn = start; turn <= current + AHEAD; turn++) {
+      const roundIdx = Math.floor(turn / n);
       const seat = turn % n;
+      const base = roundIdx * geom.roundWidth;
 
       if (seat === 0) {
-        // The bar precedes this round-starter; hide it once the round begins.
         out.push({
           kind: "bar",
-          round: Math.floor(turn / n) + 1,
-          faded: current >= turn,
+          round: roundIdx + 1,
+          left: base,
+          faded: current >= turn, // hide once this round has begun
         });
-        x += BAR_W + BAR_GAP;
       }
-
-      const lastOfRound = seat === n - 1;
-      const width = (lastOfRound ? widths[seat] : widths[seat] + P) + 1;
-      if (turn === current) {
-        currentLeft = x;
-      }
-
       out.push({
         kind: "tag",
         turn,
         name: players[seat].name,
         w: widths[seat],
+        left: base + geom.seatX[seat],
         firstOfRound: seat === 0,
-        lastOfRound,
+        lastOfRound: seat === n - 1,
         isCurrent: turn === current,
         faded: turn < current,
       });
-      x += width + (lastOfRound ? BAR_GAP : GAP);
     }
 
-    return { items: out, scrollX: currentLeft - PAD_LEFT };
-  }, [current, n, players, widths]);
+    return out;
+  }, [current, n, players, widths, geom]);
 
   if (n === 0) {
     return null;
   }
+
+  const currentAbsX = (round - 1) * geom.roundWidth + geom.seatX[curSeat];
+  const scrollX = currentAbsX - PAD_LEFT;
 
   return (
     <div
@@ -168,14 +181,19 @@ export function TurnFlow({
       </svg>
 
       <div
-        className="absolute left-0 top-0 flex items-start transition-transform duration-500 ease-[cubic-bezier(.4,0,.2,1)]"
-        style={{ height: SVG_H, transform: `translateX(${-scrollX}px)` }}
+        className="absolute left-0 top-0 transition-transform duration-500 ease-[cubic-bezier(.4,0,.2,1)]"
+        style={{
+          height: SVG_H,
+          transform: `translate3d(${-scrollX}px,0,0)`,
+          willChange: "transform",
+        }}
       >
         {items.map(item =>
           item.kind === "bar" ? (
             <RoundBar
               key={`bar-${item.round}`}
               round={item.round}
+              left={item.left}
               faded={item.faded}
             />
           ) : (
@@ -194,11 +212,8 @@ function Tag({ item }: { item: TagItem }) {
 
   return (
     <div
-      className="shrink-0 transition-opacity duration-500"
-      style={{
-        marginRight: item.lastOfRound ? BAR_GAP : GAP,
-        opacity: item.faded ? 0 : 1,
-      }}
+      className="absolute top-0 transition-opacity duration-500"
+      style={{ left: item.left, opacity: item.faded ? 0 : 1 }}
     >
       <svg width={width} height={SVG_H} viewBox={`0 0 ${width} ${SVG_H}`}>
         <title>
@@ -230,16 +245,19 @@ function Tag({ item }: { item: TagItem }) {
   );
 }
 
-function RoundBar({ round, faded }: { round: number; faded: boolean }) {
+function RoundBar({
+  round,
+  left,
+  faded,
+}: {
+  round: number;
+  left: number;
+  faded: boolean;
+}) {
   return (
     <div
-      className="relative shrink-0 transition-opacity duration-500"
-      style={{
-        width: BAR_W,
-        height: SVG_H,
-        marginRight: BAR_GAP,
-        opacity: faded ? 0 : 1,
-      }}
+      className="absolute top-0 transition-opacity duration-500"
+      style={{ left, width: BAR_W, height: SVG_H, opacity: faded ? 0 : 1 }}
     >
       <span
         className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-xs font-semibold text-zinc-500 dark:text-zinc-400"
