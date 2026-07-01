@@ -19,17 +19,18 @@ import type { PlayerId } from "@/lib/domain";
  * on mobile (it jumped instead of sliding).
  */
 
-const PAD_X = 16; // horizontal text padding inside a tag
-const P = 10; // chevron point depth
-const CH = 9; // chevron half-height
-const TOP = 18;
-const BOT = 50;
-const MID = 34;
-const SVG_H = 56;
-const GAP = -6; // negative → chevrons nearly nest, hairline between them
+const FONT = 16; // player-name font size
+const PAD_X = 18; // horizontal text padding inside a tag
+const P = 12; // chevron point depth
+const CH = 11; // chevron half-height
+const TOP = 18; // room above the pill for the "Tour N" label
+const BOT = 58;
+const MID = 38;
+const SVG_H = 64;
+const GAP = -7; // negative → chevrons nearly nest, hairline between them
 const BAR_W = 3;
-const BAR_GAP = 9; // breathing room on each side of a round bar
-const PAD_LEFT = 8; // where the current player sits from the left
+const BAR_GAP = 10; // breathing room on each side of a round bar
+const PAD_LEFT = 10; // where the current player sits from the left
 const AHEAD = 9; // upcoming turns kept rendered beyond the current one
 
 /** Measures a name's rendered width (client-only; the ribbon never SSRs). */
@@ -38,12 +39,12 @@ function measureName(name: string): number {
   if (!cache._c && typeof document !== "undefined") {
     const ctx = document.createElement("canvas").getContext("2d");
     if (ctx) {
-      ctx.font = "500 13px ui-sans-serif, system-ui, sans-serif";
+      ctx.font = `500 ${FONT}px ui-sans-serif, system-ui, sans-serif`;
       cache._c = ctx;
     }
   }
 
-  return cache._c ? cache._c.measureText(name).width : name.length * 8.2;
+  return cache._c ? cache._c.measureText(name).width : name.length * FONT * 0.6;
 }
 
 /** The tag outline: vertical top/bottom edges + a chevron notch/point per side. */
@@ -239,9 +240,9 @@ function Tag({ item }: { item: TagItem }) {
         />
         <text
           x={item.w / 2}
-          y={MID + 4.5}
+          y={MID + FONT * 0.35}
           textAnchor="middle"
-          className={`text-[13px] ${
+          className={`text-[16px] ${
             item.isCurrent
               ? "fill-white font-semibold"
               : "fill-zinc-700 font-medium dark:fill-zinc-300"
@@ -276,7 +277,7 @@ function RoundBar({
       </span>
       <span
         className="absolute left-0 rounded-full bg-black/40 dark:bg-white/45"
-        style={{ top: 18, width: BAR_W, height: 32 }}
+        style={{ top: TOP, width: BAR_W, height: BOT - TOP }}
       />
     </div>
   );

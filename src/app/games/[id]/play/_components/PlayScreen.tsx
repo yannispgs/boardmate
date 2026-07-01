@@ -115,7 +115,11 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         Tour {game.round}
       </p>
 
-      <CurrentPlayer name={game.currentPlayer?.name ?? "—"} />
+      <TurnFlow
+        players={game.players.map(p => p.player)}
+        currentPlayerId={game.currentPlayerId}
+        round={game.round}
+      />
 
       <TimerRing
         remainingS={remainingS}
@@ -150,23 +154,6 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         onPick={handleEnd}
         disabled={busy}
       />
-
-      <TurnFlow
-        players={game.players.map(p => p.player)}
-        currentPlayerId={game.currentPlayerId}
-        round={game.round}
-      />
-    </div>
-  );
-}
-
-function CurrentPlayer({ name }: { name: string }) {
-  return (
-    <div className="flex flex-col items-center gap-1">
-      <span className="text-xs uppercase tracking-wide text-zinc-400">
-        Au tour de
-      </span>
-      <span className="text-3xl font-bold tracking-tight">{name}</span>
     </div>
   );
 }
