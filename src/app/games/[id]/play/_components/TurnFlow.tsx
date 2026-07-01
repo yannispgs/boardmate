@@ -222,6 +222,7 @@ function Tag({ item }: { item: TagItem }) {
 
   return (
     <div
+      data-current={item.isCurrent || undefined}
       className="absolute top-0 transition-opacity duration-500"
       style={{ left: item.left, opacity: item.faded ? 0 : 1 }}
     >
