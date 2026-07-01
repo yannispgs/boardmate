@@ -182,9 +182,20 @@ separate so the fast one never needs a database:
   funnel → play screen → advance a turn → end → winner). Fixtures (players) are
   seeded with the **service role**, mirroring the integration suite; **no
   secrets** are required (local Supabase ships fixed default keys; connection
-  details come from `supabase status`). Runs in the **E2E tests** CI job
-  (`yarn playwright install --with-deps chromium` + `supabase start`); kept
-  **non-blocking initially** while its stability is judged.
+  details come from `supabase status`).
+  - **Two tiers.** The **critical** journeys are tagged `@critical` (login
+    happy/invalid/anon-redirect, player lifecycle, one full game). They run
+    **per-PR** on **Chromium only**, filtered with `--grep @critical`, in the
+    **E2E (critical)** CI job — fast, meant to gate merges. On top, the **full**
+    suite (`yarn test:e2e:full`) runs **every** scenario on **Chromium AND
+    WebKit** (Safari/iOS engine — the one that surfaces the iOS quirks Chromium
+    hides) in a **separate, non-blocking** workflow (`e2e-full.yml`) triggered on
+    **push to `main`** (post-merge) and `workflow_dispatch`. Public repo → free
+    Actions minutes, so the wide sweep costs nothing and never blocks a merge.
+  - Scripts: `yarn test:e2e` (Chromium, all tests — local default),
+    `yarn test:e2e:full` (all projects, CI), `yarn test:e2e:ui`. New exhaustive
+    scenarios are added **untagged** so they run only in the full suite; promote
+    one to `@critical` when it becomes a must-pass gate.
 - **Skip**: per-component/snapshot tests, mocking the Supabase client,
   perf/load, visual-regression (Vercel preview + occasional screenshot suffices).
 
@@ -229,3 +240,9 @@ separate so the fast one never needs a database:
   login via the mail catcher (Mailpit) saved as `storageState` and reused; paths
   = login (+ anon redirect / invalid code), player lifecycle, one full game.
   New **E2E tests** CI job, non-blocking initially.
+- _2026-07-01_ — Split E2E into two tiers (§11): **critical** journeys tagged
+  `@critical` run per-PR on Chromium (blocking gate, `--grep @critical`); a
+  **full** suite (`yarn test:e2e:full`, all scenarios on Chromium **+ WebKit**)
+  runs non-blocking on push to `main` and on demand via a separate
+  `e2e-full.yml` workflow — free public-repo minutes, WebKit to catch iOS-only
+  bugs. New scenarios are added untagged (full-only) until promoted.

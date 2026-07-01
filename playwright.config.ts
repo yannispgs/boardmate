@@ -46,6 +46,14 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"], storageState },
       dependencies: ["setup"],
     },
+    // WebKit (Safari/iOS engine) runs only in the non-blocking full suite. It's
+    // the one that reproduces the iOS-specific quirks Chromium hides (timer
+    // throttling, GPU-composited SVG repaints), so it earns its place there.
+    {
+      name: "webkit",
+      use: { ...devices["Desktop Safari"], storageState },
+      dependencies: ["setup"],
+    },
   ],
 
   webServer: {

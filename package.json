@@ -16,7 +16,8 @@
     "test:watch": "vitest",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:coverage": "vitest run --config vitest.coverage.config.ts --coverage",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test --project=chromium",
+    "test:e2e:full": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {

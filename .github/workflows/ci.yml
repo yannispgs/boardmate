@@ -89,7 +89,7 @@ jobs:
         run: yarn test:integration
 
   e2e:
-    name: E2E tests
+    name: E2E (critical)
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout source code
@@ -107,10 +107,13 @@ jobs:
         # Same local stack as the integration suite; the mail catcher receives
         # the login OTP that the auth journey reads back.
         run: supabase start
-      - name: Run e2e tests
+      - name: Run critical e2e journeys
+        # Only the @critical smoke set on Chromium, to stay fast on every PR.
+        # The exhaustive suite (all scenarios + WebKit) runs non-blocking on
+        # push to main via e2e-full.yml.
         # playwright.config.ts builds + starts the app wired to the local stack
         # (connection details from `supabase status`), so no secrets are needed.
-        run: yarn test:e2e
+        run: yarn test:e2e --grep @critical
       - name: Upload Playwright report
         # Kept on failure so a red journey is debuggable from the run page.
         if: ${{ failure() }}
