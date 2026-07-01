@@ -7,7 +7,7 @@ import type { GameId, PlayerId, PopulatedGame } from "@/lib/domain";
 import { countdownColor } from "@/lib/game/colors";
 import { useTurnTimer } from "@/lib/hooks/use-turn-timer";
 import { getGameRepository } from "@/lib/repositories";
-import { TurnFlow } from "./TurnFlow";
+import { TurnFlow } from "./turn-flow";
 
 const DEFAULT_DURATION_S = 60;
 
