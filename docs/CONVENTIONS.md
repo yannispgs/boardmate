@@ -169,8 +169,22 @@ separate so the fast one never needs a database:
   keys, so **no secrets** are required; connection details come from
   `supabase status` (`tests/integration/env.ts`). Runs in the
   `Integration & RLS tests` CI job, which boots `supabase start` on the runner.
-- **E2E (later)** — a **few** Playwright paths only (login via the local mail
-  catcher, add/deactivate player, one full game). Deferred.
+- **E2E (`yarn test:e2e`)** — a **few** **Playwright** journeys only, run in a
+  real Chromium against the app **built and served locally** and wired to the
+  **local Supabase** stack (`supabase start`, Docker) — never a hosted project.
+  Config: `playwright.config.ts` (`tests/e2e/**`, one worker). A `setup` project
+  performs **one real OTP login via the mail catcher** (the local stack catches
+  email in **Mailpit**, exposed as `INBUCKET_URL`) and saves the session
+  (`storageState`); the browser project reuses it so the other journeys stay
+  fast. Covered paths: login (happy via mail catcher + invalid-code + the proxy
+  redirecting anonymous visitors to `/login`, OWASP **A01/A07**), the player
+  lifecycle (create → deactivate → reactivate), and **one full game** (new-game
+  funnel → play screen → advance a turn → end → winner). Fixtures (players) are
+  seeded with the **service role**, mirroring the integration suite; **no
+  secrets** are required (local Supabase ships fixed default keys; connection
+  details come from `supabase status`). Runs in the **E2E tests** CI job
+  (`yarn playwright install --with-deps chromium` + `supabase start`); kept
+  **non-blocking initially** while its stability is judged.
 - **Skip**: per-component/snapshot tests, mocking the Supabase client,
   perf/load, visual-regression (Vercel preview + occasional screenshot suffices).
 
@@ -210,3 +224,8 @@ separate so the fast one never needs a database:
   Biome `useBlockStatements`); no parens around a single arrow param
   (`arrowParentheses: "asNeeded"`); blank lines around `return`/`if`/`for`/`try`
   and `expect` groups (manual — Biome has no equivalent rule).
+- _2026-06-27_ — Implemented the **E2E** suite (§11): **Playwright** (`yarn
+  test:e2e`) against the locally built app + local Supabase, with one real OTP
+  login via the mail catcher (Mailpit) saved as `storageState` and reused; paths
+  = login (+ anon redirect / invalid code), player lifecycle, one full game.
+  New **E2E tests** CI job, non-blocking initially.
