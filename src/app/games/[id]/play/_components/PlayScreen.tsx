@@ -7,6 +7,7 @@ import type { GameId, PlayerId, PopulatedGame } from "@/lib/domain";
 import { countdownColor } from "@/lib/game/colors";
 import { useTurnTimer } from "@/lib/hooks/use-turn-timer";
 import { getGameRepository } from "@/lib/repositories";
+import { TurnFlow } from "./TurnFlow";
 
 const DEFAULT_DURATION_S = 60;
 
@@ -141,9 +142,10 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         disabled={busy}
       />
 
-      <PlayerOrder
+      <TurnFlow
         players={game.players.map(p => p.player)}
-        currentId={game.currentPlayerId}
+        currentPlayerId={game.currentPlayerId}
+        round={game.round}
       />
     </div>
   );
@@ -418,31 +420,6 @@ function WinnerPicker({
         Annuler
       </button>
     </div>
-  );
-}
-
-function PlayerOrder({
-  players,
-  currentId,
-}: {
-  players: { id: PlayerId; name: string }[];
-  currentId: PlayerId | null;
-}) {
-  return (
-    <ul className="flex flex-wrap justify-center gap-2">
-      {players.map(player => (
-        <li
-          key={player.id}
-          className={`rounded-full border px-3 py-1 text-sm ${
-            player.id === currentId
-              ? "border-indigo-500 font-semibold text-indigo-600 dark:text-indigo-400"
-              : "border-black/10 text-zinc-500 dark:border-white/10"
-          }`}
-        >
-          {player.name}
-        </li>
-      ))}
-    </ul>
   );
 }
 
