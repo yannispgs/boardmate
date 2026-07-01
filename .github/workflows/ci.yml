@@ -108,9 +108,12 @@ jobs:
           version: 2.105.0
       - name: Set up Node & dependencies
         uses: ./.github/actions/setup
-      - name: Install Playwright browser & system deps
-        # --with-deps pulls the OS libraries and fonts this engine needs.
-        run: yarn playwright install --with-deps ${{ matrix.browser }}
+      - name: Install Playwright browsers & system deps
+        # The engine under test, plus Chromium: the `setup` project (OTP login →
+        # storageState) always runs in Chromium regardless of the matrix engine,
+        # so it must be present even in the webkit cell. --with-deps pulls the OS
+        # libraries and fonts. (chromium chromium dedupes in the chromium cell.)
+        run: yarn playwright install --with-deps chromium ${{ matrix.browser }}
       - name: Start local Supabase (Docker)
         # Same local stack as the integration suite; the mail catcher receives
         # the login OTP that the auth journey reads back.
