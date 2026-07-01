@@ -174,13 +174,11 @@ export function TurnFlow({
         </defs>
       </svg>
 
+      {/* Animate `left` (CPU paint), not `transform`: a GPU-composited layer
+          repaints the SVG ribbon to black mid-animation on WebKit/iOS. */}
       <div
-        className="absolute left-0 top-0 transition-transform duration-500 ease-[cubic-bezier(.4,0,.2,1)]"
-        style={{
-          height: SVG_H,
-          transform: `translate3d(${-scrollX}px,0,0)`,
-          willChange: "transform",
-        }}
+        className="absolute top-0 transition-[left] duration-500 ease-[cubic-bezier(.4,0,.2,1)]"
+        style={{ height: SVG_H, left: -scrollX }}
       >
         {items.map(item =>
           item.kind === "bar" ? (
