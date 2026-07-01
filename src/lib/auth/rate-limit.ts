@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 
+import { formatRetryDelay } from "@/lib/auth/retry-delay";
 import { createClient } from "@/lib/supabase/server";
 
 export interface RateLimitResult {
@@ -51,15 +52,6 @@ async function enforceAuthRateLimit(): Promise<RateLimitResult> {
   } catch {
     return { allowed: true, retryAfterS: 0 };
   }
-}
-
-/** Human-friendly French delay, e.g. "5 min" or "45 s". */
-function formatRetryDelay(seconds: number): string {
-  if (seconds >= 60) {
-    const min = Math.ceil(seconds / 60);
-    return `${min} min`;
-  }
-  return `${Math.max(1, seconds)} s`;
 }
 
 /**
