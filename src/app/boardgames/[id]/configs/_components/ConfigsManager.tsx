@@ -1,7 +1,7 @@
 "use client";
 
 import { type FormEvent, useState } from "react";
-import { ConfirmDialog, type ConfirmRequest } from "@/components/ConfirmDialog";
+import { useConfirm } from "@/components/use-confirm";
 import { buildDefaults, validateConfigValues } from "@/lib/config/validation";
 import type {
   BoardgameId,
@@ -27,7 +27,7 @@ export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
   const [formInit, setFormInit] = useState<FormInit | null>(null);
   const [formKey, setFormKey] = useState(0);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
+  const { requestConfirm, confirmDialog } = useConfirm();
 
   function openForm(init: FormInit) {
     setFormInit(init);
@@ -70,7 +70,7 @@ export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
   }
 
   function handleDelete(config: Config) {
-    setConfirm({
+    requestConfirm({
       message: `Supprimer la configuration « ${config.name} » ?`,
       confirmLabel: "Supprimer",
       onConfirm: () => deleteConfig(config),
@@ -140,18 +140,7 @@ export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
         </button>
       )}
 
-      {confirm ? (
-        <ConfirmDialog
-          message={confirm.message}
-          confirmLabel={confirm.confirmLabel}
-          onCancel={() => setConfirm(null)}
-          onConfirm={() => {
-            const run = confirm.onConfirm;
-            setConfirm(null);
-            void run();
-          }}
-        />
-      ) : null}
+      {confirmDialog}
     </div>
   );
 }

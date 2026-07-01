@@ -13,14 +13,12 @@ import type {
   Unsubscribe,
 } from "@/lib/repositories/types";
 import type { Database } from "@/lib/supabase/database.types";
+import { FK_VIOLATION } from "@/lib/supabase/repositories/pg-error-codes";
 
 type BoardgameRow = Database["public"]["Tables"]["boardgames"]["Row"];
 type BoardgameWrite = Database["public"]["Tables"]["boardgames"]["Update"];
 
 const LOGO_BUCKET = "logos";
-
-// Postgres error code surfaced by PostgREST on a foreign-key violation.
-const FK_VIOLATION = "23503";
 
 /** Maps a raw DB row to the domain `Boardgame` (snake_case -> camelCase). */
 export function toBoardgame(row: BoardgameRow): Boardgame {

@@ -2,7 +2,7 @@
 
 import { type FormEvent, useState } from "react";
 
-import { ConfirmDialog, type ConfirmRequest } from "@/components/ConfirmDialog";
+import { useConfirm } from "@/components/use-confirm";
 import type { Player } from "@/lib/domain";
 import { usePlayers } from "@/lib/hooks/use-players";
 import {
@@ -22,7 +22,7 @@ export function PlayersManager() {
   const [nameError, setNameError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   // In-app confirmation (replaces window.confirm, which browsers suppress).
-  const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
+  const { requestConfirm, confirmDialog } = useConfirm();
 
   const active = players.filter(p => p.isActive);
   const inactive = players.filter(p => !p.isActive);
@@ -48,7 +48,7 @@ export function PlayersManager() {
     setNameError(null);
 
     // Players can only be deleted before they've played — confirm first.
-    setConfirm({
+    requestConfirm({
       message:
         `Créer le joueur « ${trimmed} » ?\n\n` +
         "Un joueur ne pourra plus être supprimé dès qu'il aura participé à " +
@@ -97,7 +97,7 @@ export function PlayersManager() {
       void deactivate(player);
       return;
     }
-    setConfirm({
+    requestConfirm({
       message:
         `Désactiver « ${player.name} » ?\n\n` +
         "Il a déjà participé à une partie : il sortira des sélections mais " +
@@ -108,7 +108,7 @@ export function PlayersManager() {
   }
 
   function handleDelete(player: Player) {
-    setConfirm({
+    requestConfirm({
       message: `Supprimer « ${player.name} » ? Cette action est définitive.`,
       confirmLabel: "Supprimer",
       onConfirm: () => deletePlayer(player),
@@ -232,18 +232,7 @@ export function PlayersManager() {
         </button>
       )}
 
-      {confirm ? (
-        <ConfirmDialog
-          message={confirm.message}
-          confirmLabel={confirm.confirmLabel}
-          onCancel={() => setConfirm(null)}
-          onConfirm={() => {
-            const run = confirm.onConfirm;
-            setConfirm(null);
-            void run();
-          }}
-        />
-      ) : null}
+      {confirmDialog}
     </div>
   );
 }
