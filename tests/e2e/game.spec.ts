@@ -37,16 +37,15 @@ test("plays a full game from the funnel to the winner", async ({ page }) => {
     await expect(page).toHaveURL(/\/games\/[0-9a-f-]+\/play$/);
     gameId = page.url().match(/games\/([0-9a-f-]+)\/play/)?.[1] ?? null;
 
-    const currentName = page
-      .getByText("Au tour de", { exact: true })
-      .locator("xpath=following-sibling::span[1]");
+    // The current player is the highlighted tag in the turn-order ribbon.
+    const currentTag = page.locator('[data-current="true"]');
 
     // The first seated player is up.
-    await expect(currentName).toHaveText(players[0]);
+    await expect(currentTag).toContainText(players[0]);
 
     // Advance one turn → the second player is now up.
     await page.getByRole("button", { name: "Tour suivant →" }).click();
-    await expect(currentName).toHaveText(players[1]);
+    await expect(currentTag).toContainText(players[1]);
 
     // End the game and crown a winner.
     await page.getByRole("button", { name: "Terminer la partie" }).click();
