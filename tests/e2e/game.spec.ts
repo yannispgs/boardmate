@@ -12,7 +12,9 @@ import {
  * land on the play screen, advance a turn, then end the game and pick a winner.
  * Players are seeded via the service role; the seeded Catan boardgame is used.
  */
-test("plays a full game from the funnel to the winner", async ({ page }) => {
+test("plays a full game from the funnel to the winner", {
+  tag: "@critical",
+}, async ({ page }) => {
   const players = await seedPlayers(CATAN_MIN_PLAYERS);
   let gameId: string | null = null;
 
