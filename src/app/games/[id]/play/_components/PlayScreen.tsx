@@ -55,6 +55,12 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
     };
   }, []);
 
+  // Decode the beep/ring up front so they're ready before the countdown.
+  useEffect(() => {
+    void loadSound(BEEP_URL);
+    void loadSound(RING_URL);
+  }, []);
+
   async function handleNext() {
     if (!game || busy) {
       return;
@@ -213,8 +219,8 @@ function TimerRing({
   const progress = Math.max(0, Math.min(1, remainingS / durationS));
   const display = formatCountdown(remainingS);
 
-  // A light tick on each of the last 10 seconds, then a stronger ring at 0
-  // (Web Audio, no asset needed). Paused → silent (the effect bails on !running).
+  // A beep on each of the last 10 seconds, then the ring at 0 (real sounds
+  // ported from board-nest). Paused → silent (the effect bails on !running).
   const beepedAt = useRef<Set<number>>(new Set());
   useEffect(() => {
     if (!running) {
@@ -222,11 +228,11 @@ function TimerRing({
     }
 
     if (remainingS >= 1 && remainingS <= 10) {
-      playTone(880, 0.07, beepedAt.current, remainingS, 0.08);
+      playSound(BEEP_URL, 0.6, beepedAt.current, remainingS);
     }
 
     if (remainingS === 0) {
-      playTone(440, 0.4, beepedAt.current, 0, 0.2);
+      playSound(RING_URL, 1, beepedAt.current, 0);
     }
 
     if (remainingS > 10) {
@@ -503,13 +509,33 @@ function unlockAudio() {
   }
 }
 
-/** Plays a short tone on the shared context; deduped per `key` so it fires once. */
-function playTone(
-  freq: number,
-  durationS: number,
+const BEEP_URL = "/sounds/beep.mp3";
+const RING_URL = "/sounds/ring.mp3";
+const soundCache = new Map<string, AudioBuffer>();
+
+/** Fetches + decodes a sound into the shared context, cached. */
+async function loadSound(url: string): Promise<void> {
+  if (soundCache.has(url)) {
+    return;
+  }
+  const ctx = getAudioContext();
+  if (!ctx) {
+    return;
+  }
+  try {
+    const bytes = await fetch(url).then(r => r.arrayBuffer());
+    soundCache.set(url, await ctx.decodeAudioData(bytes));
+  } catch {
+    // Audio is best-effort; ignore load/decode failures.
+  }
+}
+
+/** Plays a decoded sound on the shared context; deduped per `key`. */
+function playSound(
+  url: string,
+  volume: number,
   fired: Set<number>,
   key: number,
-  volume = 0.2,
 ) {
   if (fired.has(key)) {
     return;
@@ -517,25 +543,23 @@ function playTone(
   fired.add(key);
 
   const ctx = getAudioContext();
-  if (!ctx) {
+  const buffer = soundCache.get(url);
+  if (!ctx || !buffer) {
     return;
   }
-  // Best-effort resume in case it drifted to suspended (no-op if already running).
   if (ctx.state === "suspended") {
     void ctx.resume();
   }
 
   try {
-    const osc = ctx.createOscillator();
+    const src = ctx.createBufferSource();
     const gain = ctx.createGain();
-    osc.frequency.value = freq;
+    src.buffer = buffer;
     gain.gain.value = volume;
-    osc.connect(gain).connect(ctx.destination);
-    const now = ctx.currentTime;
-    osc.start(now);
-    osc.stop(now + durationS);
-    osc.onended = () => {
-      osc.disconnect();
+    src.connect(gain).connect(ctx.destination);
+    src.start(0);
+    src.onended = () => {
+      src.disconnect();
       gain.disconnect();
     };
   } catch {

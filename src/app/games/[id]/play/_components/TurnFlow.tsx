@@ -162,13 +162,7 @@ export function TurnFlow({
   return (
     <div
       className="relative w-full max-w-sm overflow-hidden"
-      style={{
-        height: SVG_H,
-        maskImage:
-          "linear-gradient(to right, transparent 0, #000 8px, #000 calc(100% - 64px), transparent 100%)",
-        WebkitMaskImage:
-          "linear-gradient(to right, transparent 0, #000 8px, #000 calc(100% - 64px), transparent 100%)",
-      }}
+      style={{ height: SVG_H }}
     >
       <svg width="0" height="0" className="absolute" aria-hidden>
         <title>Dégradé du joueur courant</title>
@@ -201,6 +195,23 @@ export function TurnFlow({
           ),
         )}
       </div>
+
+      {/* Edge fades as overlays (not a CSS mask, which flickers to black over a
+          transformed child on WebKit) — they fade to the page background. */}
+      <div
+        className="pointer-events-none absolute inset-y-0 left-0 w-2"
+        style={{
+          background:
+            "linear-gradient(to right, var(--background), transparent)",
+        }}
+      />
+      <div
+        className="pointer-events-none absolute inset-y-0 right-0 w-16"
+        style={{
+          background:
+            "linear-gradient(to left, var(--background), transparent)",
+        }}
+      />
     </div>
   );
 }

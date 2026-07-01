@@ -18,8 +18,8 @@ export const config = {
      * never block CSS/JS/images:
      * - _next/static, _next/image
      * - favicon.ico, icon.svg, manifest.webmanifest
-     * - any image file
+     * - any image or audio file
      */
-    "/((?!_next/static|_next/image|favicon.ico|icon.svg|manifest.webmanifest|.*\\.(?:png|jpg|jpeg|gif|svg|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icon.svg|manifest.webmanifest|.*\\.(?:png|jpg|jpeg|gif|svg|webp|mp3|wav|ogg|m4a)$).*)",
   ],
 };
