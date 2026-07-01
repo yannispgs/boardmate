@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { GameId, PlayerId, PopulatedGame } from "@/lib/domain";
 import { countdownColor } from "@/lib/game/colors";
 import { useTurnTimer } from "@/lib/hooks/use-turn-timer";
 import { getGameRepository } from "@/lib/repositories";
+import { EndedGame } from "./EndedGame";
 import { TurnFlow } from "./turn-flow";
 
 const DEFAULT_DURATION_S = 60;
@@ -103,8 +103,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   }
 
   if (game.status === "ended") {
-    const winner = game.players.find(p => p.isWinner)?.player;
-    return <Congrats winnerName={winner?.name ?? null} />;
+    return <EndedGame game={game} />;
   }
 
   const remainingS = durationS - timer.elapsedS;
@@ -415,30 +414,6 @@ function WinnerPicker({
       >
         Annuler
       </button>
-    </div>
-  );
-}
-
-function Congrats({ winnerName }: { winnerName: string | null }) {
-  return (
-    <div className="flex flex-col items-center gap-6 py-10 text-center">
-      <span aria-hidden className="text-6xl">
-        🏆
-      </span>
-      <div className="flex flex-col gap-1">
-        <h2 className="text-2xl font-bold">Partie terminée !</h2>
-        {winnerName ? (
-          <p className="text-zinc-500 dark:text-zinc-400">
-            Bravo <span className="font-semibold">{winnerName}</span> 🎉
-          </p>
-        ) : null}
-      </div>
-      <Link
-        href="/games"
-        className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
-      >
-        Retour aux parties
-      </Link>
     </div>
   );
 }
