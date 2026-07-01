@@ -2,36 +2,45 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import type { Game, GameListItem, GameStatus, NewGame } from "@/lib/domain";
+import type { Game, GameListItem, NewGame } from "@/lib/domain";
 import { getGameRepository } from "@/lib/repositories";
 
 interface UseGames {
+  /** Ongoing games (in progress). */
   games: GameListItem[];
+  /** Ended games, for the "finished" disclosure. */
+  endedGames: GameListItem[];
   loading: boolean;
   error: string | null;
   createGame: (input: NewGame) => Promise<Game>;
 }
 
 /**
- * Loads games for a given status (defaults to ongoing) and keeps them in sync
- * (refetch on local mutation and on Realtime change).
+ * Loads ongoing and ended games and keeps them in sync (refetch on local
+ * mutation and on Realtime change).
  */
-export function useGames(status: GameStatus = "ongoing"): UseGames {
+export function useGames(): UseGames {
   const repo = getGameRepository();
   const [games, setGames] = useState<GameListItem[]>([]);
+  const [endedGames, setEndedGames] = useState<GameListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
-      setGames(await repo.list({ status }));
+      const [ongoing, ended] = await Promise.all([
+        repo.list({ status: "ongoing" }),
+        repo.list({ status: "ended" }),
+      ]);
+      setGames(ongoing);
+      setEndedGames(ended);
       setError(null);
     } catch {
       setError("Impossible de charger les parties.");
     } finally {
       setLoading(false);
     }
-  }, [repo, status]);
+  }, [repo]);
 
   useEffect(() => {
     void refresh();
@@ -50,5 +59,5 @@ export function useGames(status: GameStatus = "ongoing"): UseGames {
     [repo, refresh],
   );
 
-  return { games, loading, error, createGame };
+  return { games, endedGames, loading, error, createGame };
 }

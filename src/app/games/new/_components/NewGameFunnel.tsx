@@ -30,9 +30,12 @@ export function NewGameFunnel() {
     setCreating(true);
     setError(null);
     try {
-      await createGame({ boardgameId: boardgame.id, configId, playerIds });
-      // The live play screen arrives in a follow-up; land on the games list.
-      router.push("/games");
+      const game = await createGame({
+        boardgameId: boardgame.id,
+        configId,
+        playerIds,
+      });
+      router.push(`/games/${game.id}/play`);
     } catch {
       setError("Création de la partie impossible.");
       setCreating(false);

@@ -1,0 +1,555 @@
+"use client";
+
+import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import type { GameId, PlayerId, PopulatedGame } from "@/lib/domain";
+import { countdownColor } from "@/lib/game/colors";
+import { useTurnTimer } from "@/lib/hooks/use-turn-timer";
+import { getGameRepository } from "@/lib/repositories";
+import { TurnFlow } from "./turn-flow";
+
+const DEFAULT_DURATION_S = 60;
+
+export function PlayScreen({ gameId }: { gameId: GameId }) {
+  const repo = getGameRepository();
+  const [game, setGame] = useState<PopulatedGame | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [durationS, setDurationS] = useState(DEFAULT_DURATION_S);
+  const [busy, setBusy] = useState(false);
+
+  const timer = useTurnTimer();
+
+  const load = useCallback(async () => {
+    try {
+      setGame(await repo.getPopulated(gameId));
+      setError(null);
+    } catch {
+      setError("Impossible de charger la partie.");
+    } finally {
+      setLoading(false);
+    }
+  }, [repo, gameId]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  // Unlock audio on the first interaction with the play screen: mobile browsers
+  // only let an AudioContext start from a user gesture. iOS in particular needs
+  // a touchend/click (not just pointerdown), so we listen broadly; re-running on
+  // each event keeps it unlocked for the rest of the game.
+  useEffect(() => {
+    const handle = () => unlockAudio();
+    const events = ["touchend", "pointerup", "mousedown", "keydown"] as const;
+
+    for (const e of events) {
+      window.addEventListener(e, handle);
+    }
+
+    return () => {
+      for (const e of events) {
+        window.removeEventListener(e, handle);
+      }
+    };
+  }, []);
+
+  // Decode the beep/ring up front so they're ready before the countdown.
+  useEffect(() => {
+    void loadSound(BEEP_URL);
+    void loadSound(RING_URL);
+  }, []);
+
+  async function handleNext() {
+    if (!game || busy) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await repo.advanceTurn(game.id, timer.elapsedS);
+      await load();
+      timer.reset();
+    } catch {
+      setError("Impossible de passer au tour suivant.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleEnd(winnerId: PlayerId) {
+    if (!game || busy) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await repo.end(game.id, winnerId);
+      await load();
+    } catch {
+      setError("Impossible de terminer la partie.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (loading) {
+    return <p className="text-sm text-zinc-500">Chargement…</p>;
+  }
+  if (error && !game) {
+    return <p className="text-sm text-red-600 dark:text-red-400">{error}</p>;
+  }
+  if (!game) {
+    return <p className="text-sm text-zinc-500">Partie introuvable.</p>;
+  }
+
+  if (game.status === "ended") {
+    const winner = game.players.find(p => p.isWinner)?.player;
+    return <Congrats winnerName={winner?.name ?? null} />;
+  }
+
+  const remainingS = durationS - timer.elapsedS;
+
+  return (
+    <div className="flex flex-col items-center gap-8">
+      <p className="text-sm uppercase tracking-wide text-zinc-400">
+        Tour {game.round}
+      </p>
+
+      <TurnFlow
+        players={game.players.map(p => p.player)}
+        currentPlayerId={game.currentPlayerId}
+        round={game.round}
+      />
+
+      <TimerRing
+        remainingS={remainingS}
+        durationS={durationS}
+        running={timer.running}
+        onToggle={timer.toggle}
+      />
+
+      <DurationEditor
+        durationS={durationS}
+        onChange={s => setDurationS(s)}
+        onPause={timer.pause}
+      />
+
+      {error ? (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      ) : null}
+
+      <button
+        type="button"
+        onClick={handleNext}
+        disabled={busy}
+        className="w-full max-w-xs rounded-xl bg-indigo-600 px-6 py-4 text-lg font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
+      >
+        Tour suivant →
+      </button>
+
+      <WinnerPicker
+        players={game.players.map(p => p.player)}
+        onPick={handleEnd}
+        disabled={busy}
+      />
+    </div>
+  );
+}
+
+const RING_SIZE = 240;
+const RING_STROKE = 14;
+const RING_R = (RING_SIZE - RING_STROKE) / 2;
+const RING_C = 2 * Math.PI * RING_R;
+
+/** Neutral "on hold" colour (violet-500) the ring/readout adopt while paused. */
+const PAUSE_COLOR = "#8b5cf6";
+
+/**
+ * The big ring readout. Under a minute we show raw seconds; from a minute up we
+ * switch to m:ss so long turns (e.g. "3:00") stay readable instead of "180".
+ */
+function formatCountdown(remainingS: number): { value: string; label: string } {
+  if (remainingS <= 0) {
+    return { value: "0", label: "temps écoulé" };
+  }
+
+  if (remainingS >= 60) {
+    const minutes = Math.floor(remainingS / 60);
+    const seconds = remainingS % 60;
+
+    return {
+      value: `${minutes}:${String(seconds).padStart(2, "0")}`,
+      label: minutes > 1 ? "minutes" : "minute",
+    };
+  }
+
+  return { value: String(remainingS), label: "secondes" };
+}
+
+function TimerRing({
+  remainingS,
+  durationS,
+  running,
+  onToggle,
+}: {
+  remainingS: number;
+  durationS: number;
+  running: boolean;
+  onToggle: () => void;
+}) {
+  const paused = !running;
+  const ringColor = paused
+    ? PAUSE_COLOR
+    : countdownColor(remainingS, durationS);
+  const progress = Math.max(0, Math.min(1, remainingS / durationS));
+  const display = formatCountdown(remainingS);
+
+  // A beep on each of the last 10 seconds, then the ring at 0 (real sounds
+  // ported from board-nest). Paused → silent (the effect bails on !running).
+  const beepedAt = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    if (!running) {
+      return;
+    }
+
+    if (remainingS >= 1 && remainingS <= 10) {
+      playSound(BEEP_URL, 0.6, beepedAt.current, remainingS);
+    }
+
+    if (remainingS === 0) {
+      playSound(RING_URL, 1, beepedAt.current, 0);
+    }
+
+    if (remainingS > 10) {
+      beepedAt.current.clear();
+    }
+  }, [remainingS, running]);
+
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-label={running ? "Mettre en pause" : "Reprendre"}
+      className="relative"
+    >
+      <svg
+        width={RING_SIZE}
+        height={RING_SIZE}
+        viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}
+      >
+        <title>Chronomètre du tour</title>
+        <circle
+          cx={RING_SIZE / 2}
+          cy={RING_SIZE / 2}
+          r={RING_R}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={RING_STROKE}
+          className="text-black/10 dark:text-white/10"
+        />
+        <circle
+          cx={RING_SIZE / 2}
+          cy={RING_SIZE / 2}
+          r={RING_R}
+          fill="none"
+          stroke={ringColor}
+          strokeWidth={RING_STROKE}
+          strokeLinecap="round"
+          strokeDasharray={RING_C}
+          strokeDashoffset={RING_C * (1 - progress)}
+          transform={`rotate(-90 ${RING_SIZE / 2} ${RING_SIZE / 2})`}
+          style={{
+            transition: "stroke-dashoffset 0.3s linear, stroke 0.2s ease",
+          }}
+        />
+      </svg>
+
+      {/* Big pause glyph fading in behind the readout while on hold. */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 flex items-center justify-center transition-opacity duration-200"
+        style={{ opacity: paused ? 0.25 : 0 }}
+      >
+        <svg
+          width="168"
+          height="168"
+          viewBox="0 0 24 24"
+          fill={PAUSE_COLOR}
+          aria-hidden
+        >
+          <title>Pause</title>
+          <rect x="6" y="5" width="4" height="14" rx="1.5" />
+          <rect x="14" y="5" width="4" height="14" rx="1.5" />
+        </svg>
+      </span>
+
+      <span className="absolute inset-0 flex flex-col items-center justify-center">
+        <span
+          className="text-5xl font-bold tabular-nums"
+          style={{ color: ringColor, transition: "color 0.2s ease" }}
+        >
+          {display.value}
+        </span>
+        <span className="text-xs uppercase tracking-wide text-zinc-400">
+          {display.label}
+        </span>
+        {paused ? (
+          <span className="mt-1 text-xs font-semibold text-zinc-500">
+            EN PAUSE
+          </span>
+        ) : null}
+      </span>
+    </button>
+  );
+}
+
+function DurationEditor({
+  durationS,
+  onChange,
+  onPause,
+}: {
+  durationS: number;
+  onChange: (seconds: number) => void;
+  onPause: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState(durationS.toString());
+
+  function start() {
+    onPause(); // editing pauses the turn, as in board-nest
+    setValue(durationS.toString());
+    setOpen(true);
+  }
+
+  function apply() {
+    const n = Number(value);
+    if (Number.isFinite(n) && n > 0) {
+      onChange(Math.round(n));
+    }
+    setOpen(false);
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={start}
+        className="text-sm text-zinc-500 underline-offset-2 hover:underline"
+      >
+        Durée du tour : {durationS}s — modifier
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="number"
+        min={1}
+        value={value}
+        onChange={e => setValue(e.target.value)}
+        aria-label="Durée du tour en secondes"
+        className="w-24 rounded-lg border border-black/15 bg-white px-3 py-2 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900"
+      />
+      <button
+        type="button"
+        onClick={apply}
+        className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+      >
+        OK
+      </button>
+      <button
+        type="button"
+        onClick={() => setOpen(false)}
+        className="rounded-lg border border-black/10 px-3 py-2 text-sm dark:border-white/15"
+      >
+        Annuler
+      </button>
+    </div>
+  );
+}
+
+function WinnerPicker({
+  players,
+  onPick,
+  disabled,
+}: {
+  players: { id: PlayerId; name: string }[];
+  onPick: (id: PlayerId) => void;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-black transition hover:bg-amber-300"
+      >
+        Terminer la partie
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex w-full max-w-xs flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10">
+      <p className="text-sm font-semibold">Qui a gagné ?</p>
+      {players.map(p => (
+        <button
+          key={p.id}
+          type="button"
+          disabled={disabled}
+          onClick={() => onPick(p.id)}
+          className="rounded-lg border border-black/10 px-3 py-2 text-left transition hover:border-indigo-400 disabled:opacity-60 dark:border-white/10"
+        >
+          {p.name}
+        </button>
+      ))}
+      <button
+        type="button"
+        onClick={() => setOpen(false)}
+        className="text-xs text-zinc-500 hover:underline"
+      >
+        Annuler
+      </button>
+    </div>
+  );
+}
+
+function Congrats({ winnerName }: { winnerName: string | null }) {
+  return (
+    <div className="flex flex-col items-center gap-6 py-10 text-center">
+      <span aria-hidden className="text-6xl">
+        🏆
+      </span>
+      <div className="flex flex-col gap-1">
+        <h2 className="text-2xl font-bold">Partie terminée !</h2>
+        {winnerName ? (
+          <p className="text-zinc-500 dark:text-zinc-400">
+            Bravo <span className="font-semibold">{winnerName}</span> 🎉
+          </p>
+        ) : null}
+      </div>
+      <Link
+        href="/games"
+        className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
+      >
+        Retour aux parties
+      </Link>
+    </div>
+  );
+}
+
+// A single shared AudioContext, reused for every beep. Mobile browsers cap the
+// number of AudioContexts (iOS allows only a handful) and suspend any created
+// outside a user gesture — so creating one per beep (the previous approach)
+// silently stopped firing after the first second or two on phones. We keep one
+// and resume it on interaction instead.
+let sharedCtx: AudioContext | null = null;
+
+function getAudioContext(): AudioContext | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const Ctor =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext;
+  if (!Ctor) {
+    return null;
+  }
+  if (!sharedCtx) {
+    try {
+      sharedCtx = new Ctor();
+    } catch {
+      return null;
+    }
+  }
+
+  return sharedCtx;
+}
+
+/**
+ * Resumes the shared AudioContext. Must be called from within a user gesture to
+ * unlock audio on mobile (browsers start the context suspended otherwise).
+ */
+function unlockAudio() {
+  const ctx = getAudioContext();
+  if (!ctx) {
+    return;
+  }
+  if (ctx.state === "suspended") {
+    void ctx.resume();
+  }
+  // iOS won't unlock the audio output on resume() alone — it needs an actual
+  // (silent) sound started from within the user gesture. Kick a 1-sample buffer.
+  try {
+    const src = ctx.createBufferSource();
+    src.buffer = ctx.createBuffer(1, 1, 22050);
+    src.connect(ctx.destination);
+    src.start(0);
+  } catch {
+    // best-effort
+  }
+}
+
+const BEEP_URL = "/sounds/beep.mp3";
+const RING_URL = "/sounds/ring.mp3";
+const soundCache = new Map<string, AudioBuffer>();
+
+/** Fetches + decodes a sound into the shared context, cached. */
+async function loadSound(url: string): Promise<void> {
+  if (soundCache.has(url)) {
+    return;
+  }
+  const ctx = getAudioContext();
+  if (!ctx) {
+    return;
+  }
+  try {
+    const bytes = await fetch(url).then(r => r.arrayBuffer());
+    soundCache.set(url, await ctx.decodeAudioData(bytes));
+  } catch {
+    // Audio is best-effort; ignore load/decode failures.
+  }
+}
+
+/** Plays a decoded sound on the shared context; deduped per `key`. */
+function playSound(
+  url: string,
+  volume: number,
+  fired: Set<number>,
+  key: number,
+) {
+  if (fired.has(key)) {
+    return;
+  }
+  fired.add(key);
+
+  const ctx = getAudioContext();
+  const buffer = soundCache.get(url);
+  if (!ctx || !buffer) {
+    return;
+  }
+  if (ctx.state === "suspended") {
+    void ctx.resume();
+  }
+
+  try {
+    const src = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    src.buffer = buffer;
+    gain.gain.value = volume;
+    src.connect(gain).connect(ctx.destination);
+    src.start(0);
+    src.onended = () => {
+      src.disconnect();
+      gain.disconnect();
+    };
+  } catch {
+    // Audio is best-effort; ignore unsupported environments.
+  }
+}

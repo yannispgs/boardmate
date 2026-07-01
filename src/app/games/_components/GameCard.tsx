@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { Tooltip } from "@/components/Tooltip";
 import type { GameListItem, PlayerId } from "@/lib/domain";
 
@@ -89,75 +91,91 @@ function InlinePlayOrder({
 
 /**
  * One ongoing game in the list: the boardgame logo, name, progress, start date
- * and player count. The date reveals the full timestamp on hover, and the
- * player count reveals the participants in play order — emphasising whose turn
- * it is. A `round` is one full table cycle (everyone has played once); for an
- * ongoing game we also surface whose turn it is right now. On touch devices,
- * where hover doesn't exist, the play order is shown inline instead.
+ * and player count, linking to the play screen. The date reveals the full
+ * timestamp on hover, and the player count reveals the participants in play
+ * order — emphasising whose turn it is. A `round` is one full table cycle
+ * (everyone has played once); for an ongoing game we also surface whose turn it
+ * is right now. On touch devices, where hover doesn't exist, the play order is
+ * shown inline instead.
  */
 export function GameCard({
   game,
   boardgameName,
   logoUrl,
+  ended = false,
 }: {
   game: GameListItem;
   boardgameName: string;
   logoUrl: string | null;
+  ended?: boolean;
 }) {
   const count = game.players.length;
   const currentPlayer = game.players.find(p => p.id === game.currentPlayerId);
 
   return (
-    <li className="flex items-center justify-between gap-3 rounded-xl border border-black/10 bg-white px-4 py-3 dark:border-white/10 dark:bg-zinc-900">
-      <div className="flex min-w-0 items-center gap-3">
-        {logoUrl ? (
-          // biome-ignore lint/performance/noImgElement: arbitrary Storage URLs, no next/image loader configured yet
-          <img
-            src={logoUrl}
-            alt=""
-            className="h-10 w-10 shrink-0 rounded-lg object-cover"
-          />
+    <li>
+      <Link
+        href={`/games/${game.id}/play`}
+        className={`flex items-center justify-between gap-3 rounded-xl border border-black/10 bg-white px-4 py-3 transition hover:border-indigo-400 dark:border-white/10 dark:bg-zinc-900 ${
+          ended ? "opacity-60" : ""
+        }`}
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          {logoUrl ? (
+            // biome-ignore lint/performance/noImgElement: arbitrary Storage URLs, no next/image loader configured yet
+            <img
+              src={logoUrl}
+              alt=""
+              className="h-10 w-10 shrink-0 rounded-lg object-cover"
+            />
+          ) : (
+            <span
+              aria-hidden
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-black/5 text-lg dark:bg-white/5"
+            >
+              🎲
+            </span>
+          )}
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate font-medium">{boardgameName}</span>
+            <span className="text-xs text-zinc-500">
+              Tour {game.round} ·{" "}
+              <Tooltip label={fullStart(game.startedAt)}>
+                {new Date(game.startedAt).toLocaleDateString("fr-FR")}
+              </Tooltip>{" "}
+              ·{" "}
+              <Tooltip
+                label={
+                  <PlayOrder
+                    players={game.players}
+                    currentPlayerId={game.currentPlayerId}
+                  />
+                }
+              >
+                {count} {count > 1 ? "joueurs" : "joueur"}
+              </Tooltip>
+            </span>
+            {currentPlayer ? (
+              <span className="mt-0.5 text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                Au tour de {currentPlayer.name}
+              </span>
+            ) : null}
+            <InlinePlayOrder
+              players={game.players}
+              currentPlayerId={game.currentPlayerId}
+            />
+          </div>
+        </div>
+        {ended ? (
+          <span className="shrink-0 rounded-full bg-black/5 px-2 py-0.5 text-xs font-medium text-zinc-500 dark:bg-white/10 dark:text-zinc-400">
+            Terminée
+          </span>
         ) : (
-          <span
-            aria-hidden
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-black/5 text-lg dark:bg-white/5"
-          >
-            🎲
+          <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
+            Reprendre
           </span>
         )}
-        <div className="flex min-w-0 flex-col">
-          <span className="truncate font-medium">{boardgameName}</span>
-          <span className="text-xs text-zinc-500">
-            Tour {game.round} ·{" "}
-            <Tooltip label={fullStart(game.startedAt)}>
-              {new Date(game.startedAt).toLocaleDateString("fr-FR")}
-            </Tooltip>{" "}
-            ·{" "}
-            <Tooltip
-              label={
-                <PlayOrder
-                  players={game.players}
-                  currentPlayerId={game.currentPlayerId}
-                />
-              }
-            >
-              {count} {count > 1 ? "joueurs" : "joueur"}
-            </Tooltip>
-          </span>
-          {currentPlayer ? (
-            <span className="mt-0.5 text-xs font-medium text-indigo-600 dark:text-indigo-400">
-              Au tour de {currentPlayer.name}
-            </span>
-          ) : null}
-          <InlinePlayOrder
-            players={game.players}
-            currentPlayerId={game.currentPlayerId}
-          />
-        </div>
-      </div>
-      <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
-        En cours
-      </span>
+      </Link>
     </li>
   );
 }
