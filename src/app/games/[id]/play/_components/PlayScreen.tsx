@@ -387,7 +387,7 @@ function WinnerPicker({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+        className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-black transition hover:bg-amber-300"
       >
         Terminer la partie
       </button>
