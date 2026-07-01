@@ -1,16 +1,20 @@
 "use client";
 
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 
 import type { PlayerId } from "@/lib/domain";
 
 /**
  * The turn order as a scrolling chevron ribbon. The current player is pinned to
- * the left; on each turn the ribbon slides left (the player who just played
- * fades out and re-enters at the far right), while upcoming players fade out
- * against the right edge. A round-divider bar with "Tour N" travels before the
- * round's opening player. Each round is bounded: its first player has no left
- * chevron, its last no right chevron.
+ * the left with a gradient fill; on each turn the ribbon slides left (the player
+ * who just played fades out, upcoming players fade against the right edge). A
+ * "Tour N" divider bar travels before each round's opening player and fades away
+ * once that round has started. Each round is bounded: its first player has no
+ * left chevron, its last no right chevron.
+ *
+ * The scroll offset is computed analytically from the (measured) tag widths and
+ * set as the strip transform in render, so the CSS transition animates reliably
+ * (measuring layout in an effect broke the transition on mobile).
  */
 
 const PAD_X = 16; // horizontal text padding inside a tag
@@ -21,6 +25,7 @@ const BOT = 50;
 const MID = 34;
 const SVG_H = 56;
 const GAP = -6; // negative → chevrons nearly nest, hairline between them
+const BAR_W = 3;
 const BAR_GAP = 9; // breathing room on each side of a round bar
 const PAD_LEFT = 8; // where the current player sits from the left
 const AHEAD = 9; // upcoming turns kept rendered beyond the current one
@@ -58,10 +63,13 @@ interface TagItem {
   w: number;
   firstOfRound: boolean;
   lastOfRound: boolean;
+  isCurrent: boolean;
+  faded: boolean;
 }
 interface BarItem {
   kind: "bar";
   round: number;
+  faded: boolean;
 }
 type Item = TagItem | BarItem;
 
@@ -87,47 +95,52 @@ export function TurnFlow({
   );
   const current = (round - 1) * n + curSeat; // global turn index
 
-  const items = useMemo<Item[]>(() => {
+  // Build the visible window and, in the same pass, accumulate x-offsets so we
+  // know exactly where the current tag sits (→ how far to slide the strip).
+  const { items, scrollX } = useMemo(() => {
     if (n === 0) {
-      return [];
+      return { items: [] as Item[], scrollX: 0 };
     }
 
     const out: Item[] = [];
+    let x = 0;
+    let currentLeft = 0;
     const start = Math.max(0, current - 1);
+
     for (let turn = start; turn <= current + AHEAD; turn++) {
       const seat = turn % n;
+
       if (seat === 0) {
-        out.push({ kind: "bar", round: Math.floor(turn / n) + 1 });
+        // The bar precedes this round-starter; hide it once the round begins.
+        out.push({
+          kind: "bar",
+          round: Math.floor(turn / n) + 1,
+          faded: current >= turn,
+        });
+        x += BAR_W + BAR_GAP;
       }
+
+      const lastOfRound = seat === n - 1;
+      const width = (lastOfRound ? widths[seat] : widths[seat] + P) + 1;
+      if (turn === current) {
+        currentLeft = x;
+      }
+
       out.push({
         kind: "tag",
         turn,
         name: players[seat].name,
         w: widths[seat],
         firstOfRound: seat === 0,
-        lastOfRound: seat === n - 1,
+        lastOfRound,
+        isCurrent: turn === current,
+        faded: turn < current,
       });
+      x += width + (lastOfRound ? BAR_GAP : GAP);
     }
 
-    return out;
+    return { items: out, scrollX: currentLeft - PAD_LEFT };
   }, [current, n, players, widths]);
-
-  // Slide the strip so the current tag sits at PAD_LEFT; the transform change
-  // animates via CSS whenever the turn (and thus the layout) shifts.
-  const stripRef = useRef<HTMLDivElement>(null);
-  const [scrollX, setScrollX] = useState(0);
-  useLayoutEffect(() => {
-    if (items.length === 0) {
-      return;
-    }
-
-    const el = stripRef.current?.querySelector<HTMLElement>(
-      '[data-current="true"]',
-    );
-    if (el) {
-      setScrollX(el.offsetLeft - PAD_LEFT);
-    }
-  }, [items]);
 
   if (n === 0) {
     return null;
@@ -155,20 +168,18 @@ export function TurnFlow({
       </svg>
 
       <div
-        ref={stripRef}
         className="absolute left-0 top-0 flex items-start transition-transform duration-500 ease-[cubic-bezier(.4,0,.2,1)]"
         style={{ height: SVG_H, transform: `translateX(${-scrollX}px)` }}
       >
         {items.map(item =>
           item.kind === "bar" ? (
-            <RoundBar key={`bar-${item.round}`} round={item.round} />
-          ) : (
-            <Tag
-              key={`turn-${item.turn}`}
-              item={item}
-              isCurrent={item.turn === current}
-              faded={item.turn < current}
+            <RoundBar
+              key={`bar-${item.round}`}
+              round={item.round}
+              faded={item.faded}
             />
+          ) : (
+            <Tag key={`turn-${item.turn}`} item={item} />
           ),
         )}
       </div>
@@ -176,35 +187,28 @@ export function TurnFlow({
   );
 }
 
-function Tag({
-  item,
-  isCurrent,
-  faded,
-}: {
-  item: TagItem;
-  isCurrent: boolean;
-  faded: boolean;
-}) {
+function Tag({ item }: { item: TagItem }) {
   const hasLeft = !item.firstOfRound;
   const hasRight = !item.lastOfRound;
   const width = (hasRight ? item.w + P : item.w) + 1;
 
   return (
     <div
-      data-current={isCurrent}
       className="shrink-0 transition-opacity duration-500"
       style={{
         marginRight: item.lastOfRound ? BAR_GAP : GAP,
-        opacity: faded ? 0 : 1,
+        opacity: item.faded ? 0 : 1,
       }}
     >
       <svg width={width} height={SVG_H} viewBox={`0 0 ${width} ${SVG_H}`}>
-        <title>{isCurrent ? `${item.name} — joueur courant` : item.name}</title>
+        <title>
+          {item.isCurrent ? `${item.name} — joueur courant` : item.name}
+        </title>
         <path
           d={tagPath(item.w, hasLeft, hasRight)}
           strokeLinejoin="round"
           className={
-            isCurrent
+            item.isCurrent
               ? "fill-[url(#tf-grad)]"
               : "fill-zinc-200 dark:fill-zinc-800"
           }
@@ -214,7 +218,7 @@ function Tag({
           y={MID + 4.5}
           textAnchor="middle"
           className={`text-[13px] ${
-            isCurrent
+            item.isCurrent
               ? "fill-white font-semibold"
               : "fill-zinc-700 font-medium dark:fill-zinc-300"
           }`}
@@ -226,11 +230,16 @@ function Tag({
   );
 }
 
-function RoundBar({ round }: { round: number }) {
+function RoundBar({ round, faded }: { round: number; faded: boolean }) {
   return (
     <div
-      className="relative shrink-0"
-      style={{ width: 3, height: SVG_H, marginRight: BAR_GAP }}
+      className="relative shrink-0 transition-opacity duration-500"
+      style={{
+        width: BAR_W,
+        height: SVG_H,
+        marginRight: BAR_GAP,
+        opacity: faded ? 0 : 1,
+      }}
     >
       <span
         className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-xs font-semibold text-zinc-500 dark:text-zinc-400"
@@ -240,7 +249,7 @@ function RoundBar({ round }: { round: number }) {
       </span>
       <span
         className="absolute left-0 rounded-full bg-black/40 dark:bg-white/45"
-        style={{ top: 18, width: 3, height: 32 }}
+        style={{ top: 18, width: BAR_W, height: 32 }}
       />
     </div>
   );
