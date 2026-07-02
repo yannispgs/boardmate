@@ -176,7 +176,6 @@ export function createGameRepository(
       const { error: gpError } = await supabase
         .from("game_players")
         .insert(rows);
-      /* c8 ignore next 3 -- defensive guard: insert errors surface via e2e */
       if (gpError) {
         throw new Error(`Ajout des joueurs: ${gpError.message}`);
       }
