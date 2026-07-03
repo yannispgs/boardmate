@@ -206,6 +206,8 @@ export type Database = {
           duration_s: number
           game_id: string
           id: string
+          pause_count: number
+          pause_duration_s: number
           player_id: string
           round: number
           turn_no: number
@@ -215,6 +217,8 @@ export type Database = {
           duration_s: number
           game_id: string
           id?: string
+          pause_count?: number
+          pause_duration_s?: number
           player_id: string
           round: number
           turn_no: number
@@ -224,6 +228,8 @@ export type Database = {
           duration_s?: number
           game_id?: string
           id?: string
+          pause_count?: number
+          pause_duration_s?: number
           player_id?: string
           round?: number
           turn_no?: number

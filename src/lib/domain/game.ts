@@ -47,7 +47,9 @@ export interface GamePlayer {
 
 /**
  * Turn log: one row per completed turn. Total game time and per-player time are
- * derived by summing `durationS` (active time, excluding pauses).
+ * derived by summing `durationS` (active time, excluding pauses). Pauses that
+ * happened during the turn are recorded too (count + total paused seconds),
+ * only counting pauses of at least 5 seconds.
  */
 export interface GameTurn {
   id: GameTurnId;
@@ -56,6 +58,8 @@ export interface GameTurn {
   round: number;
   turnNo: number;
   durationS: number;
+  pauseCount: number;
+  pauseDurationS: number;
 }
 
 /** A game with its related entities resolved, for the play / detail screen. */

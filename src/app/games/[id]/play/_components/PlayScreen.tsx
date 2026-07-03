@@ -67,7 +67,13 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
     }
     setBusy(true);
     try {
-      await repo.advanceTurn(game.id, timer.elapsedS);
+      const pauses = timer.pauseStats();
+      await repo.advanceTurn(
+        game.id,
+        timer.elapsedS,
+        pauses.count,
+        pauses.durationS,
+      );
       await load();
       timer.reset();
     } catch {

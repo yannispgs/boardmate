@@ -1,9 +1,10 @@
 /**
  * Pure end-of-game statistics, derived from the turn log and participation.
  *
- * Everything here is time/rhythm based — the only per-turn datum v1 records is
- * `durationS` (active seconds, pauses excluded). Score/placement stats will come
- * once those columns exist on `GamePlayer` (see `domain/game.ts`).
+ * Time/rhythm based: each turn records its active `durationS` (pauses excluded)
+ * plus the pauses that happened during it (count + total paused seconds, ≥ 5 s
+ * each). Score/placement stats will come once those columns exist on
+ * `GamePlayer` (see `domain/game.ts`).
  */
 
 import type { GamePlayer, GameTurn, PlayerId } from "@/lib/domain";
@@ -22,6 +23,10 @@ export interface PlayerTimeStats {
   maxS: number | null;
   /** Share of the game's total active time, 0–100 (0 when no time elapsed). */
   sharePct: number;
+  /** Seconds this player spent paused during their own turns. */
+  pauseS: number;
+  /** How many pauses (≥ 5 s) this player took during their own turns. */
+  pauseCount: number;
 }
 
 export interface LongestTurn {
@@ -31,19 +36,27 @@ export interface LongestTurn {
   round: number;
 }
 
+export interface MostPaused {
+  playerId: PlayerId;
+  name: string;
+  durationS: number;
+  count: number;
+}
+
 export interface GameStats {
-  /** Wall-clock seconds from start to end (null if either timestamp missing). */
-  realDurationS: number | null;
   /** Sum of every turn's active time. */
   activeTotalS: number;
-  /** Real minus active — setup, pauses, off-turn chatter (null, or ≥ 0). */
-  offTurnS: number | null;
   /** Rounds reached (highest round bearing a completed turn). */
   rounds: number;
   turnCount: number;
   /** Mean active seconds per round — a full table cycle (0 when no round). */
   avgRoundS: number;
+  /** Total paused seconds across the game (pauses ≥ 5 s). */
+  totalPauseS: number;
+  totalPauseCount: number;
   longestTurn: LongestTurn | null;
+  /** Player who spent the most time paused during their turns (null if none). */
+  mostPaused: MostPaused | null;
   /** Players sorted fastest → slowest by mean turn; turn-less players last. */
   players: PlayerTimeStats[];
 }
@@ -51,17 +64,10 @@ export interface GameStats {
 interface StatsInput {
   players: Array<GamePlayer & { player: { id: PlayerId; name: string } }>;
   turns: GameTurn[];
-  startedAt: string;
-  endedAt: string | null;
 }
 
 /** Computes the full statistics payload for a finished game. */
-export function computeGameStats({
-  players,
-  turns,
-  startedAt,
-  endedAt,
-}: StatsInput): GameStats {
+export function computeGameStats({ players, turns }: StatsInput): GameStats {
   const activeTotalS = turns.reduce((sum, t) => sum + t.durationS, 0);
 
   const playerStats: PlayerTimeStats[] = players.map(p => {
@@ -80,6 +86,8 @@ export function computeGameStats({
       minS: turnCount > 0 ? Math.min(...durations) : null,
       maxS: turnCount > 0 ? Math.max(...durations) : null,
       sharePct: activeTotalS > 0 ? (totalS / activeTotalS) * 100 : 0,
+      pauseS: own.reduce((sum, t) => sum + t.pauseDurationS, 0),
+      pauseCount: own.reduce((sum, t) => sum + t.pauseCount, 0),
     };
   });
 
@@ -106,25 +114,31 @@ export function computeGameStats({
       }
     : null;
 
+  // Who spent the most time paused during their own turns (ties: first seated).
+  const topPauser = playerStats.reduce<PlayerTimeStats | null>(
+    (best, p) => (p.pauseS > (best?.pauseS ?? 0) ? p : best),
+    null,
+  );
+  const mostPaused: MostPaused | null = topPauser
+    ? {
+        playerId: topPauser.playerId,
+        name: topPauser.name,
+        durationS: topPauser.pauseS,
+        count: topPauser.pauseCount,
+      }
+    : null;
+
   const rounds = turns.reduce((max, t) => Math.max(max, t.round), 0);
 
-  const started = Date.parse(startedAt);
-  const ended = endedAt ? Date.parse(endedAt) : Number.NaN;
-  const realDurationS =
-    Number.isFinite(started) && Number.isFinite(ended)
-      ? Math.max(0, Math.round((ended - started) / 1000))
-      : null;
-  const offTurnS =
-    realDurationS !== null ? Math.max(0, realDurationS - activeTotalS) : null;
-
   return {
-    realDurationS,
     activeTotalS,
-    offTurnS,
     rounds,
     turnCount: turns.length,
     avgRoundS: rounds > 0 ? activeTotalS / rounds : 0,
+    totalPauseS: turns.reduce((sum, t) => sum + t.pauseDurationS, 0),
+    totalPauseCount: turns.reduce((sum, t) => sum + t.pauseCount, 0),
     longestTurn,
+    mostPaused,
     players: playerStats,
   };
 }

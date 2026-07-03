@@ -134,7 +134,7 @@ describe("games adapter — turn rotation & time logging", () => {
     });
     gameIds.push(game.id);
 
-    await repo().advanceTurn(game.id, 30); // p0 played turn 1 for 30s
+    await repo().advanceTurn(game.id, 30, 2, 18); // p0: 30s active, 2 pauses/18s
     let p = await repo().getPopulated(game.id);
     expect(p?.turn).toBe(2);
     expect(p?.round).toBe(1);
@@ -142,9 +142,11 @@ describe("games adapter — turn rotation & time logging", () => {
     expect(p?.turns).toHaveLength(1);
     expect(p?.turns[0].playerId).toBe(playerIds[0]);
     expect(p?.turns[0].durationS).toBe(30);
+    expect(p?.turns[0].pauseCount).toBe(2);
+    expect(p?.turns[0].pauseDurationS).toBe(18);
 
-    await repo().advanceTurn(game.id, 12); // p1 -> p2
-    await repo().advanceTurn(game.id, 5); // p2 -> wraps to p0, round 2
+    await repo().advanceTurn(game.id, 12, 0, 0); // p1 -> p2
+    await repo().advanceTurn(game.id, 5, 0, 0); // p2 -> wraps to p0, round 2
     p = await repo().getPopulated(game.id);
     expect(p?.turn).toBe(4);
     expect(p?.round).toBe(2);
@@ -194,7 +196,9 @@ describe("games adapter — error mapping", () => {
     // An invalid UUID is a 22P02 DB error → the generic rethrow in each method.
     await expect(repo().getPopulated(BAD_UUID as GameId)).rejects.toThrow();
 
-    await expect(repo().advanceTurn(BAD_UUID as GameId, 10)).rejects.toThrow();
+    await expect(
+      repo().advanceTurn(BAD_UUID as GameId, 10, 0, 0),
+    ).rejects.toThrow();
 
     await expect(
       repo().end(BAD_UUID as GameId, playerIds[0]),
