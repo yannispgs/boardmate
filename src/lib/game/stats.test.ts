@@ -138,4 +138,17 @@ describe("computeGameStats", () => {
 
     expect(stats.players.map(p => p.name)).toEqual(["Alice", "Bob"]);
   });
+
+  it("falls back to '?' when the longest turn's player is off the roster", () => {
+    const stats = computeGameStats({
+      players: [player("a", "Alice", 0)],
+      // A turn by a player not in the roster (defensive: shouldn't happen, but
+      // the name lookup must not crash).
+      turns: [turn("ghost", 1, 1, 99)],
+      startedAt: "2026-07-01T20:00:00.000Z",
+      endedAt: "2026-07-01T20:01:39.000Z",
+    });
+
+    expect(stats.longestTurn?.name).toBe("?");
+  });
 });
