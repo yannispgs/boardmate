@@ -96,8 +96,16 @@ export interface GameRepository {
   list(filter?: { status?: GameStatus }): Promise<GameListItem[]>;
   getPopulated(id: GameId): Promise<PopulatedGame | null>;
   create(input: NewGame): Promise<Game>;
-  /** Records the elapsed (active) time for the current turn and rotates. */
-  advanceTurn(id: GameId, elapsedSeconds: number): Promise<void>;
+  /**
+   * Records the current turn — its active time plus any pauses (count + total
+   * paused seconds, ≥ 5 s each) — then rotates to the next player.
+   */
+  advanceTurn(
+    id: GameId,
+    elapsedSeconds: number,
+    pauseCount: number,
+    pauseDurationSeconds: number,
+  ): Promise<void>;
   /** Ends the game and marks the winner. */
   end(id: GameId, winnerId: PlayerId): Promise<void>;
   subscribe(onChange: () => void): Unsubscribe;

@@ -73,6 +73,12 @@ function toGameTurn(row: GameTurnRow): GameTurn {
     round: row.round,
     turnNo: row.turn_no,
     durationS: row.duration_s,
+    // `?? 0` guards a not-yet-migrated backend that omits the pause columns
+    // (defensive, unreachable once the columns exist), so stats never see NaN.
+    /* c8 ignore start */
+    pauseCount: row.pause_count ?? 0,
+    pauseDurationS: row.pause_duration_s ?? 0,
+    /* c8 ignore stop */
   };
 }
 
@@ -189,7 +195,12 @@ export function createGameRepository(
       return toGame(game);
     },
 
-    async advanceTurn(id: GameId, elapsedSeconds: number) {
+    async advanceTurn(
+      id: GameId,
+      elapsedSeconds: number,
+      pauseCount: number,
+      pauseDurationSeconds: number,
+    ) {
       const { data: game, error } = await games()
         .select("round, turn, current_player_id")
         .eq("id", id)
@@ -217,6 +228,8 @@ export function createGameRepository(
           round: game.round,
           turn_no: game.turn,
           duration_s: Math.max(0, Math.round(elapsedSeconds)),
+          pause_count: Math.max(0, Math.round(pauseCount)),
+          pause_duration_s: Math.max(0, Math.round(pauseDurationSeconds)),
         });
         /* c8 ignore next 3 -- defensive guard: insert errors surface via e2e */
         if (turnError) {
