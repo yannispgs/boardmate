@@ -75,6 +75,7 @@ export type Database = {
           name: string
           rec_max_players: number | null
           rec_min_players: number | null
+          scoring: Json | null
           tags: string[]
         }
         Insert: {
@@ -90,6 +91,7 @@ export type Database = {
           name: string
           rec_max_players?: number | null
           rec_min_players?: number | null
+          scoring?: Json | null
           tags?: string[]
         }
         Update: {
@@ -105,6 +107,7 @@ export type Database = {
           name?: string
           rec_max_players?: number | null
           rec_min_players?: number | null
+          scoring?: Json | null
           tags?: string[]
         }
         Relationships: []
@@ -169,18 +172,21 @@ export type Database = {
           game_id: string
           is_winner: boolean
           player_id: string
+          score: number | null
           seat_order: number
         }
         Insert: {
           game_id: string
           is_winner?: boolean
           player_id: string
+          score?: number | null
           seat_order: number
         }
         Update: {
           game_id?: string
           is_winner?: boolean
           player_id?: string
+          score?: number | null
           seat_order?: number
         }
         Relationships: [

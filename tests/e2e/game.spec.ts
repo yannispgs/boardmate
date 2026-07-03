@@ -49,15 +49,20 @@ test("plays a full game from the funnel to the winner", {
     await page.getByRole("button", { name: "Tour suivant →" }).click();
     await expect(currentTag).toContainText(players[1]);
 
-    // End the game and crown a winner.
+    // End the game: Catan is scored (final total), so enter each score. The
+    // highest wins → player 0.
     await page.getByRole("button", { name: "Terminer la partie" }).click();
-    await expect(page.getByText("Qui a gagné ?")).toBeVisible();
-    await page.getByRole("button", { name: players[0], exact: true }).click();
+    await expect(page.getByText("Scores de fin")).toBeVisible();
+    await page.getByLabel(`Score de ${players[0]}`).fill("100");
+    await page.getByLabel(`Score de ${players[1]}`).fill("60");
+    await page.getByLabel(`Score de ${players[2]}`).fill("80");
+    await page.getByRole("button", { name: "Terminer", exact: true }).click();
 
     await expect(
       page.getByRole("heading", { name: "Partie terminée !" }),
     ).toBeVisible();
     await expect(page.getByText(`Bravo ${players[0]}`)).toBeVisible();
+    await expect(page.getByText("avec 100 points")).toBeVisible();
   } finally {
     const admin = adminClient();
     if (gameId) {

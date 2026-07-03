@@ -2,8 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { GameId, PlayerId, PopulatedGame } from "@/lib/domain";
+import type {
+  GameId,
+  PlayerId,
+  PopulatedGame,
+  ScoreWinnerBy,
+} from "@/lib/domain";
 import { countdownColor } from "@/lib/game/colors";
+import { leaderByScore } from "@/lib/game/scoring";
 import { useTurnTimer } from "@/lib/hooks/use-turn-timer";
 import { getGameRepository } from "@/lib/repositories";
 import { EndedGame } from "./EndedGame";
@@ -83,13 +89,16 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
     }
   }
 
-  async function handleEnd(winnerId: PlayerId) {
+  async function handleEnd(
+    winnerId: PlayerId,
+    scores?: Array<{ playerId: PlayerId; score: number }>,
+  ) {
     if (!game || busy) {
       return;
     }
     setBusy(true);
     try {
-      await repo.end(game.id, winnerId);
+      await repo.end(game.id, winnerId, scores);
       await load();
     } catch {
       setError("Impossible de terminer la partie.");
@@ -154,11 +163,20 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         Tour suivant →
       </button>
 
-      <WinnerPicker
-        players={game.players.map(p => p.player)}
-        onPick={handleEnd}
-        disabled={busy}
-      />
+      {game.boardgame.scoring ? (
+        <ScoreEntry
+          players={game.players.map(p => p.player)}
+          winnerBy={game.boardgame.scoring.winnerBy}
+          onEnd={handleEnd}
+          disabled={busy}
+        />
+      ) : (
+        <WinnerPicker
+          players={game.players.map(p => p.player)}
+          onPick={handleEnd}
+          disabled={busy}
+        />
+      )}
     </div>
   );
 }
@@ -413,6 +431,110 @@ function WinnerPicker({
           {p.name}
         </button>
       ))}
+      <button
+        type="button"
+        onClick={() => setOpen(false)}
+        className="text-xs text-zinc-500 hover:underline"
+      >
+        Annuler
+      </button>
+    </div>
+  );
+}
+
+/**
+ * End-of-game score entry for a scored game (final total). Each player gets a
+ * number; the leader (by the game's winnerBy) is proposed as winner and can be
+ * overridden by tapping a name (ties, house rules). Ends once every score is in.
+ */
+function ScoreEntry({
+  players,
+  winnerBy,
+  onEnd,
+  disabled,
+}: {
+  players: { id: PlayerId; name: string }[];
+  winnerBy: ScoreWinnerBy;
+  onEnd: (
+    winnerId: PlayerId,
+    scores: Array<{ playerId: PlayerId; score: number }>,
+  ) => void;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [raw, setRaw] = useState<Record<string, string>>({});
+  const [override, setOverride] = useState<PlayerId | null>(null);
+
+  const entries = players.map(p => {
+    const text = raw[p.id]?.trim() ?? "";
+    const n = Number(text);
+
+    return {
+      playerId: p.id,
+      score: text !== "" && Number.isFinite(n) ? n : null,
+    };
+  });
+  const allEntered = entries.every(e => e.score !== null);
+  const winnerId = override ?? leaderByScore(entries, winnerBy);
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-black transition hover:bg-amber-300"
+      >
+        Terminer la partie
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex w-full max-w-xs flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10">
+      <p className="text-sm font-semibold">Scores de fin</p>
+      {players.map(p => {
+        const isWinner = winnerId === p.id;
+
+        return (
+          <div key={p.id} className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setOverride(p.id)}
+              className={`min-w-0 flex-1 truncate text-left text-sm ${
+                isWinner
+                  ? "font-semibold text-amber-600 dark:text-amber-500"
+                  : ""
+              }`}
+            >
+              {isWinner ? "🏆 " : ""}
+              {p.name}
+            </button>
+            <input
+              type="number"
+              inputMode="numeric"
+              value={raw[p.id] ?? ""}
+              onChange={e => setRaw(s => ({ ...s, [p.id]: e.target.value }))}
+              aria-label={`Score de ${p.name}`}
+              className="w-20 rounded-lg border border-black/15 bg-white px-2 py-1 text-right outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900"
+            />
+          </div>
+        );
+      })}
+      <button
+        type="button"
+        disabled={disabled || !allEntered || !winnerId}
+        onClick={() => {
+          if (winnerId) {
+            onEnd(
+              winnerId,
+              entries.map(e => ({ playerId: e.playerId, score: e.score ?? 0 })),
+            );
+          }
+        }}
+        className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
+      >
+        Terminer
+      </button>
       <button
         type="button"
         onClick={() => setOpen(false)}

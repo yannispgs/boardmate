@@ -30,19 +30,27 @@ export interface Game {
  * `PopulatedGame` payload).
  */
 export interface GameListItem extends Game {
-  players: Array<{ id: PlayerId; name: string; isWinner: boolean }>;
+  players: Array<{
+    id: PlayerId;
+    name: string;
+    isWinner: boolean;
+    score: number | null;
+  }>;
 }
 
 /**
  * Participation row: one per (game, player). This per-participation grain is
- * what makes statistics natural (GROUP BY player, JOIN boardgame). v1 only
- * records `isWinner`; score / placement / faction become extra columns later.
+ * what makes statistics natural (GROUP BY player, JOIN boardgame). Records the
+ * winner and, for scored games, the final `score`; placement / faction become
+ * extra columns later.
  */
 export interface GamePlayer {
   gameId: GameId;
   playerId: PlayerId;
   seatOrder: number;
   isWinner: boolean;
+  /** Final score, once entered (null for unscored games or before entry). */
+  score: number | null;
 }
 
 /**

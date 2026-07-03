@@ -6,6 +6,21 @@ import type { BoardgameId } from "./ids";
  */
 export type BoardgameKind = "competitive" | "cooperative" | "hybrid";
 
+/** Who wins on score: the highest total, or the lowest (Skyjo/Papayoo). */
+export type ScoreWinnerBy = "highest" | "lowest";
+
+/**
+ * How a boardgame is scored — inherent to the game, authored per boardgame.
+ * `null` on the boardgame means the game isn't scored (pick the winner by hand).
+ * v1 handles only `timing: "final"` + `entry: "total"`: one total entered per
+ * player at the end. `live` scoring and multi-`categories` come later.
+ */
+export interface ScoringSpec {
+  timing: "final";
+  entry: "total";
+  winnerBy: ScoreWinnerBy;
+}
+
 export interface Boardgame {
   id: BoardgameId;
   name: string;
@@ -20,6 +35,8 @@ export interface Boardgame {
   kind: BoardgameKind;
   avgDurationMin: number | null;
   tags: string[];
+  /** How the game is scored, or `null` when it isn't. */
+  scoring: ScoringSpec | null;
   /**
    * When false, the boardgame is hidden from selection lists but kept in the
    * database. Deactivate (instead of delete) once it has games, to preserve

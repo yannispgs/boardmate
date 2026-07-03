@@ -174,23 +174,51 @@ describe("games adapter — listing & ending", () => {
     const listed = ongoing.find(g => g.id === game.id);
     expect(listed?.players.map(p => p.id)).toEqual(playerIds);
 
-    await repo().end(game.id, playerIds[1]);
+    // End with final scores (p1 wins with the highest).
+    await repo().end(game.id, playerIds[1], [
+      { playerId: playerIds[0], score: 92 },
+      { playerId: playerIds[1], score: 104 },
+      { playerId: playerIds[2], score: 87 },
+    ]);
 
     const stillOngoing = await repo().list();
     expect(stillOngoing.some(g => g.id === game.id)).toBe(false);
     const ended = await repo().list({ status: "ended" });
     expect(ended.some(g => g.id === game.id)).toBe(true);
-    // The list item flags the winner, so the card can show it.
+    // The list item flags the winner and carries the scores, so the card can
+    // show "🏆 name (score)".
     const endedItem = ended.find(g => g.id === game.id);
     expect(endedItem?.players.filter(p => p.isWinner).map(p => p.id)).toEqual([
       playerIds[1],
     ]);
+    expect(endedItem?.players.find(p => p.id === playerIds[1])?.score).toBe(104);
 
     const populated = await repo().getPopulated(game.id);
     expect(populated?.status).toBe("ended");
     expect(populated?.endedAt).not.toBeNull();
     const winner = populated?.players.find(p => p.isWinner);
     expect(winner?.playerId).toBe(playerIds[1]);
+    expect(winner?.score).toBe(104);
+    // The boardgame's scoring spec resolves too (Catan seeded final/total).
+    expect(populated?.boardgame.scoring?.winnerBy).toBe("highest");
+  });
+
+  it("ends without scores (unscored path), leaving every score null", async () => {
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    await repo().end(game.id, playerIds[0]); // no scores passed
+
+    const populated = await repo().getPopulated(game.id);
+    expect(populated?.status).toBe("ended");
+    expect(populated?.players.find(p => p.isWinner)?.playerId).toBe(
+      playerIds[0],
+    );
+    expect(populated?.players.every(p => p.score === null)).toBe(true);
   });
 });
 

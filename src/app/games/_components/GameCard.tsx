@@ -160,7 +160,11 @@ export function GameCard({
             </span>
             {ended ? (
               <span className="mt-0.5 text-xs font-medium text-amber-600 dark:text-amber-500">
-                {winner ? `🏆 ${winner.name} · ` : ""}
+                {winner
+                  ? `🏆 ${winner.name}${
+                      winner.score !== null ? ` (${winner.score} pts)` : ""
+                    } · `
+                  : ""}
                 {game.round} tour{game.round > 1 ? "s" : ""}
               </span>
             ) : currentPlayer ? (

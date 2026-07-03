@@ -14,7 +14,9 @@ import { GameStats } from "./GameStats";
  */
 export function EndedGame({ game }: { game: PopulatedGame }) {
   const statsRef = useRef<HTMLDivElement>(null);
-  const winner = game.players.find(p => p.isWinner)?.player ?? null;
+  const winnerEntry = game.players.find(p => p.isWinner) ?? null;
+  const winner = winnerEntry?.player ?? null;
+  const winnerScore = winnerEntry?.score ?? null;
 
   const seeStats = () => {
     statsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -36,6 +38,11 @@ export function EndedGame({ game }: { game: PopulatedGame }) {
             {winner ? (
               <p className="text-zinc-500 dark:text-zinc-400">
                 Bravo <span className="font-semibold">{winner.name}</span> 🎉
+                {winnerScore !== null ? (
+                  <span className="block text-sm">
+                    avec {winnerScore} points
+                  </span>
+                ) : null}
               </p>
             ) : null}
           </div>
