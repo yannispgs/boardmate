@@ -22,36 +22,41 @@ export function EndedGame({ game }: { game: PopulatedGame }) {
 
   return (
     <div className="flex flex-col">
-      {/* The classic end screen fills one viewport (minus the page header +
-          padding, ~6rem); the stats begin at the next screenful, reached by the
-          smooth scroll below — no navigation, no blocking load. */}
-      <div className="flex min-h-[calc(100dvh-6rem)] flex-col items-center justify-center gap-6 text-center">
-        <span aria-hidden className="text-6xl">
-          🏆
-        </span>
-        <div className="flex flex-col gap-1">
-          <h2 className="text-2xl font-bold">Partie terminée !</h2>
-          {winner ? (
-            <p className="text-zinc-500 dark:text-zinc-400">
-              Bravo <span className="font-semibold">{winner.name}</span> 🎉
-            </p>
-          ) : null}
+      {/* The classic end screen fills one screenful before the stats. Sized to
+          the LARGEST viewport (`lvh`, address bar hidden) minus the page header
+          + padding (~6rem): hiding the bar can then never reveal the stats
+          underneath. The winner owns the centre; the buttons sit lower. */}
+      <div className="flex min-h-[calc(100lvh-6rem)] flex-col items-center text-center">
+        <div className="flex flex-1 flex-col items-center justify-center gap-4">
+          <span aria-hidden className="text-6xl">
+            🏆
+          </span>
+          <div className="flex flex-col gap-1">
+            <h2 className="text-2xl font-bold">Partie terminée !</h2>
+            {winner ? (
+              <p className="text-zinc-500 dark:text-zinc-400">
+                Bravo <span className="font-semibold">{winner.name}</span> 🎉
+              </p>
+            ) : null}
+          </div>
         </div>
 
-        <button
-          type="button"
-          onClick={seeStats}
-          className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium text-zinc-600 transition hover:bg-black/5 dark:border-white/15 dark:text-zinc-300 dark:hover:bg-white/5"
-        >
-          Voir les statistiques ↓
-        </button>
+        <div className="flex flex-col items-center gap-4 pb-16">
+          <button
+            type="button"
+            onClick={seeStats}
+            className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium text-zinc-600 transition hover:bg-black/5 dark:border-white/15 dark:text-zinc-300 dark:hover:bg-white/5"
+          >
+            Voir les statistiques ↓
+          </button>
 
-        <Link
-          href="/games"
-          className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
-        >
-          Retour aux parties
-        </Link>
+          <Link
+            href="/games"
+            className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
+          >
+            Retour aux parties
+          </Link>
+        </div>
       </div>
 
       <div ref={statsRef} className="scroll-mt-6">
