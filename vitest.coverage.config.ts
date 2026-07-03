@@ -25,7 +25,12 @@ export default defineConfig({
         // factories, proxy/middleware, env loader, composition root, and auth
         // server actions/session. Broaden once e2e tests land.
         "src/lib/hooks/**",
-        "src/lib/auth/**",
+        // auth request-scoped glue (Server Actions, session, the rate-limit
+        // wrapper) stays e2e-covered; the pure retry-delay formatter is
+        // unit-tested and measured.
+        "src/lib/auth/actions.ts",
+        "src/lib/auth/session.ts",
+        "src/lib/auth/rate-limit.ts",
         "src/lib/supabase/client.ts",
         "src/lib/supabase/server.ts",
         "src/lib/supabase/proxy.ts",

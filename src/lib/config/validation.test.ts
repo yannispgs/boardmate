@@ -176,6 +176,90 @@ describe("validateConfigValues — recursive object & array (future-ready)", () 
   });
 });
 
+describe("validateConfigValues — number type & array maxItems", () => {
+  const template: FieldSpec[] = [
+    { key: "ratio", label: "Ratio", type: "number", min: 0.5, max: 2.5 },
+    {
+      key: "tags",
+      label: "Tags",
+      type: "array",
+      items: { key: "tag", label: "Tag", type: "text" },
+      maxItems: 2,
+    },
+  ];
+
+  it("accepts a fractional number within bounds and an array at the cap", () => {
+    const result = validateConfigValues(template, {
+      ratio: 1.5,
+      tags: ["a", "b"],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a number below min or above max", () => {
+    expect(
+      validateConfigValues(template, { ratio: 0.1, tags: [] }).success,
+    ).toBe(false);
+
+    expect(validateConfigValues(template, { ratio: 3, tags: [] }).success).toBe(
+      false,
+    );
+  });
+
+  it("rejects a non-number where a number is required", () => {
+    expect(
+      validateConfigValues(template, { ratio: "x", tags: [] }).success,
+    ).toBe(false);
+  });
+
+  it("rejects an array above maxItems", () => {
+    expect(
+      validateConfigValues(template, {
+        ratio: 1,
+        tags: ["a", "b", "c"],
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("validateConfigValues — unconstrained fields & missing defaults", () => {
+  // No min/max/minLength/maxLength/minItems/maxItems anywhere: exercises the
+  // "constraint absent" side of every optional-bound branch.
+  const template: FieldSpec[] = [
+    { key: "i", label: "I", type: "integer" },
+    { key: "n", label: "N", type: "number" },
+    { key: "t", label: "T", type: "text" },
+    {
+      key: "a",
+      label: "A",
+      type: "array",
+      items: { key: "x", label: "X", type: "text" },
+    },
+  ];
+
+  it("accepts any in-type values when no bounds are declared", () => {
+    const result = validateConfigValues(template, {
+      i: 9999,
+      n: -0.5,
+      t: "",
+      a: [],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("omits fields whose default is undefined from buildDefaults", () => {
+    const defaults = buildDefaults([
+      { key: "note", label: "Note", type: "text" },
+      { key: "pts", label: "Pts", type: "integer", default: 5 },
+    ]);
+
+    expect(defaults).toEqual({ pts: 5 });
+    expect("note" in defaults).toBe(false);
+  });
+});
+
 describe("buildDefaults", () => {
   it("applies declared defaults and the type fallbacks", () => {
     const template: FieldSpec[] = [

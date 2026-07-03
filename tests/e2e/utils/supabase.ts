@@ -5,6 +5,8 @@ import { localStack } from "./local-env";
 /** The Catan boardgame seeded by migrations (min 3 / max 4 players). */
 export const CATAN_NAME = "Catan";
 export const CATAN_MIN_PLAYERS = 3;
+/** Catan's fixed id (from the seed migration) — lets us attach configs to it. */
+export const CATAN_ID = "78047bc0-5293-4787-be48-ba7339d48c2d";
 
 /**
  * Service-role client — **BYPASSES RLS**. Used only to seed/clean e2e fixtures
@@ -37,4 +39,33 @@ export async function seedPlayers(count: number): Promise<string[]> {
   }
 
   return names;
+}
+
+/**
+ * Inserts a named config for Catan (service role) and returns its name, so the
+ * new-game funnel has a config to pick. Values match Catan's template defaults.
+ */
+export async function seedCatanConfig(name: string): Promise<string> {
+  const { error } = await adminClient()
+    .from("configs")
+    .insert({
+      boardgame_id: CATAN_ID,
+      name,
+      values: {
+        pointsToWin: 10,
+        longestRoad: true,
+        largestArmy: true,
+        harborMaster: false,
+      },
+    });
+  if (error) {
+    throw new Error(`Failed to seed config: ${error.message}`);
+  }
+
+  return name;
+}
+
+/** Removes seeded configs by name (service role) — call in a test's `finally`. */
+export async function deleteConfigs(names: string[]): Promise<void> {
+  await adminClient().from("configs").delete().in("name", names);
 }

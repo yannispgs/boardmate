@@ -91,6 +91,7 @@ export function createBoardgameRepository(
       const { data, error } = await boardgames()
         .select("*")
         .order("name", { ascending: true });
+      /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */
       if (error) {
         throw new Error(`Lecture des jeux: ${error.message}`);
       }
@@ -158,19 +159,23 @@ export function createBoardgameRepository(
     },
 
     async uploadLogo(file: File) {
+      /* c8 ignore next -- `|| "png"` fallback for an extensionless filename */
       const ext = file.name.split(".").pop()?.toLowerCase() || "png";
       const path = `${crypto.randomUUID()}.${ext}`;
       const bucket = supabase.storage.from(LOGO_BUCKET);
       const { error } = await bucket.upload(path, file, {
+        /* c8 ignore next -- `|| undefined` fallback for a typeless file */
         contentType: file.type || undefined,
         upsert: false,
       });
+      /* c8 ignore next 3 -- defensive guard: happy upload path is e2e-tested */
       if (error) {
         throw new Error(`Envoi du logo: ${error.message}`);
       }
       return bucket.getPublicUrl(path).data.publicUrl;
     },
 
+    /* c8 ignore start -- Realtime channel glue, exercised via e2e/manual */
     subscribe(onChange: () => void): Unsubscribe {
       const channel = supabase
         .channel("public:boardgames")
@@ -184,5 +189,6 @@ export function createBoardgameRepository(
         void supabase.removeChannel(channel);
       };
     },
+    /* c8 ignore stop */
   };
 }

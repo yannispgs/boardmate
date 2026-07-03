@@ -182,9 +182,36 @@ separate so the fast one never needs a database:
   funnel → play screen → advance a turn → end → winner). Fixtures (players) are
   seeded with the **service role**, mirroring the integration suite; **no
   secrets** are required (local Supabase ships fixed default keys; connection
-  details come from `supabase status`). Runs in the **E2E tests** CI job
-  (`yarn playwright install --with-deps chromium` + `supabase start`); kept
-  **non-blocking initially** while its stability is judged.
+  details come from `supabase status`).
+  - **Two tiers.** The **critical** journeys are tagged `@critical` (login
+    happy/invalid/anon-redirect, player lifecycle, one full game). They run
+    **per-PR** on **both Chromium and WebKit** (Safari/iOS engine — where the
+    bugs Chromium hides live), as **parallel matrix jobs** (`E2E critical
+    (chromium)` / `(webkit)`) so the second engine adds coverage at **no extra
+    wall-clock**; each runs `playwright test --project=<engine> --grep
+    @critical`. These gate merges. On top, the **full** suite
+    (`yarn test:e2e:full`) runs **every** scenario on both engines in a
+    **separate, non-blocking** workflow (`e2e-full.yml`) triggered on **push to
+    `main`** (post-merge) and `workflow_dispatch`. Public repo → free Actions
+    minutes, so the wide sweep costs nothing and never blocks a merge.
+  - Scripts: `yarn test:e2e` (Chromium, all tests — local default),
+    `yarn test:e2e:full` (all projects, CI), `yarn test:e2e:ui`. New exhaustive
+    scenarios are added **untagged** so they run only in the full suite; promote
+    one to `@critical` when it becomes a must-pass gate.
+- **Coverage (`yarn test:coverage`)** — Vitest v8, **unit + integration merged**,
+  scoped to `src/lib/**` (`vitest.coverage.config.ts`), uploaded to Codecov. The
+  UI (`src/app`) and request-scoped glue (React hooks, SDK client/server
+  factories, proxy, env loader, composition root, auth Server Actions/session)
+  are **excluded** — they're covered by e2e + Vercel previews, not the
+  unit/integration suites. **Target: 100%** on what remains. Genuinely
+  untestable-without-fault-injection code is marked, not faked:
+  **`/* c8 ignore … */`** on (a) the Realtime `subscribe()` channel glue, (b)
+  defensive DB-error guards (`if (error) throw …` on healthy selects/updates),
+  and (c) defensive `?? null` / `|| …` fallbacks — each with a one-line reason.
+  Never mock the Supabase client to hit a branch; either trigger it for real
+  (constraint violations, not-found) or `c8 ignore` it with justification. Pure
+  logic buried in a glue file is **extracted** to its own module so it can be
+  unit-tested and measured (e.g. `auth/retry-delay.ts` out of `rate-limit.ts`).
 - **Skip**: per-component/snapshot tests, mocking the Supabase client,
   perf/load, visual-regression (Vercel preview + occasional screenshot suffices).
 
@@ -229,3 +256,16 @@ separate so the fast one never needs a database:
   login via the mail catcher (Mailpit) saved as `storageState` and reused; paths
   = login (+ anon redirect / invalid code), player lifecycle, one full game.
   New **E2E tests** CI job, non-blocking initially.
+- _2026-07-01_ — Split E2E into two tiers (§11): **critical** journeys tagged
+  `@critical` run per-PR on **Chromium + WebKit** as parallel matrix jobs
+  (blocking gate, `--project=<engine> --grep @critical`; WebKit is free
+  wall-clock and catches iOS-only bugs); a **full** suite (`yarn test:e2e:full`,
+  all scenarios on both engines) runs non-blocking on push to `main` and on
+  demand via a separate `e2e-full.yml` workflow. New scenarios are added
+  untagged (full-only) until promoted.
+- _2026-07-01_ — Coverage target is **100%** on the measured `src/lib/**` scope
+  (§11): reach it with real unit/integration tests, and mark the rest with
+  documented `/* c8 ignore … */` (Realtime `subscribe()` glue, defensive
+  DB-error guards, `?? null`/`|| …` fallbacks) — **never** by mocking the
+  Supabase client. Extract pure logic out of glue files to unit-test it
+  (`auth/retry-delay.ts`).

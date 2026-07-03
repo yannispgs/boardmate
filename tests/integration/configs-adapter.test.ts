@@ -87,6 +87,23 @@ describe("configs adapter — instances CRUD & jsonb round-trip", () => {
     const list = await repo().list(CATAN_ID);
     expect(list.every(c => c.boardgameId === CATAN_ID)).toBe(true);
     expect(list.some(c => c.id === created.id)).toBe(true);
+
+    // Unfiltered list (no boardgame id) also returns it.
+    const all = await repo().list();
+    expect(all.some(c => c.id === created.id)).toBe(true);
+  });
+
+  it("reads a single config back with get", async () => {
+    const created = await repo().create({
+      boardgameId: CATAN_ID,
+      name: "À relire",
+      values: { pointsToWin: 12 },
+    });
+    createdIds.push(created.id);
+
+    const fetched = await repo().get(created.id);
+    expect(fetched?.id).toBe(created.id);
+    expect(fetched?.values).toEqual({ pointsToWin: 12 });
   });
 
   it("updates name and values", async () => {
@@ -103,6 +120,18 @@ describe("configs adapter — instances CRUD & jsonb round-trip", () => {
     });
     expect(updated.name).toBe("Après");
     expect(updated.values).toEqual({ pointsToWin: 15, harborMaster: true });
+
+    // Name-only patch leaves the values untouched.
+    const renamed = await repo().update(created.id, { name: "Renommé" });
+    expect(renamed.name).toBe("Renommé");
+    expect(renamed.values).toEqual({ pointsToWin: 15, harborMaster: true });
+
+    // Values-only patch leaves the name untouched.
+    const revalued = await repo().update(created.id, {
+      values: { pointsToWin: 7 },
+    });
+    expect(revalued.name).toBe("Renommé");
+    expect(revalued.values).toEqual({ pointsToWin: 7 });
   });
 
   it("removes a config", async () => {

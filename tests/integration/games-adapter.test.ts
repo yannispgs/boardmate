@@ -90,6 +90,39 @@ describe("games adapter — creation & population", () => {
     expect(populated?.currentPlayer?.id).toBe(playerIds[0]);
     expect(populated?.turns).toEqual([]);
   });
+
+  it("returns null from getPopulated for an unknown id", async () => {
+    const missing = crypto.randomUUID() as GameId;
+
+    expect(await repo().getPopulated(missing)).toBeNull();
+  });
+
+  it("throws on a real FK violation when a seated player is unknown", async () => {
+    const admin = serviceClient();
+    const before = new Set(
+      ((await admin.from("games").select("id")).data ?? []).map(g => g.id),
+    );
+
+    // First player valid → the games insert succeeds; the second is unknown →
+    // the game_players insert hits a genuine FK violation (no mock).
+    const bad = crypto.randomUUID() as PlayerId;
+    await expect(
+      repo().create({
+        boardgameId: CATAN_ID,
+        configId: null,
+        playerIds: [playerIds[0], bad],
+      }),
+    ).rejects.toThrow(/Ajout des joueurs/);
+
+    // The games row was inserted before game_players failed — track the orphan
+    // so afterAll cleans it up.
+    const after = (await admin.from("games").select("id")).data ?? [];
+    for (const g of after) {
+      if (!before.has(g.id)) {
+        gameIds.push(g.id as GameId);
+      }
+    }
+  });
 });
 
 describe("games adapter — turn rotation & time logging", () => {
