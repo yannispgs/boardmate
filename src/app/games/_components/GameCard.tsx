@@ -90,13 +90,13 @@ function InlinePlayOrder({
 }
 
 /**
- * One ongoing game in the list: the boardgame logo, name, progress, start date
- * and player count, linking to the play screen. The date reveals the full
- * timestamp on hover, and the player count reveals the participants in play
- * order — emphasising whose turn it is. A `round` is one full table cycle
- * (everyone has played once); for an ongoing game we also surface whose turn it
- * is right now. On touch devices, where hover doesn't exist, the play order is
- * shown inline instead.
+ * One game in the list: the boardgame logo, name, start date and player count,
+ * linking to the play screen. The date reveals the full timestamp on hover, and
+ * the player count reveals the participants in play order. A `round` is one full
+ * table cycle (everyone has played once). An **ongoing** game surfaces its
+ * current tour and whose turn it is; a **finished** game instead shows the
+ * winner and how many tours it lasted (no "current" player). On touch devices,
+ * where hover doesn't exist, the play order is shown inline.
  */
 export function GameCard({
   game,
@@ -111,6 +111,9 @@ export function GameCard({
 }) {
   const count = game.players.length;
   const currentPlayer = game.players.find(p => p.id === game.currentPlayerId);
+  const winner = game.players.find(p => p.isWinner);
+  // A finished game has no "current" player to emphasise.
+  const highlightId = ended ? null : game.currentPlayerId;
 
   return (
     <li>
@@ -139,7 +142,7 @@ export function GameCard({
           <div className="flex min-w-0 flex-col">
             <span className="truncate font-medium">{boardgameName}</span>
             <span className="text-xs text-zinc-500">
-              Tour {game.round} ·{" "}
+              {ended ? null : <>Tour {game.round} · </>}
               <Tooltip label={fullStart(game.startedAt)}>
                 {new Date(game.startedAt).toLocaleDateString("fr-FR")}
               </Tooltip>{" "}
@@ -148,21 +151,26 @@ export function GameCard({
                 label={
                   <PlayOrder
                     players={game.players}
-                    currentPlayerId={game.currentPlayerId}
+                    currentPlayerId={highlightId}
                   />
                 }
               >
                 {count} {count > 1 ? "joueurs" : "joueur"}
               </Tooltip>
             </span>
-            {currentPlayer ? (
+            {ended ? (
+              <span className="mt-0.5 text-xs font-medium text-amber-600 dark:text-amber-500">
+                {winner ? `🏆 ${winner.name} · ` : ""}
+                {game.round} tour{game.round > 1 ? "s" : ""}
+              </span>
+            ) : currentPlayer ? (
               <span className="mt-0.5 text-xs font-medium text-indigo-600 dark:text-indigo-400">
                 Au tour de {currentPlayer.name}
               </span>
             ) : null}
             <InlinePlayOrder
               players={game.players}
-              currentPlayerId={game.currentPlayerId}
+              currentPlayerId={highlightId}
             />
           </div>
         </div>

@@ -178,6 +178,11 @@ describe("games adapter — listing & ending", () => {
     expect(stillOngoing.some(g => g.id === game.id)).toBe(false);
     const ended = await repo().list({ status: "ended" });
     expect(ended.some(g => g.id === game.id)).toBe(true);
+    // The list item flags the winner, so the card can show it.
+    const endedItem = ended.find(g => g.id === game.id);
+    expect(endedItem?.players.filter(p => p.isWinner).map(p => p.id)).toEqual([
+      playerIds[1],
+    ]);
 
     const populated = await repo().getPopulated(game.id);
     expect(populated?.status).toBe("ended");

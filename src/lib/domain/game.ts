@@ -30,7 +30,7 @@ export interface Game {
  * `PopulatedGame` payload).
  */
 export interface GameListItem extends Game {
-  players: Array<{ id: PlayerId; name: string }>;
+  players: Array<{ id: PlayerId; name: string; isWinner: boolean }>;
 }
 
 /**
