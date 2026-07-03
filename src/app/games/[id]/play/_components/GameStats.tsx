@@ -25,9 +25,15 @@ export function GameStats({ game }: { game: PopulatedGame }) {
     },
     { label: "Tours", value: String(stats.rounds) },
     { label: "Tour moyen", value: formatDuration(stats.avgRoundS) },
-    { label: "Pauses", value: String(stats.totalPauseCount) },
-    { label: "Temps en pause", value: formatDuration(stats.totalPauseS) },
   ];
+
+  // Pauses only earn their tiles when there were any; otherwise a discreet line.
+  if (stats.totalPauseCount > 0) {
+    tiles.push(
+      { label: "Pauses", value: String(stats.totalPauseCount) },
+      { label: "Temps en pause", value: formatDuration(stats.totalPauseS) },
+    );
+  }
 
   return (
     <section className="flex flex-col gap-6">
@@ -79,6 +85,12 @@ export function GameStats({ game }: { game: PopulatedGame }) {
             </span>
           </span>
         </div>
+      ) : null}
+
+      {stats.turnCount > 0 && stats.totalPauseCount === 0 ? (
+        <p className="text-center text-sm text-zinc-400 dark:text-zinc-500">
+          Aucune pause durant la partie.
+        </p>
       ) : null}
 
       {stats.turnCount > 0 ? (

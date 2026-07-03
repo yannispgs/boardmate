@@ -68,8 +68,12 @@ function toGameTurn(row: GameTurnRow): GameTurn {
     round: row.round,
     turnNo: row.turn_no,
     durationS: row.duration_s,
-    pauseCount: row.pause_count,
-    pauseDurationS: row.pause_duration_s,
+    // `?? 0` guards a not-yet-migrated backend that omits the pause columns
+    // (defensive, unreachable once the columns exist), so stats never see NaN.
+    /* c8 ignore start */
+    pauseCount: row.pause_count ?? 0,
+    pauseDurationS: row.pause_duration_s ?? 0,
+    /* c8 ignore stop */
   };
 }
 
