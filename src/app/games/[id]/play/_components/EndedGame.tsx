@@ -41,7 +41,7 @@ export function EndedGame({ game }: { game: PopulatedGame }) {
           </div>
         </div>
 
-        <div className="flex flex-col items-center gap-4 pb-16">
+        <div className="flex flex-col items-center gap-4 pb-28">
           <button
             type="button"
             onClick={seeStats}
