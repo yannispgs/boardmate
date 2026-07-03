@@ -48,6 +48,7 @@ function toGame(row: GameRow): Game {
 type GameListRow = GameRow & {
   game_players: Array<{
     seat_order: number;
+    is_winner: boolean;
     player: { id: string; name: string };
   }>;
 };
@@ -55,7 +56,11 @@ type GameListRow = GameRow & {
 function toGameListItem(row: GameListRow): GameListItem {
   const players = [...row.game_players]
     .sort((a, b) => a.seat_order - b.seat_order)
-    .map(gp => ({ id: gp.player.id as PlayerId, name: gp.player.name }));
+    .map(gp => ({
+      id: gp.player.id as PlayerId,
+      name: gp.player.name,
+      isWinner: gp.is_winner,
+    }));
 
   return { ...toGame(row), players };
 }
@@ -103,7 +108,9 @@ export function createGameRepository(
     async list(filter?: { status?: GameStatus }) {
       const status = filter?.status ?? "ongoing";
       const { data, error } = await games()
-        .select("*, game_players(seat_order, player:players(id, name))")
+        .select(
+          "*, game_players(seat_order, is_winner, player:players(id, name))",
+        )
         .eq("status", status)
         .order("started_at", { ascending: false });
       /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */
