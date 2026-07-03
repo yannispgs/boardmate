@@ -25,9 +25,8 @@ export function GameStats({ game }: { game: PopulatedGame }) {
     { label: "Durée réelle", value: dash(stats.realDurationS), accent: true },
     { label: "Temps de jeu", value: formatDuration(stats.activeTotalS) },
     { label: "Hors-tour", value: dash(stats.offTurnS) },
-    { label: "Manches", value: String(stats.rounds) },
-    { label: "Tours", value: String(stats.turnCount) },
-    { label: "Tour moyen", value: formatDuration(stats.avgTurnS) },
+    { label: "Tours", value: String(stats.rounds) },
+    { label: "Tour moyen", value: formatDuration(stats.avgRoundS) },
   ];
 
   return (
@@ -58,7 +57,7 @@ export function GameStats({ game }: { game: PopulatedGame }) {
               {formatDuration(stats.longestTurn.durationS)}
             </span>{" "}
             <span className="text-zinc-500 dark:text-zinc-400">
-              · {stats.longestTurn.name}, manche {stats.longestTurn.round}
+              · {stats.longestTurn.name}, tour {stats.longestTurn.round}
             </span>
           </span>
         </div>

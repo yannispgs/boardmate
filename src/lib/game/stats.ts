@@ -41,8 +41,8 @@ export interface GameStats {
   /** Rounds reached (highest round bearing a completed turn). */
   rounds: number;
   turnCount: number;
-  /** Mean active seconds per turn across the whole table (0 when no turn). */
-  avgTurnS: number;
+  /** Mean active seconds per round — a full table cycle (0 when no round). */
+  avgRoundS: number;
   longestTurn: LongestTurn | null;
   /** Players sorted fastest → slowest by mean turn; turn-less players last. */
   players: PlayerTimeStats[];
@@ -123,7 +123,7 @@ export function computeGameStats({
     offTurnS,
     rounds,
     turnCount: turns.length,
-    avgTurnS: turns.length > 0 ? activeTotalS / turns.length : 0,
+    avgRoundS: rounds > 0 ? activeTotalS / rounds : 0,
     longestTurn,
     players: playerStats,
   };

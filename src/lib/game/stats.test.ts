@@ -62,7 +62,7 @@ describe("computeGameStats", () => {
     expect(stats.activeTotalS).toBe(100);
     expect(stats.turnCount).toBe(4);
     expect(stats.rounds).toBe(2);
-    expect(stats.avgTurnS).toBe(25);
+    expect(stats.avgRoundS).toBe(50); // 100s active / 2 rounds
     expect(stats.realDurationS).toBe(120);
     expect(stats.offTurnS).toBe(20); // 120 - 100
 
@@ -106,7 +106,7 @@ describe("computeGameStats", () => {
     expect(stats.activeTotalS).toBe(0);
     expect(stats.turnCount).toBe(0);
     expect(stats.rounds).toBe(0);
-    expect(stats.avgTurnS).toBe(0);
+    expect(stats.avgRoundS).toBe(0);
     expect(stats.longestTurn).toBeNull();
     expect(stats.offTurnS).toBe(30);
     expect(stats.players.every(p => p.avgS === 0 && p.minS === null)).toBe(
