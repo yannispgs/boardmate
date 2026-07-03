@@ -21,8 +21,11 @@ export function EndedGame({ game }: { game: PopulatedGame }) {
   };
 
   return (
-    <div className="flex flex-col gap-14">
-      <div className="flex flex-col items-center gap-6 pt-6 text-center">
+    <div className="flex flex-col">
+      {/* The classic end screen fills one viewport (minus the page header +
+          padding, ~6rem); the stats begin at the next screenful, reached by the
+          smooth scroll below — no navigation, no blocking load. */}
+      <div className="flex min-h-[calc(100dvh-6rem)] flex-col items-center justify-center gap-6 text-center">
         <span aria-hidden className="text-6xl">
           🏆
         </span>
