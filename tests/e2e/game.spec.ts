@@ -70,6 +70,17 @@ test("plays a full game from the funnel to the winner", {
     ).toBeVisible();
     await expect(page.getByText(`Bravo ${players[0]}`)).toBeVisible();
     await expect(page.getByText("avec 10 points")).toBeVisible();
+
+    // The finished-games list shows the winner and, for a scored game, their
+    // score.
+    await page.goto("/games");
+    const finished = page.locator("details", {
+      has: page.getByText("Terminées"),
+    });
+    await finished.locator("summary").click();
+    await expect(
+      finished.getByText(new RegExp(`${players[0]}.*10 pts`)),
+    ).toBeVisible();
   } finally {
     const admin = adminClient();
     if (gameId) {
