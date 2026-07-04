@@ -1,0 +1,112 @@
+"use client";
+
+import { useState } from "react";
+
+import type { GamePlayer, Player, PlayerId } from "@/lib/domain";
+import { LiveScore } from "./LiveScore";
+
+/**
+ * The live-scoring entry point on the play screen. A floating button pinned to
+ * the side of the screen (next to the timer) opens a modal to update scores —
+ * so the score sheet is one tap away without scrolling. The running totals are
+ * held here (not in the modal body) so they survive the modal closing; the
+ * button also shows the current top score at a glance.
+ */
+export function ScorePanel({
+  players,
+  threshold,
+  allowNegative,
+  onSet,
+  disabled,
+  open,
+  onOpenChange,
+}: {
+  players: Array<GamePlayer & { player: Player }>;
+  threshold: number | null;
+  allowNegative: boolean;
+  onSet: (playerId: PlayerId, score: number) => void;
+  disabled: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [scores, setScores] = useState<Record<string, number>>(() =>
+    Object.fromEntries(players.map(p => [p.playerId, p.score ?? 0])),
+  );
+
+  function bump(playerId: PlayerId, delta: number) {
+    const current = scores[playerId] ?? 0;
+    const next = !allowNegative && current + delta < 0 ? 0 : current + delta;
+    if (next === current) {
+      return;
+    }
+
+    setScores(s => ({ ...s, [playerId]: next }));
+    onSet(playerId, next);
+  }
+
+  const topScore = players.reduce(
+    (max, p) => Math.max(max, scores[p.playerId] ?? 0),
+    0,
+  );
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => onOpenChange(true)}
+        aria-label="Ouvrir les scores"
+        className="fixed right-3 top-1/2 z-30 flex -translate-y-1/2 flex-col items-center gap-1 rounded-full bg-indigo-600 p-3 text-white shadow-lg transition hover:bg-indigo-500"
+      >
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          aria-hidden
+        >
+          <title>Scores</title>
+          <rect x="3" y="12" width="4" height="8" rx="1" />
+          <rect x="10" y="8" width="4" height="12" rx="1" />
+          <rect x="17" y="4" width="4" height="16" rx="1" />
+        </svg>
+        <span className="text-xs font-semibold tabular-nums leading-none">
+          {threshold !== null ? `${topScore}/${threshold}` : topScore}
+        </span>
+      </button>
+
+      {open ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Scores"
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4"
+        >
+          <div className="w-full max-w-sm rounded-xl border border-black/10 bg-white p-5 shadow-xl dark:border-white/10 dark:bg-zinc-900">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-base font-semibold">
+                Mettre à jour les scores
+              </h2>
+              <button
+                type="button"
+                onClick={() => onOpenChange(false)}
+                aria-label="Fermer"
+                className="rounded-lg border border-black/10 px-3 py-1 text-sm transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+              >
+                Fermer
+              </button>
+            </div>
+
+            <LiveScore
+              players={players}
+              scores={scores}
+              threshold={threshold}
+              allowNegative={allowNegative}
+              onBump={bump}
+              disabled={disabled}
+            />
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}

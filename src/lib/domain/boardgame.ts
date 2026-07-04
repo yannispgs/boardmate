@@ -29,6 +29,12 @@ export interface ScoringSpec {
   timing: "final" | "live";
   entry: "total";
   winCondition: WinCondition;
+  /**
+   * Whether a score can go below zero. Defaults to `false` (positive-only, e.g.
+   * Catan): the live −/+ control then floors at 0. Set `true` for games where a
+   * running total can be negative (some card games).
+   */
+  allowNegative?: boolean;
 }
 
 export interface Boardgame {

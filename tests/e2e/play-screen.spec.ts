@@ -103,3 +103,45 @@ test("a full round cycles back to the first player", async ({ page }) => {
     await admin.from("players").delete().in("name", players);
   }
 });
+
+test("live scores float at zero and persist across the score sheet", async ({
+  page,
+}) => {
+  const players = await seedPlayers(CATAN_MIN_PLAYERS);
+  let gameId = "";
+
+  try {
+    gameId = await startGame(page, players);
+
+    // The side button opens the score sheet.
+    const openScores = page.getByRole("button", { name: "Ouvrir les scores" });
+    await openScores.click();
+
+    const minus = page.getByRole("button", {
+      name: `Retirer un point à ${players[0]}`,
+    });
+    const plus = page.getByRole("button", {
+      name: `Ajouter un point à ${players[0]}`,
+    });
+
+    // Catan is positive-only: at 0 the − is disabled; a + enables it.
+    await expect(minus).toBeDisabled();
+    await plus.click();
+    await plus.click();
+    await expect(minus).toBeEnabled();
+
+    // Closing keeps the running total — the side button shows 2 / objective 10.
+    await page.getByRole("button", { name: "Fermer" }).click();
+    await expect(openScores).toContainText("2/10");
+
+    // Reopening shows the kept total (− still enabled, not reset to 0).
+    await openScores.click();
+    await expect(minus).toBeEnabled();
+  } finally {
+    const admin = adminClient();
+    if (gameId) {
+      await admin.from("games").delete().eq("id", gameId);
+    }
+    await admin.from("players").delete().in("name", players);
+  }
+});

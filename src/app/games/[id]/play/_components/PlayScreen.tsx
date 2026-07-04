@@ -14,7 +14,7 @@ import { leaderByScore, winnerDirection } from "@/lib/game/scoring";
 import { useTurnTimer } from "@/lib/hooks/use-turn-timer";
 import { getGameRepository } from "@/lib/repositories";
 import { EndedGame } from "./EndedGame";
-import { LiveScore } from "./LiveScore";
+import { ScorePanel } from "./ScorePanel";
 import { TurnFlow } from "./turn-flow";
 
 const DEFAULT_DURATION_S = 60;
@@ -26,6 +26,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   const [error, setError] = useState<string | null>(null);
   const [durationS, setDurationS] = useState(DEFAULT_DURATION_S);
   const [busy, setBusy] = useState(false);
+  const [scoreOpen, setScoreOpen] = useState(false);
 
   const timer = useTurnTimer();
   const { requestConfirm, confirmDialog } = useConfirm();
@@ -129,6 +130,9 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
       const name =
         game.players.find(p => p.playerId === playerId)?.player.name ?? "";
 
+      // Close the score sheet so the end-of-game confirmation isn't hidden
+      // behind it (and two modals never stack).
+      setScoreOpen(false);
       requestConfirm({
         message: `${name} a atteint ${game.winThreshold} points. Terminer la partie ?`,
         confirmLabel: "Terminer",
@@ -194,11 +198,14 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
       </button>
 
       {game.boardgame.scoring?.timing === "live" ? (
-        <LiveScore
+        <ScorePanel
           players={game.players}
           threshold={game.winThreshold}
+          allowNegative={game.boardgame.scoring.allowNegative ?? false}
           onSet={handleSetScore}
           disabled={busy}
+          open={scoreOpen}
+          onOpenChange={setScoreOpen}
         />
       ) : null}
 

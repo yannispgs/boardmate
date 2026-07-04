@@ -228,12 +228,12 @@ describe("games adapter — listing & ending", () => {
     ]);
 
     const populated = await repo().getPopulated(game.id);
-    expect(populated?.players.find(p => p.playerId === playerIds[0])?.score).toBe(
-      104,
-    );
-    expect(populated?.players.find(p => p.playerId === playerIds[1])?.score).toBe(
-      92,
-    );
+    expect(
+      populated?.players.find(p => p.playerId === playerIds[0])?.score,
+    ).toBe(104);
+    expect(
+      populated?.players.find(p => p.playerId === playerIds[1])?.score,
+    ).toBe(92);
   });
 
   it("resolves the threshold from the config value when set", async () => {

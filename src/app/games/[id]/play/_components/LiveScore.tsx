@@ -1,41 +1,34 @@
 "use client";
 
-import { useState } from "react";
-
 import type { GamePlayer, Player, PlayerId } from "@/lib/domain";
 
 const stepBtn =
   "flex h-8 w-8 items-center justify-center rounded-lg border border-black/15 text-lg font-semibold leading-none transition hover:bg-black/5 disabled:opacity-50 dark:border-white/15 dark:hover:bg-white/5";
 
 /**
- * Live per-player score for a game scored during play (e.g. Catan). Each score
- * is bumped with −/+ and persisted immediately (via `onSet`); the objective (a
- * threshold win condition's target) is shown so the race to it is visible. The
- * parent watches `onSet` to detect the win.
+ * Live per-player score list for a game scored during play (e.g. Catan). Fully
+ * controlled: the running totals live in the parent ({@link ScorePanel}) so they
+ * survive the panel being opened/closed. Each score is bumped with −/+; the
+ * objective (a threshold win condition's target) is shown so the race to it is
+ * visible. When `allowNegative` is false the − button is disabled at 0.
  */
 export function LiveScore({
   players,
+  scores,
   threshold,
-  onSet,
+  allowNegative,
+  onBump,
   disabled,
 }: {
   players: Array<GamePlayer & { player: Player }>;
+  scores: Record<string, number>;
   threshold: number | null;
-  onSet: (playerId: PlayerId, score: number) => void;
+  allowNegative: boolean;
+  onBump: (playerId: PlayerId, delta: number) => void;
   disabled: boolean;
 }) {
-  const [scores, setScores] = useState<Record<string, number>>(() =>
-    Object.fromEntries(players.map(p => [p.playerId, p.score ?? 0])),
-  );
-
-  const bump = (playerId: PlayerId, delta: number) => {
-    const next = (scores[playerId] ?? 0) + delta;
-    setScores(s => ({ ...s, [playerId]: next }));
-    onSet(playerId, next);
-  };
-
   return (
-    <div className="flex w-full max-w-xs flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10">
+    <div className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between">
         <p className="text-sm font-semibold">Scores</p>
         {threshold !== null ? (
@@ -47,6 +40,7 @@ export function LiveScore({
       {players.map(p => {
         const score = scores[p.playerId] ?? 0;
         const reached = threshold !== null && score >= threshold;
+        const minusDisabled = disabled || (!allowNegative && score <= 0);
 
         return (
           <div
@@ -60,8 +54,8 @@ export function LiveScore({
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => bump(p.playerId, -1)}
-                disabled={disabled}
+                onClick={() => onBump(p.playerId, -1)}
+                disabled={minusDisabled}
                 aria-label={`Retirer un point à ${p.player.name}`}
                 className={stepBtn}
               >
@@ -72,7 +66,7 @@ export function LiveScore({
               </span>
               <button
                 type="button"
-                onClick={() => bump(p.playerId, 1)}
+                onClick={() => onBump(p.playerId, 1)}
                 disabled={disabled}
                 aria-label={`Ajouter un point à ${p.player.name}`}
                 className={stepBtn}
