@@ -92,12 +92,28 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
       tags: ["oiseaux"],
       logoUrl: "https://example.com/logo.png",
       kind: "cooperative",
+      scoring: {
+        timing: "final",
+        entry: "total",
+        winCondition: { type: "highest" },
+        allowNegative: false,
+      },
     });
     expect(updated.name).toBe(uniq("Wingspan")); // untouched
     expect(updated.avgDurationMin).toBe(60);
     expect(updated.tags).toEqual(["oiseaux"]);
     expect(updated.logoUrl).toBe("https://example.com/logo.png");
     expect(updated.kind).toBe("cooperative");
+    expect(updated.scoring).toEqual({
+      timing: "final",
+      entry: "total",
+      winCondition: { type: "highest" },
+      allowNegative: false,
+    });
+
+    // Clearing the scoring back to unscored round-trips as null.
+    const cleared = await repo().update(created.id, { scoring: null });
+    expect(cleared.scoring).toBeNull();
   });
 
   it("removes a boardgame that has no games", async () => {

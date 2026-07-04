@@ -114,6 +114,8 @@ export interface NewBoardgame {
   kind?: BoardgameKind;
   avgDurationMin?: number | null;
   tags?: string[];
+  /** How the game is scored, or `null` when it isn't. */
+  scoring?: ScoringSpec | null;
 }
 
 export type BoardgameUpdate = Partial<NewBoardgame>;

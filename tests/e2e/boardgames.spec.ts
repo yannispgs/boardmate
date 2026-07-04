@@ -49,6 +49,33 @@ test("creates, edits and deletes a boardgame", async ({ page }) => {
   await expect(page.getByText(renamed, { exact: true })).toHaveCount(0);
 });
 
+test("edits a boardgame's scoring type", async ({ page }) => {
+  const name = `E2E Score ${Date.now().toString(36)}`;
+
+  try {
+    await page.goto("/boardgames");
+    await page.getByRole("button", { name: "+ Ajouter un jeu" }).click();
+    await page.getByLabel("Nom du jeu").fill(name);
+
+    // Enable scoring, final tally, lowest total wins (Skyjo-like).
+    await page.getByLabel("Ce jeu se joue avec des points").check();
+    await page.getByLabel("Condition de victoire").selectOption("lowest");
+    await page.getByRole("button", { name: "Ajouter" }).click();
+    await expect(page.getByText(name, { exact: true })).toBeVisible();
+
+    // Re-open the edit form: the saved scoring type round-trips into it.
+    await page.getByRole("button", { name: `Modifier ${name}` }).click();
+    await expect(
+      page.getByLabel("Ce jeu se joue avec des points"),
+    ).toBeChecked();
+    await expect(page.getByLabel("Condition de victoire")).toHaveValue(
+      "lowest",
+    );
+  } finally {
+    await adminClient().from("boardgames").delete().eq("name", name);
+  }
+});
+
 test("deactivates then reactivates a boardgame", async ({ page }) => {
   const name = `E2E Off ${Date.now().toString(36)}`;
 
