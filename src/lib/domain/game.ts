@@ -30,19 +30,27 @@ export interface Game {
  * `PopulatedGame` payload).
  */
 export interface GameListItem extends Game {
-  players: Array<{ id: PlayerId; name: string; isWinner: boolean }>;
+  players: Array<{
+    id: PlayerId;
+    name: string;
+    isWinner: boolean;
+    score: number | null;
+  }>;
 }
 
 /**
  * Participation row: one per (game, player). This per-participation grain is
- * what makes statistics natural (GROUP BY player, JOIN boardgame). v1 only
- * records `isWinner`; score / placement / faction become extra columns later.
+ * what makes statistics natural (GROUP BY player, JOIN boardgame). Records the
+ * winner and, for scored games, the final `score`; placement / faction become
+ * extra columns later.
  */
 export interface GamePlayer {
   gameId: GameId;
   playerId: PlayerId;
   seatOrder: number;
   isWinner: boolean;
+  /** Final score, once entered (null for unscored games or before entry). */
+  score: number | null;
 }
 
 /**
@@ -66,6 +74,12 @@ export interface GameTurn {
 export interface PopulatedGame extends Game {
   boardgame: Boardgame;
   config: Config | null;
+  /**
+   * The score target to win, resolved from the boardgame's `threshold` win
+   * condition and this game's config (value, else the config template default).
+   * Null when the game isn't threshold-scored.
+   */
+  winThreshold: number | null;
   players: Array<GamePlayer & { player: Player }>;
   currentPlayer: Player | null;
   turns: GameTurn[];

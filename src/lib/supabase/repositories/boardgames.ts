@@ -6,6 +6,7 @@ import type {
   BoardgameKind,
   BoardgameUpdate,
   NewBoardgame,
+  ScoringSpec,
 } from "@/lib/domain";
 import { BoardgameInUseError } from "@/lib/repositories/errors";
 import type {
@@ -33,6 +34,8 @@ export function toBoardgame(row: BoardgameRow): Boardgame {
     kind: row.kind as BoardgameKind,
     avgDurationMin: row.avg_duration_min,
     tags: row.tags,
+    // Authored per boardgame as data; null when the game isn't scored.
+    scoring: (row.scoring as ScoringSpec | null) ?? null,
     isActive: row.is_active,
     // Denormalized column kept up to date by a DB trigger on games.
     hasGames: row.has_games,

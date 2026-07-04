@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   BoardgameId,
   ConfigId,
+  FieldSpec,
   Game,
   GameId,
   GameListItem,
@@ -15,6 +16,7 @@ import type {
   PlayerId,
   PopulatedGame,
 } from "@/lib/domain";
+import { winThresholdFrom } from "@/lib/game/scoring";
 import { advanceTurn as nextTurnState } from "@/lib/game/turn";
 import type { GameRepository, Unsubscribe } from "@/lib/repositories/types";
 import type { Database } from "@/lib/supabase/database.types";
@@ -49,6 +51,7 @@ type GameListRow = GameRow & {
   game_players: Array<{
     seat_order: number;
     is_winner: boolean;
+    score: number | null;
     player: { id: string; name: string };
   }>;
 };
@@ -60,6 +63,7 @@ function toGameListItem(row: GameListRow): GameListItem {
       id: gp.player.id as PlayerId,
       name: gp.player.name,
       isWinner: gp.is_winner,
+      score: gp.score,
     }));
 
   return { ...toGame(row), players };
@@ -84,20 +88,23 @@ function toGameTurn(row: GameTurnRow): GameTurn {
 
 // Shape returned by the nested `getPopulated` select.
 type PopulatedRow = GameRow & {
-  boardgame: BoardgameRow;
+  // The boardgame plus its config template's fields (for the win threshold's
+  // default). One-to-one relation → PostgREST embeds a single object (or null).
+  boardgame: BoardgameRow & { config_templates: { fields: unknown } | null };
   config: ConfigRow | null;
   game_players: Array<{
     game_id: string;
     player_id: string;
     seat_order: number;
     is_winner: boolean;
+    score: number | null;
     player: PlayerRow;
   }>;
   game_turns: GameTurnRow[];
 };
 
 const POPULATED_SELECT =
-  "*, boardgame:boardgames(*), config:configs(*), " +
+  "*, boardgame:boardgames(*, config_templates(fields)), config:configs(*), " +
   "game_players(*, player:players(*)), game_turns(*)";
 
 /**
@@ -115,7 +122,7 @@ export function createGameRepository(
       const status = filter?.status ?? "ongoing";
       const { data, error } = await games()
         .select(
-          "*, game_players(seat_order, is_winner, player:players(id, name))",
+          "*, game_players(seat_order, is_winner, score, player:players(id, name))",
         )
         .eq("status", status)
         .order("started_at", { ascending: false });
@@ -147,13 +154,27 @@ export function createGameRepository(
           playerId: gp.player_id as PlayerId,
           seatOrder: gp.seat_order,
           isWinner: gp.is_winner,
+          score: gp.score,
           player: toPlayer(gp.player),
         })) satisfies Array<GamePlayer & { player: Player }>;
 
+      const boardgame = toBoardgame(row.boardgame);
+      const config = row.config ? toConfig(row.config) : null;
+      const templateFields = (row.boardgame.config_templates?.fields ??
+        []) as unknown as FieldSpec[];
+      const winThreshold = boardgame.scoring
+        ? winThresholdFrom(
+            boardgame.scoring.winCondition,
+            config?.values ?? null,
+            templateFields,
+          )
+        : null;
+
       const populated: PopulatedGame = {
         ...toGame(row),
-        boardgame: toBoardgame(row.boardgame),
-        config: row.config ? toConfig(row.config) : null,
+        boardgame,
+        config,
+        winThreshold,
         players,
         /* c8 ignore next 2 -- `?? null` fallback for a current player not found */
         currentPlayer:
@@ -252,12 +273,37 @@ export function createGameRepository(
       }
     },
 
-    async end(id: GameId, winnerId: PlayerId) {
+    async setScore(id: GameId, playerId: PlayerId, score: number) {
+      const { error } = await supabase
+        .from("game_players")
+        .update({ score: Math.round(score) })
+        .eq("game_id", id)
+        .eq("player_id", playerId);
+      /* c8 ignore next 3 -- defensive guard: update errors surface via e2e */
+      if (error) {
+        throw new Error(`Enregistrement du score: ${error.message}`);
+      }
+    },
+
+    async end(id: GameId, winnerId: PlayerId, scores) {
       const { error } = await games()
         .update({ status: "ended", ended_at: new Date().toISOString() })
         .eq("id", id);
       if (error) {
         throw new Error(`Fin de la partie: ${error.message}`);
+      }
+
+      // Persist each player's final score (scored games only).
+      for (const { playerId, score } of scores ?? []) {
+        const { error: scoreError } = await supabase
+          .from("game_players")
+          .update({ score: Math.round(score) })
+          .eq("game_id", id)
+          .eq("player_id", playerId);
+        /* c8 ignore next 3 -- defensive guard: update errors surface via e2e */
+        if (scoreError) {
+          throw new Error(`Enregistrement des scores: ${scoreError.message}`);
+        }
       }
 
       const { error: winnerError } = await supabase

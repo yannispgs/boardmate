@@ -49,15 +49,38 @@ test("plays a full game from the funnel to the winner", {
     await page.getByRole("button", { name: "Tour suivant →" }).click();
     await expect(currentTag).toContainText(players[1]);
 
-    // End the game and crown a winner.
-    await page.getByRole("button", { name: "Terminer la partie" }).click();
-    await expect(page.getByText("Qui a gagné ?")).toBeVisible();
-    await page.getByRole("button", { name: players[0], exact: true }).click();
+    // Catan is scored live: open the score sheet from the side button and score
+    // player 0 up to the target (Catan's default pointsToWin = 10, resolved from
+    // the config template). Reaching it closes the sheet and prompts to end.
+    await page.getByRole("button", { name: "Ouvrir les scores" }).click();
+
+    const plusP0 = page.getByRole("button", {
+      name: `Ajouter un point à ${players[0]}`,
+    });
+    for (let i = 0; i < 10; i++) {
+      await plusP0.click();
+    }
+
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: "Terminer" }).click();
 
     await expect(
       page.getByRole("heading", { name: "Partie terminée !" }),
     ).toBeVisible();
     await expect(page.getByText(`Bravo ${players[0]}`)).toBeVisible();
+    await expect(page.getByText("avec 10 points")).toBeVisible();
+
+    // The finished-games list shows the winner and, for a scored game, their
+    // score.
+    await page.goto("/games");
+    const finished = page.locator("details", {
+      has: page.getByText("Terminées"),
+    });
+    await finished.locator("summary").click();
+    await expect(
+      finished.getByText(new RegExp(`${players[0]}.*10 pts`)),
+    ).toBeVisible();
   } finally {
     const admin = adminClient();
     if (gameId) {

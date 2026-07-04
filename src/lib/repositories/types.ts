@@ -106,8 +106,17 @@ export interface GameRepository {
     pauseCount: number,
     pauseDurationSeconds: number,
   ): Promise<void>;
-  /** Ends the game and marks the winner. */
-  end(id: GameId, winnerId: PlayerId): Promise<void>;
+  /** Sets one player's current score (live scoring). */
+  setScore(id: GameId, playerId: PlayerId, score: number): Promise<void>;
+  /**
+   * Ends the game, marks the winner, and (for scored games) records each
+   * player's final score.
+   */
+  end(
+    id: GameId,
+    winnerId: PlayerId,
+    scores?: Array<{ playerId: PlayerId; score: number }>,
+  ): Promise<void>;
   subscribe(onChange: () => void): Unsubscribe;
 }
 

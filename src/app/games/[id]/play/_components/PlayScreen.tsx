@@ -2,11 +2,19 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { GameId, PlayerId, PopulatedGame } from "@/lib/domain";
+import type {
+  GameId,
+  PlayerId,
+  PopulatedGame,
+  WinCondition,
+} from "@/lib/domain";
 import { countdownColor } from "@/lib/game/colors";
+import { leaderByScore, winnerDirection } from "@/lib/game/scoring";
 import { useTurnTimer } from "@/lib/hooks/use-turn-timer";
 import { getGameRepository } from "@/lib/repositories";
 import { EndedGame } from "./EndedGame";
+import { LiveEndPrompt } from "./LiveEndPrompt";
+import { ScorePanel } from "./ScorePanel";
 import { TurnFlow } from "./turn-flow";
 
 const DEFAULT_DURATION_S = 60;
@@ -18,6 +26,11 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   const [error, setError] = useState<string | null>(null);
   const [durationS, setDurationS] = useState(DEFAULT_DURATION_S);
   const [busy, setBusy] = useState(false);
+  const [scoreOpen, setScoreOpen] = useState(false);
+  const [endOpen, setEndOpen] = useState(false);
+  // Live running scores, seeded once from the loaded game then owned here so
+  // they survive turn reloads and feed both the score panel and the end prompt.
+  const [scores, setScores] = useState<Record<string, number> | null>(null);
 
   const timer = useTurnTimer();
 
@@ -35,6 +48,16 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Seed the live scores from the game the first time it loads (later turn
+  // reloads must not clobber scores entered since).
+  useEffect(() => {
+    if (game && scores === null) {
+      setScores(
+        Object.fromEntries(game.players.map(p => [p.playerId, p.score ?? 0])),
+      );
+    }
+  }, [game, scores]);
 
   // Unlock audio on the first interaction with the play screen: mobile browsers
   // only let an AudioContext start from a user gesture. iOS in particular needs
@@ -83,18 +106,49 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
     }
   }
 
-  async function handleEnd(winnerId: PlayerId) {
+  async function handleEnd(
+    winnerId: PlayerId,
+    scores?: Array<{ playerId: PlayerId; score: number }>,
+  ) {
     if (!game || busy) {
       return;
     }
     setBusy(true);
     try {
-      await repo.end(game.id, winnerId);
+      await repo.end(game.id, winnerId, scores);
       await load();
     } catch {
       setError("Impossible de terminer la partie.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  // Live scoring: set a player's absolute total (clamped for positive-only
+  // games), persist it, then offer to end when the target is reached OR
+  // exceeded — a turn can bring several points at once.
+  async function setPlayerScore(playerId: PlayerId, raw: number) {
+    if (!game) {
+      return;
+    }
+
+    const allowNegative = game.boardgame.scoring?.allowNegative ?? false;
+    const next = allowNegative ? Math.round(raw) : Math.max(0, Math.round(raw));
+
+    setScores(s => ({ ...(s ?? {}), [playerId]: next }));
+    try {
+      await repo.setScore(game.id, playerId, next);
+    } catch {
+      setError("Impossible d'enregistrer le score.");
+
+      return;
+    }
+
+    if (game.winThreshold !== null && next >= game.winThreshold) {
+      // Close the score sheet and let the end prompt (which can override the
+      // winner) take over — the two modals never stack.
+      setScoreOpen(false);
+      setEndOpen(true);
     }
   }
 
@@ -154,11 +208,56 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         Tour suivant →
       </button>
 
-      <WinnerPicker
-        players={game.players.map(p => p.player)}
-        onPick={handleEnd}
-        disabled={busy}
-      />
+      {game.boardgame.scoring?.timing === "live" ? (
+        <ScorePanel
+          players={game.players}
+          scores={scores ?? {}}
+          threshold={game.winThreshold}
+          allowNegative={game.boardgame.scoring.allowNegative ?? false}
+          onSet={setPlayerScore}
+          disabled={busy}
+          open={scoreOpen}
+          onOpenChange={setScoreOpen}
+        />
+      ) : null}
+
+      {game.boardgame.scoring?.timing === "final" ? (
+        <ScoreEntry
+          players={game.players.map(p => p.player)}
+          winCondition={game.boardgame.scoring.winCondition}
+          onEnd={handleEnd}
+          disabled={busy}
+        />
+      ) : (
+        <WinnerPicker
+          players={game.players.map(p => p.player)}
+          onPick={handleEnd}
+          disabled={busy}
+        />
+      )}
+
+      {endOpen && scores ? (
+        <LiveEndPrompt
+          players={game.players.map(p => ({
+            id: p.playerId,
+            name: p.player.name,
+          }))}
+          scores={scores}
+          defaultWinnerId={leaderByScore(
+            game.players.map(p => ({
+              playerId: p.playerId,
+              score: scores[p.playerId] ?? 0,
+            })),
+            "highest",
+          )}
+          onEnd={winnerId => {
+            setEndOpen(false);
+            void handleEnd(winnerId);
+          }}
+          onCancel={() => setEndOpen(false)}
+          disabled={busy}
+        />
+      ) : null}
     </div>
   );
 }
@@ -413,6 +512,112 @@ function WinnerPicker({
           {p.name}
         </button>
       ))}
+      <button
+        type="button"
+        onClick={() => setOpen(false)}
+        className="text-xs text-zinc-500 hover:underline"
+      >
+        Annuler
+      </button>
+    </div>
+  );
+}
+
+/**
+ * End-of-game score entry for a game scored at the end (final total). Each
+ * player gets a number; the leader (by the win condition's direction) is
+ * proposed as winner and can be overridden by tapping a name (ties, house
+ * rules). Ends once every score is in.
+ */
+function ScoreEntry({
+  players,
+  winCondition,
+  onEnd,
+  disabled,
+}: {
+  players: { id: PlayerId; name: string }[];
+  winCondition: WinCondition;
+  onEnd: (
+    winnerId: PlayerId,
+    scores: Array<{ playerId: PlayerId; score: number }>,
+  ) => void;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [raw, setRaw] = useState<Record<string, string>>({});
+  const [override, setOverride] = useState<PlayerId | null>(null);
+
+  const entries = players.map(p => {
+    const text = raw[p.id]?.trim() ?? "";
+    const n = Number(text);
+
+    return {
+      playerId: p.id,
+      score: text !== "" && Number.isFinite(n) ? n : null,
+    };
+  });
+  const allEntered = entries.every(e => e.score !== null);
+  const winnerId =
+    override ?? leaderByScore(entries, winnerDirection(winCondition));
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-black transition hover:bg-amber-300"
+      >
+        Terminer la partie
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex w-full max-w-xs flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10">
+      <p className="text-sm font-semibold">Scores de fin</p>
+      {players.map(p => {
+        const isWinner = winnerId === p.id;
+
+        return (
+          <div key={p.id} className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setOverride(p.id)}
+              className={`min-w-0 flex-1 truncate text-left text-sm ${
+                isWinner
+                  ? "font-semibold text-amber-600 dark:text-amber-500"
+                  : ""
+              }`}
+            >
+              {isWinner ? "🏆 " : ""}
+              {p.name}
+            </button>
+            <input
+              type="number"
+              inputMode="numeric"
+              value={raw[p.id] ?? ""}
+              onChange={e => setRaw(s => ({ ...s, [p.id]: e.target.value }))}
+              aria-label={`Score de ${p.name}`}
+              className="w-20 rounded-lg border border-black/15 bg-white px-2 py-1 text-right outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900"
+            />
+          </div>
+        );
+      })}
+      <button
+        type="button"
+        disabled={disabled || !allEntered || !winnerId}
+        onClick={() => {
+          if (winnerId) {
+            onEnd(
+              winnerId,
+              entries.map(e => ({ playerId: e.playerId, score: e.score ?? 0 })),
+            );
+          }
+        }}
+        className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
+      >
+        Terminer
+      </button>
       <button
         type="button"
         onClick={() => setOpen(false)}
