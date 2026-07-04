@@ -1,16 +1,13 @@
 import { expect, test } from "@playwright/test";
 
-import {
-  adminClient,
-  CATAN_MIN_PLAYERS,
-  CATAN_NAME,
-  seedPlayers,
-} from "./utils/supabase";
+import { funnelToPlay } from "./utils/funnel";
+import { adminClient, CATAN_MIN_PLAYERS, seedPlayers } from "./utils/supabase";
 
 /**
- * One full game, end to end: walk the new-game funnel (jeu → config → joueurs),
- * land on the play screen, advance a turn, then end the game and pick a winner.
- * Players are seeded via the service role; the seeded Catan boardgame is used.
+ * One full game, end to end: walk the new-game funnel (jeu → config → joueurs →
+ * récap → confirmation), land on the play screen, advance a turn, then end the
+ * game and pick a winner. Players are seeded via the service role; the seeded
+ * Catan boardgame is used.
  */
 test("plays a full game from the funnel to the winner", {
   tag: "@critical",
@@ -19,25 +16,7 @@ test("plays a full game from the funnel to the winner", {
   let gameId: string | null = null;
 
   try {
-    await page.goto("/games/new");
-
-    // 1 · pick the boardgame.
-    await page.getByRole("button", { name: CATAN_NAME, exact: true }).click();
-
-    // 2 · play without a config.
-    await page
-      .getByRole("button", { name: "Sans configuration", exact: true })
-      .click();
-
-    // 3 · pick the players in order, then launch.
-    for (const name of players) {
-      await page.getByRole("button", { name, exact: true }).click();
-    }
-    await page.getByRole("button", { name: "Lancer la partie" }).click();
-
-    // Landed on the play screen for the freshly created game.
-    await expect(page).toHaveURL(/\/games\/[0-9a-f-]+\/play$/);
-    gameId = page.url().match(/games\/([0-9a-f-]+)\/play/)?.[1] ?? null;
+    gameId = await funnelToPlay(page, players);
 
     // The current player is the highlighted tag in the turn-order ribbon.
     const currentTag = page.locator('[data-current="true"]');

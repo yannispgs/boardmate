@@ -1,11 +1,7 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-import {
-  adminClient,
-  CATAN_MIN_PLAYERS,
-  CATAN_NAME,
-  seedPlayers,
-} from "./utils/supabase";
+import { funnelToPlay } from "./utils/funnel";
+import { adminClient, CATAN_MIN_PLAYERS, seedPlayers } from "./utils/supabase";
 
 /**
  * The play screen controls (exhaustive, full-suite only — untagged): pause /
@@ -13,30 +9,12 @@ import {
  * order back to its opener. Advancing one turn + ending is the @critical path.
  */
 
-/** Walks the funnel (Catan, no config) to a fresh play screen; returns gameId. */
-async function startGame(page: Page, players: string[]): Promise<string> {
-  await page.goto("/games/new");
-  await page.getByRole("button", { name: CATAN_NAME, exact: true }).click();
-  await page
-    .getByRole("button", { name: "Sans configuration", exact: true })
-    .click();
-
-  for (const name of players) {
-    await page.getByRole("button", { name, exact: true }).click();
-  }
-  await page.getByRole("button", { name: "Lancer la partie" }).click();
-
-  await expect(page).toHaveURL(/\/games\/[0-9a-f-]+\/play$/);
-
-  return page.url().match(/games\/([0-9a-f-]+)\/play/)?.[1] ?? "";
-}
-
 test("pauses and resumes the turn timer", async ({ page }) => {
   const players = await seedPlayers(CATAN_MIN_PLAYERS);
   let gameId = "";
 
   try {
-    gameId = await startGame(page, players);
+    gameId = await funnelToPlay(page, players);
 
     await page.getByRole("button", { name: "Mettre en pause" }).click();
     await expect(page.getByText("EN PAUSE")).toBeVisible();
@@ -59,7 +37,7 @@ test("edits the turn duration mid-game", async ({ page }) => {
   let gameId = "";
 
   try {
-    gameId = await startGame(page, players);
+    gameId = await funnelToPlay(page, players);
 
     await page
       .getByRole("button", { name: /Durée du tour : \d+s — modifier/ })
@@ -84,7 +62,7 @@ test("counts overtime once the turn timer runs out", async ({ page }) => {
   let gameId = "";
 
   try {
-    gameId = await startGame(page, players);
+    gameId = await funnelToPlay(page, players);
 
     // Shorten the turn to 1s (editing pauses the timer), then resume it.
     await page
@@ -110,7 +88,7 @@ test("a full round cycles back to the first player", async ({ page }) => {
   let gameId = "";
 
   try {
-    gameId = await startGame(page, players);
+    gameId = await funnelToPlay(page, players);
 
     const current = page.locator('[data-current="true"]');
     await expect(current).toContainText(players[0]);
@@ -137,7 +115,7 @@ test("live scores float at zero and persist across the score sheet", async ({
   let gameId = "";
 
   try {
-    gameId = await startGame(page, players);
+    gameId = await funnelToPlay(page, players);
 
     // The side button opens the score sheet.
     const openScores = page.getByRole("button", { name: "Ouvrir les scores" });
@@ -179,7 +157,7 @@ test("ends when the target is exceeded, defaulting to the top scorer", async ({
   let gameId = "";
 
   try {
-    gameId = await startGame(page, players);
+    gameId = await funnelToPlay(page, players);
 
     await page.getByRole("button", { name: "Ouvrir les scores" }).click();
 

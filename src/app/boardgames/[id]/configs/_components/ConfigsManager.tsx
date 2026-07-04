@@ -1,6 +1,7 @@
 "use client";
 
 import { type FormEvent, useState } from "react";
+import { ConfigField } from "@/components/ConfigField";
 import { useConfirm } from "@/components/use-confirm";
 import { buildDefaults, validateConfigValues } from "@/lib/config/validation";
 import type {
@@ -12,7 +13,6 @@ import type {
 } from "@/lib/domain";
 import { useConfigs } from "@/lib/hooks/use-configs";
 import { ConfigCardList } from "./ConfigCardList";
-import { ConfigField } from "./ConfigField";
 
 interface FormInit {
   name: string;
