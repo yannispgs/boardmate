@@ -101,11 +101,17 @@ type PopulatedRow = GameRow & {
     player: PlayerRow;
   }>;
   game_turns: GameTurnRow[];
+  score_events: Array<{
+    player_id: string;
+    score: number;
+    created_at: string;
+  }>;
 };
 
 const POPULATED_SELECT =
   "*, boardgame:boardgames(*, config_templates(fields)), config:configs(*), " +
-  "game_players(*, player:players(*)), game_turns(*)";
+  "game_players(*, player:players(*)), game_turns(*), " +
+  "score_events(player_id, score, created_at)";
 
 /**
  * Supabase-backed `GameRepository`. The only place the Supabase SDK touches
@@ -170,11 +176,20 @@ export function createGameRepository(
           )
         : null;
 
+      const scoreEvents = [...row.score_events]
+        .sort((a, b) => a.created_at.localeCompare(b.created_at))
+        .map(e => ({
+          playerId: e.player_id as PlayerId,
+          score: e.score,
+          at: e.created_at,
+        }));
+
       const populated: PopulatedGame = {
         ...toGame(row),
         boardgame,
         config,
         winThreshold,
+        scoreEvents,
         players,
         /* c8 ignore next 2 -- `?? null` fallback for a current player not found */
         currentPlayer:
@@ -274,14 +289,24 @@ export function createGameRepository(
     },
 
     async setScore(id: GameId, playerId: PlayerId, score: number) {
+      const rounded = Math.round(score);
       const { error } = await supabase
         .from("game_players")
-        .update({ score: Math.round(score) })
+        .update({ score: rounded })
         .eq("game_id", id)
         .eq("player_id", playerId);
       /* c8 ignore next 3 -- defensive guard: update errors surface via e2e */
       if (error) {
         throw new Error(`Enregistrement du score: ${error.message}`);
+      }
+
+      // Append to the score history (for the evolution timeline).
+      const { error: eventError } = await supabase
+        .from("score_events")
+        .insert({ game_id: id, player_id: playerId, score: rounded });
+      /* c8 ignore next 3 -- defensive guard: insert errors surface via e2e */
+      if (eventError) {
+        throw new Error(`Historique du score: ${eventError.message}`);
       }
     },
 
