@@ -104,6 +104,7 @@ type PopulatedRow = GameRow & {
   score_events: Array<{
     player_id: string;
     score: number;
+    round: number;
     created_at: string;
   }>;
 };
@@ -111,7 +112,7 @@ type PopulatedRow = GameRow & {
 const POPULATED_SELECT =
   "*, boardgame:boardgames(*, config_templates(fields)), config:configs(*), " +
   "game_players(*, player:players(*)), game_turns(*), " +
-  "score_events(player_id, score, created_at)";
+  "score_events(player_id, score, round, created_at)";
 
 /**
  * Supabase-backed `GameRepository`. The only place the Supabase SDK touches
@@ -181,6 +182,7 @@ export function createGameRepository(
         .map(e => ({
           playerId: e.player_id as PlayerId,
           score: e.score,
+          round: e.round,
           at: e.created_at,
         }));
 
@@ -288,7 +290,12 @@ export function createGameRepository(
       }
     },
 
-    async setScore(id: GameId, playerId: PlayerId, score: number) {
+    async setScore(
+      id: GameId,
+      playerId: PlayerId,
+      score: number,
+      round: number,
+    ) {
       const rounded = Math.round(score);
       const { error } = await supabase
         .from("game_players")
@@ -300,10 +307,11 @@ export function createGameRepository(
         throw new Error(`Enregistrement du score: ${error.message}`);
       }
 
-      // Append to the score history (for the evolution timeline).
+      // Append to the score history (for the evolution timeline), tagged with
+      // the tour it happened in.
       const { error: eventError } = await supabase
         .from("score_events")
-        .insert({ game_id: id, player_id: playerId, score: rounded });
+        .insert({ game_id: id, player_id: playerId, score: rounded, round });
       /* c8 ignore next 3 -- defensive guard: insert errors surface via e2e */
       if (eventError) {
         throw new Error(`Historique du score: ${eventError.message}`);

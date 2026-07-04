@@ -345,6 +345,7 @@ export type Database = {
           game_id: string
           id: string
           player_id: string
+          round: number
           score: number
         }
         Insert: {
@@ -352,6 +353,7 @@ export type Database = {
           game_id: string
           id?: string
           player_id: string
+          round?: number
           score: number
         }
         Update: {
@@ -359,6 +361,7 @@ export type Database = {
           game_id?: string
           id?: string
           player_id?: string
+          round?: number
           score?: number
         }
         Relationships: [

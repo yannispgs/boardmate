@@ -74,6 +74,8 @@ export interface GameTurn {
 export interface ScoreEvent {
   playerId: PlayerId;
   score: number;
+  /** The tour (round) the change happened in. */
+  round: number;
   /** ISO 8601 timestamp. */
   at: string;
 }

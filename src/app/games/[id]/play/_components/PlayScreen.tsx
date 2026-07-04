@@ -137,7 +137,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
 
     setScores(s => ({ ...(s ?? {}), [playerId]: next }));
     try {
-      await repo.setScore(game.id, playerId, next);
+      await repo.setScore(game.id, playerId, next, game.round);
     } catch {
       setError("Impossible d'enregistrer le score.");
 

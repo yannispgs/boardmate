@@ -26,6 +26,7 @@ export function GameStats({ game }: { game: PopulatedGame }) {
   const scoreCurve = buildScoreSeries(
     game.scoreEvents,
     scorePlayers.map(p => p.id),
+    stats.rounds,
   );
 
   const tiles: { label: string; value: string; accent?: boolean }[] = [
