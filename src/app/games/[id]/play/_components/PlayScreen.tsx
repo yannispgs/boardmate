@@ -91,11 +91,13 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
     setBusy(true);
     try {
       const pauses = timer.pauseStats();
+      const overtimeS = Math.max(0, timer.elapsedS - durationS);
       await repo.advanceTurn(
         game.id,
         timer.elapsedS,
         pauses.count,
         pauses.durationS,
+        overtimeS,
       );
       await load();
       timer.reset();
@@ -270,26 +272,42 @@ const RING_C = 2 * Math.PI * RING_R;
 /** Neutral "on hold" colour (violet-500) the ring/readout adopt while paused. */
 const PAUSE_COLOR = "#8b5cf6";
 
+/** Formats a seconds count as raw seconds under a minute, else m:ss. */
+function formatClock(totalS: number): string {
+  if (totalS >= 60) {
+    const minutes = Math.floor(totalS / 60);
+    const seconds = totalS % 60;
+
+    return `${minutes}:${String(seconds).padStart(2, "0")}`;
+  }
+
+  return String(totalS);
+}
+
 /**
  * The big ring readout. Under a minute we show raw seconds; from a minute up we
  * switch to m:ss so long turns (e.g. "3:00") stay readable instead of "180".
+ * Once the turn runs out the readout flips to a count-up of the overtime taken
+ * (prefixed with "+").
  */
 function formatCountdown(remainingS: number): { value: string; label: string } {
-  if (remainingS <= 0) {
+  if (remainingS < 0) {
+    return { value: `+${formatClock(-remainingS)}`, label: "dépassement" };
+  }
+
+  if (remainingS === 0) {
     return { value: "0", label: "temps écoulé" };
   }
 
-  if (remainingS >= 60) {
-    const minutes = Math.floor(remainingS / 60);
-    const seconds = remainingS % 60;
-
-    return {
-      value: `${minutes}:${String(seconds).padStart(2, "0")}`,
-      label: minutes > 1 ? "minutes" : "minute",
-    };
-  }
-
-  return { value: String(remainingS), label: "secondes" };
+  return {
+    value: formatClock(remainingS),
+    label:
+      remainingS >= 60
+        ? remainingS >= 120
+          ? "minutes"
+          : "minute"
+        : "secondes",
+  };
 }
 
 function TimerRing({
@@ -304,10 +322,16 @@ function TimerRing({
   onToggle: () => void;
 }) {
   const paused = !running;
+  const overtime = remainingS < 0;
+  // Running past zero → alarm: fill the ring and pulse it red (paused overtime
+  // stays the neutral hold colour instead).
+  const alarming = overtime && !paused;
   const ringColor = paused
     ? PAUSE_COLOR
     : countdownColor(remainingS, durationS);
-  const progress = Math.max(0, Math.min(1, remainingS / durationS));
+  const progress = overtime
+    ? 1
+    : Math.max(0, Math.min(1, remainingS / durationS));
   const display = formatCountdown(remainingS);
 
   // A beep on each of the last 10 seconds, then the ring at 0 (real sounds
@@ -364,6 +388,7 @@ function TimerRing({
           strokeDasharray={RING_C}
           strokeDashoffset={RING_C * (1 - progress)}
           transform={`rotate(-90 ${RING_SIZE / 2} ${RING_SIZE / 2})`}
+          className={alarming ? "animate-overtime-ring" : undefined}
           style={{
             transition: "stroke-dashoffset 0.3s linear, stroke 0.2s ease",
           }}
@@ -391,8 +416,14 @@ function TimerRing({
 
       <span className="absolute inset-0 flex flex-col items-center justify-center">
         <span
-          className="text-5xl font-bold tabular-nums"
-          style={{ color: ringColor, transition: "color 0.2s ease" }}
+          className={`text-5xl font-bold tabular-nums ${
+            alarming ? "animate-overtime-text" : ""
+          }`}
+          style={
+            alarming
+              ? undefined
+              : { color: ringColor, transition: "color 0.2s ease" }
+          }
         >
           {display.value}
         </span>

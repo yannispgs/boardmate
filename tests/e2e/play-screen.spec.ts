@@ -79,6 +79,32 @@ test("edits the turn duration mid-game", async ({ page }) => {
   }
 });
 
+test("counts overtime once the turn timer runs out", async ({ page }) => {
+  const players = await seedPlayers(CATAN_MIN_PLAYERS);
+  let gameId = "";
+
+  try {
+    gameId = await startGame(page, players);
+
+    // Shorten the turn to 1s (editing pauses the timer), then resume it.
+    await page
+      .getByRole("button", { name: /Durée du tour : \d+s — modifier/ })
+      .click();
+    await page.getByLabel("Durée du tour en secondes").fill("1");
+    await page.getByRole("button", { name: "OK", exact: true }).click();
+    await page.getByRole("button", { name: "Reprendre" }).click();
+
+    // Past zero, the readout flips to an overtime count-up.
+    await expect(page.getByText("dépassement")).toBeVisible({ timeout: 15000 });
+  } finally {
+    const admin = adminClient();
+    if (gameId) {
+      await admin.from("games").delete().eq("id", gameId);
+    }
+    await admin.from("players").delete().in("name", players);
+  }
+});
+
 test("a full round cycles back to the first player", async ({ page }) => {
   const players = await seedPlayers(CATAN_MIN_PLAYERS);
   let gameId = "";

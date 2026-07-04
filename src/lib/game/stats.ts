@@ -27,6 +27,8 @@ export interface PlayerTimeStats {
   pauseS: number;
   /** How many pauses (≥ 5 s) this player took during their own turns. */
   pauseCount: number;
+  /** Seconds this player took beyond the allotted duration, across their turns. */
+  overtimeS: number;
 }
 
 export interface LongestTurn {
@@ -43,6 +45,12 @@ export interface MostPaused {
   count: number;
 }
 
+export interface MostOvertime {
+  playerId: PlayerId;
+  name: string;
+  overtimeS: number;
+}
+
 export interface GameStats {
   /** Sum of every turn's active time. */
   activeTotalS: number;
@@ -54,9 +62,13 @@ export interface GameStats {
   /** Total paused seconds across the game (pauses ≥ 5 s). */
   totalPauseS: number;
   totalPauseCount: number;
+  /** Total overtime seconds across the game (time taken beyond the limit). */
+  totalOvertimeS: number;
   longestTurn: LongestTurn | null;
   /** Player who spent the most time paused during their turns (null if none). */
   mostPaused: MostPaused | null;
+  /** Player who took the most overtime across their turns (null if none). */
+  mostOvertime: MostOvertime | null;
   /** Players sorted fastest → slowest by mean turn; turn-less players last. */
   players: PlayerTimeStats[];
 }
@@ -88,6 +100,7 @@ export function computeGameStats({ players, turns }: StatsInput): GameStats {
       sharePct: activeTotalS > 0 ? (totalS / activeTotalS) * 100 : 0,
       pauseS: own.reduce((sum, t) => sum + t.pauseDurationS, 0),
       pauseCount: own.reduce((sum, t) => sum + t.pauseCount, 0),
+      overtimeS: own.reduce((sum, t) => sum + t.overtimeS, 0),
     };
   });
 
@@ -128,6 +141,19 @@ export function computeGameStats({ players, turns }: StatsInput): GameStats {
       }
     : null;
 
+  // Who ran over their turn time the most (ties: first seated).
+  const topOverrunner = playerStats.reduce<PlayerTimeStats | null>(
+    (best, p) => (p.overtimeS > (best?.overtimeS ?? 0) ? p : best),
+    null,
+  );
+  const mostOvertime: MostOvertime | null = topOverrunner
+    ? {
+        playerId: topOverrunner.playerId,
+        name: topOverrunner.name,
+        overtimeS: topOverrunner.overtimeS,
+      }
+    : null;
+
   const rounds = turns.reduce((max, t) => Math.max(max, t.round), 0);
 
   return {
@@ -137,8 +163,10 @@ export function computeGameStats({ players, turns }: StatsInput): GameStats {
     avgRoundS: rounds > 0 ? activeTotalS / rounds : 0,
     totalPauseS: turns.reduce((sum, t) => sum + t.pauseDurationS, 0),
     totalPauseCount: turns.reduce((sum, t) => sum + t.pauseCount, 0),
+    totalOvertimeS: turns.reduce((sum, t) => sum + t.overtimeS, 0),
     longestTurn,
     mostPaused,
+    mostOvertime,
     players: playerStats,
   };
 }

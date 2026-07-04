@@ -68,6 +68,12 @@ export interface GameTurn {
   durationS: number;
   pauseCount: number;
   pauseDurationS: number;
+  /**
+   * Active seconds taken beyond the allotted turn duration (the timer counts up
+   * once it hits zero). A subset of `durationS`; 0 when the turn finished in
+   * time.
+   */
+  overtimeS: number;
 }
 
 /** A game with its related entities resolved, for the play / detail screen. */

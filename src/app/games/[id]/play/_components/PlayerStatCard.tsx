@@ -56,6 +56,12 @@ export function PlayerStatCard({
           <p className="text-xs text-zinc-500 tabular-nums dark:text-zinc-400">
             {stat.turnCount} tour{stat.turnCount > 1 ? "s" : ""} ·{" "}
             {formatDuration(stat.totalS)} · {formatDuration(stat.avgS)} / tour
+            {stat.overtimeS > 0 ? (
+              <span className="text-red-600 dark:text-red-400">
+                {" "}
+                · +{formatDuration(stat.overtimeS)} de dépassement
+              </span>
+            ) : null}
           </p>
           <div className="flex items-center gap-2">
             <span className="text-[10px] uppercase tracking-wide text-zinc-400">

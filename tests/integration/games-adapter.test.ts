@@ -134,7 +134,8 @@ describe("games adapter — turn rotation & time logging", () => {
     });
     gameIds.push(game.id);
 
-    await repo().advanceTurn(game.id, 30, 2, 18); // p0: 30s active, 2 pauses/18s
+    // p0: 30s active, 2 pauses/18s, 7s over the allotted time
+    await repo().advanceTurn(game.id, 30, 2, 18, 7);
     let p = await repo().getPopulated(game.id);
     expect(p?.turn).toBe(2);
     expect(p?.round).toBe(1);
@@ -144,9 +145,10 @@ describe("games adapter — turn rotation & time logging", () => {
     expect(p?.turns[0].durationS).toBe(30);
     expect(p?.turns[0].pauseCount).toBe(2);
     expect(p?.turns[0].pauseDurationS).toBe(18);
+    expect(p?.turns[0].overtimeS).toBe(7);
 
-    await repo().advanceTurn(game.id, 12, 0, 0); // p1 -> p2
-    await repo().advanceTurn(game.id, 5, 0, 0); // p2 -> wraps to p0, round 2
+    await repo().advanceTurn(game.id, 12, 0, 0, 0); // p1 -> p2
+    await repo().advanceTurn(game.id, 5, 0, 0, 0); // p2 -> wraps to p0, round 2
     p = await repo().getPopulated(game.id);
     expect(p?.turn).toBe(4);
     expect(p?.round).toBe(2);
@@ -312,7 +314,7 @@ describe("games adapter — error mapping", () => {
     await expect(repo().getPopulated(BAD_UUID as GameId)).rejects.toThrow();
 
     await expect(
-      repo().advanceTurn(BAD_UUID as GameId, 10, 0, 0),
+      repo().advanceTurn(BAD_UUID as GameId, 10, 0, 0, 0),
     ).rejects.toThrow();
 
     await expect(
