@@ -2,17 +2,19 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useConfirm } from "@/components/use-confirm";
 import type {
   GameId,
   PlayerId,
   PopulatedGame,
-  ScoreWinnerBy,
+  WinCondition,
 } from "@/lib/domain";
 import { countdownColor } from "@/lib/game/colors";
-import { leaderByScore } from "@/lib/game/scoring";
+import { leaderByScore, winnerDirection } from "@/lib/game/scoring";
 import { useTurnTimer } from "@/lib/hooks/use-turn-timer";
 import { getGameRepository } from "@/lib/repositories";
 import { EndedGame } from "./EndedGame";
+import { LiveScore } from "./LiveScore";
 import { TurnFlow } from "./turn-flow";
 
 const DEFAULT_DURATION_S = 60;
@@ -26,6 +28,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   const [busy, setBusy] = useState(false);
 
   const timer = useTurnTimer();
+  const { requestConfirm, confirmDialog } = useConfirm();
 
   const load = useCallback(async () => {
     try {
@@ -107,6 +110,33 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
     }
   }
 
+  // Live scoring: persist the new score, then offer to end when a player has
+  // reached the target.
+  async function handleSetScore(playerId: PlayerId, score: number) {
+    if (!game) {
+      return;
+    }
+
+    try {
+      await repo.setScore(game.id, playerId, score);
+    } catch {
+      setError("Impossible d'enregistrer le score.");
+
+      return;
+    }
+
+    if (game.winThreshold !== null && score >= game.winThreshold) {
+      const name =
+        game.players.find(p => p.playerId === playerId)?.player.name ?? "";
+
+      requestConfirm({
+        message: `${name} a atteint ${game.winThreshold} points. Terminer la partie ?`,
+        confirmLabel: "Terminer",
+        onConfirm: () => void handleEnd(playerId),
+      });
+    }
+  }
+
   if (loading) {
     return <p className="text-sm text-zinc-500">Chargement…</p>;
   }
@@ -163,10 +193,19 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         Tour suivant →
       </button>
 
-      {game.boardgame.scoring ? (
+      {game.boardgame.scoring?.timing === "live" ? (
+        <LiveScore
+          players={game.players}
+          threshold={game.winThreshold}
+          onSet={handleSetScore}
+          disabled={busy}
+        />
+      ) : null}
+
+      {game.boardgame.scoring?.timing === "final" ? (
         <ScoreEntry
           players={game.players.map(p => p.player)}
-          winnerBy={game.boardgame.scoring.winnerBy}
+          winCondition={game.boardgame.scoring.winCondition}
           onEnd={handleEnd}
           disabled={busy}
         />
@@ -177,6 +216,8 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
           disabled={busy}
         />
       )}
+
+      {confirmDialog}
     </div>
   );
 }
@@ -443,18 +484,19 @@ function WinnerPicker({
 }
 
 /**
- * End-of-game score entry for a scored game (final total). Each player gets a
- * number; the leader (by the game's winnerBy) is proposed as winner and can be
- * overridden by tapping a name (ties, house rules). Ends once every score is in.
+ * End-of-game score entry for a game scored at the end (final total). Each
+ * player gets a number; the leader (by the win condition's direction) is
+ * proposed as winner and can be overridden by tapping a name (ties, house
+ * rules). Ends once every score is in.
  */
 function ScoreEntry({
   players,
-  winnerBy,
+  winCondition,
   onEnd,
   disabled,
 }: {
   players: { id: PlayerId; name: string }[];
-  winnerBy: ScoreWinnerBy;
+  winCondition: WinCondition;
   onEnd: (
     winnerId: PlayerId,
     scores: Array<{ playerId: PlayerId; score: number }>,
@@ -475,7 +517,8 @@ function ScoreEntry({
     };
   });
   const allEntered = entries.every(e => e.score !== null);
-  const winnerId = override ?? leaderByScore(entries, winnerBy);
+  const winnerId =
+    override ?? leaderByScore(entries, winnerDirection(winCondition));
 
   if (!open) {
     return (

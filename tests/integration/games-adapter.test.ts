@@ -174,33 +174,115 @@ describe("games adapter — listing & ending", () => {
     const listed = ongoing.find(g => g.id === game.id);
     expect(listed?.players.map(p => p.id)).toEqual(playerIds);
 
-    // End with final scores (p1 wins with the highest).
-    await repo().end(game.id, playerIds[1], [
-      { playerId: playerIds[0], score: 92 },
-      { playerId: playerIds[1], score: 104 },
-      { playerId: playerIds[2], score: 87 },
-    ]);
+    // Catan is live/threshold; with no config, the target resolves from the
+    // config template's `pointsToWin` default (10).
+    let populated = await repo().getPopulated(game.id);
+    expect(populated?.boardgame.scoring?.timing).toBe("live");
+    expect(populated?.boardgame.scoring?.winCondition).toEqual({
+      type: "threshold",
+      field: "pointsToWin",
+    });
+    expect(populated?.winThreshold).toBe(10);
+
+    // Live scoring: setScore updates a player's running total.
+    await repo().setScore(game.id, playerIds[1], 10);
+    await repo().setScore(game.id, playerIds[0], 7);
+    populated = await repo().getPopulated(game.id);
+    expect(
+      populated?.players.find(p => p.playerId === playerIds[1])?.score,
+    ).toBe(10);
+
+    await repo().end(game.id, playerIds[1]); // scores already persisted
 
     const stillOngoing = await repo().list();
     expect(stillOngoing.some(g => g.id === game.id)).toBe(false);
     const ended = await repo().list({ status: "ended" });
     expect(ended.some(g => g.id === game.id)).toBe(true);
-    // The list item flags the winner and carries the scores, so the card can
-    // show "🏆 name (score)".
+    // The list item flags the winner and carries the score.
     const endedItem = ended.find(g => g.id === game.id);
     expect(endedItem?.players.filter(p => p.isWinner).map(p => p.id)).toEqual([
       playerIds[1],
     ]);
-    expect(endedItem?.players.find(p => p.id === playerIds[1])?.score).toBe(104);
+    expect(endedItem?.players.find(p => p.id === playerIds[1])?.score).toBe(10);
 
-    const populated = await repo().getPopulated(game.id);
+    populated = await repo().getPopulated(game.id);
     expect(populated?.status).toBe("ended");
     expect(populated?.endedAt).not.toBeNull();
-    const winner = populated?.players.find(p => p.isWinner);
-    expect(winner?.playerId).toBe(playerIds[1]);
-    expect(winner?.score).toBe(104);
-    // The boardgame's scoring spec resolves too (Catan seeded final/total).
-    expect(populated?.boardgame.scoring?.winnerBy).toBe("highest");
+    expect(populated?.players.find(p => p.isWinner)?.playerId).toBe(
+      playerIds[1],
+    );
+  });
+
+  it("records final scores passed to end() (final-entry games)", async () => {
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    await repo().end(game.id, playerIds[0], [
+      { playerId: playerIds[0], score: 104 },
+      { playerId: playerIds[1], score: 92 },
+      { playerId: playerIds[2], score: 87 },
+    ]);
+
+    const populated = await repo().getPopulated(game.id);
+    expect(populated?.players.find(p => p.playerId === playerIds[0])?.score).toBe(
+      104,
+    );
+    expect(populated?.players.find(p => p.playerId === playerIds[1])?.score).toBe(
+      92,
+    );
+  });
+
+  it("resolves the threshold from the config value when set", async () => {
+    const admin = serviceClient();
+    const { data: cfg } = await admin
+      .from("configs")
+      .insert({
+        boardgame_id: CATAN_ID,
+        name: `pts-${Date.now()}`,
+        values: { pointsToWin: 12 },
+      })
+      .select("id")
+      .single();
+    const cfgId = cfg?.id as string;
+
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId: cfgId as ConfigId,
+      playerIds,
+    });
+
+    const populated = await repo().getPopulated(game.id);
+    expect(populated?.winThreshold).toBe(12); // config overrides the default
+
+    await admin.from("games").delete().eq("id", game.id);
+    await admin.from("configs").delete().eq("id", cfgId);
+  });
+
+  it("resolves no threshold for a non-scored boardgame", async () => {
+    const admin = serviceClient();
+    const { data: bg } = await admin
+      .from("boardgames")
+      .insert({ name: `NoScore-${Date.now().toString(36)}` })
+      .select("id")
+      .single();
+    const bgId = bg?.id as BoardgameId;
+
+    const game = await repo().create({
+      boardgameId: bgId,
+      configId: null,
+      playerIds,
+    });
+
+    const populated = await repo().getPopulated(game.id);
+    expect(populated?.boardgame.scoring).toBeNull();
+    expect(populated?.winThreshold).toBeNull();
+
+    await admin.from("games").delete().eq("id", game.id);
+    await admin.from("boardgames").delete().eq("id", bgId);
   });
 
   it("ends without scores (unscored path), leaving every score null", async () => {

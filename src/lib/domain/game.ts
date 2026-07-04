@@ -74,6 +74,12 @@ export interface GameTurn {
 export interface PopulatedGame extends Game {
   boardgame: Boardgame;
   config: Config | null;
+  /**
+   * The score target to win, resolved from the boardgame's `threshold` win
+   * condition and this game's config (value, else the config template default).
+   * Null when the game isn't threshold-scored.
+   */
+  winThreshold: number | null;
   players: Array<GamePlayer & { player: Player }>;
   currentPlayer: Player | null;
   turns: GameTurn[];

@@ -6,19 +6,29 @@ import type { BoardgameId } from "./ids";
  */
 export type BoardgameKind = "competitive" | "cooperative" | "hybrid";
 
-/** Who wins on score: the highest total, or the lowest (Skyjo/Papayoo). */
-export type ScoreWinnerBy = "highest" | "lowest";
+/**
+ * How the winner is decided by score:
+ * - `highest` / `lowest`: best total wins (Cascadia/Wingspan ; Skyjo/Papayoo).
+ * - `threshold`: first to reach a target wins (Catan). The target is the value
+ *   of the config `field` (e.g. `pointsToWin`), falling back to that field's
+ *   default in the boardgame's config template.
+ */
+export type WinCondition =
+  | { type: "highest" }
+  | { type: "lowest" }
+  | { type: "threshold"; field: string };
 
 /**
  * How a boardgame is scored — inherent to the game, authored per boardgame.
  * `null` on the boardgame means the game isn't scored (pick the winner by hand).
- * v1 handles only `timing: "final"` + `entry: "total"`: one total entered per
- * player at the end. `live` scoring and multi-`categories` come later.
+ * `timing`: `live` = a running score during play (auto-ends when a threshold is
+ * reached) ; `final` = one total entered per player at the end. `entry` is
+ * `total` for now (multi-`categories` later).
  */
 export interface ScoringSpec {
-  timing: "final";
+  timing: "final" | "live";
   entry: "total";
-  winnerBy: ScoreWinnerBy;
+  winCondition: WinCondition;
 }
 
 export interface Boardgame {

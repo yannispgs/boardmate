@@ -106,6 +106,8 @@ export interface GameRepository {
     pauseCount: number,
     pauseDurationSeconds: number,
   ): Promise<void>;
+  /** Sets one player's current score (live scoring). */
+  setScore(id: GameId, playerId: PlayerId, score: number): Promise<void>;
   /**
    * Ends the game, marks the winner, and (for scored games) records each
    * player's final score.
