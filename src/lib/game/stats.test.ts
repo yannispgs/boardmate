@@ -37,6 +37,7 @@ function turn(
   durationS: number,
   pauseCount = 0,
   pauseDurationS = 0,
+  overtimeS = 0,
 ): GameTurn {
   return {
     id: `${playerId}-${turnNo}` as GameTurnId,
@@ -47,6 +48,7 @@ function turn(
     durationS,
     pauseCount,
     pauseDurationS,
+    overtimeS,
   };
 }
 
@@ -55,9 +57,9 @@ describe("computeGameStats", () => {
     const stats = computeGameStats({
       players: [player("a", "Alice", 0, true), player("b", "Bob", 1)],
       turns: [
-        turn("a", 1, 1, 30, 1, 8),
+        turn("a", 1, 1, 30, 1, 8, 5),
         turn("b", 1, 2, 10),
-        turn("a", 2, 3, 30, 2, 20),
+        turn("a", 2, 3, 30, 2, 20, 3),
         turn("b", 2, 4, 30, 1, 6),
       ],
     });
@@ -77,6 +79,14 @@ describe("computeGameStats", () => {
       count: 3,
     });
 
+    // Only Alice ran over her time (5 + 3 s).
+    expect(stats.totalOvertimeS).toBe(8);
+    expect(stats.mostOvertime).toEqual({
+      playerId: "a",
+      name: "Alice",
+      overtimeS: 8,
+    });
+
     const alice = stats.players.find(p => p.name === "Alice");
 
     expect(alice?.totalS).toBe(60);
@@ -88,6 +98,7 @@ describe("computeGameStats", () => {
     expect(alice?.isWinner).toBe(true);
     expect(alice?.pauseS).toBe(28);
     expect(alice?.pauseCount).toBe(3);
+    expect(alice?.overtimeS).toBe(8);
   });
 
   it("sorts players fastest mean first and reports the longest turn", () => {
@@ -104,9 +115,11 @@ describe("computeGameStats", () => {
       durationS: 40,
       round: 1,
     });
-    // Nobody paused → no top pauser.
+    // Nobody paused or ran over → no top pauser / overrunner.
     expect(stats.mostPaused).toBeNull();
     expect(stats.totalPauseS).toBe(0);
+    expect(stats.mostOvertime).toBeNull();
+    expect(stats.totalOvertimeS).toBe(0);
   });
 
   it("handles a game with no turns and turn-less players", () => {
@@ -121,7 +134,9 @@ describe("computeGameStats", () => {
     expect(stats.avgRoundS).toBe(0);
     expect(stats.longestTurn).toBeNull();
     expect(stats.mostPaused).toBeNull();
+    expect(stats.mostOvertime).toBeNull();
     expect(stats.totalPauseCount).toBe(0);
+    expect(stats.totalOvertimeS).toBe(0);
     expect(stats.players.every(p => p.avgS === 0 && p.minS === null)).toBe(
       true,
     );

@@ -97,14 +97,16 @@ export interface GameRepository {
   getPopulated(id: GameId): Promise<PopulatedGame | null>;
   create(input: NewGame): Promise<Game>;
   /**
-   * Records the current turn — its active time plus any pauses (count + total
-   * paused seconds, ≥ 5 s each) — then rotates to the next player.
+   * Records the current turn — its active time, any pauses (count + total
+   * paused seconds, ≥ 5 s each), and the overtime taken beyond the allotted
+   * duration — then rotates to the next player.
    */
   advanceTurn(
     id: GameId,
     elapsedSeconds: number,
     pauseCount: number,
     pauseDurationSeconds: number,
+    overtimeSeconds: number,
   ): Promise<void>;
   /** Sets one player's current score (live scoring). */
   setScore(id: GameId, playerId: PlayerId, score: number): Promise<void>;

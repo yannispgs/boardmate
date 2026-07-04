@@ -35,6 +35,14 @@ export function GameStats({ game }: { game: PopulatedGame }) {
     );
   }
 
+  // Overtime tile only when someone ran over the allotted time.
+  if (stats.totalOvertimeS > 0) {
+    tiles.push({
+      label: "Dépassement",
+      value: formatDuration(stats.totalOvertimeS),
+    });
+  }
+
   return (
     <section className="flex flex-col gap-6">
       <h2 className="text-center text-lg font-semibold">
@@ -82,6 +90,23 @@ export function GameStats({ game }: { game: PopulatedGame }) {
             <span className="text-zinc-500 dark:text-zinc-400">
               · {stats.mostPaused.name} ({stats.mostPaused.count} pause
               {stats.mostPaused.count > 1 ? "s" : ""})
+            </span>
+          </span>
+        </div>
+      ) : null}
+
+      {stats.mostOvertime ? (
+        <div className="flex items-center justify-between gap-2 rounded-xl border border-red-500/20 bg-red-500/[0.04] p-3">
+          <span className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+            <span aria-hidden>⏱️</span>
+            Le plus en dépassement
+          </span>
+          <span className="text-sm tabular-nums">
+            <span className="font-semibold text-red-600 dark:text-red-400">
+              {formatDuration(stats.mostOvertime.overtimeS)}
+            </span>{" "}
+            <span className="text-zinc-500 dark:text-zinc-400">
+              · {stats.mostOvertime.name}
             </span>
           </span>
         </div>
