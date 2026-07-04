@@ -112,6 +112,8 @@ export function GameStats({ game }: { game: PopulatedGame }) {
           <ScoreChart
             series={scoreCurve.series}
             maxScore={scoreCurve.maxScore}
+            threshold={game.winThreshold}
+            rounds={stats.rounds}
             players={scorePlayers}
           />
         </div>
