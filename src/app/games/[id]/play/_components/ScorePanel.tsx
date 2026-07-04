@@ -1,19 +1,19 @@
 "use client";
 
-import { useState } from "react";
-
 import type { GamePlayer, Player, PlayerId } from "@/lib/domain";
 import { LiveScore } from "./LiveScore";
 
 /**
  * The live-scoring entry point on the play screen. A floating button pinned to
  * the side of the screen (next to the timer) opens a modal to update scores —
- * so the score sheet is one tap away without scrolling. The running totals are
- * held here (not in the modal body) so they survive the modal closing; the
- * button also shows the current top score at a glance.
+ * so the score sheet is one tap away without scrolling — and shows the current
+ * top score against the objective at a glance. Fully controlled: the running
+ * totals live in the parent (the play screen) so they survive the modal closing
+ * and feed the end-of-game screen.
  */
 export function ScorePanel({
   players,
+  scores,
   threshold,
   allowNegative,
   onSet,
@@ -22,6 +22,7 @@ export function ScorePanel({
   onOpenChange,
 }: {
   players: Array<GamePlayer & { player: Player }>;
+  scores: Record<string, number>;
   threshold: number | null;
   allowNegative: boolean;
   onSet: (playerId: PlayerId, score: number) => void;
@@ -29,21 +30,6 @@ export function ScorePanel({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [scores, setScores] = useState<Record<string, number>>(() =>
-    Object.fromEntries(players.map(p => [p.playerId, p.score ?? 0])),
-  );
-
-  function bump(playerId: PlayerId, delta: number) {
-    const current = scores[playerId] ?? 0;
-    const next = !allowNegative && current + delta < 0 ? 0 : current + delta;
-    if (next === current) {
-      return;
-    }
-
-    setScores(s => ({ ...s, [playerId]: next }));
-    onSet(playerId, next);
-  }
-
   const topScore = players.reduce(
     (max, p) => Math.max(max, scores[p.playerId] ?? 0),
     0,
@@ -101,7 +87,7 @@ export function ScorePanel({
               scores={scores}
               threshold={threshold}
               allowNegative={allowNegative}
-              onBump={bump}
+              onSet={onSet}
               disabled={disabled}
             />
           </div>

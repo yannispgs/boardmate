@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { useConfirm } from "@/components/use-confirm";
 import type {
   GameId,
   PlayerId,
@@ -14,6 +13,7 @@ import { leaderByScore, winnerDirection } from "@/lib/game/scoring";
 import { useTurnTimer } from "@/lib/hooks/use-turn-timer";
 import { getGameRepository } from "@/lib/repositories";
 import { EndedGame } from "./EndedGame";
+import { LiveEndPrompt } from "./LiveEndPrompt";
 import { ScorePanel } from "./ScorePanel";
 import { TurnFlow } from "./turn-flow";
 
@@ -27,9 +27,12 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   const [durationS, setDurationS] = useState(DEFAULT_DURATION_S);
   const [busy, setBusy] = useState(false);
   const [scoreOpen, setScoreOpen] = useState(false);
+  const [endOpen, setEndOpen] = useState(false);
+  // Live running scores, seeded once from the loaded game then owned here so
+  // they survive turn reloads and feed both the score panel and the end prompt.
+  const [scores, setScores] = useState<Record<string, number> | null>(null);
 
   const timer = useTurnTimer();
-  const { requestConfirm, confirmDialog } = useConfirm();
 
   const load = useCallback(async () => {
     try {
@@ -45,6 +48,16 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Seed the live scores from the game the first time it loads (later turn
+  // reloads must not clobber scores entered since).
+  useEffect(() => {
+    if (game && scores === null) {
+      setScores(
+        Object.fromEntries(game.players.map(p => [p.playerId, p.score ?? 0])),
+      );
+    }
+  }, [game, scores]);
 
   // Unlock audio on the first interaction with the play screen: mobile browsers
   // only let an AudioContext start from a user gesture. iOS in particular needs
@@ -111,33 +124,31 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
     }
   }
 
-  // Live scoring: persist the new score, then offer to end when a player has
-  // reached the target.
-  async function handleSetScore(playerId: PlayerId, score: number) {
+  // Live scoring: set a player's absolute total (clamped for positive-only
+  // games), persist it, then offer to end when the target is reached OR
+  // exceeded — a turn can bring several points at once.
+  async function setPlayerScore(playerId: PlayerId, raw: number) {
     if (!game) {
       return;
     }
 
+    const allowNegative = game.boardgame.scoring?.allowNegative ?? false;
+    const next = allowNegative ? Math.round(raw) : Math.max(0, Math.round(raw));
+
+    setScores(s => ({ ...(s ?? {}), [playerId]: next }));
     try {
-      await repo.setScore(game.id, playerId, score);
+      await repo.setScore(game.id, playerId, next);
     } catch {
       setError("Impossible d'enregistrer le score.");
 
       return;
     }
 
-    if (game.winThreshold !== null && score >= game.winThreshold) {
-      const name =
-        game.players.find(p => p.playerId === playerId)?.player.name ?? "";
-
-      // Close the score sheet so the end-of-game confirmation isn't hidden
-      // behind it (and two modals never stack).
+    if (game.winThreshold !== null && next >= game.winThreshold) {
+      // Close the score sheet and let the end prompt (which can override the
+      // winner) take over — the two modals never stack.
       setScoreOpen(false);
-      requestConfirm({
-        message: `${name} a atteint ${game.winThreshold} points. Terminer la partie ?`,
-        confirmLabel: "Terminer",
-        onConfirm: () => void handleEnd(playerId),
-      });
+      setEndOpen(true);
     }
   }
 
@@ -200,9 +211,10 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
       {game.boardgame.scoring?.timing === "live" ? (
         <ScorePanel
           players={game.players}
+          scores={scores ?? {}}
           threshold={game.winThreshold}
           allowNegative={game.boardgame.scoring.allowNegative ?? false}
-          onSet={handleSetScore}
+          onSet={setPlayerScore}
           disabled={busy}
           open={scoreOpen}
           onOpenChange={setScoreOpen}
@@ -224,7 +236,28 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         />
       )}
 
-      {confirmDialog}
+      {endOpen && scores ? (
+        <LiveEndPrompt
+          players={game.players.map(p => ({
+            id: p.playerId,
+            name: p.player.name,
+          }))}
+          scores={scores}
+          defaultWinnerId={leaderByScore(
+            game.players.map(p => ({
+              playerId: p.playerId,
+              score: scores[p.playerId] ?? 0,
+            })),
+            "highest",
+          )}
+          onEnd={winnerId => {
+            setEndOpen(false);
+            void handleEnd(winnerId);
+          }}
+          onCancel={() => setEndOpen(false)}
+          disabled={busy}
+        />
+      ) : null}
     </div>
   );
 }

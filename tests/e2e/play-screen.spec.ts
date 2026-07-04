@@ -145,3 +145,36 @@ test("live scores float at zero and persist across the score sheet", async ({
     await admin.from("players").delete().in("name", players);
   }
 });
+
+test("ends when the target is exceeded, defaulting to the top scorer", async ({
+  page,
+}) => {
+  const players = await seedPlayers(CATAN_MIN_PLAYERS);
+  let gameId = "";
+
+  try {
+    gameId = await startGame(page, players);
+
+    await page.getByRole("button", { name: "Ouvrir les scores" }).click();
+
+    // A turn can bring several points: enter the total directly (12 > Catan's
+    // objective of 10). Committing on blur ends the game.
+    const input = page.getByLabel(`Score de ${players[0]}`);
+    await input.fill("12");
+    await input.blur();
+
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    // The top scorer (player 0, 12 pts) is pre-selected; confirm.
+    await dialog.getByRole("button", { name: "Terminer" }).click();
+
+    await expect(page.getByText(`Bravo ${players[0]}`)).toBeVisible();
+    await expect(page.getByText("avec 12 points")).toBeVisible();
+  } finally {
+    const admin = adminClient();
+    if (gameId) {
+      await admin.from("games").delete().eq("id", gameId);
+    }
+    await admin.from("players").delete().in("name", players);
+  }
+});

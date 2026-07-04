@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import type { GamePlayer, Player, PlayerId } from "@/lib/domain";
 
 const stepBtn =
@@ -7,24 +9,26 @@ const stepBtn =
 
 /**
  * Live per-player score list for a game scored during play (e.g. Catan). Fully
- * controlled: the running totals live in the parent ({@link ScorePanel}) so they
- * survive the panel being opened/closed. Each score is bumped with −/+; the
- * objective (a threshold win condition's target) is shown so the race to it is
- * visible. When `allowNegative` is false the − button is disabled at 0.
+ * controlled: the running totals live in the parent so they survive the panel
+ * closing. Each row exposes −/+ for single points AND a number field to enter a
+ * total directly — a turn can bring several points at once, and typing the total
+ * avoids the win firing early while you tap up to it. Setting a score is
+ * absolute (`onSet(playerId, total)`). With `allowNegative` false the − is
+ * disabled at 0.
  */
 export function LiveScore({
   players,
   scores,
   threshold,
   allowNegative,
-  onBump,
+  onSet,
   disabled,
 }: {
   players: Array<GamePlayer & { player: Player }>;
   scores: Record<string, number>;
   threshold: number | null;
   allowNegative: boolean;
-  onBump: (playerId: PlayerId, delta: number) => void;
+  onSet: (playerId: PlayerId, score: number) => void;
   disabled: boolean;
 }) {
   return (
@@ -37,46 +41,99 @@ export function LiveScore({
           </p>
         ) : null}
       </div>
-      {players.map(p => {
-        const score = scores[p.playerId] ?? 0;
-        const reached = threshold !== null && score >= threshold;
-        const minusDisabled = disabled || (!allowNegative && score <= 0);
+      {players.map(p => (
+        <ScoreRow
+          key={p.playerId}
+          name={p.player.name}
+          score={scores[p.playerId] ?? 0}
+          threshold={threshold}
+          allowNegative={allowNegative}
+          disabled={disabled}
+          onSet={value => onSet(p.playerId, value)}
+        />
+      ))}
+    </div>
+  );
+}
 
-        return (
-          <div
-            key={p.playerId}
-            className="flex items-center justify-between gap-2"
-          >
-            <span className="min-w-0 flex-1 truncate text-sm">
-              {reached ? "🏆 " : ""}
-              {p.player.name}
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => onBump(p.playerId, -1)}
-                disabled={minusDisabled}
-                aria-label={`Retirer un point à ${p.player.name}`}
-                className={stepBtn}
-              >
-                −
-              </button>
-              <span className="w-8 text-center font-semibold tabular-nums">
-                {score}
-              </span>
-              <button
-                type="button"
-                onClick={() => onBump(p.playerId, 1)}
-                disabled={disabled}
-                aria-label={`Ajouter un point à ${p.player.name}`}
-                className={stepBtn}
-              >
-                +
-              </button>
-            </div>
-          </div>
-        );
-      })}
+function ScoreRow({
+  name,
+  score,
+  threshold,
+  allowNegative,
+  disabled,
+  onSet,
+}: {
+  name: string;
+  score: number;
+  threshold: number | null;
+  allowNegative: boolean;
+  disabled: boolean;
+  onSet: (score: number) => void;
+}) {
+  // Local draft so typing a multi-digit total doesn't persist each keystroke;
+  // it commits on blur / Enter. Kept in sync when −/+ change the score.
+  const [draft, setDraft] = useState(String(score));
+
+  useEffect(() => {
+    setDraft(String(score));
+  }, [score]);
+
+  const reached = threshold !== null && score >= threshold;
+  const minusDisabled = disabled || (!allowNegative && score <= 0);
+
+  function commit() {
+    const parsed = Number.parseInt(draft, 10);
+    const value = Number.isFinite(parsed) ? parsed : score;
+    const clamped = !allowNegative && value < 0 ? 0 : value;
+    setDraft(String(clamped));
+
+    if (clamped !== score) {
+      onSet(clamped);
+    }
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="min-w-0 flex-1 truncate text-sm">
+        {reached ? "🏆 " : ""}
+        {name}
+      </span>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onSet(score - 1)}
+          disabled={minusDisabled}
+          aria-label={`Retirer un point à ${name}`}
+          className={stepBtn}
+        >
+          −
+        </button>
+        <input
+          type="number"
+          inputMode="numeric"
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={e => {
+            if (e.key === "Enter") {
+              e.currentTarget.blur();
+            }
+          }}
+          disabled={disabled}
+          aria-label={`Score de ${name}`}
+          className="w-14 rounded-lg border border-black/15 bg-white px-2 py-1 text-center font-semibold tabular-nums outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900"
+        />
+        <button
+          type="button"
+          onClick={() => onSet(score + 1)}
+          disabled={disabled}
+          aria-label={`Ajouter un point à ${name}`}
+          className={stepBtn}
+        >
+          +
+        </button>
+      </div>
     </div>
   );
 }
