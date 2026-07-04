@@ -117,12 +117,17 @@ export interface GameRepository {
   ): Promise<void>;
   /**
    * Ends the game, marks the winner, and (for scored games) records each
-   * player's final score.
+   * player's final score — plus, for category-scored games, the per-category
+   * `breakdown` (category key → points) that sums to it.
    */
   end(
     id: GameId,
     winnerId: PlayerId,
-    scores?: Array<{ playerId: PlayerId; score: number }>,
+    scores?: Array<{
+      playerId: PlayerId;
+      score: number;
+      breakdown?: Record<string, number>;
+    }>,
   ): Promise<void>;
   subscribe(onChange: () => void): Unsubscribe;
 }

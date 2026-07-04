@@ -19,7 +19,7 @@ import type {
 import { winThresholdFrom } from "@/lib/game/scoring";
 import { advanceTurn as nextTurnState } from "@/lib/game/turn";
 import type { GameRepository, Unsubscribe } from "@/lib/repositories/types";
-import type { Database } from "@/lib/supabase/database.types";
+import type { Database, Json } from "@/lib/supabase/database.types";
 import { toBoardgame } from "@/lib/supabase/repositories/boardgames";
 import { toConfig } from "@/lib/supabase/repositories/configs";
 import { toPlayer } from "@/lib/supabase/repositories/players";
@@ -100,6 +100,7 @@ type PopulatedRow = GameRow & {
     seat_order: number;
     is_winner: boolean;
     score: number | null;
+    score_breakdown: Record<string, number> | null;
     player: PlayerRow;
   }>;
   game_turns: GameTurnRow[];
@@ -164,6 +165,7 @@ export function createGameRepository(
           seatOrder: gp.seat_order,
           isWinner: gp.is_winner,
           score: gp.score,
+          scoreBreakdown: gp.score_breakdown ?? null,
           player: toPlayer(gp.player),
         })) satisfies Array<GamePlayer & { player: Player }>;
 
@@ -330,11 +332,15 @@ export function createGameRepository(
         throw new Error(`Fin de la partie: ${error.message}`);
       }
 
-      // Persist each player's final score (scored games only).
-      for (const { playerId, score } of scores ?? []) {
+      // Persist each player's final score, plus the per-category breakdown for
+      // category-scored games (scored games only).
+      for (const { playerId, score, breakdown } of scores ?? []) {
         const { error: scoreError } = await supabase
           .from("game_players")
-          .update({ score: Math.round(score) })
+          .update({
+            score: Math.round(score),
+            score_breakdown: (breakdown ?? null) as Json,
+          })
           .eq("game_id", id)
           .eq("player_id", playerId);
         /* c8 ignore next 3 -- defensive guard: update errors surface via e2e */

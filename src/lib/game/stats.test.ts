@@ -26,6 +26,7 @@ function player(
     seatOrder,
     isWinner,
     score: null,
+    scoreBreakdown: null,
     player: { id: pid, name },
   };
 }

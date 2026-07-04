@@ -245,6 +245,32 @@ describe("games adapter — listing & ending", () => {
     ).toBe(92);
   });
 
+  it("records the per-category breakdown passed to end() (category games)", async () => {
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    await repo().end(game.id, playerIds[0], [
+      { playerId: playerIds[0], score: 27, breakdown: { ours: 12, foret: 15 } },
+      { playerId: playerIds[1], score: 20, breakdown: { ours: 8, foret: 12 } },
+    ]);
+
+    const populated = await repo().getPopulated(game.id);
+    const p0 = populated?.players.find(p => p.playerId === playerIds[0]);
+    const p1 = populated?.players.find(p => p.playerId === playerIds[1]);
+
+    expect(p0?.score).toBe(27);
+    expect(p0?.scoreBreakdown).toEqual({ ours: 12, foret: 15 });
+    expect(p1?.scoreBreakdown).toEqual({ ours: 8, foret: 12 });
+    // A player with no scores passed keeps a null breakdown.
+    expect(
+      populated?.players.find(p => p.playerId === playerIds[2])?.scoreBreakdown,
+    ).toBeNull();
+  });
+
   it("resolves the threshold from the config value when set", async () => {
     const admin = serviceClient();
     const { data: cfg } = await admin
