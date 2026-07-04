@@ -11,6 +11,7 @@ import type {
 import { countdownColor } from "@/lib/game/colors";
 import { leaderByScore, winnerDirection } from "@/lib/game/scoring";
 import { useTurnTimer } from "@/lib/hooks/use-turn-timer";
+import { useWakeLock } from "@/lib/hooks/use-wake-lock";
 import { getGameRepository } from "@/lib/repositories";
 import { EndedGame } from "./EndedGame";
 import { LiveEndPrompt } from "./LiveEndPrompt";
@@ -33,6 +34,9 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   const [scores, setScores] = useState<Record<string, number> | null>(null);
 
   const timer = useTurnTimer();
+  // Keep the screen awake while a turn is actively running; let it sleep on
+  // pause / once the game ends, to spare the battery.
+  useWakeLock(game?.status === "ongoing" && timer.running);
 
   const load = useCallback(async () => {
     try {

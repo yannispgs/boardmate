@@ -16,7 +16,7 @@ export default async function PlayPage({
   const { id } = await params;
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-6 py-10">
+    <main className="dark mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 bg-zinc-950 px-6 py-10 text-zinc-100">
       <header className="flex flex-col gap-1">
         <Link
           href="/games"
