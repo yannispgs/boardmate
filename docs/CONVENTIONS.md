@@ -75,6 +75,11 @@ otherwise. **Updated on every remark from the project owner.**
   and Prettier (chosen for speed + stability). Config: `biome.json`. Run
   `yarn lint` (check) and `yarn format` (autofix). Tailwind v4 directives
   are enabled in the CSS parser (`tailwindDirectives`).
+- **Accessibility / WCAG is out of scope** (owner decision): the whole Biome
+  `a11y` rule category is **off** (`linter.rules.a11y: "off"`). Don't add ARIA
+  roles/labels, keyboard handlers, etc. just to satisfy those rules — it's a
+  small private app for a known audience. Add such attributes only when they're
+  genuinely useful (e.g. a test hook), not for compliance.
 - Format: 2-space indent, double quotes, semicolons, 80-col width; imports are
   organized by Biome. No errors/warnings left in.
 - **Naming**: React component files `PascalCase.tsx`; other modules
@@ -269,3 +274,7 @@ separate so the fast one never needs a database:
   DB-error guards, `?? null`/`|| …` fallbacks) — **never** by mocking the
   Supabase client. Extract pure logic out of glue files to unit-test it
   (`auth/retry-delay.ts`).
+- _2026-07-04_ — **Accessibility / WCAG out of scope** (§7): disabled Biome's
+  whole `a11y` rule category (`linter.rules.a11y: "off"`). Owner's call — small
+  private app for a known audience; don't add ARIA/keyboard handling just for
+  compliance.
