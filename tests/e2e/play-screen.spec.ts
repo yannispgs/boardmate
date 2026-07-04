@@ -105,6 +105,35 @@ test("counts overtime once the turn timer runs out", async ({ page }) => {
   }
 });
 
+test("shows live time stats once a turn has been played", async ({ page }) => {
+  const players = await seedPlayers(CATAN_MIN_PLAYERS);
+  let gameId = "";
+
+  try {
+    gameId = await startGame(page, players);
+
+    const openStats = page.getByRole("button", {
+      name: "Ouvrir les statistiques",
+    });
+
+    // Before any turn: an empty state.
+    await openStats.click();
+    await expect(page.getByText(/premier tour joué/)).toBeVisible();
+    await page.getByRole("button", { name: "Fermer", exact: true }).click();
+
+    // Play a turn → the time breakdown appears.
+    await page.getByRole("button", { name: "Tour suivant →" }).click();
+    await openStats.click();
+    await expect(page.getByText(/Répartition du temps/)).toBeVisible();
+  } finally {
+    const admin = adminClient();
+    if (gameId) {
+      await admin.from("games").delete().eq("id", gameId);
+    }
+    await admin.from("players").delete().in("name", players);
+  }
+});
+
 test("a full round cycles back to the first player", async ({ page }) => {
   const players = await seedPlayers(CATAN_MIN_PLAYERS);
   let gameId = "";

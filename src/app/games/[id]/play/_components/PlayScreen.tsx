@@ -16,6 +16,7 @@ import { getGameRepository } from "@/lib/repositories";
 import { EndedGame } from "./EndedGame";
 import { LiveEndPrompt } from "./LiveEndPrompt";
 import { ScorePanel } from "./ScorePanel";
+import { StatsPanel } from "./StatsPanel";
 import { TurnFlow } from "./turn-flow";
 
 const DEFAULT_DURATION_S = 60;
@@ -213,6 +214,8 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
       >
         Tour suivant →
       </button>
+
+      <StatsPanel players={game.players} turns={game.turns} />
 
       {game.boardgame.scoring?.timing === "live" ? (
         <ScorePanel
