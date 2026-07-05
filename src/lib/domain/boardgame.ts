@@ -90,6 +90,12 @@ export interface Boardgame {
   /** How the game is scored, or `null` when it isn't. */
   scoring: ScoringSpec | null;
   /**
+   * Fixed number of rounds after which the game ends automatically (e.g.
+   * Cascadia's 20), or `null` for an open-ended game (ends by threshold or by
+   * hand).
+   */
+  roundLimit: number | null;
+  /**
    * When false, the boardgame is hidden from selection lists but kept in the
    * database. Deactivate (instead of delete) once it has games, to preserve
    * history.
@@ -116,6 +122,8 @@ export interface NewBoardgame {
   tags?: string[];
   /** How the game is scored, or `null` when it isn't. */
   scoring?: ScoringSpec | null;
+  /** Fixed number of rounds after which the game ends, or `null`. */
+  roundLimit?: number | null;
 }
 
 export type BoardgameUpdate = Partial<NewBoardgame>;

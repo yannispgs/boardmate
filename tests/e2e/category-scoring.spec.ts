@@ -10,20 +10,50 @@ import { adminClient, seedPlayers } from "./utils/supabase";
 test("scores a category game and reveals the final ranking", async ({
   page,
 }) => {
+  const admin = adminClient();
   const players = await seedPlayers(2);
+  const gameName = `E2E Cat ${Date.now().toString(36)}`;
+  let boardgameId: string | null = null;
   let gameId: string | null = null;
 
   try {
-    // Funnel: Cascadia, no config, both players.
+    // A Cascadia clone with no round limit, so its scoresheet is reachable at
+    // once (Cascadia itself now ends only after its 20 rounds).
+    const { data: cascadia } = await admin
+      .from("boardgames")
+      .select("scoring")
+      .eq("name", "Cascadia")
+      .single();
+    boardgameId =
+      (
+        await admin
+          .from("boardgames")
+          .insert({
+            name: gameName,
+            min_players: 1,
+            max_players: 4,
+            scoring: cascadia?.scoring,
+            round_limit: null,
+          })
+          .select("id")
+          .single()
+      ).data?.id ?? null;
+
+    // Funnel: our clone, no config, both players.
     await page.goto("/games/new");
-    await page.getByRole("button", { name: "Cascadia", exact: true }).click();
+    await page.getByRole("button", { name: gameName, exact: true }).click();
     await page
       .getByRole("button", { name: "Sans configuration", exact: true })
       .click();
     for (const name of players) {
       await page.getByRole("button", { name, exact: true }).click();
     }
+    await page.getByRole("button", { name: "Continuer →" }).click();
     await page.getByRole("button", { name: "Lancer la partie" }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Lancer", exact: true })
+      .click();
 
     await expect(page).toHaveURL(/\/games\/[0-9a-f-]+\/play$/);
     gameId = page.url().match(/games\/([0-9a-f-]+)\/play/)?.[1] ?? null;
@@ -83,9 +113,11 @@ test("scores a category game and reveals the final ranking", async ({
     await page.getByRole("button", { name: "Retour aux parties" }).click();
     await expect(page).toHaveURL(/\/games$/);
   } finally {
-    const admin = adminClient();
     if (gameId) {
       await admin.from("games").delete().eq("id", gameId);
+    }
+    if (boardgameId) {
+      await admin.from("boardgames").delete().eq("id", boardgameId);
     }
     await admin.from("players").delete().in("name", players);
   }

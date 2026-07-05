@@ -36,6 +36,7 @@ export function toBoardgame(row: BoardgameRow): Boardgame {
     tags: row.tags,
     // Authored per boardgame as data; null when the game isn't scored.
     scoring: (row.scoring as ScoringSpec | null) ?? null,
+    roundLimit: row.round_limit,
     isActive: row.is_active,
     // Denormalized column kept up to date by a DB trigger on games.
     hasGames: row.has_games,
@@ -79,6 +80,9 @@ function toRow(input: NewBoardgame | BoardgameUpdate): BoardgameWrite {
   }
   if (input.scoring !== undefined) {
     row.scoring = input.scoring as unknown as Json;
+  }
+  if (input.roundLimit !== undefined) {
+    row.round_limit = input.roundLimit;
   }
   return row;
 }

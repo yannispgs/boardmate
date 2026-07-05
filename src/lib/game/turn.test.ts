@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { advanceTurn, turnPosition } from "./turn";
+import { advanceTurn, isFinalTurn, turnPosition } from "./turn";
 
 describe("turnPosition", () => {
   it("maps turns to seats within the first round", () => {
@@ -41,5 +41,26 @@ describe("advanceTurn", () => {
       turn = advanceTurn(turn, 2).turn;
     }
     expect(seats).toEqual([0, 1, 0, 1, 0]);
+  });
+});
+
+describe("isFinalTurn", () => {
+  it("is true only on the last seat of the last round", () => {
+    // 4 players, 20 rounds → the game ends on turn 80 (round 20, seat 3).
+    expect(isFinalTurn(80, 4, 20)).toBe(true);
+    expect(isFinalTurn(79, 4, 20)).toBe(false); // round 20, seat 2 — not last
+    expect(isFinalTurn(77, 4, 20)).toBe(false); // round 20, seat 0
+    expect(isFinalTurn(76, 4, 20)).toBe(false); // round 19, last seat
+  });
+
+  it("handles a one-round game and a solo game", () => {
+    expect(isFinalTurn(2, 2, 1)).toBe(true); // 2 players, 1 round → turn 2
+    expect(isFinalTurn(1, 2, 1)).toBe(false);
+    expect(isFinalTurn(5, 1, 5)).toBe(true); // solo: round 5 is turn 5
+  });
+
+  it("is always false without a round limit", () => {
+    expect(isFinalTurn(80, 4, null)).toBe(false);
+    expect(isFinalTurn(1, 1, null)).toBe(false);
   });
 });
