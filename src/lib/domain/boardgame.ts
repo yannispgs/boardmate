@@ -22,6 +22,12 @@ export type WinCondition =
 export interface CategoryDef {
   key: string;
   label: string;
+  /**
+   * Optional identifying colours (hex), shown as a dot next to the label. One
+   * colour → a solid dot; several → an evenly split dot (e.g. Cascadia's
+   * two-tone biomes).
+   */
+  colors?: string[];
 }
 
 /** A titled group of scored lines (e.g. "Animaux"), for the final scoresheet. */

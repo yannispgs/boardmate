@@ -146,6 +146,7 @@ export function CategoryScoreEntry({
                       <Row
                         key={cat.key}
                         label={cat.label}
+                        colors={cat.colors}
                         players={players}
                         value={pid => raw[pid]?.[cat.key] ?? ""}
                         onChange={(pid, t) => setCell(pid, cat.key, t)}
@@ -162,6 +163,7 @@ export function CategoryScoreEntry({
                   <Section key={item.key} gridCols={gridCols}>
                     <Row
                       label={item.label}
+                      colors={item.colors}
                       players={players}
                       value={pid => raw[pid]?.[item.key] ?? ""}
                       onChange={(pid, t) => setCell(pid, item.key, t)}
@@ -217,9 +219,33 @@ function Section({
   );
 }
 
+/**
+ * Background for the identifying dot: solid for one colour, a diagonal
+ * half-and-half split for two, an even conic split for more.
+ */
+function dotStyle(colors: string[]): React.CSSProperties {
+  if (colors.length === 1) {
+    return { background: colors[0] };
+  }
+
+  if (colors.length === 2) {
+    return {
+      background: `linear-gradient(135deg, ${colors[0]} 0 50%, ${colors[1]} 50% 100%)`,
+    };
+  }
+
+  const step = 100 / colors.length;
+  const stops = colors
+    .map((c, i) => `${c} ${i * step}% ${(i + 1) * step}%`)
+    .join(", ");
+
+  return { background: `conic-gradient(${stops})` };
+}
+
 /** One scored line: its label then a cell per player (with a `/N` bonus badge). */
 function Row({
   label,
+  colors,
   players,
   value,
   onChange,
@@ -227,6 +253,7 @@ function Row({
   disabled,
 }: {
   label: string;
+  colors?: string[];
   players: { id: PlayerId; name: string }[];
   value: (playerId: PlayerId) => string;
   onChange: (playerId: PlayerId, text: string) => void;
@@ -239,8 +266,15 @@ function Row({
           player columns scroll sideways on a narrow screen. */}
       <span
         title={label}
-        className="sticky left-0 z-10 flex items-center self-stretch border-black/10 border-r bg-white px-1 dark:border-white/10 dark:bg-zinc-900"
+        className="sticky left-0 z-10 flex items-center gap-1.5 self-stretch border-black/10 border-r bg-white px-1 dark:border-white/10 dark:bg-zinc-900"
       >
+        {colors && colors.length > 0 ? (
+          <span
+            aria-hidden
+            className="size-3 shrink-0 rounded-full ring-1 ring-black/20 dark:ring-white/25"
+            style={dotStyle(colors)}
+          />
+        ) : null}
         <span className="min-w-0 truncate text-sm">{label}</span>
       </span>
       {players.map(pl => (
