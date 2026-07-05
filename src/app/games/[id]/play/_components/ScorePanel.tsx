@@ -1,5 +1,6 @@
 "use client";
 
+import { Modal } from "@/components/Modal";
 import type { GamePlayer, Player, PlayerId } from "@/lib/domain";
 import { LiveScore } from "./LiveScore";
 
@@ -61,37 +62,34 @@ export function ScorePanel({
       </button>
 
       {open ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Scores"
-          className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4"
+        <Modal
+          onClose={() => onOpenChange(false)}
+          label="Scores"
+          className="w-full max-w-sm rounded-xl border border-black/10 bg-white p-5 shadow-xl dark:border-white/10 dark:bg-zinc-900"
         >
-          <div className="w-full max-w-sm rounded-xl border border-black/10 bg-white p-5 shadow-xl dark:border-white/10 dark:bg-zinc-900">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-base font-semibold">
-                Mettre à jour les scores
-              </h2>
-              <button
-                type="button"
-                onClick={() => onOpenChange(false)}
-                aria-label="Fermer"
-                className="rounded-lg border border-black/10 px-3 py-1 text-sm transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
-              >
-                Fermer
-              </button>
-            </div>
-
-            <LiveScore
-              players={players}
-              scores={scores}
-              threshold={threshold}
-              allowNegative={allowNegative}
-              onSet={onSet}
-              disabled={disabled}
-            />
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-base font-semibold">
+              Mettre à jour les scores
+            </h2>
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              aria-label="Fermer"
+              className="rounded-lg border border-black/10 px-3 py-1 text-sm transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+            >
+              Fermer
+            </button>
           </div>
-        </div>
+
+          <LiveScore
+            players={players}
+            scores={scores}
+            threshold={threshold}
+            allowNegative={allowNegative}
+            onSet={onSet}
+            disabled={disabled}
+          />
+        </Modal>
       ) : null}
     </>
   );

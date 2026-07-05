@@ -157,12 +157,40 @@ test("live scores float at zero and persist across the score sheet", async ({
     await expect(minus).toBeEnabled();
 
     // Closing keeps the running total — the side button shows 2 / objective 10.
-    await page.getByRole("button", { name: "Fermer" }).click();
+    await page.getByRole("button", { name: "Fermer", exact: true }).click();
     await expect(openScores).toContainText("2/10");
 
     // Reopening shows the kept total (− still enabled, not reset to 0).
     await openScores.click();
     await expect(minus).toBeEnabled();
+  } finally {
+    const admin = adminClient();
+    if (gameId) {
+      await admin.from("games").delete().eq("id", gameId);
+    }
+    await admin.from("players").delete().in("name", players);
+  }
+});
+
+test("closes the score sheet when clicking outside it", async ({ page }) => {
+  const players = await seedPlayers(CATAN_MIN_PLAYERS);
+  let gameId = "";
+
+  try {
+    gameId = await startGame(page, players);
+
+    await page.getByRole("button", { name: "Ouvrir les scores" }).click();
+    const minus = page.getByRole("button", {
+      name: `Retirer un point à ${players[0]}`,
+    });
+    await expect(minus).toBeVisible();
+
+    // Clicking the backdrop (a corner, outside the card) dismisses the sheet —
+    // no need to press "Fermer".
+    await page
+      .getByRole("dialog", { name: "Scores" })
+      .click({ position: { x: 5, y: 5 } });
+    await expect(minus).toBeHidden();
   } finally {
     const admin = adminClient();
     if (gameId) {

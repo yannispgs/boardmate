@@ -35,6 +35,11 @@ test("scores a category game and reveals the final ranking", async ({
     const submit = page.getByRole("button", { name: "Total final" });
     await expect(submit).toBeDisabled();
 
+    // Unlike the other modals, an outside click must NOT close the scoresheet —
+    // a misclick would throw away everything typed so far.
+    await page.getByRole("dialog").click({ position: { x: 5, y: 5 } });
+    await expect(submit).toBeVisible();
+
     // Fill every category for both players (0 by default), then the meaningful
     // ones. Ours is a plain animal; Forêt is a ranked biome (1st: +3, 2nd: +1).
     const cats = [
