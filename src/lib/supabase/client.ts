@@ -1,6 +1,7 @@
 import { createBrowserClient } from "@supabase/ssr";
 
 import { requirePublicEnv } from "@/lib/env";
+import { authCookieOptions } from "@/lib/supabase/cookie-options";
 import type { Database } from "@/lib/supabase/database.types";
 
 /**
@@ -11,5 +12,7 @@ import type { Database } from "@/lib/supabase/database.types";
  */
 export function createClient() {
   const { supabaseUrl, supabaseAnonKey } = requirePublicEnv();
-  return createBrowserClient<Database>(supabaseUrl, supabaseAnonKey);
+  return createBrowserClient<Database>(supabaseUrl, supabaseAnonKey, {
+    cookieOptions: authCookieOptions,
+  });
 }
