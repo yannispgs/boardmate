@@ -3,10 +3,12 @@ import type { PopulatedGame } from "@/lib/domain";
 import { formatDuration } from "@/lib/game/format-time";
 import { buildScoreSeries } from "@/lib/game/score-series";
 import { computeGameStats } from "@/lib/game/stats";
+import { buildTurnTimeSeries } from "@/lib/game/turn-time-series";
 
 import { PlayerStatCardList } from "./PlayerStatCardList";
 import { ScoreChart } from "./ScoreChart";
 import { StatTile } from "./StatTile";
+import { TurnTimeChart } from "./TurnTimeChart";
 
 /**
  * The end-of-game statistics panel (time & rhythm). Reveals below the winner
@@ -27,6 +29,10 @@ export function GameStats({ game }: { game: PopulatedGame }) {
     game.scoreEvents,
     scorePlayers.map(p => p.id),
     stats.rounds,
+  );
+  const timeCurve = buildTurnTimeSeries(
+    game.turns,
+    scorePlayers.map(p => p.id),
   );
 
   const tiles: { label: string; value: string; accent?: boolean }[] = [
@@ -140,6 +146,20 @@ export function GameStats({ game }: { game: PopulatedGame }) {
             maxScore={scoreCurve.maxScore}
             threshold={game.winThreshold}
             rounds={stats.rounds}
+            players={scorePlayers}
+          />
+        </div>
+      ) : null}
+
+      {stats.rounds >= 2 ? (
+        <div className="flex flex-col gap-3">
+          <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+            Évolution du temps par tour
+          </h3>
+          <TurnTimeChart
+            series={timeCurve.series}
+            maxSeconds={timeCurve.maxSeconds}
+            maxTour={timeCurve.maxTour}
             players={scorePlayers}
           />
         </div>
