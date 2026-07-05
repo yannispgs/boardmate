@@ -17,8 +17,8 @@ interface UseTurnTimer {
   reset: () => void;
 }
 
-/** Minimum wall-clock a displayed second is held before it may change. */
-const MIN_STEP_MS = 900;
+/** How often the clock ticks. Coarse on purpose — see the note below. */
+const TICK_MS = 500;
 /** A pause must last this long to be counted (ignore accidental taps). */
 const MIN_PAUSE_MS = 5000;
 
@@ -27,24 +27,19 @@ const MIN_PAUSE_MS = 5000;
  * The play screen derives the remaining countdown from this and the chosen turn
  * duration. Mono-device and in-memory in v1 (not reload-resilient).
  *
- * Driven by requestAnimationFrame. Two things matter and pull against each
- * other on iOS/WebKit, where the render loop periodically stalls a few hundred
- * ms (notably during audio playback):
- *
- *  - `elapsedRef` accumulates *real* active time, so the recorded turn duration
- *    stays true to the wall clock across stalls.
- *  - the *shown* second is only allowed to advance once per ~second of real
- *    time (`MIN_STEP_MS`). A stall that straddles a second boundary otherwise
- *    bunches two crossings together and one number flashes by in well under a
- *    second. We'd rather the display lag by a stall's worth — sub-second, and
- *    invisible over a turn — than stutter.
+ * Driven by a **coarse `setInterval`** (not `requestAnimationFrame`) to save
+ * battery: a board-game timer only needs second resolution, so ticking a couple
+ * of times a second instead of ~60 keeps the phone's CPU/GPU mostly idle over a
+ * long game. `elapsedRef` still accumulates *real* wall-clock time from
+ * timestamps, so the recorded duration stays accurate — and the display snaps
+ * straight to the real elapsed seconds (e.g. after the screen was locked), no
+ * slow catch-up.
  */
 export function useTurnTimer(): UseTurnTimer {
   const [elapsedS, setElapsedS] = useState(0);
   const [running, setRunning] = useState(true);
   const elapsedRef = useRef(0); // active ms accumulated (excludes pauses)
   const lastTick = useRef<number | null>(null);
-  const lastStepAt = useRef(0); // perf.now() of the last visible increment
   const pauseStart = useRef<number | null>(null); // perf.now() a pause began
   const pausedMs = useRef(0); // total qualifying paused ms this turn
   const pauseTally = useRef(0); // count of qualifying pauses this turn
@@ -75,29 +70,17 @@ export function useTurnTimer(): UseTurnTimer {
 
     commitPause(false); // resuming → close any pause
     lastTick.current = performance.now();
-    let raf = 0;
     const tick = () => {
       const now = performance.now();
       elapsedRef.current += now - (lastTick.current ?? now);
       lastTick.current = now;
-
-      setElapsedS(prev => {
-        const target = Math.floor(elapsedRef.current / 1000);
-
-        if (target > prev && now - lastStepAt.current >= MIN_STEP_MS) {
-          lastStepAt.current = now;
-
-          return prev + 1;
-        }
-
-        return prev;
-      });
-
-      raf = requestAnimationFrame(tick);
+      // Snap straight to the real elapsed seconds (accurate across stalls or a
+      // locked screen; no per-frame smoothing needed at this tick rate).
+      setElapsedS(Math.floor(elapsedRef.current / 1000));
     };
-    raf = requestAnimationFrame(tick);
+    const id = setInterval(tick, TICK_MS);
 
-    return () => cancelAnimationFrame(raf);
+    return () => clearInterval(id);
   }, [running, commitPause]);
 
   const toggle = useCallback(() => setRunning(r => !r), []);
@@ -113,7 +96,6 @@ export function useTurnTimer(): UseTurnTimer {
   const reset = useCallback(() => {
     elapsedRef.current = 0;
     lastTick.current = performance.now();
-    lastStepAt.current = performance.now();
     pauseStart.current = null;
     pausedMs.current = 0;
     pauseTally.current = 0;

@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+/*
+ * `dark:` applies when the OS prefers dark OR an ancestor carries the `.dark`
+ * class — so the app follows the system theme, and a specific screen (the play
+ * screen, for battery on OLED) can force dark on itself.
+ */
+@custom-variant dark {
+  &:where(.dark, .dark *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    @slot;
+  }
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
