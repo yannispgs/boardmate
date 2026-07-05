@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type {
@@ -9,19 +10,35 @@ import type {
   WinCondition,
 } from "@/lib/domain";
 import { countdownColor } from "@/lib/game/colors";
-import { leaderByScore, winnerDirection } from "@/lib/game/scoring";
+import {
+  leaderByScore,
+  type Ranked,
+  rankByTotal,
+  scoreCategories,
+  winnerDirection,
+} from "@/lib/game/scoring";
 import { useTurnTimer } from "@/lib/hooks/use-turn-timer";
 import { useWakeLock } from "@/lib/hooks/use-wake-lock";
 import { getGameRepository } from "@/lib/repositories";
+import { CategoryScoreEntry } from "./CategoryScoreEntry";
 import { EndedGame } from "./EndedGame";
+import { FinalScoreTable } from "./FinalScoreTable";
 import { LiveEndPrompt } from "./LiveEndPrompt";
+import { RankingReveal } from "./RankingReveal";
 import { ScorePanel } from "./ScorePanel";
 import { TurnFlow } from "./turn-flow";
+
+/** The computed outcome of a category-scored game, driving the reveal + table. */
+interface CategoryResult {
+  values: Record<string, Record<string, number>>;
+  ranking: Ranked[];
+}
 
 const DEFAULT_DURATION_S = 60;
 
 export function PlayScreen({ gameId }: { gameId: GameId }) {
   const repo = getGameRepository();
+  const router = useRouter();
   const [game, setGame] = useState<PopulatedGame | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +46,10 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   const [busy, setBusy] = useState(false);
   const [scoreOpen, setScoreOpen] = useState(false);
   const [endOpen, setEndOpen] = useState(false);
+  // Category scoring: the end sheet modal, then the reveal → table phases.
+  const [catOpen, setCatOpen] = useState(false);
+  const [phase, setPhase] = useState<"play" | "reveal" | "table">("play");
+  const [result, setResult] = useState<CategoryResult | null>(null);
   // Live running scores, seeded once from the loaded game then owned here so
   // they survive turn reloads and feed both the score panel and the end prompt.
   const [scores, setScores] = useState<Record<string, number> | null>(null);
@@ -158,6 +179,49 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
     }
   }
 
+  // Category scoring: sum each player's sheet into a total, rank them, persist
+  // the end (winner + totals + per-category breakdown), then run the reveal.
+  async function handleCategoryFinish(
+    values: Record<string, Record<string, number>>,
+  ) {
+    const sheet = game?.boardgame.scoring?.sheet;
+    if (!game || !sheet || busy) {
+      return;
+    }
+
+    const scored = scoreCategories(
+      sheet,
+      values,
+      game.players.map(p => p.playerId),
+    );
+    const ranking = rankByTotal(
+      game.players.map(p => ({
+        playerId: p.playerId,
+        total: scored[p.playerId]?.total ?? 0,
+      })),
+    );
+    const scores = game.players.map(p => ({
+      playerId: p.playerId,
+      score: scored[p.playerId]?.total ?? 0,
+      breakdown: values[p.playerId] ?? {},
+    }));
+
+    setBusy(true);
+    try {
+      await repo.end(game.id, ranking[0].playerId, scores);
+    } catch {
+      setError("Impossible de terminer la partie.");
+      setBusy(false);
+
+      return;
+    }
+
+    setBusy(false);
+    setCatOpen(false);
+    setResult({ values, ranking });
+    setPhase("reveal");
+  }
+
   if (loading) {
     return <p className="text-sm text-zinc-500">Chargement…</p>;
   }
@@ -166,6 +230,33 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   }
   if (!game) {
     return <p className="text-sm text-zinc-500">Partie introuvable.</p>;
+  }
+
+  const namedPlayers = game.players.map(p => ({
+    id: p.playerId,
+    name: p.player.name,
+  }));
+
+  // Category flow takes over the screen: reveal the ranking, then the sheet.
+  if (phase === "reveal" && result) {
+    return (
+      <RankingReveal
+        ranking={result.ranking}
+        players={namedPlayers}
+        onDone={() => setPhase("table")}
+      />
+    );
+  }
+  if (phase === "table" && result) {
+    return (
+      <FinalScoreTable
+        sheet={game.boardgame.scoring?.sheet ?? []}
+        players={namedPlayers}
+        values={result.values}
+        ranking={result.ranking}
+        onDone={() => router.push("/games")}
+      />
+    );
   }
 
   if (game.status === "ended") {
@@ -228,12 +319,35 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
       ) : null}
 
       {game.boardgame.scoring?.timing === "final" ? (
-        <ScoreEntry
-          players={game.players.map(p => p.player)}
-          winCondition={game.boardgame.scoring.winCondition}
-          onEnd={handleEnd}
-          disabled={busy}
-        />
+        game.boardgame.scoring.entry === "categories" &&
+        game.boardgame.scoring.sheet ? (
+          <>
+            <button
+              type="button"
+              onClick={() => setCatOpen(true)}
+              disabled={busy}
+              className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-black transition hover:bg-amber-300 disabled:opacity-60"
+            >
+              Compter les points
+            </button>
+            {catOpen ? (
+              <CategoryScoreEntry
+                players={namedPlayers}
+                sheet={game.boardgame.scoring.sheet}
+                onSubmit={handleCategoryFinish}
+                onCancel={() => setCatOpen(false)}
+                disabled={busy}
+              />
+            ) : null}
+          </>
+        ) : (
+          <ScoreEntry
+            players={game.players.map(p => p.player)}
+            winCondition={game.boardgame.scoring.winCondition}
+            onEnd={handleEnd}
+            disabled={busy}
+          />
+        )
       ) : (
         <WinnerPicker
           players={game.players.map(p => p.player)}

@@ -173,6 +173,7 @@ export type Database = {
           is_winner: boolean
           player_id: string
           score: number | null
+          score_breakdown: Json | null
           seat_order: number
         }
         Insert: {
@@ -180,6 +181,7 @@ export type Database = {
           is_winner?: boolean
           player_id: string
           score?: number | null
+          score_breakdown?: Json | null
           seat_order: number
         }
         Update: {
@@ -187,6 +189,7 @@ export type Database = {
           is_winner?: boolean
           player_id?: string
           score?: number | null
+          score_breakdown?: Json | null
           seat_order?: number
         }
         Relationships: [

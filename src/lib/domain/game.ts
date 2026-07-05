@@ -51,6 +51,11 @@ export interface GamePlayer {
   isWinner: boolean;
   /** Final score, once entered (null for unscored games or before entry). */
   score: number | null;
+  /**
+   * For category-scored games, the per-category points entered at the end
+   * (category key → points), summed into `score`. Null otherwise.
+   */
+  scoreBreakdown: Record<string, number> | null;
 }
 
 /**

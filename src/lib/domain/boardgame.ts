@@ -18,16 +18,50 @@ export type WinCondition =
   | { type: "lowest" }
   | { type: "threshold"; field: string };
 
+/** One scored line on a final scoresheet (e.g. an animal in Cascadia). */
+export interface CategoryDef {
+  key: string;
+  label: string;
+  /**
+   * Optional identifying colours (hex), shown as a dot next to the label. One
+   * colour → a solid dot; several → an evenly split dot (e.g. Cascadia's
+   * two-tone biomes).
+   */
+  colors?: string[];
+}
+
+/** A titled group of scored lines (e.g. "Animaux"), for the final scoresheet. */
+export interface CategorySubsection {
+  label: string;
+  categories: CategoryDef[];
+  /**
+   * When set, each line in this subsection is *ranked* across players and the
+   * leaders earn placement points on top of what was entered (e.g. Cascadia's
+   * biomes). The array is the award per place, best first — `[3, 1]` means 3 to
+   * the 1st, 1 to the 2nd, nothing lower. Ties split the awards of the places
+   * they occupy, floored (see {@link rankBonusFor}).
+   */
+  rankBonus?: number[];
+}
+
+/**
+ * One item of a category scoresheet, self-describing by shape:
+ * - `{ label, categories }` → a titled **subsection** of lines.
+ * - `{ label, key }` → a **standalone** scored line (e.g. Cascadia's pine cones).
+ */
+export type ScoreSheetItem = CategorySubsection | CategoryDef;
+
 /**
  * How a boardgame is scored — inherent to the game, authored per boardgame.
  * `null` on the boardgame means the game isn't scored (pick the winner by hand).
  * `timing`: `live` = a running score during play (auto-ends when a threshold is
- * reached) ; `final` = one total entered per player at the end. `entry` is
- * `total` for now (multi-`categories` later).
+ * reached) ; `final` = entered at the end. `entry`: `total` = one total per
+ * player ; `categories` = a per-category scoresheet summed into the total (the
+ * `sheet` describes it).
  */
 export interface ScoringSpec {
   timing: "final" | "live";
-  entry: "total";
+  entry: "total" | "categories";
   winCondition: WinCondition;
   /**
    * Whether a score can go below zero. Defaults to `false` (positive-only, e.g.
@@ -35,6 +69,8 @@ export interface ScoringSpec {
    * running total can be negative (some card games).
    */
   allowNegative?: boolean;
+  /** The scoresheet, present when `entry` is `categories`. */
+  sheet?: ScoreSheetItem[];
 }
 
 export interface Boardgame {
