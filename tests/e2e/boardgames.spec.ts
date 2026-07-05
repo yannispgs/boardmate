@@ -26,14 +26,18 @@ test("creates, edits and deletes a boardgame", async ({ page }) => {
   await page.getByLabel("Conseillé min").fill("3");
   await page.getByLabel("Conseillé max").fill("4");
   await page.getByLabel("Durée moyenne (min)").fill("45");
+  await page.getByLabel("Nombre de tours (vide = illimité)").fill("20");
   await page.getByLabel("Tags (séparés par des virgules)").fill("famille, dés");
   await page.getByRole("button", { name: "Ajouter" }).click();
 
   await expect(page.getByText(name, { exact: true })).toBeVisible();
 
-  // Edit → rename.
+  // Edit → the round limit round-trips into the form → rename.
   await page.getByRole("button", { name: `Modifier ${name}` }).click();
   await expect(page.getByText("Modifier le jeu")).toBeVisible();
+  await expect(
+    page.getByLabel("Nombre de tours (vide = illimité)"),
+  ).toHaveValue("20");
   await page.getByLabel("Nom du jeu").fill(renamed);
   await page.getByRole("button", { name: "Enregistrer" }).click();
 
