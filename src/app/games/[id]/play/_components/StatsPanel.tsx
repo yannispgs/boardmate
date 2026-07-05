@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { Modal } from "@/components/Modal";
 import type { GamePlayer, GameTurn, Player } from "@/lib/domain";
 import { formatDuration } from "@/lib/game/format-time";
 import { computeGameStats } from "@/lib/game/stats";
@@ -68,75 +69,66 @@ export function StatsPanel({
       </button>
 
       {open ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Statistiques en direct"
-          className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4"
-          onClick={() => setOpen(false)}
+        <Modal
+          onClose={() => setOpen(false)}
+          label="Statistiques en direct"
+          className="flex max-h-[85lvh] w-full max-w-sm flex-col rounded-xl border border-black/10 bg-white shadow-xl dark:border-white/10 dark:bg-zinc-900"
         >
-          {/* Clicking the backdrop closes it; clicks inside the card don't. */}
-          <div
-            className="flex max-h-[85lvh] w-full max-w-sm flex-col rounded-xl border border-black/10 bg-white shadow-xl dark:border-white/10 dark:bg-zinc-900"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-black/10 p-4 dark:border-white/10">
-              <h2 className="text-base font-semibold">Stats en direct</h2>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                aria-label="Fermer"
-                className="rounded-lg border border-black/10 px-3 py-1 text-sm transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
-              >
-                Fermer
-              </button>
-            </div>
-
-            <div className="flex flex-col gap-4 overflow-y-auto p-4">
-              {stats.turnCount === 0 ? (
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                  Les statistiques s&apos;afficheront après le premier tour
-                  joué.
-                </p>
-              ) : (
-                <>
-                  {hog ? (
-                    <div className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-3 text-sm">
-                      <span aria-hidden>⏱️</span>
-                      <span>
-                        <span className="font-semibold">{hog.name}</span>{" "}
-                        monopolise le temps ({Math.round(hog.sharePct)} %)
-                      </span>
-                    </div>
-                  ) : null}
-
-                  <div className="grid grid-cols-3 gap-2">
-                    <StatTile
-                      label="Temps de jeu"
-                      value={formatDuration(stats.activeTotalS)}
-                      accent
-                    />
-                    <StatTile label="Tours" value={String(stats.rounds)} />
-                    <StatTile
-                      label="Tour moyen"
-                      value={formatDuration(stats.avgRoundS)}
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-3">
-                    <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-                      Répartition du temps — du plus rapide au plus lent
-                    </h3>
-                    <PlayerStatCardList
-                      players={stats.players}
-                      scaleS={stats.longestTurn?.durationS ?? 0}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
+          <div className="flex items-center justify-between border-b border-black/10 p-4 dark:border-white/10">
+            <h2 className="text-base font-semibold">Stats en direct</h2>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="Fermer"
+              className="rounded-lg border border-black/10 px-3 py-1 text-sm transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+            >
+              Fermer
+            </button>
           </div>
-        </div>
+
+          <div className="flex flex-col gap-4 overflow-y-auto p-4">
+            {stats.turnCount === 0 ? (
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                Les statistiques s&apos;afficheront après le premier tour joué.
+              </p>
+            ) : (
+              <>
+                {hog ? (
+                  <div className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-3 text-sm">
+                    <span aria-hidden>⏱️</span>
+                    <span>
+                      <span className="font-semibold">{hog.name}</span>{" "}
+                      monopolise le temps ({Math.round(hog.sharePct)} %)
+                    </span>
+                  </div>
+                ) : null}
+
+                <div className="grid grid-cols-3 gap-2">
+                  <StatTile
+                    label="Temps de jeu"
+                    value={formatDuration(stats.activeTotalS)}
+                    accent
+                  />
+                  <StatTile label="Tours" value={String(stats.rounds)} />
+                  <StatTile
+                    label="Tour moyen"
+                    value={formatDuration(stats.avgRoundS)}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                    Répartition du temps — du plus rapide au plus lent
+                  </h3>
+                  <PlayerStatCardList
+                    players={stats.players}
+                    scaleS={stats.longestTurn?.durationS ?? 0}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        </Modal>
       ) : null}
     </>
   );
