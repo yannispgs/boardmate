@@ -15,7 +15,7 @@ const LABEL_COL = "7rem";
 const PLAYER_COL = "4.25rem";
 
 const inputClass =
-  "w-11 rounded-md border border-black/15 bg-white px-1 py-1 text-right tabular-nums outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900";
+  "no-spinners w-11 rounded-md border border-black/15 bg-white px-1 py-1 text-right tabular-nums outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900";
 
 /**
  * End-of-game category scoresheet as a double-entry grid — categories down the
