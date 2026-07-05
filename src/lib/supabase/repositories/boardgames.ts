@@ -13,7 +13,7 @@ import type {
   BoardgameRepository,
   Unsubscribe,
 } from "@/lib/repositories/types";
-import type { Database } from "@/lib/supabase/database.types";
+import type { Database, Json } from "@/lib/supabase/database.types";
 import { FK_VIOLATION } from "@/lib/supabase/repositories/pg-error-codes";
 
 type BoardgameRow = Database["public"]["Tables"]["boardgames"]["Row"];
@@ -76,6 +76,9 @@ function toRow(input: NewBoardgame | BoardgameUpdate): BoardgameWrite {
   }
   if (input.tags !== undefined) {
     row.tags = input.tags;
+  }
+  if (input.scoring !== undefined) {
+    row.scoring = input.scoring as unknown as Json;
   }
   return row;
 }

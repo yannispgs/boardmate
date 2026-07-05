@@ -10,7 +10,13 @@ import {
 
 import { UploadIcon } from "@/components/icons";
 import { useConfirm } from "@/components/use-confirm";
-import type { Boardgame, BoardgameId, NewBoardgame } from "@/lib/domain";
+import type {
+  Boardgame,
+  BoardgameId,
+  NewBoardgame,
+  ScoringSpec,
+  WinCondition,
+} from "@/lib/domain";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { BoardgameInUseError } from "@/lib/repositories/errors";
 import { BoardgameCardList } from "./BoardgameCardList";
@@ -23,6 +29,13 @@ interface FormState {
   recMaxPlayers: string;
   avgDurationMin: string;
   tags: string;
+  // Scoring "type" only — the category sheet (for final tallies) stays authored
+  // as data and is preserved untouched on save.
+  scored: boolean;
+  scoreTiming: "final" | "live";
+  winKind: WinCondition["type"];
+  thresholdField: string;
+  allowNegative: boolean;
 }
 
 const EMPTY: FormState = {
@@ -33,9 +46,16 @@ const EMPTY: FormState = {
   recMaxPlayers: "",
   avgDurationMin: "",
   tags: "",
+  scored: false,
+  scoreTiming: "final",
+  winKind: "highest",
+  thresholdField: "",
+  allowNegative: false,
 };
 
 function fromBoardgame(b: Boardgame): FormState {
+  const s = b.scoring;
+
   return {
     name: b.name,
     minPlayers: b.minPlayers?.toString() ?? "",
@@ -44,6 +64,41 @@ function fromBoardgame(b: Boardgame): FormState {
     recMaxPlayers: b.recMaxPlayers?.toString() ?? "",
     avgDurationMin: b.avgDurationMin?.toString() ?? "",
     tags: b.tags.join(", "),
+    scored: s !== null,
+    scoreTiming: s?.timing ?? "final",
+    winKind: s?.winCondition.type ?? "highest",
+    thresholdField:
+      s?.winCondition.type === "threshold" ? s.winCondition.field : "",
+    allowNegative: s?.allowNegative ?? false,
+  };
+}
+
+/**
+ * Builds the scoring spec from the form's "type" fields, preserving the existing
+ * `entry` and category `sheet` (not editable here) so a category game keeps them.
+ */
+function formToScoring(
+  form: FormState,
+  preserved: ScoringSpec | null,
+): ScoringSpec | null {
+  if (!form.scored) {
+    return null;
+  }
+
+  const winCondition: WinCondition =
+    form.winKind === "threshold"
+      ? {
+          type: "threshold",
+          field: form.thresholdField.trim() || "pointsToWin",
+        }
+      : { type: form.winKind };
+
+  return {
+    timing: form.scoreTiming,
+    entry: preserved?.entry ?? "total",
+    winCondition,
+    allowNegative: form.allowNegative,
+    ...(preserved?.sheet ? { sheet: preserved.sheet } : {}),
   };
 }
 
@@ -56,7 +111,11 @@ const toNum = (s: string): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
-function toInput(form: FormState, logoUrl: string | null): NewBoardgame {
+function toInput(
+  form: FormState,
+  logoUrl: string | null,
+  scoring: ScoringSpec | null,
+): NewBoardgame {
   return {
     name: form.name.trim(),
     logoUrl,
@@ -69,6 +128,7 @@ function toInput(form: FormState, logoUrl: string | null): NewBoardgame {
       .split(",")
       .map(t => t.trim())
       .filter(Boolean),
+    scoring,
   };
 }
 
@@ -435,7 +495,8 @@ function BoardgameForm({
         }
       }
       // On success the parent unmounts this form; no need to reset state.
-      await onSubmit(toInput(form, resolvedLogo), initial?.id ?? null);
+      const scoring = formToScoring(form, initial?.scoring ?? null);
+      await onSubmit(toInput(form, resolvedLogo, scoring), initial?.id ?? null);
     } catch {
       setFormError(
         editing ? "Modification impossible." : "Ajout impossible. Réessaie.",
@@ -523,6 +584,96 @@ function BoardgameForm({
           />
         </label>
       </div>
+
+      <fieldset className="flex flex-col gap-2 rounded-lg border border-black/10 p-3 dark:border-white/10">
+        <legend className="px-1 text-xs text-zinc-500">Score</legend>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={form.scored}
+            onChange={e => setForm({ ...form, scored: e.target.checked })}
+          />
+          Ce jeu se joue avec des points
+        </label>
+
+        {form.scored ? (
+          <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="flex flex-col gap-1 text-xs text-zinc-500">
+                Comptage
+                <select
+                  value={form.scoreTiming}
+                  onChange={e =>
+                    setForm({
+                      ...form,
+                      scoreTiming: e.target.value as FormState["scoreTiming"],
+                    })
+                  }
+                  className={field}
+                >
+                  <option value="final">À la fin de la partie</option>
+                  <option value="live">En direct (pendant la partie)</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-xs text-zinc-500">
+                Condition de victoire
+                <select
+                  value={form.winKind}
+                  onChange={e =>
+                    setForm({
+                      ...form,
+                      winKind: e.target.value as FormState["winKind"],
+                    })
+                  }
+                  className={field}
+                >
+                  <option value="highest">Le plus de points gagne</option>
+                  <option value="lowest">Le moins de points gagne</option>
+                  <option value="threshold">
+                    Atteindre un objectif de points
+                  </option>
+                </select>
+              </label>
+            </div>
+
+            {form.winKind === "threshold" ? (
+              <label className="flex flex-col gap-1 text-xs text-zinc-500">
+                Champ de configuration de l&apos;objectif
+                <input
+                  value={form.thresholdField}
+                  onChange={e =>
+                    setForm({ ...form, thresholdField: e.target.value })
+                  }
+                  placeholder="pointsToWin"
+                  className={field}
+                />
+                <span className="text-[11px] text-zinc-400">
+                  Clé du champ de config fixant le nombre de points à atteindre
+                  (par défaut : pointsToWin).
+                </span>
+              </label>
+            ) : null}
+
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={form.allowNegative}
+                onChange={e =>
+                  setForm({ ...form, allowNegative: e.target.checked })
+                }
+              />
+              Les scores peuvent être négatifs
+            </label>
+
+            {initial?.scoring?.entry === "categories" ? (
+              <p className="text-xs text-zinc-500">
+                Ce jeu utilise un décompte par catégories (défini dans les
+                données) — non modifiable ici pour l&apos;instant.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+      </fieldset>
 
       <LogoPicker
         logoUrl={logoUrl}
