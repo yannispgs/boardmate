@@ -186,13 +186,20 @@ describe("games adapter — listing & ending", () => {
     });
     expect(populated?.winThreshold).toBe(10);
 
-    // Live scoring: setScore updates a player's running total.
-    await repo().setScore(game.id, playerIds[1], 10);
-    await repo().setScore(game.id, playerIds[0], 7);
+    // Live scoring: setScore updates a player's running total and logs history,
+    // tagged with the tour it happened in.
+    await repo().setScore(game.id, playerIds[1], 10, 3);
+    await repo().setScore(game.id, playerIds[0], 7, 4);
     populated = await repo().getPopulated(game.id);
     expect(
       populated?.players.find(p => p.playerId === playerIds[1])?.score,
     ).toBe(10);
+    // Each change is recorded for the evolution chart, with its tour.
+    expect(populated?.scoreEvents).toHaveLength(2);
+    expect(populated?.scoreEvents.map(e => e.score).sort()).toEqual(
+      [10, 7].sort(),
+    );
+    expect(populated?.scoreEvents.map(e => e.round).sort()).toEqual([3, 4]);
 
     await repo().end(game.id, playerIds[1]); // scores already persisted
 

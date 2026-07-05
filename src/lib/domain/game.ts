@@ -76,10 +76,22 @@ export interface GameTurn {
   overtimeS: number;
 }
 
+/** One recorded score change (live scoring), for the evolution timeline. */
+export interface ScoreEvent {
+  playerId: PlayerId;
+  score: number;
+  /** The tour (round) the change happened in. */
+  round: number;
+  /** ISO 8601 timestamp. */
+  at: string;
+}
+
 /** A game with its related entities resolved, for the play / detail screen. */
 export interface PopulatedGame extends Game {
   boardgame: Boardgame;
   config: Config | null;
+  /** Score changes over the game, oldest first (empty for unscored games). */
+  scoreEvents: ScoreEvent[];
   /**
    * The score target to win, resolved from the boardgame's `threshold` win
    * condition and this game's config (value, else the config template default).

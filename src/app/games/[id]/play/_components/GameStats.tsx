@@ -1,9 +1,11 @@
 import type { PopulatedGame } from "@/lib/domain";
 
 import { formatDuration } from "@/lib/game/format-time";
+import { buildScoreSeries } from "@/lib/game/score-series";
 import { computeGameStats } from "@/lib/game/stats";
 
 import { PlayerStatCardList } from "./PlayerStatCardList";
+import { ScoreChart } from "./ScoreChart";
 import { StatTile } from "./StatTile";
 
 /**
@@ -16,6 +18,16 @@ export function GameStats({ game }: { game: PopulatedGame }) {
     players: game.players,
     turns: game.turns,
   });
+
+  const scorePlayers = game.players.map(p => ({
+    id: p.playerId,
+    name: p.player.name,
+  }));
+  const scoreCurve = buildScoreSeries(
+    game.scoreEvents,
+    scorePlayers.map(p => p.id),
+    stats.rounds,
+  );
 
   const tiles: { label: string; value: string; accent?: boolean }[] = [
     {
@@ -116,6 +128,21 @@ export function GameStats({ game }: { game: PopulatedGame }) {
         <p className="text-center text-sm text-zinc-400 dark:text-zinc-500">
           Aucune pause durant la partie.
         </p>
+      ) : null}
+
+      {game.scoreEvents.length > 0 ? (
+        <div className="flex flex-col gap-3">
+          <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+            Évolution du score
+          </h3>
+          <ScoreChart
+            series={scoreCurve.series}
+            maxScore={scoreCurve.maxScore}
+            threshold={game.winThreshold}
+            rounds={stats.rounds}
+            players={scorePlayers}
+          />
+        </div>
       ) : null}
 
       {stats.turnCount > 0 ? (

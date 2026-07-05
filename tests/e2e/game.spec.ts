@@ -70,6 +70,8 @@ test("plays a full game from the funnel to the winner", {
     ).toBeVisible();
     await expect(page.getByText(`Bravo ${players[0]}`)).toBeVisible();
     await expect(page.getByText("avec 10 points")).toBeVisible();
+    // The score history (10 increments) drives the evolution chart in the stats.
+    await expect(page.getByText("Évolution du score")).toBeVisible();
 
     // The finished-games list shows the winner and, for a scored game, their
     // score.
