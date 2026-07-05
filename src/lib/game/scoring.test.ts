@@ -6,8 +6,10 @@ import {
   categoryTotal,
   isSubsection,
   leaderByScore,
+  rankBonusFor,
   rankByTotal,
   reachedThreshold,
+  scoreCategories,
   sheetCategories,
   winnerDirection,
   winThresholdFrom,
@@ -165,5 +167,84 @@ describe("rankByTotal", () => {
 
   it("returns an empty ranking for no players", () => {
     expect(rankByTotal([])).toEqual([]);
+  });
+});
+
+describe("rankBonusFor", () => {
+  const awards = [3, 1]; // 1st: 3, 2nd: 1
+
+  it("awards the leaders by placement", () => {
+    // one clear 1st (5), one clear 2nd (3), one 3rd (1), one absent (0)
+    expect(rankBonusFor([5, 3, 1, 0], awards)).toEqual([3, 1, 0, 0]);
+  });
+
+  it("splits a tie for 1st across the top two places, floored", () => {
+    // (3 + 1) / 2 = 2 each; the rest get nothing
+    expect(rankBonusFor([5, 5, 2], awards)).toEqual([2, 2, 0]);
+  });
+
+  it("splits a tie for 2nd, flooring to zero while 1st keeps the win", () => {
+    // leader 3; the pair share ⌊(1 + 0) / 2⌋ = 0
+    expect(rankBonusFor([5, 3, 3], awards)).toEqual([3, 0, 0]);
+  });
+
+  it("ignores players with nothing there (value ≤ 0), even when all are zero", () => {
+    expect(rankBonusFor([0, 0, 0], awards)).toEqual([0, 0, 0]);
+    expect(rankBonusFor([4, 0], awards)).toEqual([3, 0]);
+  });
+});
+
+describe("scoreCategories", () => {
+  const sheet: ScoreSheetItem[] = [
+    {
+      label: "Animaux",
+      categories: [{ key: "ours", label: "Ours" }],
+    },
+    {
+      label: "Biomes",
+      rankBonus: [3, 1],
+      categories: [
+        { key: "foret", label: "Forêt" },
+        { key: "riviere", label: "Rivière" },
+      ],
+    },
+    { label: "Pommes de pin", key: "pommesDePin" },
+  ];
+
+  it("adds each ranked line's placement bonus on top of the entered points", () => {
+    const scores = scoreCategories(
+      sheet,
+      {
+        a: { ours: 4, foret: 5, riviere: 2, pommesDePin: 3 },
+        b: { ours: 1, foret: 2, riviere: 6, pommesDePin: 1 },
+      },
+      [p("a"), p("b")],
+    );
+
+    // a raw = 4+5+2+3 = 14; wins forêt (+3), loses rivière (+1) → bonus 4 → 18
+    expect(scores.a).toEqual({ raw: 14, bonus: 4, total: 18 });
+    // b raw = 1+2+6+1 = 10; loses forêt (+1), wins rivière (+3) → bonus 4 → 14
+    expect(scores.b).toEqual({ raw: 10, bonus: 4, total: 14 });
+  });
+
+  it("leaves non-ranked subsections without any bonus", () => {
+    const noBonusSheet: ScoreSheetItem[] = [
+      { label: "Animaux", categories: [{ key: "ours", label: "Ours" }] },
+    ];
+    const scores = scoreCategories(noBonusSheet, { a: { ours: 7 } }, [p("a")]);
+
+    expect(scores.a).toEqual({ raw: 7, bonus: 0, total: 7 });
+  });
+
+  it("treats a player absent from the values as all zeros", () => {
+    // "b" has no entry at all, and "a" only filled forêt.
+    const scores = scoreCategories(sheet, { a: { foret: 5 } }, [
+      p("a"),
+      p("b"),
+    ]);
+
+    // forêt: a (5) is alone eligible → +3; rivière: nobody → no bonus.
+    expect(scores.a).toEqual({ raw: 5, bonus: 3, total: 8 });
+    expect(scores.b).toEqual({ raw: 0, bonus: 0, total: 0 });
   });
 });

@@ -3,7 +3,7 @@
 import { Fragment } from "react";
 
 import type { PlayerId, ScoreSheetItem } from "@/lib/domain";
-import { categoryTotal, isSubsection, type Ranked } from "@/lib/game/scoring";
+import { isSubsection, type Ranked, scoreCategories } from "@/lib/game/scoring";
 
 /**
  * The filled scoresheet after the reveal: every category per player, grouped as
@@ -26,6 +26,14 @@ export function FinalScoreTable({
   const rankOf = (id: PlayerId) => ranking.find(r => r.playerId === id);
   const cell = "px-2 py-1 text-right tabular-nums";
   const rowLabel = "px-2 py-1 text-left font-normal";
+
+  const scored = scoreCategories(
+    sheet,
+    values,
+    players.map(p => p.id),
+  );
+  // Show a placement-bonus line only when the sheet actually awards one.
+  const hasBonus = players.some(p => (scored[p.id]?.bonus ?? 0) !== 0);
 
   function line(key: string, label: string) {
     return (
@@ -78,13 +86,26 @@ export function FinalScoreTable({
               ),
             )}
 
+            {hasBonus ? (
+              <tr className="border-t border-black/10 text-indigo-600 dark:border-white/10 dark:text-indigo-400">
+                <th scope="row" className={rowLabel}>
+                  Bonus classement
+                </th>
+                {players.map(p => (
+                  <td key={p.id} className={cell}>
+                    +{scored[p.id]?.bonus ?? 0}
+                  </td>
+                ))}
+              </tr>
+            ) : null}
+
             <tr className="border-t-2 border-black/20 font-semibold dark:border-white/20">
               <th scope="row" className="px-2 py-1 text-left">
                 Total
               </th>
               {players.map(p => (
                 <td key={p.id} className={cell}>
-                  {categoryTotal(sheet, values[p.id] ?? {})}
+                  {scored[p.id]?.total ?? 0}
                 </td>
               ))}
             </tr>

@@ -3,16 +3,30 @@
 import { useState } from "react";
 
 import type { PlayerId, ScoreSheetItem } from "@/lib/domain";
-import { isSubsection, sheetCategories } from "@/lib/game/scoring";
+import {
+  isSubsection,
+  rankBonusFor,
+  sheetCategories,
+} from "@/lib/game/scoring";
+
+// Fixed columns so every framed section lines up under the same player columns
+// and the whole sheet scrolls sideways as one block on a narrow phone.
+const LABEL_COL = "7rem";
+const PLAYER_COL = "4.25rem";
 
 const inputClass =
-  "w-16 rounded-lg border border-black/15 bg-white px-2 py-1 text-right tabular-nums outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900";
+  "w-11 rounded-md border border-black/15 bg-white px-1 py-1 text-right tabular-nums outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900";
 
 /**
- * End-of-game category scoresheet, filled one player at a time (mobile-friendly
- * vs a wide grid). The sheet's subsections and standalone lines come from the
- * boardgame's scoring. No total is shown during entry — the suspense is kept
- * until "Total final" computes everything.
+ * End-of-game category scoresheet as a double-entry grid — categories down the
+ * left, players across the top — mirroring the game's paper score pad. Each
+ * subsection is framed so you can see where a category starts and ends.
+ *
+ * Ranked subsections (a biome in Cascadia) show a live placement bonus glued to
+ * the right of each cell as `/N` (the paper sheet's diagonally split cell): it
+ * stays `/0` until every player's value for that line is in, then it's computed
+ * from everyone's scores and re-computed on any later edit. The grand total
+ * stays hidden until "Total final" to keep the suspense for the reveal.
  */
 export function CategoryScoreEntry({
   players,
@@ -27,10 +41,9 @@ export function CategoryScoreEntry({
   onCancel: () => void;
   disabled: boolean;
 }) {
-  const [current, setCurrent] = useState<PlayerId>(players[0].id);
   const [raw, setRaw] = useState<Record<string, Record<string, string>>>({});
 
-  const categories = sheetCategories(sheet);
+  const gridCols = `${LABEL_COL} repeat(${players.length}, ${PLAYER_COL})`;
 
   function setCell(playerId: PlayerId, key: string, text: string) {
     setRaw(r => ({
@@ -39,27 +52,42 @@ export function CategoryScoreEntry({
     }));
   }
 
-  function filledCount(playerId: PlayerId): number {
-    return categories.filter(c => (raw[playerId]?.[c.key] ?? "") !== "").length;
+  // Live placement bonus for one ranked line: 0 for everyone until the whole
+  // row is filled, then computed from all players' values.
+  function bonusFor(key: string, awards: number[]): Record<string, number> {
+    const texts = players.map(pl => raw[pl.id]?.[key] ?? "");
+    const complete = texts.every(t => t.trim() !== "");
+    const bonuses = complete
+      ? rankBonusFor(
+          texts.map(t => Number.parseInt(t, 10) || 0),
+          awards,
+        )
+      : players.map(() => 0);
+
+    return Object.fromEntries(players.map((pl, i) => [pl.id, bonuses[i]]));
   }
 
   function submit() {
+    const categories = sheetCategories(sheet);
     const values: Record<string, Record<string, number>> = {};
-    for (const p of players) {
+
+    for (const pl of players) {
       const per: Record<string, number> = {};
+
       for (const cat of categories) {
-        const text = raw[p.id]?.[cat.key] ?? "";
+        const text = raw[pl.id]?.[cat.key] ?? "";
         const n = Number.parseInt(text, 10);
+
         if (text !== "" && Number.isFinite(n)) {
           per[cat.key] = n;
         }
       }
-      values[p.id] = per;
+
+      values[pl.id] = per;
     }
+
     onSubmit(values);
   }
-
-  const currentName = players.find(p => p.id === current)?.name ?? "";
 
   return (
     <div
@@ -68,70 +96,75 @@ export function CategoryScoreEntry({
       aria-label="Comptage des points"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
     >
-      <div className="flex max-h-[90lvh] w-full max-w-sm flex-col rounded-xl border border-black/10 bg-white shadow-xl dark:border-white/10 dark:bg-zinc-900">
+      <div className="flex max-h-[90lvh] w-full max-w-md flex-col rounded-xl border border-black/10 bg-white shadow-xl dark:border-white/10 dark:bg-zinc-900">
         <div className="flex items-center justify-between border-b border-black/10 p-4 dark:border-white/10">
           <h2 className="text-base font-semibold">Comptage des points</h2>
           <button
             type="button"
             onClick={onCancel}
-            aria-label="Fermer"
             className="rounded-lg border border-black/10 px-3 py-1 text-sm transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
           >
             Fermer
           </button>
         </div>
 
-        {/* Whose sheet you're filling; the count nudges you to complete each. */}
-        <div className="flex flex-wrap gap-1.5 border-b border-black/10 p-3 dark:border-white/10">
-          {players.map(p => {
-            const active = p.id === current;
+        <div className="overflow-auto p-3">
+          <div className="w-max min-w-full">
+            {/* Sticky player header, aligned to the same columns as every box. */}
+            <div
+              className="sticky top-0 z-10 mb-1 grid items-end gap-y-1 bg-white pb-2 dark:bg-zinc-900"
+              style={{ gridTemplateColumns: gridCols }}
+            >
+              <span />
+              {players.map(pl => (
+                <span
+                  key={pl.id}
+                  title={pl.name}
+                  className="truncate px-1 text-right text-xs font-semibold"
+                >
+                  {pl.name}
+                </span>
+              ))}
+            </div>
 
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setCurrent(p.id)}
-                className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
-                  active
-                    ? "border-indigo-500 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
-                    : "border-black/10 text-zinc-500 dark:border-white/10"
-                }`}
-              >
-                {p.name} ({filledCount(p.id)}/{categories.length})
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="flex flex-col gap-4 overflow-y-auto p-4">
-          {sheet.map(item =>
-            isSubsection(item) ? (
-              <fieldset key={item.label} className="flex flex-col gap-2">
-                <legend className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">
-                  {item.label}
-                </legend>
-                {item.categories.map(cat => (
-                  <CategoryRow
-                    key={cat.key}
-                    label={cat.label}
-                    playerName={currentName}
-                    value={raw[current]?.[cat.key] ?? ""}
-                    onChange={t => setCell(current, cat.key, t)}
-                    disabled={disabled}
-                  />
-                ))}
-              </fieldset>
-            ) : (
-              <CategoryRow
-                key={item.key}
-                label={item.label}
-                playerName={currentName}
-                value={raw[current]?.[item.key] ?? ""}
-                onChange={t => setCell(current, item.key, t)}
-                disabled={disabled}
-              />
-            ),
-          )}
+            <div className="flex flex-col gap-3">
+              {sheet.map(item =>
+                isSubsection(item) ? (
+                  <Section
+                    key={item.label}
+                    label={item.label}
+                    gridCols={gridCols}
+                  >
+                    {item.categories.map(cat => (
+                      <Row
+                        key={cat.key}
+                        label={cat.label}
+                        players={players}
+                        value={pid => raw[pid]?.[cat.key] ?? ""}
+                        onChange={(pid, t) => setCell(pid, cat.key, t)}
+                        bonus={
+                          item.rankBonus
+                            ? bonusFor(cat.key, item.rankBonus)
+                            : undefined
+                        }
+                        disabled={disabled}
+                      />
+                    ))}
+                  </Section>
+                ) : (
+                  <Section key={item.key} gridCols={gridCols}>
+                    <Row
+                      label={item.label}
+                      players={players}
+                      value={pid => raw[pid]?.[item.key] ?? ""}
+                      onChange={(pid, t) => setCell(pid, item.key, t)}
+                      disabled={disabled}
+                    />
+                  </Section>
+                ),
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="border-t border-black/10 p-4 dark:border-white/10">
@@ -149,31 +182,72 @@ export function CategoryScoreEntry({
   );
 }
 
-function CategoryRow({
+/** A framed group of scored lines (or a single standalone line). */
+function Section({
   label,
-  playerName,
+  gridCols,
+  children,
+}: {
+  label?: string;
+  gridCols: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-lg border border-black/15 dark:border-white/15">
+      {label ? (
+        <div className="border-b border-black/10 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:border-white/10 dark:text-zinc-400">
+          {label}
+        </div>
+      ) : null}
+      <div
+        className="grid gap-y-1 p-1"
+        style={{ gridTemplateColumns: gridCols }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** One scored line: its label then a cell per player (with a `/N` bonus badge). */
+function Row({
+  label,
+  players,
   value,
   onChange,
+  bonus,
   disabled,
 }: {
   label: string;
-  playerName: string;
-  value: string;
-  onChange: (text: string) => void;
+  players: { id: PlayerId; name: string }[];
+  value: (playerId: PlayerId) => string;
+  onChange: (playerId: PlayerId, text: string) => void;
+  bonus?: Record<string, number>;
   disabled: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-2">
-      <span className="min-w-0 flex-1 truncate text-sm">{label}</span>
-      <input
-        type="number"
-        inputMode="numeric"
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        disabled={disabled}
-        aria-label={`${label} — ${playerName}`}
-        className={inputClass}
-      />
-    </div>
+    <>
+      <span title={label} className="min-w-0 self-center truncate px-1 text-sm">
+        {label}
+      </span>
+      {players.map(pl => (
+        <span key={pl.id} className="flex items-center justify-end">
+          <input
+            type="number"
+            inputMode="numeric"
+            value={value(pl.id)}
+            onChange={e => onChange(pl.id, e.target.value)}
+            disabled={disabled}
+            aria-label={`${label} — ${pl.name}`}
+            className={inputClass}
+          />
+          {bonus ? (
+            <span className="w-6 shrink-0 text-right text-xs tabular-nums text-indigo-600 dark:text-indigo-400">
+              /{bonus[pl.id] ?? 0}
+            </span>
+          ) : null}
+        </span>
+      ))}
+    </>
   );
 }

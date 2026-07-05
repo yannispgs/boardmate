@@ -28,6 +28,14 @@ export interface CategoryDef {
 export interface CategorySubsection {
   label: string;
   categories: CategoryDef[];
+  /**
+   * When set, each line in this subsection is *ranked* across players and the
+   * leaders earn placement points on top of what was entered (e.g. Cascadia's
+   * biomes). The array is the award per place, best first — `[3, 1]` means 3 to
+   * the 1st, 1 to the 2nd, nothing lower. Ties split the awards of the places
+   * they occupy, floored (see {@link rankBonusFor}).
+   */
+  rankBonus?: number[];
 }
 
 /**

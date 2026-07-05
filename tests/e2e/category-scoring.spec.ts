@@ -31,13 +31,12 @@ test("scores a category game and reveals the final ranking", async ({
     // Open the end-of-game scoresheet.
     await page.getByRole("button", { name: "Compter les points" }).click();
 
-    // Player 0 (selected by default): 10 + 15 = 25.
+    // Double-entry grid: fill both players' cells directly (columns, no tabs).
+    // Ours is a plain animal; Forêt is a ranked biome (1st: +3, 2nd: +1).
     await page.getByLabel(`Ours — ${players[0]}`).fill("10");
     await page.getByLabel(`Forêt — ${players[0]}`).fill("15");
-
-    // Switch to player 1 via their chip: 3.
-    await page.getByRole("button", { name: players[1] }).click();
     await page.getByLabel(`Ours — ${players[1]}`).fill("3");
+    await page.getByLabel(`Forêt — ${players[1]}`).fill("5");
 
     await page.getByRole("button", { name: "Total final" }).click();
 
@@ -46,9 +45,11 @@ test("scores a category game and reveals the final ranking", async ({
     await page.getByRole("button", { name: "Suivant" }).click();
     await page.getByRole("button", { name: "Voir les scores" }).click();
 
-    // The filled scoresheet shows the winning total.
+    // The scoresheet folds the biome placement bonus into each total:
+    // player 0 = 10 + 15 + 3 (wins forêt) = 28.
     await expect(page.getByText("Feuille de scores")).toBeVisible();
-    await expect(page.getByText("25", { exact: true })).toBeVisible();
+    await expect(page.getByText("Bonus classement")).toBeVisible();
+    await expect(page.getByText("28", { exact: true })).toBeVisible();
 
     await page.getByRole("button", { name: "Retour aux parties" }).click();
     await expect(page).toHaveURL(/\/games$/);

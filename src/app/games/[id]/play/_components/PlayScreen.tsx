@@ -11,10 +11,10 @@ import type {
 } from "@/lib/domain";
 import { countdownColor } from "@/lib/game/colors";
 import {
-  categoryTotal,
   leaderByScore,
   type Ranked,
   rankByTotal,
+  scoreCategories,
   winnerDirection,
 } from "@/lib/game/scoring";
 import { useTurnTimer } from "@/lib/hooks/use-turn-timer";
@@ -189,15 +189,20 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
       return;
     }
 
+    const scored = scoreCategories(
+      sheet,
+      values,
+      game.players.map(p => p.playerId),
+    );
     const ranking = rankByTotal(
       game.players.map(p => ({
         playerId: p.playerId,
-        total: categoryTotal(sheet, values[p.playerId] ?? {}),
+        total: scored[p.playerId]?.total ?? 0,
       })),
     );
     const scores = game.players.map(p => ({
       playerId: p.playerId,
-      score: categoryTotal(sheet, values[p.playerId] ?? {}),
+      score: scored[p.playerId]?.total ?? 0,
       breakdown: values[p.playerId] ?? {},
     }));
 

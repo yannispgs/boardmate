@@ -32,6 +32,99 @@ export function categoryTotal(
   );
 }
 
+/**
+ * Placement points for one ranked line (e.g. a Cascadia biome), from each
+ * player's entered value. Players are ranked highest first; a group of tied
+ * players occupies consecutive places and each member gets the *floored average*
+ * of those places' awards. `awards` is best-first (`[3, 1]` = 3 to 1st, 1 to
+ * 2nd). A player with nothing there (value ≤ 0) is ineligible and earns 0.
+ *
+ * Returns the bonus per player, in the same order as `values`. Examples with
+ * `[3, 1]`: two players tied 1st → `(3 + 1) / 2 = 2` each; one leader then two
+ * tied 2nd → 3 for the leader, `⌊1 / 2⌋ = 0` for the pair.
+ */
+export function rankBonusFor(values: number[], awards: number[]): number[] {
+  const bonus = new Array<number>(values.length).fill(0);
+  const eligible = values
+    .map((v, i) => ({ v, i }))
+    .filter(e => e.v > 0)
+    .sort((a, b) => b.v - a.v);
+
+  let place = 0; // 0-based place cursor among the eligible players
+
+  for (let k = 0; k < eligible.length; ) {
+    let j = k;
+    while (j < eligible.length && eligible[j].v === eligible[k].v) {
+      j++;
+    }
+
+    const size = j - k;
+    let sum = 0;
+    for (let p = place; p < place + size; p++) {
+      sum += awards[p] ?? 0;
+    }
+
+    const share = Math.floor(sum / size);
+    for (let m = k; m < j; m++) {
+      bonus[eligible[m].i] = share;
+    }
+
+    place += size;
+    k = j;
+  }
+
+  return bonus;
+}
+
+/** A player's category score split into entered points, ranking bonus and total. */
+export interface CategoryScore {
+  /** Sum of the values entered across every category. */
+  raw: number;
+  /** Placement points earned across the ranked subsections. */
+  bonus: number;
+  /** `raw + bonus` — what the player is ranked on. */
+  total: number;
+}
+
+/**
+ * Scores every player from the filled scoresheet: the entered points plus the
+ * ranking bonus of each `rankBonus` subsection (ranked line by line across all
+ * players). Keyed by player id.
+ */
+export function scoreCategories(
+  sheet: ScoreSheetItem[],
+  valuesByPlayer: Record<string, Record<string, number>>,
+  playerIds: PlayerId[],
+): Record<string, CategoryScore> {
+  const result: Record<string, CategoryScore> = {};
+
+  for (const id of playerIds) {
+    const raw = categoryTotal(sheet, valuesByPlayer[id] ?? {});
+    result[id] = { raw, bonus: 0, total: raw };
+  }
+
+  for (const item of sheet) {
+    if (!isSubsection(item) || !item.rankBonus) {
+      continue;
+    }
+
+    for (const cat of item.categories) {
+      const values = playerIds.map(id => valuesByPlayer[id]?.[cat.key] ?? 0);
+      const bonuses = rankBonusFor(values, item.rankBonus);
+
+      playerIds.forEach((id, idx) => {
+        result[id].bonus += bonuses[idx];
+      });
+    }
+  }
+
+  for (const id of playerIds) {
+    result[id].total = result[id].raw + result[id].bonus;
+  }
+
+  return result;
+}
+
 /** A player's final standing: their total and 1-based rank (ties share a rank). */
 export interface Ranked {
   playerId: PlayerId;
