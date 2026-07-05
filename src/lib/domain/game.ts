@@ -1,5 +1,5 @@
 import type { Boardgame } from "./boardgame";
-import type { Config } from "./config";
+import type { Config, ConfigValues } from "./config";
 import type {
   BoardgameId,
   ConfigId,
@@ -15,6 +15,12 @@ export interface Game {
   id: GameId;
   boardgameId: BoardgameId;
   configId: ConfigId | null;
+  /**
+   * Snapshot of the effective config values confirmed at launch (the recap can
+   * tweak them for one game). Null when launched without any tweak-time
+   * snapshot; then `config` values / template defaults apply.
+   */
+  configValues: ConfigValues | null;
   status: GameStatus;
   round: number;
   turn: number;
@@ -111,6 +117,12 @@ export interface PopulatedGame extends Game {
 export interface NewGame {
   boardgameId: BoardgameId;
   configId: ConfigId | null;
+  /**
+   * Effective config values for this game, as confirmed at the launch recap
+   * (the selected config's values, possibly tweaked). Omit / null to launch
+   * without a snapshot.
+   */
+  configValues?: ConfigValues | null;
   /** Ordered: index = seat order / turn order. */
   playerIds: PlayerId[];
 }

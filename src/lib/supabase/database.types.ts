@@ -267,6 +267,7 @@ export type Database = {
         Row: {
           boardgame_id: string
           config_id: string | null
+          config_values: Json | null
           current_player_id: string | null
           ended_at: string | null
           id: string
@@ -278,6 +279,7 @@ export type Database = {
         Insert: {
           boardgame_id: string
           config_id?: string | null
+          config_values?: Json | null
           current_player_id?: string | null
           ended_at?: string | null
           id?: string
@@ -289,6 +291,7 @@ export type Database = {
         Update: {
           boardgame_id?: string
           config_id?: string | null
+          config_values?: Json | null
           current_player_id?: string | null
           ended_at?: string | null
           id?: string

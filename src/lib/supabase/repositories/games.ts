@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   BoardgameId,
   ConfigId,
+  ConfigValues,
   FieldSpec,
   Game,
   GameId,
@@ -35,6 +36,7 @@ function toGame(row: GameRow): Game {
     id: row.id as GameId,
     boardgameId: row.boardgame_id as BoardgameId,
     configId: (row.config_id as ConfigId | null) ?? null,
+    configValues: (row.config_values as ConfigValues | null) ?? null,
     status: row.status as GameStatus,
     round: row.round,
     turn: row.turn,
@@ -173,10 +175,14 @@ export function createGameRepository(
       const config = row.config ? toConfig(row.config) : null;
       const templateFields = (row.boardgame.config_templates?.fields ??
         []) as unknown as FieldSpec[];
+      // The game's own snapshot (tweaked at the recap) wins over the source
+      // config's values, which win over the template default.
+      const effectiveValues =
+        (row.config_values as ConfigValues | null) ?? config?.values ?? null;
       const winThreshold = boardgame.scoring
         ? winThresholdFrom(
             boardgame.scoring.winCondition,
-            config?.values ?? null,
+            effectiveValues,
             templateFields,
           )
         : null;
@@ -211,6 +217,7 @@ export function createGameRepository(
         .insert({
           boardgame_id: input.boardgameId,
           config_id: input.configId,
+          config_values: (input.configValues ?? null) as Json,
           current_player_id: input.playerIds[0] ?? null,
           round: 1,
           turn: 1,

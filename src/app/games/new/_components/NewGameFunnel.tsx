@@ -1,9 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import type { Boardgame, ConfigId, PlayerId } from "@/lib/domain";
+import { ConfigField } from "@/components/ConfigField";
+import { useConfirm } from "@/components/use-confirm";
+import { buildDefaults, validateConfigValues } from "@/lib/config/validation";
+import type {
+  Boardgame,
+  Config,
+  ConfigValues,
+  Player,
+  PlayerId,
+} from "@/lib/domain";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useConfigs } from "@/lib/hooks/use-configs";
 import { useGames } from "@/lib/hooks/use-games";
@@ -18,22 +27,25 @@ export function NewGameFunnel() {
   const { createGame } = useGames();
 
   const [boardgame, setBoardgame] = useState<Boardgame | null>(null);
-  const [configId, setConfigId] = useState<ConfigId | null>(null);
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [config, setConfig] = useState<Config | null>(null);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function launch(playerIds: PlayerId[]) {
+  async function launch(configValues: ConfigValues | null) {
     if (!boardgame) {
       return;
     }
+
     setCreating(true);
     setError(null);
     try {
       const game = await createGame({
         boardgameId: boardgame.id,
-        configId,
-        playerIds,
+        configId: config?.id ?? null,
+        configValues,
+        playerIds: players.map(p => p.id),
       });
       router.push(`/games/${game.id}/play`);
     } catch {
@@ -60,7 +72,8 @@ export function NewGameFunnel() {
                   className={`${tileClass} w-full`}
                   onClick={() => {
                     setBoardgame(b);
-                    setConfigId(null);
+                    setConfig(null);
+                    setPlayers([]);
                     setStep(2);
                   }}
                 >
@@ -79,8 +92,8 @@ export function NewGameFunnel() {
       <ConfigStep
         boardgameId={boardgame.id}
         onBack={() => setStep(1)}
-        onPick={cid => {
-          setConfigId(cid);
+        onPick={cfg => {
+          setConfig(cfg);
           setStep(3);
         }}
       />
@@ -92,10 +105,26 @@ export function NewGameFunnel() {
       <PlayersStep
         minPlayers={boardgame.minPlayers}
         maxPlayers={boardgame.maxPlayers}
+        initial={players}
+        onBack={() => setStep(2)}
+        onConfirm={picked => {
+          setPlayers(picked);
+          setStep(4);
+        }}
+      />
+    );
+  }
+
+  if (step === 4 && boardgame) {
+    return (
+      <RecapStep
+        boardgame={boardgame}
+        config={config}
+        players={players}
         creating={creating}
         error={error}
-        onBack={() => setStep(2)}
-        onConfirm={launch}
+        onBack={() => setStep(3)}
+        onLaunch={launch}
       />
     );
   }
@@ -139,7 +168,7 @@ function ConfigStep({
   onBack,
 }: {
   boardgameId: Boardgame["id"];
-  onPick: (configId: ConfigId | null) => void;
+  onPick: (config: Config | null) => void;
   onBack: () => void;
 }) {
   const { configs, loading } = useConfigs(boardgameId);
@@ -164,7 +193,7 @@ function ConfigStep({
               <button
                 type="button"
                 className={`${tileClass} w-full`}
-                onClick={() => onPick(c.id)}
+                onClick={() => onPick(c)}
               >
                 {c.name}
               </button>
@@ -179,20 +208,18 @@ function ConfigStep({
 function PlayersStep({
   minPlayers,
   maxPlayers,
-  creating,
-  error,
+  initial,
   onConfirm,
   onBack,
 }: {
   minPlayers: number | null;
   maxPlayers: number | null;
-  creating: boolean;
-  error: string | null;
-  onConfirm: (ids: PlayerId[]) => void;
+  initial: Player[];
+  onConfirm: (players: Player[]) => void;
   onBack: () => void;
 }) {
   const { players, loading } = usePlayers();
-  const [selected, setSelected] = useState<PlayerId[]>([]);
+  const [selected, setSelected] = useState<PlayerId[]>(initial.map(p => p.id));
 
   const active = players.filter(p => p.isActive);
 
@@ -204,7 +231,16 @@ function PlayersStep({
 
   const tooFew = minPlayers != null && selected.length < minPlayers;
   const tooMany = maxPlayers != null && selected.length > maxPlayers;
-  const canStart = selected.length >= 1 && !tooFew && !tooMany && !creating;
+  const canContinue = selected.length >= 1 && !tooFew && !tooMany;
+
+  function confirm() {
+    // Keep the click order → seat / turn order.
+    const ordered = selected
+      .map(id => active.find(p => p.id === id))
+      .filter((p): p is Player => p != null);
+
+    onConfirm(ordered);
+  }
 
   return (
     <Step title="3 · Choisis les joueurs (dans l’ordre de jeu)" onBack={onBack}>
@@ -219,6 +255,7 @@ function PlayersStep({
           {active.map(p => {
             const order = selected.indexOf(p.id);
             const picked = order !== -1;
+
             return (
               <li key={p.id}>
                 <button
@@ -252,20 +289,197 @@ function PlayersStep({
           Ce jeu se joue à {maxPlayers} joueurs max.
         </p>
       ) : null}
-      {error ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      ) : null}
 
       <button
         type="button"
-        disabled={!canStart}
-        onClick={() => onConfirm(selected)}
+        disabled={!canContinue}
+        onClick={confirm}
         className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
       >
-        {creating ? "Création…" : "Lancer la partie"}
+        Continuer →
       </button>
+    </Step>
+  );
+}
+
+function RecapStep({
+  boardgame,
+  config,
+  players,
+  creating,
+  error,
+  onBack,
+  onLaunch,
+}: {
+  boardgame: Boardgame;
+  config: Config | null;
+  players: Player[];
+  creating: boolean;
+  error: string | null;
+  onBack: () => void;
+  onLaunch: (values: ConfigValues | null) => void;
+}) {
+  const { template, loading } = useConfigs(boardgame.id);
+  const { requestConfirm, confirmDialog } = useConfirm();
+  const [values, setValues] = useState<ConfigValues | null>(null);
+  const [invalid, setInvalid] = useState<string | null>(null);
+
+  // Prefill the form from the selected config over the template defaults, so
+  // every attribute shows a value that can be tweaked for this game only.
+  useEffect(() => {
+    if (template) {
+      setValues({
+        ...buildDefaults(template.fields),
+        ...(config?.values ?? {}),
+      });
+    }
+  }, [template, config]);
+
+  const thresholdField =
+    boardgame.scoring?.winCondition.type === "threshold"
+      ? boardgame.scoring.winCondition.field
+      : null;
+  const thresholdSpec =
+    thresholdField != null
+      ? (template?.fields.find(f => f.key === thresholdField) ?? null)
+      : null;
+  const editableFields = (template?.fields ?? []).filter(
+    f => f.key !== thresholdField,
+  );
+
+  function setField(key: string, value: unknown) {
+    setValues(prev => ({ ...(prev ?? {}), [key]: value }));
+  }
+
+  function handleLaunch() {
+    // No template → nothing to snapshot; launch straight from the confirmation.
+    if (!template) {
+      requestConfirm({
+        message: "Tout est prêt ? La partie va démarrer.",
+        confirmLabel: "Lancer",
+        onConfirm: () => onLaunch(null),
+      });
+
+      return;
+    }
+
+    const parsed = validateConfigValues(template.fields, values ?? {});
+    if (!parsed.success) {
+      setInvalid("Vérifie les attributs de la partie avant de lancer.");
+
+      return;
+    }
+
+    setInvalid(null);
+    requestConfirm({
+      message: "Tout est prêt ? La partie va démarrer.",
+      confirmLabel: "Lancer",
+      onConfirm: () => onLaunch(parsed.data),
+    });
+  }
+
+  const targetValue =
+    thresholdField != null && typeof values?.[thresholdField] === "number"
+      ? (values[thresholdField] as number)
+      : "";
+
+  return (
+    <Step title="4 · Vérifie et lance la partie" onBack={onBack}>
+      {loading ? (
+        <p className="text-sm text-zinc-500">Chargement…</p>
+      ) : (
+        <>
+          <dl className="flex flex-col gap-2 rounded-xl border border-black/10 bg-black/[0.02] p-4 text-sm dark:border-white/10 dark:bg-white/[0.02]">
+            <div className="flex justify-between gap-3">
+              <dt className="text-zinc-500 dark:text-zinc-400">Jeu</dt>
+              <dd className="font-medium">{boardgame.name}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-zinc-500 dark:text-zinc-400">
+                Configuration
+              </dt>
+              <dd className="font-medium">
+                {config ? config.name : "Configuration par défaut"}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-zinc-500 dark:text-zinc-400">Joueurs</dt>
+              <dd className="text-right font-medium">
+                {players.map((p, i) => `${i + 1}. ${p.name}`).join(" · ")}
+              </dd>
+            </div>
+          </dl>
+
+          {editableFields.length > 0 ? (
+            <div className="flex flex-col gap-3">
+              <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                Attributs de la partie
+              </h3>
+              {editableFields.map(field => (
+                <ConfigField
+                  key={field.key}
+                  field={field}
+                  value={values?.[field.key]}
+                  onChange={v => setField(field.key, v)}
+                />
+              ))}
+            </div>
+          ) : null}
+
+          {thresholdField != null && thresholdSpec ? (
+            <div className="flex flex-col gap-1 rounded-xl border border-indigo-500/40 bg-indigo-500/[0.06] p-4">
+              <label
+                htmlFor="win-threshold"
+                className="flex items-center gap-2 font-medium"
+              >
+                <span aria-hidden>🎯</span>
+                Score à atteindre pour gagner
+              </label>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                Indicatif — ajuste-le selon votre partie (extensions,
+                scénario…).
+              </p>
+              <input
+                id="win-threshold"
+                type="number"
+                inputMode="numeric"
+                step={1}
+                min={"min" in thresholdSpec ? thresholdSpec.min : undefined}
+                max={"max" in thresholdSpec ? thresholdSpec.max : undefined}
+                value={targetValue}
+                onChange={e =>
+                  setField(
+                    thresholdField,
+                    e.target.value === "" ? undefined : Number(e.target.value),
+                  )
+                }
+                className="mt-1 w-28 rounded-lg border border-black/15 bg-white px-3 py-2 text-lg font-semibold tabular-nums outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900"
+              />
+            </div>
+          ) : null}
+
+          {invalid ? (
+            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+              {invalid}
+            </p>
+          ) : null}
+          {error ? (
+            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+              {error}
+            </p>
+          ) : null}
+
+          <button
+            type="button"
+            disabled={creating}
+            onClick={handleLaunch}
+            className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
+          >
+            {creating ? "Création…" : "Lancer la partie"}
+          </button>
+          {confirmDialog}
+        </>
+      )}
     </Step>
   );
 }

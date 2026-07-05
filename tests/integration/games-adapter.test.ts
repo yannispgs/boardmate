@@ -72,6 +72,40 @@ describe("games adapter — creation & population", () => {
     expect(game.turn).toBe(1);
     expect(game.currentPlayerId).toBe(playerIds[0]);
     expect(game.endedAt).toBeNull();
+    // No recap snapshot was passed → the column stays null.
+    expect(game.configValues).toBeNull();
+  });
+
+  it("snapshots recap-tweaked config values and resolves the threshold from them", async () => {
+    // The launch recap can tweak the score-to-reach for one game only, with no
+    // source config: the snapshot (8) overrides the template default (10).
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId: null,
+      configValues: { pointsToWin: 8 },
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    expect(game.configValues).toEqual({ pointsToWin: 8 });
+
+    const populated = await repo().getPopulated(game.id);
+    expect(populated?.configValues).toEqual({ pointsToWin: 8 });
+    expect(populated?.winThreshold).toBe(8);
+  });
+
+  it("the snapshot overrides the source config's value for the threshold", async () => {
+    // configId's config has pointsToWin 10; the recap raised it to 15 here.
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId,
+      configValues: { pointsToWin: 15 },
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    const populated = await repo().getPopulated(game.id);
+    expect(populated?.winThreshold).toBe(15);
   });
 
   it("resolves related entities and seat order in getPopulated", async () => {
