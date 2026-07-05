@@ -34,6 +34,7 @@ export default defineConfig({
         "src/lib/supabase/client.ts",
         "src/lib/supabase/server.ts",
         "src/lib/supabase/proxy.ts",
+        "src/lib/supabase/cookie-options.ts",
         "src/lib/env.ts",
         "src/lib/repositories/index.ts",
       ],

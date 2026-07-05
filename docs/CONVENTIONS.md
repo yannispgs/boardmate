@@ -152,6 +152,14 @@ otherwise. **Updated on every remark from the project owner.**
   and aliases it to that name, so reviewers never hunt for a random hash URL.
   Needs the `VERCEL_API_TOKEN` repo secret. Previews run against the **dev**
   Supabase backend (Preview env); production (`main`) uses the prod backend.
+- **Shared preview session**: set `NEXT_PUBLIC_COOKIE_DOMAIN=.board-mate.app`
+  on the Vercel **Preview** environment (only) so the Supabase auth cookie is
+  scoped to the parent domain — one login is then shared across every
+  `pr-<n>.board-mate.app` preview instead of re-authenticating on each. Leave it
+  **unset** for production and locally (host-only cookies). Safe: dev and prod
+  are different Supabase projects, so their cookie names differ
+  (`sb-<ref>-auth-token`) and never collide. The value is read in
+  `src/lib/supabase/cookie-options.ts` and applied to all three SDK clients.
 
 ## 11. Testing
 
