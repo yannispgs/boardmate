@@ -40,8 +40,9 @@ test("scores a category game and reveals the final ranking", async ({
 
     await page.getByRole("button", { name: "Total final" }).click();
 
-    // Reveal starts on last place (player 1); one step reaches the winner.
+    // Reveal opens empty: "Afficher" shows last place, "Suivant" the winner.
     await expect(page.getByText("Classement final")).toBeVisible();
+    await page.getByRole("button", { name: "Afficher" }).click();
     await page.getByRole("button", { name: "Suivant" }).click();
     await page.getByRole("button", { name: "Voir les scores" }).click();
 

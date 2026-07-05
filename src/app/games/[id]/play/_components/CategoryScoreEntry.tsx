@@ -110,21 +110,27 @@ export function CategoryScoreEntry({
 
         <div className="overflow-auto p-3">
           <div className="w-max min-w-full">
-            {/* Sticky player header, aligned to the same columns as every box. */}
-            <div
-              className="sticky top-0 z-10 mb-1 grid items-end gap-y-1 bg-white pb-2 dark:bg-zinc-900"
-              style={{ gridTemplateColumns: gridCols }}
-            >
-              <span />
-              {players.map(pl => (
-                <span
-                  key={pl.id}
-                  title={pl.name}
-                  className="truncate px-1 text-right text-xs font-semibold"
+            {/* Sticky player header. Wrapped in a transparent frame with the
+                same border + padding as a Section so its columns line up
+                exactly with the score cells below. */}
+            <div className="sticky top-0 z-10 mb-1 bg-white pb-1 dark:bg-zinc-900">
+              <div className="rounded-lg border border-transparent p-1">
+                <div
+                  className="grid items-end"
+                  style={{ gridTemplateColumns: gridCols }}
                 >
-                  {pl.name}
-                </span>
-              ))}
+                  <span />
+                  {players.map(pl => (
+                    <span
+                      key={pl.id}
+                      title={pl.name}
+                      className="truncate px-1 text-center text-xs font-semibold"
+                    >
+                      {pl.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div className="flex flex-col gap-3">
@@ -231,21 +237,26 @@ function Row({
         {label}
       </span>
       {players.map(pl => (
-        <span key={pl.id} className="flex items-center justify-end">
-          <input
-            type="number"
-            inputMode="numeric"
-            value={value(pl.id)}
-            onChange={e => onChange(pl.id, e.target.value)}
-            disabled={disabled}
-            aria-label={`${label} — ${pl.name}`}
-            className={inputClass}
-          />
-          {bonus ? (
-            <span className="w-6 shrink-0 text-right text-xs tabular-nums text-indigo-600 dark:text-indigo-400">
-              /{bonus[pl.id] ?? 0}
-            </span>
-          ) : null}
+        <span key={pl.id} className="flex items-center justify-center">
+          {/* The input stays centered in the column in every section so the
+              cells align; the bonus is pinned just off the input's right edge
+              (absolute, so it never shifts the input). */}
+          <span className="relative">
+            <input
+              type="number"
+              inputMode="numeric"
+              value={value(pl.id)}
+              onChange={e => onChange(pl.id, e.target.value)}
+              disabled={disabled}
+              aria-label={`${label} — ${pl.name}`}
+              className={inputClass}
+            />
+            {bonus ? (
+              <span className="-translate-y-1/2 absolute top-1/2 left-full ml-0.5 text-xs text-indigo-600 tabular-nums dark:text-indigo-400">
+                /{bonus[pl.id] ?? 0}
+              </span>
+            ) : null}
+          </span>
         </span>
       ))}
     </>
