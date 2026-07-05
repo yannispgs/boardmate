@@ -31,14 +31,37 @@ test("scores a category game and reveals the final ranking", async ({
     // Open the end-of-game scoresheet.
     await page.getByRole("button", { name: "Compter les points" }).click();
 
-    // Double-entry grid: fill both players' cells directly (columns, no tabs).
-    // Ours is a plain animal; Forêt is a ranked biome (1st: +3, 2nd: +1).
+    // "Total final" stays disabled until every cell holds a number.
+    const submit = page.getByRole("button", { name: "Total final" });
+    await expect(submit).toBeDisabled();
+
+    // Fill every category for both players (0 by default), then the meaningful
+    // ones. Ours is a plain animal; Forêt is a ranked biome (1st: +3, 2nd: +1).
+    const cats = [
+      "Ours",
+      "Buse",
+      "Renard",
+      "Wapiti",
+      "Saumon",
+      "Forêt",
+      "Montagne",
+      "Prairie",
+      "Marais",
+      "Rivière",
+      "Pommes de pin",
+    ];
+    for (const name of players) {
+      for (const cat of cats) {
+        await page.getByLabel(`${cat} — ${name}`).fill("0");
+      }
+    }
     await page.getByLabel(`Ours — ${players[0]}`).fill("10");
     await page.getByLabel(`Forêt — ${players[0]}`).fill("15");
     await page.getByLabel(`Ours — ${players[1]}`).fill("3");
     await page.getByLabel(`Forêt — ${players[1]}`).fill("5");
 
-    await page.getByRole("button", { name: "Total final" }).click();
+    await expect(submit).toBeEnabled();
+    await submit.click();
 
     // Reveal opens empty: "Afficher" shows last place, "Suivant" the winner.
     await expect(page.getByText("Classement final")).toBeVisible();

@@ -45,6 +45,19 @@ export function CategoryScoreEntry({
 
   const gridCols = `${LABEL_COL} repeat(${players.length}, ${PLAYER_COL})`;
 
+  // Every cell must hold a number before the sheet can be totalled — an empty
+  // cell means a score that was simply forgotten.
+  const categories = sheetCategories(sheet);
+  const remaining = players.reduce(
+    (n, pl) =>
+      n +
+      categories.filter(
+        c => !Number.isFinite(Number.parseInt(raw[pl.id]?.[c.key] ?? "", 10)),
+      ).length,
+    0,
+  );
+  const complete = remaining === 0;
+
   function setCell(playerId: PlayerId, key: string, text: string) {
     setRaw(r => ({
       ...r,
@@ -68,7 +81,6 @@ export function CategoryScoreEntry({
   }
 
   function submit() {
-    const categories = sheetCategories(sheet);
     const values: Record<string, Record<string, number>> = {};
 
     for (const pl of players) {
@@ -179,12 +191,17 @@ export function CategoryScoreEntry({
         <div className="border-t border-black/10 p-4 dark:border-white/10">
           <button
             type="button"
-            disabled={disabled}
+            disabled={disabled || !complete}
             onClick={submit}
             className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
           >
             Total final
           </button>
+          {complete ? null : (
+            <p className="mt-2 text-center text-xs text-zinc-500 dark:text-zinc-400">
+              Encore {remaining} case{remaining > 1 ? "s" : ""} à remplir
+            </p>
+          )}
         </div>
       </div>
     </div>
