@@ -119,7 +119,8 @@ export function CategoryScoreEntry({
                   className="grid items-end"
                   style={{ gridTemplateColumns: gridCols }}
                 >
-                  <span />
+                  {/* Fixed top-left corner above the pinned label column. */}
+                  <span className="sticky left-0 z-20 self-stretch bg-white dark:bg-zinc-900" />
                   {players.map(pl => (
                     <span
                       key={pl.id}
@@ -202,7 +203,8 @@ function Section({
     <div className="rounded-lg border border-black/15 dark:border-white/15">
       {label ? (
         <div className="border-b border-black/10 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:border-white/10 dark:text-zinc-400">
-          {label}
+          {/* Keep the section name in view while scrolling sideways. */}
+          <span className="sticky left-1 inline-block">{label}</span>
         </div>
       ) : null}
       <div
@@ -233,8 +235,13 @@ function Row({
 }) {
   return (
     <>
-      <span title={label} className="min-w-0 self-center truncate px-1 text-sm">
-        {label}
+      {/* The row label is pinned to the left so it stays readable when the
+          player columns scroll sideways on a narrow screen. */}
+      <span
+        title={label}
+        className="sticky left-0 z-10 flex items-center self-stretch border-black/10 border-r bg-white px-1 dark:border-white/10 dark:bg-zinc-900"
+      >
+        <span className="min-w-0 truncate text-sm">{label}</span>
       </span>
       {players.map(pl => (
         <span key={pl.id} className="flex items-center justify-center">
