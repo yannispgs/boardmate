@@ -88,7 +88,7 @@ test("shows live time stats once a turn has been played", async ({ page }) => {
   let gameId = "";
 
   try {
-    gameId = await startGame(page, players);
+    gameId = await funnelToPlay(page, players);
 
     const openStats = page.getByRole("button", {
       name: "Ouvrir les statistiques",
@@ -184,7 +184,7 @@ test("closes the score sheet when clicking outside it", async ({ page }) => {
   let gameId = "";
 
   try {
-    gameId = await startGame(page, players);
+    gameId = await funnelToPlay(page, players);
 
     await page.getByRole("button", { name: "Ouvrir les scores" }).click();
     const minus = page.getByRole("button", {
