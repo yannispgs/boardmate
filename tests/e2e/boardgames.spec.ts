@@ -80,6 +80,45 @@ test("edits a boardgame's scoring type", async ({ page }) => {
   }
 });
 
+test("builds a category scoresheet from the edit form", async ({ page }) => {
+  const name = `E2E Cat ${Date.now().toString(36)}`;
+
+  try {
+    await page.goto("/boardgames");
+    await page.getByRole("button", { name: "+ Ajouter un jeu" }).click();
+    await page.getByLabel("Nom du jeu").fill(name);
+
+    // Scored, tallied by categories: a section with a field + a standalone one.
+    await page.getByLabel("Ce jeu se joue avec des points").check();
+    await page.getByLabel("Décompte des points").selectOption("categories");
+
+    await page.getByRole("button", { name: "+ Section" }).click();
+    await page.getByPlaceholder("Nom de la section").fill("Animaux");
+    await page.getByRole("button", { name: "+ Champ dans la section" }).click();
+    await page.getByPlaceholder("Nom du champ").first().fill("Ours");
+
+    await page.getByRole("button", { name: "+ Champ", exact: true }).click();
+    await page.getByPlaceholder("Nom du champ").last().fill("Bonus");
+
+    await page.getByRole("button", { name: "Ajouter" }).click();
+    await expect(page.getByText(name, { exact: true })).toBeVisible();
+
+    // Re-open: the whole sheet round-trips into the editor.
+    await page.getByRole("button", { name: `Modifier ${name}` }).click();
+    await expect(page.getByLabel("Décompte des points")).toHaveValue(
+      "categories",
+    );
+    await expect(page.getByPlaceholder("Nom de la section")).toHaveValue(
+      "Animaux",
+    );
+    const fields = page.getByPlaceholder("Nom du champ");
+    await expect(fields.nth(0)).toHaveValue("Ours");
+    await expect(fields.nth(1)).toHaveValue("Bonus");
+  } finally {
+    await adminClient().from("boardgames").delete().eq("name", name);
+  }
+});
+
 test("deactivates then reactivates a boardgame", async ({ page }) => {
   const name = `E2E Off ${Date.now().toString(36)}`;
 

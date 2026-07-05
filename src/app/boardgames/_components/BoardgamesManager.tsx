@@ -14,12 +14,14 @@ import type {
   Boardgame,
   BoardgameId,
   NewBoardgame,
+  ScoreSheetItem,
   ScoringSpec,
   WinCondition,
 } from "@/lib/domain";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { BoardgameInUseError } from "@/lib/repositories/errors";
 import { BoardgameCardList } from "./BoardgameCardList";
+import { ScoreSheetEditor } from "./ScoreSheetEditor";
 
 interface FormState {
   name: string;
@@ -31,10 +33,11 @@ interface FormState {
   // Fixed number of rounds after which the game ends (empty = open-ended).
   roundLimit: string;
   tags: string;
-  // Scoring "type" only — the category sheet (for final tallies) stays authored
-  // as data and is preserved untouched on save.
   scored: boolean;
   scoreTiming: "final" | "live";
+  // "total" = one number per player; "categories" = a per-category scoresheet
+  // (edited via ScoreSheetEditor).
+  entry: "total" | "categories";
   winKind: WinCondition["type"];
   thresholdField: string;
   allowNegative: boolean;
@@ -51,6 +54,7 @@ const EMPTY: FormState = {
   tags: "",
   scored: false,
   scoreTiming: "final",
+  entry: "total",
   winKind: "highest",
   thresholdField: "",
   allowNegative: false,
@@ -70,6 +74,7 @@ function fromBoardgame(b: Boardgame): FormState {
     tags: b.tags.join(", "),
     scored: s !== null,
     scoreTiming: s?.timing ?? "final",
+    entry: s?.entry ?? "total",
     winKind: s?.winCondition.type ?? "highest",
     thresholdField:
       s?.winCondition.type === "threshold" ? s.winCondition.field : "",
@@ -78,12 +83,34 @@ function fromBoardgame(b: Boardgame): FormState {
 }
 
 /**
- * Builds the scoring spec from the form's "type" fields, preserving the existing
- * `entry` and category `sheet` (not editable here) so a category game keeps them.
+ * Trims labels and drops the leftovers of editing: fields with no label, and
+ * sections with no label or no usable fields. Keeps every field's key, colours
+ * and a section's ranking bonus intact.
  */
+function cleanSheet(sheet: ScoreSheetItem[]): ScoreSheetItem[] {
+  const clean: ScoreSheetItem[] = [];
+
+  for (const item of sheet) {
+    if ("categories" in item) {
+      const categories = item.categories
+        .map(c => ({ ...c, label: c.label.trim() }))
+        .filter(c => c.label !== "");
+
+      if (item.label.trim() !== "" && categories.length > 0) {
+        clean.push({ ...item, label: item.label.trim(), categories });
+      }
+    } else if (item.label.trim() !== "") {
+      clean.push({ ...item, label: item.label.trim() });
+    }
+  }
+
+  return clean;
+}
+
+/** Builds the scoring spec from the form's fields and the edited category sheet. */
 function formToScoring(
   form: FormState,
-  preserved: ScoringSpec | null,
+  sheet: ScoreSheetItem[],
 ): ScoringSpec | null {
   if (!form.scored) {
     return null;
@@ -97,12 +124,14 @@ function formToScoring(
         }
       : { type: form.winKind };
 
+  const categories = form.entry === "categories";
+
   return {
     timing: form.scoreTiming,
-    entry: preserved?.entry ?? "total",
+    entry: form.entry,
     winCondition,
     allowNegative: form.allowNegative,
-    ...(preserved?.sheet ? { sheet: preserved.sheet } : {}),
+    ...(categories ? { sheet: cleanSheet(sheet) } : {}),
   };
 }
 
@@ -400,6 +429,9 @@ function BoardgameForm({
   const [form, setForm] = useState<FormState>(
     initial ? fromBoardgame(initial) : EMPTY,
   );
+  const [sheet, setSheet] = useState<ScoreSheetItem[]>(
+    initial?.scoring?.sheet ?? [],
+  );
   const [logoUrl, setLogoUrl] = useState<string | null>(
     initial?.logoUrl ?? null,
   );
@@ -500,7 +532,7 @@ function BoardgameForm({
         }
       }
       // On success the parent unmounts this form; no need to reset state.
-      const scoring = formToScoring(form, initial?.scoring ?? null);
+      const scoring = formToScoring(form, sheet);
       await onSubmit(toInput(form, resolvedLogo, scoring), initial?.id ?? null);
     } catch {
       setFormError(
@@ -651,6 +683,23 @@ function BoardgameForm({
               </label>
             </div>
 
+            <label className="flex flex-col gap-1 text-xs text-zinc-500">
+              Décompte des points
+              <select
+                value={form.entry}
+                onChange={e =>
+                  setForm({
+                    ...form,
+                    entry: e.target.value as FormState["entry"],
+                  })
+                }
+                className={field}
+              >
+                <option value="total">Un total par joueur</option>
+                <option value="categories">Par catégories de points</option>
+              </select>
+            </label>
+
             {form.winKind === "threshold" ? (
               <label className="flex flex-col gap-1 text-xs text-zinc-500">
                 Champ de configuration de l&apos;objectif
@@ -680,11 +729,8 @@ function BoardgameForm({
               Les scores peuvent être négatifs
             </label>
 
-            {initial?.scoring?.entry === "categories" ? (
-              <p className="text-xs text-zinc-500">
-                Ce jeu utilise un décompte par catégories (défini dans les
-                données) — non modifiable ici pour l&apos;instant.
-              </p>
+            {form.entry === "categories" ? (
+              <ScoreSheetEditor value={sheet} onChange={setSheet} />
             ) : null}
           </div>
         ) : null}
