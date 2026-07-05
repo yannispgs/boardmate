@@ -72,16 +72,14 @@ export function StatsPanel({
           role="dialog"
           aria-modal="true"
           aria-label="Statistiques en direct"
-          className="fixed inset-0 z-40 flex items-center justify-center p-4"
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setOpen(false)}
         >
-          {/* A real button as the backdrop so clicking outside closes it. */}
-          <button
-            type="button"
-            aria-label="Fermer les statistiques"
-            onClick={() => setOpen(false)}
-            className="absolute inset-0 bg-black/50"
-          />
-          <div className="relative flex max-h-[85lvh] w-full max-w-sm flex-col rounded-xl border border-black/10 bg-white shadow-xl dark:border-white/10 dark:bg-zinc-900">
+          {/* Clicking the backdrop closes it; clicks inside the card don't. */}
+          <div
+            className="flex max-h-[85lvh] w-full max-w-sm flex-col rounded-xl border border-black/10 bg-white shadow-xl dark:border-white/10 dark:bg-zinc-900"
+            onClick={e => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-black/10 p-4 dark:border-white/10">
               <h2 className="text-base font-semibold">Stats en direct</h2>
               <button
