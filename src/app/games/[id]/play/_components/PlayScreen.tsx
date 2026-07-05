@@ -26,6 +26,7 @@ import { FinalScoreTable } from "./FinalScoreTable";
 import { LiveEndPrompt } from "./LiveEndPrompt";
 import { RankingReveal } from "./RankingReveal";
 import { ScorePanel } from "./ScorePanel";
+import { StatsPanel } from "./StatsPanel";
 import { TurnFlow } from "./turn-flow";
 
 /** The computed outcome of a category-scored game, driving the reveal + table. */
@@ -304,6 +305,8 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
       >
         Tour suivant →
       </button>
+
+      <StatsPanel players={game.players} turns={game.turns} />
 
       {game.boardgame.scoring?.timing === "live" ? (
         <ScorePanel

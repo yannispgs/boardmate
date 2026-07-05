@@ -52,9 +52,10 @@ export function ScorePanel({
           aria-hidden
         >
           <title>Scores</title>
-          <rect x="3" y="12" width="4" height="8" rx="1" />
-          <rect x="10" y="8" width="4" height="12" rx="1" />
-          <rect x="17" y="4" width="4" height="16" rx="1" />
+          {/* Podium (ranking): 2nd · 1st · 3rd, tallest in the middle. */}
+          <rect x="3" y="12" width="6" height="8" rx="1" />
+          <rect x="9" y="7" width="6" height="13" rx="1" />
+          <rect x="15" y="15" width="6" height="5" rx="1" />
         </svg>
         <span className="text-xs font-semibold tabular-nums leading-none">
           {threshold !== null ? `${topScore}/${threshold}` : topScore}
