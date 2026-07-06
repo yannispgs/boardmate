@@ -97,12 +97,21 @@ export interface ScoreEvent {
   at: string;
 }
 
+/** One recorded dice roll: the summed value, plus when (for the sequence). */
+export interface DiceRoll {
+  value: number;
+  /** ISO 8601 timestamp — rolls are ordered by this to form the sequence. */
+  at: string;
+}
+
 /** A game with its related entities resolved, for the play / detail screen. */
 export interface PopulatedGame extends Game {
   boardgame: Boardgame;
   config: Config | null;
   /** Score changes over the game, oldest first (empty for unscored games). */
   scoreEvents: ScoreEvent[];
+  /** Dice rolls recorded this game, oldest first (empty when not tracked). */
+  diceRolls: DiceRoll[];
   /**
    * The score target to win, resolved from the boardgame's `threshold` win
    * condition and this game's config (value, else the config template default).

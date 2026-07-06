@@ -10,6 +10,7 @@ import type {
   WinCondition,
 } from "@/lib/domain";
 import { countdownColor } from "@/lib/game/colors";
+import { diceStats, diceValues } from "@/lib/game/dice";
 import {
   leaderByScore,
   type Ranked,
@@ -23,6 +24,7 @@ import { useTurnTimer } from "@/lib/hooks/use-turn-timer";
 import { useWakeLock } from "@/lib/hooks/use-wake-lock";
 import { getGameRepository } from "@/lib/repositories";
 import { CategoryScoreEntry } from "./CategoryScoreEntry";
+import { DiceBar } from "./DiceBar";
 import { EndedGame } from "./EndedGame";
 import { FinalScoreTable } from "./FinalScoreTable";
 import { LiveEndPrompt } from "./LiveEndPrompt";
@@ -58,6 +60,9 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   const [scores, setScores] = useState<Record<string, number> | null>(null);
   // Transient "X is monopolising the time" banner.
   const [toast, setToast] = useState<string | null>(null);
+  // Dice roll log (values in order), owned locally so a tap shows instantly;
+  // each append also persists in the background.
+  const [rolls, setRolls] = useState<number[] | null>(null);
 
   const timer = useTurnTimer();
   // Keep the screen awake while a turn is actively running; let it sleep on
@@ -88,6 +93,14 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
       );
     }
   }, [game, scores]);
+
+  // Seed the dice log once (rolls only ever append, so the local copy stays
+  // authoritative across turn reloads).
+  useEffect(() => {
+    if (game && rolls === null) {
+      setRolls(game.diceRolls.map(d => d.value));
+    }
+  }, [game, rolls]);
 
   // Unlock audio on the first interaction with the play screen: mobile browsers
   // only let an AudioContext start from a user gesture. iOS in particular needs
@@ -206,6 +219,19 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
     }
   }
 
+  // Records one dice roll: append locally for instant feedback, persist in bg.
+  async function handleRoll(value: number) {
+    if (!game) {
+      return;
+    }
+    setRolls(r => [...(r ?? []), value]);
+    try {
+      await repo.addDiceRoll(game.id, value);
+    } catch {
+      setError("Impossible d'enregistrer le lancer.");
+    }
+  }
+
   // Category scoring: sum each player's sheet into a total, rank them, persist
   // the end (winner + totals + per-category breakdown), then run the reveal.
   async function handleCategoryFinish(
@@ -299,6 +325,14 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   const atFinalTurn = isFinalTurn(game.turn, game.players.length, roundLimit);
   const canEnd = roundLimit === null || atFinalTurn;
 
+  // Dice tracking (Catan): a one-tap histogram sharing the screen with a
+  // slimmed-down timer.
+  const dice = game.boardgame.dice;
+  const rollValues = rolls ?? [];
+  const diceRange = dice ? diceValues(dice) : [];
+  const dStats = dice ? diceStats(rollValues, diceRange) : {};
+  const lastRolled = rollValues.at(-1) ?? null;
+
   return (
     <div className="flex flex-col items-center gap-8">
       {toast ? (
@@ -322,6 +356,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         durationS={durationS}
         running={timer.running}
         onToggle={timer.toggle}
+        size={dice ? 168 : undefined}
       />
 
       <DurationEditor
@@ -329,6 +364,16 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         onChange={s => setDurationS(s)}
         onPause={timer.pause}
       />
+
+      {dice ? (
+        <DiceBar
+          values={diceRange}
+          stats={dStats}
+          lastRolled={lastRolled}
+          onRoll={handleRoll}
+          disabled={game.status !== "ongoing"}
+        />
+      ) : null}
 
       {error ? (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
@@ -351,7 +396,11 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         </button>
       )}
 
-      <StatsPanel players={game.players} turns={game.turns} />
+      <StatsPanel
+        players={game.players}
+        turns={game.turns}
+        dice={dice ? { rolls: rollValues, values: diceRange } : undefined}
+      />
 
       {game.boardgame.scoring?.timing === "live" ? (
         <ScorePanel
@@ -434,8 +483,6 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
 
 const RING_SIZE = 240;
 const RING_STROKE = 14;
-const RING_R = (RING_SIZE - RING_STROKE) / 2;
-const RING_C = 2 * Math.PI * RING_R;
 
 /** Neutral "on hold" colour (violet-500) the ring/readout adopt while paused. */
 const PAUSE_COLOR = "#8b5cf6";
@@ -483,12 +530,17 @@ function TimerRing({
   durationS,
   running,
   onToggle,
+  size = RING_SIZE,
 }: {
   remainingS: number;
   durationS: number;
   running: boolean;
   onToggle: () => void;
+  /** Outer diameter in px; smaller when the dice bar shares the screen. */
+  size?: number;
 }) {
+  const r = (size - RING_STROKE) / 2;
+  const c = 2 * Math.PI * r;
   const paused = !running;
   const overtime = remainingS < 0;
   // Running past zero → alarm: fill the ring and pulse it red (paused overtime
@@ -530,32 +582,28 @@ function TimerRing({
       aria-label={running ? "Mettre en pause" : "Reprendre"}
       className="relative"
     >
-      <svg
-        width={RING_SIZE}
-        height={RING_SIZE}
-        viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}
-      >
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <title>Chronomètre du tour</title>
         <circle
-          cx={RING_SIZE / 2}
-          cy={RING_SIZE / 2}
-          r={RING_R}
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
           fill="none"
           stroke="currentColor"
           strokeWidth={RING_STROKE}
           className="text-black/10 dark:text-white/10"
         />
         <circle
-          cx={RING_SIZE / 2}
-          cy={RING_SIZE / 2}
-          r={RING_R}
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
           fill="none"
           stroke={ringColor}
           strokeWidth={RING_STROKE}
           strokeLinecap="round"
-          strokeDasharray={RING_C}
-          strokeDashoffset={RING_C * (1 - progress)}
-          transform={`rotate(-90 ${RING_SIZE / 2} ${RING_SIZE / 2})`}
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - progress)}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
           className={alarming ? "animate-overtime-ring" : undefined}
           style={{
             transition: "stroke-dashoffset 0.3s linear, stroke 0.2s ease",
@@ -570,8 +618,8 @@ function TimerRing({
         style={{ opacity: paused ? 0.25 : 0 }}
       >
         <svg
-          width="168"
-          height="168"
+          width={size * 0.7}
+          height={size * 0.7}
           viewBox="0 0 24 24"
           fill={PAUSE_COLOR}
           aria-hidden

@@ -192,6 +192,24 @@ describe("games adapter — turn rotation & time logging", () => {
     const total = p?.turns.reduce((s, t) => s + t.durationS, 0);
     expect(total).toBe(47);
   });
+
+  it("logs dice rolls and returns them in draw order", async () => {
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    await repo().addDiceRoll(game.id, 7);
+    await repo().addDiceRoll(game.id, 11);
+    await repo().addDiceRoll(game.id, 7);
+
+    const p = await repo().getPopulated(game.id);
+
+    expect(p?.diceRolls.map(d => d.value)).toEqual([7, 11, 7]);
+    expect(p?.diceRolls.every(d => typeof d.at === "string")).toBe(true);
+  });
 });
 
 describe("games adapter — listing & ending", () => {

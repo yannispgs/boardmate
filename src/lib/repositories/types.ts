@@ -115,6 +115,8 @@ export interface GameRepository {
     score: number,
     round: number,
   ): Promise<void>;
+  /** Records one dice roll (the summed value) for the game's roll log. */
+  addDiceRoll(id: GameId, value: number): Promise<void>;
   /**
    * Ends the game, marks the winner, and (for scored games) records each
    * player's final score — plus, for category-scored games, the per-category

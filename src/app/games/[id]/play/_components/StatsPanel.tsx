@@ -6,6 +6,7 @@ import { Modal } from "@/components/Modal";
 import type { GamePlayer, GameTurn, Player } from "@/lib/domain";
 import { formatDuration } from "@/lib/game/format-time";
 import { computeGameStats, timeHog } from "@/lib/game/stats";
+import { DiceTimeline } from "./DiceTimeline";
 import { PlayerStatCardList } from "./PlayerStatCardList";
 import { StatTile } from "./StatTile";
 
@@ -13,18 +14,22 @@ import { StatTile } from "./StatTile";
  * Live time statistics during play, behind a side button (next to the scores
  * one). Reuses the end-of-game time breakdown — computed from the turns played
  * so far — so you can see who's taking the most time mid-game, and a callout
- * flags anyone monopolising the table's time.
+ * flags anyone monopolising the table's time. For dice games it also charts the
+ * rolls in draw order.
  */
 export function StatsPanel({
   players,
   turns,
+  dice,
 }: {
   players: Array<GamePlayer & { player: Player }>;
   turns: GameTurn[];
+  dice?: { rolls: number[]; values: number[] };
 }) {
   const [open, setOpen] = useState(false);
   const stats = computeGameStats({ players, turns });
   const hog = timeHog(stats.players);
+  const hasRolls = (dice?.rolls.length ?? 0) > 0;
 
   return (
     <>
@@ -70,10 +75,22 @@ export function StatsPanel({
           </div>
 
           <div className="flex flex-col gap-4 overflow-y-auto p-4">
+            {dice && dice.rolls.length > 0 ? (
+              <div className="flex flex-col gap-3">
+                <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                  Tirages de dés — dans l&apos;ordre
+                </h3>
+                <DiceTimeline rolls={dice.rolls} values={dice.values} />
+              </div>
+            ) : null}
+
             {stats.turnCount === 0 ? (
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                Les statistiques s&apos;afficheront après le premier tour joué.
-              </p>
+              hasRolls ? null : (
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                  Les statistiques s&apos;afficheront après le premier tour
+                  joué.
+                </p>
+              )
             ) : (
               <>
                 {hog ? (
