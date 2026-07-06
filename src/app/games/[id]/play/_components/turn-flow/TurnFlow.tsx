@@ -4,6 +4,7 @@ import { useMemo } from "react";
 
 import type { PlayerId } from "@/lib/domain";
 
+import { EndCap } from "./EndCap";
 import { buildItems, layoutRound, PAD_LEFT, SVG_H } from "./geometry";
 import { RoundBar } from "./RoundBar";
 import { Tag } from "./Tag";
@@ -24,10 +25,13 @@ export function TurnFlow({
   players,
   currentPlayerId,
   round,
+  roundLimit,
 }: {
   players: { id: PlayerId; name: string }[];
   currentPlayerId: PlayerId | null;
   round: number;
+  /** Fixed game length in rounds, or null for an open-ended game. */
+  roundLimit: number | null;
 }) {
   const n = players.length;
   const layout = useMemo(() => layoutRound(players), [players]);
@@ -37,10 +41,12 @@ export function TurnFlow({
     players.findIndex(p => p.id === currentPlayerId),
   );
   const current = (round - 1) * n + curSeat; // global turn index
+  // 0-based index of the game's very last turn (last seat of the last round).
+  const lastTurn = roundLimit !== null ? roundLimit * n - 1 : null;
 
   const items = useMemo(
-    () => buildItems(players, current, layout),
-    [players, current, layout],
+    () => buildItems(players, current, layout, lastTurn),
+    [players, current, layout, lastTurn],
   );
 
   if (n === 0) {
@@ -71,18 +77,24 @@ export function TurnFlow({
         className="absolute top-0 transition-[left] duration-500 ease-[cubic-bezier(.4,0,.2,1)]"
         style={{ height: SVG_H, left: -scrollX }}
       >
-        {items.map(item =>
-          item.kind === "bar" ? (
-            <RoundBar
-              key={`bar-${item.round}`}
-              round={item.round}
-              left={item.left}
-              faded={item.faded}
-            />
-          ) : (
-            <Tag key={`turn-${item.turn}`} item={item} />
-          ),
-        )}
+        {items.map(item => {
+          if (item.kind === "bar") {
+            return (
+              <RoundBar
+                key={`bar-${item.round}`}
+                round={item.round}
+                left={item.left}
+                faded={item.faded}
+              />
+            );
+          }
+
+          if (item.kind === "end") {
+            return <EndCap key="end" left={item.left} />;
+          }
+
+          return <Tag key={`turn-${item.turn}`} item={item} />;
+        })}
       </div>
 
       {/* Edge fades as overlays (not a CSS mask, which flickers to black over a

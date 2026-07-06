@@ -67,6 +67,10 @@ test("ends automatically after the last round, then scores", async ({
     await expect(
       page.getByRole("button", { name: "Tour suivant →" }),
     ).toHaveCount(0);
+    // The turn ribbon stops here: an end flag caps it after the last player.
+    await expect(
+      page.getByRole("img", { name: "Fin de la partie" }),
+    ).toBeVisible();
 
     await page.getByRole("button", { name: "Compter les points" }).click();
     await page.getByLabel(`Points — ${players[0]}`).fill("5");

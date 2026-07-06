@@ -285,6 +285,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         players={game.players.map(p => p.player)}
         currentPlayerId={game.currentPlayerId}
         round={game.round}
+        roundLimit={roundLimit}
       />
 
       <TimerRing
