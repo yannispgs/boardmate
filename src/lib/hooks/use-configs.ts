@@ -61,9 +61,9 @@ export function useConfigs(boardgameId: BoardgameId): UseConfigs {
           setError("Impossible de charger le modèle.");
         }
       });
-    void refresh();
+    refresh();
     const unsubscribe = repo.subscribe(() => {
-      void refresh();
+      refresh();
     });
     return () => {
       active = false;

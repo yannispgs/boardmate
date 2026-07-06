@@ -18,7 +18,10 @@ function timeHog(
     return null;
   }
 
-  const top = played.reduce((a, b) => (b.sharePct > a.sharePct ? b : a));
+  const top = played.reduce(
+    (a, b) => (b.sharePct > a.sharePct ? b : a),
+    played[0],
+  );
   const equalShare = 100 / players.length;
   // Clearly above an even split → worth calling out.
   return top.sharePct > equalShare * 1.6

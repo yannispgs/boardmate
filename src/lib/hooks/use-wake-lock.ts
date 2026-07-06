@@ -31,17 +31,17 @@ export function useWakeLock(active: boolean) {
 
     const onVisibility = () => {
       if (!cancelled && document.visibilityState === "visible") {
-        void acquire();
+        acquire();
       }
     };
 
-    void acquire();
+    acquire();
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       cancelled = true;
       document.removeEventListener("visibilitychange", onVisibility);
-      void sentinel?.release();
+      sentinel?.release();
     };
   }, [active]);
 }

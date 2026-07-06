@@ -299,11 +299,11 @@ export function BoardgamesManager() {
     // do it straight away. Only confirm when deactivating one with games, since
     // it can no longer be deleted.
     if (nextActive) {
-      void setActive(b.id, true);
+      setActive(b.id, true);
       return;
     }
     if (!b.hasGames) {
-      void deactivate(b);
+      deactivate(b);
       return;
     }
     requestConfirm({
@@ -469,7 +469,7 @@ function BoardgameForm({
       return;
     }
 
-    void uploadFile(file, file.name);
+    uploadFile(file, file.name);
   }
 
   function switchSource(next: LogoSource) {
@@ -748,7 +748,7 @@ function BoardgameForm({
         onPickFile={handleLogo}
         onUrlChange={setLogoUrlInput}
         onUrlBlur={checkLogoUrl}
-        onPasteImage={file => void uploadFile(file, "Image collée")}
+        onPasteImage={file => uploadFile(file, "Image collée")}
         onPasteError={setFormError}
       />
 

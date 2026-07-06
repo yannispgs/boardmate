@@ -20,7 +20,7 @@ export function useConfirm() {
       onConfirm={() => {
         const run = confirm.onConfirm;
         setConfirm(null);
-        void run();
+        run();
       }}
     />
   ) : null;

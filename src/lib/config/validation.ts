@@ -20,56 +20,47 @@ function fieldToZod(field: FieldSpec): z.ZodType {
   return field.required === false ? base.optional() : base;
 }
 
+/**
+ * Applies optional lower/upper bounds. `.min`/`.max` mean value range for
+ * numbers, length for strings and item count for arrays — the same two calls
+ * across all three, so every bounded field type reuses this instead of
+ * repeating the null checks.
+ */
+function bounded<S extends z.ZodNumber | z.ZodString | z.ZodArray>(
+  s: S,
+  lo: number | null | undefined,
+  hi: number | null | undefined,
+): S {
+  let r = s;
+  if (lo != null) {
+    r = r.min(lo) as S;
+  }
+  if (hi != null) {
+    r = r.max(hi) as S;
+  }
+  return r;
+}
+
 function baseFieldToZod(field: FieldSpec): z.ZodType {
   switch (field.type) {
-    case "integer": {
-      let s = z.number().int();
-      if (field.min != null) {
-        s = s.min(field.min);
-      }
-      if (field.max != null) {
-        s = s.max(field.max);
-      }
-      return s;
-    }
-    case "number": {
-      let s = z.number();
-      if (field.min != null) {
-        s = s.min(field.min);
-      }
-      if (field.max != null) {
-        s = s.max(field.max);
-      }
-      return s;
-    }
-    case "text": {
-      let s = z.string();
-      if (field.minLength != null) {
-        s = s.min(field.minLength);
-      }
-      if (field.maxLength != null) {
-        s = s.max(field.maxLength);
-      }
-      return s;
-    }
+    case "integer":
+      return bounded(z.number().int(), field.min, field.max);
+    case "number":
+      return bounded(z.number(), field.min, field.max);
+    case "text":
+      return bounded(z.string(), field.minLength, field.maxLength);
     case "boolean":
       return z.boolean();
-    case "enum": {
-      const values = field.options.map(o => o.value);
-      return z.enum(values as [string, ...string[]]);
-    }
+    case "enum":
+      return z.enum(field.options.map(o => o.value) as [string, ...string[]]);
     case "object":
       return buildConfigSchema(field.fields);
-    case "array": {
-      let s = z.array(fieldToZod(field.items));
-      if (field.minItems != null) {
-        s = s.min(field.minItems);
-      }
-      if (field.maxItems != null) {
-        s = s.max(field.maxItems);
-      }
-      return s;
-    }
+    case "array":
+      return bounded(
+        z.array(fieldToZod(field.items)),
+        field.minItems,
+        field.maxItems,
+      );
   }
 }
 
