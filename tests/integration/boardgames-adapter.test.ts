@@ -119,6 +119,40 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
     expect(cleared.scoring).toBeNull();
   });
 
+  it("round-trips a category scoresheet (sections, fields, colours, bonus)", async () => {
+    const created = await repo().create({ name: uniq("Cascadia-like") });
+    createdIds.push(created.id);
+
+    const scoring = {
+      timing: "final" as const,
+      entry: "categories" as const,
+      winCondition: { type: "highest" as const },
+      allowNegative: false,
+      sheet: [
+        {
+          label: "Biomes",
+          rankBonus: [3, 1],
+          categories: [
+            { key: "foret", label: "Forêt", colors: ["#21632D"] },
+            {
+              key: "montagne",
+              label: "Montagne",
+              colors: ["#5E636D", "#CCE2F3"],
+            },
+          ],
+        },
+        { key: "bonus", label: "Bonus" },
+      ],
+    };
+
+    const updated = await repo().update(created.id, { scoring });
+    expect(updated.scoring).toEqual(scoring);
+
+    // And it survives a fresh read from the database.
+    const fetched = await repo().get(created.id);
+    expect(fetched?.scoring).toEqual(scoring);
+  });
+
   it("removes a boardgame that has no games", async () => {
     const created = await repo().create({ name: uniq("Throwaway") });
     const removed = await repo().get(created.id);
