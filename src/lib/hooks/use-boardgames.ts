@@ -43,9 +43,9 @@ export function useBoardgames(): UseBoardgames {
   }, [repo]);
 
   useEffect(() => {
-    void refresh();
+    refresh();
     const unsubscribe = repo.subscribe(() => {
-      void refresh();
+      refresh();
     });
     return unsubscribe;
   }, [repo, refresh]);

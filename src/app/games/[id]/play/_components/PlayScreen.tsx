@@ -73,7 +73,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   }, [repo, gameId]);
 
   useEffect(() => {
-    void load();
+    load();
   }, [load]);
 
   // Seed the live scores from the game the first time it loads (later turn
@@ -107,8 +107,8 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
 
   // Decode the beep/ring up front so they're ready before the countdown.
   useEffect(() => {
-    void loadSound(BEEP_URL);
-    void loadSound(RING_URL);
+    loadSound(BEEP_URL);
+    loadSound(RING_URL);
   }, []);
 
   async function handleNext() {
@@ -393,7 +393,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
           )}
           onEnd={winnerId => {
             setEndOpen(false);
-            void handleEnd(winnerId);
+            handleEnd(winnerId);
           }}
           onCancel={() => setEndOpen(false)}
           disabled={busy}
@@ -838,7 +838,7 @@ function unlockAudio() {
     return;
   }
   if (ctx.state === "suspended") {
-    void ctx.resume();
+    ctx.resume();
   }
   // iOS won't unlock the audio output on resume() alone — it needs an actual
   // (silent) sound started from within the user gesture. Kick a 1-sample buffer.
@@ -891,7 +891,7 @@ function playSound(
     return;
   }
   if (ctx.state === "suspended") {
-    void ctx.resume();
+    ctx.resume();
   }
 
   try {

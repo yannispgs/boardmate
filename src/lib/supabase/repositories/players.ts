@@ -123,7 +123,7 @@ export function createPlayerRepository(
         )
         .subscribe();
       return () => {
-        void supabase.removeChannel(channel);
+        supabase.removeChannel(channel);
       };
     },
     /* c8 ignore stop */

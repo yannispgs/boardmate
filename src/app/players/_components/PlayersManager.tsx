@@ -90,11 +90,11 @@ export function PlayersManager() {
     // straight away. Only confirm when deactivating a player with history,
     // since they can no longer be deleted.
     if (nextActive) {
-      void setActive(player.id, true);
+      setActive(player.id, true);
       return;
     }
     if (!player.hasPlayed) {
-      void deactivate(player);
+      deactivate(player);
       return;
     }
     requestConfirm({

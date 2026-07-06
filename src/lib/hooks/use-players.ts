@@ -37,9 +37,9 @@ export function usePlayers(): UsePlayers {
   }, [repo]);
 
   useEffect(() => {
-    void refresh();
+    refresh();
     const unsubscribe = repo.subscribe(() => {
-      void refresh();
+      refresh();
     });
     return unsubscribe;
   }, [repo, refresh]);
