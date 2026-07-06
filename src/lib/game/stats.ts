@@ -170,3 +170,28 @@ export function computeGameStats({ players, turns }: StatsInput): GameStats {
     players: playerStats,
   };
 }
+
+/**
+ * The player eating a disproportionate share of the table's time, or null.
+ * Needs at least two players who've played; flags the leader only when clearly
+ * above an even split (> 1.6× the fair share). Drives the "monopolise le temps"
+ * callout and the live banner.
+ */
+export function timeHog(
+  players: Pick<PlayerTimeStats, "name" | "sharePct" | "turnCount">[],
+): { name: string; sharePct: number } | null {
+  const played = players.filter(p => p.turnCount > 0);
+  if (played.length < 2) {
+    return null;
+  }
+
+  const top = played.reduce(
+    (a, b) => (b.sharePct > a.sharePct ? b : a),
+    played[0],
+  );
+  const equalShare = 100 / players.length;
+
+  return top.sharePct > equalShare * 1.6
+    ? { name: top.name, sharePct: top.sharePct }
+    : null;
+}
