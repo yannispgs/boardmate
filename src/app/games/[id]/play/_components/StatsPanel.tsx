@@ -5,29 +5,9 @@ import { useState } from "react";
 import { Modal } from "@/components/Modal";
 import type { GamePlayer, GameTurn, Player } from "@/lib/domain";
 import { formatDuration } from "@/lib/game/format-time";
-import { computeGameStats } from "@/lib/game/stats";
+import { computeGameStats, timeHog } from "@/lib/game/stats";
 import { PlayerStatCardList } from "./PlayerStatCardList";
 import { StatTile } from "./StatTile";
-
-/** Flags a player who's eating a disproportionate share of the table's time. */
-function timeHog(
-  players: { name: string; sharePct: number; turnCount: number }[],
-): { name: string; sharePct: number } | null {
-  const played = players.filter(p => p.turnCount > 0);
-  if (played.length < 2) {
-    return null;
-  }
-
-  const top = played.reduce(
-    (a, b) => (b.sharePct > a.sharePct ? b : a),
-    played[0],
-  );
-  const equalShare = 100 / players.length;
-  // Clearly above an even split → worth calling out.
-  return top.sharePct > equalShare * 1.6
-    ? { name: top.name, sharePct: top.sharePct }
-    : null;
-}
 
 /**
  * Live time statistics during play, behind a side button (next to the scores

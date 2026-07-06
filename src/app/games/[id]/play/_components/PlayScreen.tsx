@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-
+import { Toast } from "@/components/Toast";
 import type {
   GameId,
   PlayerId,
@@ -17,6 +17,7 @@ import {
   scoreCategories,
   winnerDirection,
 } from "@/lib/game/scoring";
+import { computeGameStats, timeHog } from "@/lib/game/stats";
 import { isFinalTurn } from "@/lib/game/turn";
 import { useTurnTimer } from "@/lib/hooks/use-turn-timer";
 import { useWakeLock } from "@/lib/hooks/use-wake-lock";
@@ -55,6 +56,8 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   // Live running scores, seeded once from the loaded game then owned here so
   // they survive turn reloads and feed both the score panel and the end prompt.
   const [scores, setScores] = useState<Record<string, number> | null>(null);
+  // Transient "X is monopolising the time" banner.
+  const [toast, setToast] = useState<string | null>(null);
 
   const timer = useTurnTimer();
   // Keep the screen awake while a turn is actively running; let it sleep on
@@ -110,6 +113,28 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
     loadSound(BEEP_URL);
     loadSound(RING_URL);
   }, []);
+
+  // Whoever is monopolising the table's time (from the turns played so far).
+  const hog = game
+    ? timeHog(
+        computeGameStats({ players: game.players, turns: game.turns }).players,
+      )
+    : null;
+  const hogName = hog?.name ?? null;
+  // Latest hog for the banner text, without re-firing on every share-% tick.
+  const hogRef = useRef(hog);
+  hogRef.current = hog;
+  // Pop the banner when a (new) hog emerges — keyed on the name so it fires on a
+  // change of hog, not on every share-% tick; the ref carries the live text.
+  useEffect(() => {
+    if (hogName === null) {
+      return;
+    }
+    const h = hogRef.current;
+    if (h) {
+      setToast(`⏱️ ${h.name} monopolise le temps (${Math.round(h.sharePct)} %)`);
+    }
+  }, [hogName]);
 
   async function handleNext() {
     if (!game || busy) {
@@ -276,6 +301,10 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
 
   return (
     <div className="flex flex-col items-center gap-8">
+      {toast ? (
+        <Toast message={toast} onDismiss={() => setToast(null)} />
+      ) : null}
+
       <p className="text-sm uppercase tracking-wide text-zinc-400">
         Tour {game.round}
         {roundLimit !== null ? ` / ${roundLimit}` : ""}

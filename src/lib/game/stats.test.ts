@@ -8,7 +8,7 @@ import type {
   PlayerId,
 } from "@/lib/domain";
 
-import { computeGameStats } from "./stats";
+import { computeGameStats, timeHog } from "./stats";
 
 const gid = "g1" as GameId;
 
@@ -162,5 +162,30 @@ describe("computeGameStats", () => {
     });
 
     expect(stats.longestTurn?.name).toBe("?");
+  });
+});
+
+describe("timeHog", () => {
+  const p = (name: string, sharePct: number, turnCount = 1) => ({
+    name,
+    sharePct,
+    turnCount,
+  });
+
+  it("flags a player clearly above an even split", () => {
+    // 3 players → even share 33%; 1.6× = ~53%. Alice at 60% is over.
+    expect(timeHog([p("Alice", 60), p("Bob", 25), p("Cara", 15)])).toEqual({
+      name: "Alice",
+      sharePct: 60,
+    });
+  });
+
+  it("returns null when the leader is near an even split", () => {
+    expect(timeHog([p("Alice", 40), p("Bob", 35), p("Cara", 25)])).toBeNull();
+  });
+
+  it("needs at least two players who have played", () => {
+    expect(timeHog([p("Alice", 100), p("Bob", 0, 0)])).toBeNull();
+    expect(timeHog([])).toBeNull();
   });
 });

@@ -239,3 +239,26 @@ test("ends when the target is exceeded, defaulting to the top scorer", async ({
     await admin.from("players").delete().in("name", players);
   }
 });
+
+test("banners when a player monopolises the time", async ({ page }) => {
+  const players = await seedPlayers(CATAN_MIN_PLAYERS);
+  let gameId = "";
+
+  try {
+    gameId = await funnelToPlay(page, players);
+
+    // Player 1 takes a long turn, the next is instant → player 1 has ~all the
+    // time once two players have played, tripping the live banner.
+    await page.waitForTimeout(2000);
+    await page.getByRole("button", { name: "Tour suivant →" }).click();
+    await page.getByRole("button", { name: "Tour suivant →" }).click();
+
+    await expect(page.getByText(/monopolise le temps/)).toBeVisible();
+  } finally {
+    const admin = adminClient();
+    if (gameId) {
+      await admin.from("games").delete().eq("id", gameId);
+    }
+    await admin.from("players").delete().in("name", players);
+  }
+});
