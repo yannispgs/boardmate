@@ -17,6 +17,7 @@ import {
   scoreCategories,
   winnerDirection,
 } from "@/lib/game/scoring";
+import { isFinalTurn } from "@/lib/game/turn";
 import { useTurnTimer } from "@/lib/hooks/use-turn-timer";
 import { useWakeLock } from "@/lib/hooks/use-wake-lock";
 import { getGameRepository } from "@/lib/repositories";
@@ -266,16 +267,25 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
 
   const remainingS = durationS - timer.elapsedS;
 
+  // Fixed-length games (e.g. Cascadia's 20 rounds) end on the last seat of the
+  // last round: no more turns, and the scoring UI takes over. Open-ended games
+  // keep their end controls available throughout.
+  const roundLimit = game.boardgame.roundLimit;
+  const atFinalTurn = isFinalTurn(game.turn, game.players.length, roundLimit);
+  const canEnd = roundLimit === null || atFinalTurn;
+
   return (
     <div className="flex flex-col items-center gap-8">
       <p className="text-sm uppercase tracking-wide text-zinc-400">
         Tour {game.round}
+        {roundLimit !== null ? ` / ${roundLimit}` : ""}
       </p>
 
       <TurnFlow
         players={game.players.map(p => p.player)}
         currentPlayerId={game.currentPlayerId}
         round={game.round}
+        roundLimit={roundLimit}
       />
 
       <TimerRing
@@ -297,14 +307,20 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         </p>
       ) : null}
 
-      <button
-        type="button"
-        onClick={handleNext}
-        disabled={busy}
-        className="w-full max-w-xs rounded-xl bg-indigo-600 px-6 py-4 text-lg font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
-      >
-        Tour suivant →
-      </button>
+      {atFinalTurn ? (
+        <p className="text-center text-sm font-semibold text-amber-600 dark:text-amber-400">
+          Dernier tour joué — la partie est terminée.
+        </p>
+      ) : (
+        <button
+          type="button"
+          onClick={handleNext}
+          disabled={busy}
+          className="w-full max-w-xs rounded-xl bg-indigo-600 px-6 py-4 text-lg font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
+        >
+          Tour suivant →
+        </button>
+      )}
 
       <StatsPanel players={game.players} turns={game.turns} />
 
@@ -321,43 +337,45 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         />
       ) : null}
 
-      {game.boardgame.scoring?.timing === "final" ? (
-        game.boardgame.scoring.entry === "categories" &&
-        game.boardgame.scoring.sheet ? (
-          <>
-            <button
-              type="button"
-              onClick={() => setCatOpen(true)}
-              disabled={busy}
-              className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-black transition hover:bg-amber-300 disabled:opacity-60"
-            >
-              Compter les points
-            </button>
-            {catOpen ? (
-              <CategoryScoreEntry
-                players={namedPlayers}
-                sheet={game.boardgame.scoring.sheet}
-                onSubmit={handleCategoryFinish}
-                onCancel={() => setCatOpen(false)}
+      {canEnd ? (
+        game.boardgame.scoring?.timing === "final" ? (
+          game.boardgame.scoring.entry === "categories" &&
+          game.boardgame.scoring.sheet ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setCatOpen(true)}
                 disabled={busy}
-              />
-            ) : null}
-          </>
+                className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-black transition hover:bg-amber-300 disabled:opacity-60"
+              >
+                Compter les points
+              </button>
+              {catOpen ? (
+                <CategoryScoreEntry
+                  players={namedPlayers}
+                  sheet={game.boardgame.scoring.sheet}
+                  onSubmit={handleCategoryFinish}
+                  onCancel={() => setCatOpen(false)}
+                  disabled={busy}
+                />
+              ) : null}
+            </>
+          ) : (
+            <ScoreEntry
+              players={game.players.map(p => p.player)}
+              winCondition={game.boardgame.scoring.winCondition}
+              onEnd={handleEnd}
+              disabled={busy}
+            />
+          )
         ) : (
-          <ScoreEntry
+          <WinnerPicker
             players={game.players.map(p => p.player)}
-            winCondition={game.boardgame.scoring.winCondition}
-            onEnd={handleEnd}
+            onPick={handleEnd}
             disabled={busy}
           />
         )
-      ) : (
-        <WinnerPicker
-          players={game.players.map(p => p.player)}
-          onPick={handleEnd}
-          disabled={busy}
-        />
-      )}
+      ) : null}
 
       {endOpen && scores ? (
         <LiveEndPrompt

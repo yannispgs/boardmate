@@ -39,3 +39,23 @@ export function advanceTurn(turn: number, seatCount: number): AdvancedTurn {
   const next = turn + 1;
   return { turn: next, ...turnPosition(next, seatCount) };
 }
+
+/**
+ * Whether `turn` is the very last turn of a fixed-length game — the last seat of
+ * the final round — after which the game ends. Always false when there is no
+ * round limit. The last turn is `roundLimit * seatCount` (round `roundLimit`,
+ * seat `seatCount - 1`).
+ */
+export function isFinalTurn(
+  turn: number,
+  seatCount: number,
+  roundLimit: number | null,
+): boolean {
+  if (roundLimit === null) {
+    return false;
+  }
+
+  const { round, seatIndex } = turnPosition(turn, seatCount);
+
+  return round === roundLimit && seatIndex === seatCount - 1;
+}

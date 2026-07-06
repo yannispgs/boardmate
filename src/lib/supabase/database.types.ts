@@ -75,6 +75,7 @@ export type Database = {
           name: string
           rec_max_players: number | null
           rec_min_players: number | null
+          round_limit: number | null
           scoring: Json | null
           tags: string[]
         }
@@ -91,6 +92,7 @@ export type Database = {
           name: string
           rec_max_players?: number | null
           rec_min_players?: number | null
+          round_limit?: number | null
           scoring?: Json | null
           tags?: string[]
         }
@@ -107,6 +109,7 @@ export type Database = {
           name?: string
           rec_max_players?: number | null
           rec_min_players?: number | null
+          round_limit?: number | null
           scoring?: Json | null
           tags?: string[]
         }

@@ -86,12 +86,14 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
   it("updates a subset of fields", async () => {
     const created = await repo().create({ name: uniq("Wingspan") });
     createdIds.push(created.id);
+    expect(created.roundLimit).toBeNull(); // open-ended by default
 
     const updated = await repo().update(created.id, {
       avgDurationMin: 60,
       tags: ["oiseaux"],
       logoUrl: "https://example.com/logo.png",
       kind: "cooperative",
+      roundLimit: 20,
       scoring: {
         timing: "final",
         entry: "total",
@@ -100,6 +102,7 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
       },
     });
     expect(updated.name).toBe(uniq("Wingspan")); // untouched
+    expect(updated.roundLimit).toBe(20); // fixed-length game
     expect(updated.avgDurationMin).toBe(60);
     expect(updated.tags).toEqual(["oiseaux"]);
     expect(updated.logoUrl).toBe("https://example.com/logo.png");

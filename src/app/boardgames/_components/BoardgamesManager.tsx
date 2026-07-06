@@ -28,6 +28,8 @@ interface FormState {
   recMinPlayers: string;
   recMaxPlayers: string;
   avgDurationMin: string;
+  // Fixed number of rounds after which the game ends (empty = open-ended).
+  roundLimit: string;
   tags: string;
   // Scoring "type" only — the category sheet (for final tallies) stays authored
   // as data and is preserved untouched on save.
@@ -45,6 +47,7 @@ const EMPTY: FormState = {
   recMinPlayers: "",
   recMaxPlayers: "",
   avgDurationMin: "",
+  roundLimit: "",
   tags: "",
   scored: false,
   scoreTiming: "final",
@@ -63,6 +66,7 @@ function fromBoardgame(b: Boardgame): FormState {
     recMinPlayers: b.recMinPlayers?.toString() ?? "",
     recMaxPlayers: b.recMaxPlayers?.toString() ?? "",
     avgDurationMin: b.avgDurationMin?.toString() ?? "",
+    roundLimit: b.roundLimit?.toString() ?? "",
     tags: b.tags.join(", "),
     scored: s !== null,
     scoreTiming: s?.timing ?? "final",
@@ -121,6 +125,7 @@ function toInput(
     logoUrl,
     minPlayers: toNum(form.minPlayers),
     maxPlayers: toNum(form.maxPlayers),
+    roundLimit: toNum(form.roundLimit),
     recMinPlayers: toNum(form.recMinPlayers),
     recMaxPlayers: toNum(form.recMaxPlayers),
     avgDurationMin: toNum(form.avgDurationMin),
@@ -571,6 +576,16 @@ function BoardgameForm({
             min={0}
             value={form.avgDurationMin}
             onChange={e => setForm({ ...form, avgDurationMin: e.target.value })}
+            className={field}
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-zinc-500">
+          Nombre de tours (vide = illimité)
+          <input
+            type="number"
+            min={1}
+            value={form.roundLimit}
+            onChange={e => setForm({ ...form, roundLimit: e.target.value })}
             className={field}
           />
         </label>

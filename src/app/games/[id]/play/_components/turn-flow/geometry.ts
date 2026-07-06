@@ -40,7 +40,13 @@ export interface BarItem {
   faded: boolean;
 }
 
-export type Item = TagItem | BarItem;
+/** End-of-game flag, placed just after the last player of a fixed-length game. */
+export interface EndItem {
+  kind: "end";
+  left: number;
+}
+
+export type Item = TagItem | BarItem | EndItem;
 
 export interface RoundLayout {
   /** X of each seat's tag within one round. */
@@ -87,11 +93,16 @@ export function layoutRound(players: { name: string }[]): RoundLayout {
  * The visible window of items — the just-played turn, the current one and the
  * next `AHEAD` — as tags plus a "Tour N" bar before each round's opener. Each is
  * placed at its absolute x so only the strip's offset animates per turn.
+ *
+ * `lastTurn` (0-based global index of a fixed-length game's final turn) caps the
+ * ribbon: no turns are drawn past it — the game doesn't roll into another round
+ * — and an end flag is placed just after that last player.
  */
 export function buildItems(
   players: { id: PlayerId; name: string }[],
   current: number,
   layout: RoundLayout,
+  lastTurn?: number | null,
 ): Item[] {
   const n = players.length;
   if (n === 0) {
@@ -100,8 +111,10 @@ export function buildItems(
 
   const out: Item[] = [];
   const start = Math.max(0, current - 1);
+  const stop =
+    lastTurn == null ? current + AHEAD : Math.min(current + AHEAD, lastTurn);
 
-  for (let turn = start; turn <= current + AHEAD; turn++) {
+  for (let turn = start; turn <= stop; turn++) {
     const roundIdx = Math.floor(turn / n);
     const seat = turn % n;
     const base = roundIdx * layout.roundWidth;
@@ -125,6 +138,14 @@ export function buildItems(
       isCurrent: turn === current,
       faded: turn < current,
     });
+  }
+
+  // Cap the ribbon with an end flag once the game's final turn is in view.
+  if (lastTurn != null && lastTurn <= current + AHEAD) {
+    const seat = lastTurn % n;
+    const base = Math.floor(lastTurn / n) * layout.roundWidth;
+    const tagEnd = base + layout.seatX[seat] + layout.widths[seat];
+    out.push({ kind: "end", left: tagEnd + BAR_GAP });
   }
 
   return out;
