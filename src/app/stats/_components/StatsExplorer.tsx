@@ -1,69 +1,45 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
-import { StatTile } from "@/components/StatTile";
-import type { BoardgameId, PlayerId } from "@/lib/domain";
-import { formatDuration } from "@/lib/game/format-time";
-import { computeGlobalStats } from "@/lib/game/global-stats";
 import { useGameStats } from "@/lib/hooks/use-game-stats";
-import { FilterChips } from "./FilterChips";
-import { PlayerRankingList } from "./PlayerRankingList";
+import { GamesTab } from "./GamesTab";
+import { PlayersTab } from "./PlayersTab";
 
-/** Unique `{id, name}` options, sorted by name — for the filter chip rows. */
-function uniqueBy<T>(
-  items: T[],
-  id: (t: T) => string,
-  name: (t: T) => string,
-): { id: string; name: string }[] {
-  const map = new Map<string, string>();
-  for (const item of items) {
-    map.set(id(item), name(item));
-  }
+type Tab = "joueurs" | "jeux";
 
-  return [...map.entries()]
-    .map(([value, label]) => ({ id: value, name: label }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition ${
+        active
+          ? "bg-white text-indigo-700 shadow-sm dark:bg-zinc-700 dark:text-indigo-300"
+          : "text-zinc-500 dark:text-zinc-400"
+      }`}
+    >
+      {children}
+    </button>
+  );
 }
 
+/**
+ * The statistics view: two tabs — "Joueurs" (default, per-player averages
+ * across all games) and "Jeux" (pick a game, see its own averages). Both read
+ * the same finished-game records and average them with `computeGlobalStats`.
+ */
 export function StatsExplorer() {
   const { records, loading, error } = useGameStats();
-  const [boardgameIds, setBoardgameIds] = useState<string[]>([]);
-  const [playerIds, setPlayerIds] = useState<string[]>([]);
-
-  const gameOptions = useMemo(
-    () =>
-      uniqueBy(
-        records,
-        r => r.boardgameId,
-        r => r.boardgameName,
-      ),
-    [records],
-  );
-  const playerOptions = useMemo(
-    () =>
-      uniqueBy(
-        records.flatMap(r => r.players),
-        p => p.playerId,
-        p => p.name,
-      ),
-    [records],
-  );
-
-  const stats = useMemo(
-    () =>
-      computeGlobalStats(records, {
-        boardgameIds: boardgameIds as BoardgameId[],
-        playerIds: playerIds as PlayerId[],
-      }),
-    [records, boardgameIds, playerIds],
-  );
-
-  const toggle =
-    (setter: React.Dispatch<React.SetStateAction<string[]>>) => (id: string) =>
-      setter(prev =>
-        prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id],
-      );
+  const [tab, setTab] = useState<Tab>("joueurs");
 
   if (loading) {
     return <p className="text-sm text-zinc-500">Chargement…</p>;
@@ -88,49 +64,19 @@ export function StatsExplorer() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4">
-        <FilterChips
-          label="Jeux"
-          options={gameOptions}
-          selected={boardgameIds}
-          onToggle={toggle(setBoardgameIds)}
-          onClear={() => setBoardgameIds([])}
-        />
-        <FilterChips
-          label="Joueurs"
-          options={playerOptions}
-          selected={playerIds}
-          onToggle={toggle(setPlayerIds)}
-          onClear={() => setPlayerIds([])}
-        />
+      <div className="flex gap-1 rounded-xl border border-black/10 bg-black/[0.03] p-1 dark:border-white/10 dark:bg-white/[0.03]">
+        <TabButton active={tab === "joueurs"} onClick={() => setTab("joueurs")}>
+          Joueurs
+        </TabButton>
+        <TabButton active={tab === "jeux"} onClick={() => setTab("jeux")}>
+          Jeux
+        </TabButton>
       </div>
 
-      {stats.gameCount === 0 ? (
-        <p className="text-sm text-zinc-500">
-          Aucune partie ne correspond à ces filtres.
-        </p>
+      {tab === "joueurs" ? (
+        <PlayersTab records={records} />
       ) : (
-        <>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <StatTile label="Parties" value={String(stats.gameCount)} accent />
-            <StatTile
-              label="Temps de jeu moy."
-              value={formatDuration(stats.avgActiveS)}
-            />
-            <StatTile label="Tours moy." value={stats.avgRounds.toFixed(1)} />
-            <StatTile
-              label="Tour moy."
-              value={formatDuration(stats.avgTurnS)}
-            />
-          </div>
-
-          <div className="flex flex-col gap-3">
-            <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-              Classement des joueurs — meilleur taux de victoire d&apos;abord
-            </h2>
-            <PlayerRankingList players={stats.players} />
-          </div>
-        </>
+        <GamesTab records={records} />
       )}
     </div>
   );

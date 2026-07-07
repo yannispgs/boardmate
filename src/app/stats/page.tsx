@@ -19,8 +19,7 @@ export default function StatsPage() {
         </Link>
         <h1 className="text-3xl font-semibold tracking-tight">Statistiques</h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Les moyennes de toutes les parties terminées. Filtre par jeu(x) et/ou
-          joueur(s).
+          Les moyennes de toutes les parties terminées, par joueur ou par jeu.
         </p>
       </header>
 

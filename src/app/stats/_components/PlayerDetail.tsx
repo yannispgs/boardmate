@@ -1,0 +1,115 @@
+import { StatTile } from "@/components/StatTile";
+import { formatDuration } from "@/lib/game/format-time";
+import type { GameBreakdown, PlayerAggregate } from "@/lib/game/global-stats";
+
+/** One boardgame line in the player's per-game breakdown. */
+function GameRow({ game }: { game: GameBreakdown }) {
+  return (
+    <li className="flex flex-col gap-2 rounded-xl border border-black/10 bg-white p-3 dark:border-white/10 dark:bg-zinc-900">
+      <div className="flex items-center gap-3">
+        <span className="flex-1 font-medium">{game.boardgameName}</span>
+        <span className="text-sm font-semibold tabular-nums text-indigo-600 dark:text-indigo-400">
+          {Math.round(game.winRate)}%
+        </span>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
+        <div
+          className="h-full rounded-full bg-indigo-500"
+          style={{ width: `${game.winRate}%` }}
+        />
+      </div>
+      <div className="flex gap-4 text-xs text-zinc-500 tabular-nums dark:text-zinc-400">
+        <span>
+          {game.games} partie{game.games > 1 ? "s" : ""}
+        </span>
+        <span>
+          {game.wins} victoire{game.wins > 1 ? "s" : ""}
+        </span>
+        <span>
+          Score moy. {game.avgScore === null ? "—" : game.avgScore.toFixed(1)}
+        </span>
+      </div>
+    </li>
+  );
+}
+
+/**
+ * A single player's detailed stats: headline figures, their best / worst game,
+ * and a full per-game breakdown. Reached by tapping a player in the ranking.
+ */
+export function PlayerDetail({
+  player,
+  onBack,
+}: {
+  player: PlayerAggregate;
+  onBack: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-6">
+      <button
+        type="button"
+        onClick={onBack}
+        className="self-start text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
+      >
+        ← Classement
+      </button>
+
+      <h2 className="text-2xl font-semibold tracking-tight">{player.name}</h2>
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <StatTile
+          label="Taux de victoire"
+          value={`${Math.round(player.winRate)}%`}
+          accent
+        />
+        <StatTile label="Parties" value={String(player.games)} />
+        <StatTile label="Victoires" value={String(player.wins)} />
+        <StatTile
+          label="Score moyen"
+          value={player.avgScore === null ? "—" : player.avgScore.toFixed(1)}
+        />
+        <StatTile label="Tour moyen" value={formatDuration(player.avgTurnS)} />
+        <StatTile
+          label="Part du temps"
+          value={`${Math.round(player.avgSharePct)}%`}
+        />
+      </div>
+
+      {player.bestGame && player.worstGame ? (
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-3 text-sm">
+            <span aria-hidden>💪</span>
+            <span>
+              Meilleur sur{" "}
+              <span className="font-semibold">
+                {player.bestGame.boardgameName}
+              </span>{" "}
+              ({Math.round(player.bestGame.winRate)}%)
+            </span>
+          </div>
+          <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/[0.05] p-3 text-sm">
+            <span aria-hidden>😬</span>
+            <span>
+              Moins bon sur{" "}
+              <span className="font-semibold">
+                {player.worstGame.boardgameName}
+              </span>{" "}
+              ({Math.round(player.worstGame.winRate)}%)
+            </span>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="flex flex-col gap-3">
+        <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+          Par jeu — du plus joué au moins joué
+        </h3>
+        <ul className="flex flex-col gap-2">
+          {player.byGame.map(game => (
+            <GameRow key={game.boardgameId} game={game} />
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}

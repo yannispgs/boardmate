@@ -2,10 +2,10 @@
 
 /**
  * A labelled multi-select as a row of toggle chips. "Tous" clears the selection
- * (active when nothing is picked); each option chip toggles on/off. Selection is
- * held by the parent as a list of ids.
+ * (active when nothing is picked); each option toggles on/off. Selection is held
+ * by the parent as a list of ids.
  */
-export function FilterChips({
+export function ChipMultiSelect({
   label,
   options,
   selected,

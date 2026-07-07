@@ -63,6 +63,8 @@ describe("computeGlobalStats", () => {
     expect(s.avgRounds).toBe(1.5);
     // Turns: 4 + 3 = 7; 280 / 7 = 40.
     expect(s.avgTurnS).toBeCloseTo(40);
+    // Scored participations: 10, 8 (game1), 90, 70 (game2) → 178 / 4 = 44.5.
+    expect(s.avgScore).toBe(44.5);
   });
 
   it("builds a per-player leaderboard sorted by win rate", () => {
@@ -107,24 +109,121 @@ describe("computeGlobalStats", () => {
     expect(chloe?.avgSharePct).toBe(50);
   });
 
-  it("filters by player: only their games count and only their rows show", () => {
+  it("player filter is presence-only: keeps their games, ranks everyone in them", () => {
+    // Chloé is only in game2 → that game survives; all of its players rank.
     const s = computeGlobalStats([game1, game2], { playerIds: [CHLOE] });
 
-    // Chloé is only in game2.
     expect(s.gameCount).toBe(1);
-    expect(s.players).toHaveLength(1);
-    expect(s.players[0].name).toBe("Chloé");
+    expect(s.players.map(p => p.name).sort()).toEqual([
+      "Alice",
+      "Bob",
+      "Chloé",
+    ]);
   });
 
-  it("combines boardgame and player filters", () => {
+  it("presence requires EVERY listed player in the game", () => {
+    // Only game2 has both Bob and Chloé; game1 has neither Chloé.
     const s = computeGlobalStats([game1, game2], {
-      boardgameIds: [CATAN],
-      playerIds: [BOB],
+      playerIds: [BOB, CHLOE],
     });
 
     expect(s.gameCount).toBe(1);
-    expect(s.players.map(p => p.name)).toEqual(["Bob"]);
-    expect(s.players[0].avgScore).toBe(8);
+  });
+
+  it("filters by an inclusive end-date window", () => {
+    // game1 ended 2026-07-01, game2 on 2026-07-02.
+    expect(
+      computeGlobalStats([game1, game2], { until: "2026-07-01" }).gameCount,
+    ).toBe(1);
+    expect(
+      computeGlobalStats([game1, game2], { from: "2026-07-02" }).gameCount,
+    ).toBe(1);
+    expect(
+      computeGlobalStats([game1, game2], {
+        from: "2026-07-01",
+        until: "2026-07-02",
+      }).gameCount,
+    ).toBe(2);
+  });
+
+  /** A minimal record: one boardgame, Alice vs Bob, a given winner. */
+  function mk(
+    id: string,
+    boardgameId: BoardgameId,
+    name: string,
+    winner: PlayerId,
+  ): GameStatsRecord {
+    return {
+      gameId: id as GameStatsRecord["gameId"],
+      boardgameId,
+      boardgameName: name,
+      endedAt: "2026-07-01T10:00:00Z",
+      players: [
+        {
+          playerId: ALICE,
+          name: "Alice",
+          isWinner: winner === ALICE,
+          score: 5,
+        },
+        { playerId: BOB, name: "Bob", isWinner: winner === BOB, score: 4 },
+      ],
+      turns: [turn(ALICE, 1, 20), turn(BOB, 1, 20)],
+    };
+  }
+
+  it("breaks each player down by game with best/worst above the sample floor", () => {
+    // Alice: Catan 3 games (2 wins → 67%), Wingspan 3 games (0 wins → 0%).
+    const records = [
+      mk("c1", CATAN, "Catan", ALICE),
+      mk("c2", CATAN, "Catan", ALICE),
+      mk("c3", CATAN, "Catan", BOB),
+      mk("w1", WINGSPAN, "Wingspan", BOB),
+      mk("w2", WINGSPAN, "Wingspan", BOB),
+      mk("w3", WINGSPAN, "Wingspan", BOB),
+    ];
+    const alice = computeGlobalStats(records).players.find(
+      p => p.name === "Alice",
+    );
+
+    expect(alice?.byGame).toHaveLength(2);
+    expect(alice?.mostPlayedGame?.games).toBe(3);
+    expect(alice?.bestGame?.boardgameName).toBe("Catan");
+    expect(Math.round(alice?.bestGame?.winRate ?? 0)).toBe(67);
+    expect(alice?.worstGame?.boardgameName).toBe("Wingspan");
+    expect(alice?.worstGame?.winRate).toBe(0);
+  });
+
+  it("orders a player's games by how often they're played", () => {
+    const records = [
+      mk("c1", CATAN, "Catan", ALICE),
+      mk("c2", CATAN, "Catan", BOB),
+      mk("w1", WINGSPAN, "Wingspan", ALICE),
+    ];
+    const alice = computeGlobalStats(records).players.find(
+      p => p.name === "Alice",
+    );
+
+    expect(alice?.byGame.map(g => g.boardgameName)).toEqual([
+      "Catan",
+      "Wingspan",
+    ]);
+    expect(alice?.mostPlayedGame?.games).toBe(2);
+  });
+
+  it("leaves best/worst null when no two games clear the sample floor", () => {
+    // Alice has 1 game on each of two boardgames — neither reaches the floor.
+    const records = [
+      mk("c1", CATAN, "Catan", ALICE),
+      mk("w1", WINGSPAN, "Wingspan", ALICE),
+    ];
+    const alice = computeGlobalStats(records).players.find(
+      p => p.name === "Alice",
+    );
+
+    expect(alice?.byGame).toHaveLength(2);
+    expect(alice?.mostPlayedGame).not.toBeNull();
+    expect(alice?.bestGame).toBeNull();
+    expect(alice?.worstGame).toBeNull();
   });
 
   it("returns zeros and no players when nothing matches", () => {
@@ -134,6 +233,7 @@ describe("computeGlobalStats", () => {
     expect(s.avgActiveS).toBe(0);
     expect(s.avgRounds).toBe(0);
     expect(s.avgTurnS).toBe(0);
+    expect(s.avgScore).toBeNull();
     expect(s.players).toEqual([]);
   });
 
@@ -153,6 +253,7 @@ describe("computeGlobalStats", () => {
     const alice = s.players.find(p => p.name === "Alice");
 
     expect(s.avgTurnS).toBe(0);
+    expect(s.avgScore).toBeNull();
     expect(alice?.avgTurnS).toBe(0);
     expect(alice?.avgSharePct).toBe(0);
     expect(alice?.avgScore).toBeNull();

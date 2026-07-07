@@ -7,7 +7,7 @@ import { adminClient, CATAN_ID, seedPlayers } from "./utils/supabase";
  * finished game, with the boardgame / player filters narrowing the set. Seeds a
  * couple of ended games directly (service role) so the aggregation has data.
  */
-test("shows averaged stats and filters by boardgame and player", async ({
+test("shows player averages and per-game averages across the two tabs", async ({
   page,
 }) => {
   const admin = adminClient();
@@ -75,23 +75,26 @@ test("shows averaged stats and filters by boardgame and player", async ({
 
     await page.goto("/stats");
 
+    // Joueurs tab (default): across all 3 games player 0 won 2 → 67%, on top.
     await expect(page.getByText("Classement des joueurs")).toBeVisible();
 
-    // Across all 3 games player 0 won 2 → 67%, topping the ranking.
     const cards = page.getByRole("listitem");
 
     await expect(cards.first()).toContainText(names[0]);
     await expect(cards.first()).toContainText("67%");
 
-    // Filter to Catan: player 0 won both Catan games → 100%.
-    await page.getByRole("button", { name: "Catan", exact: true }).click();
+    // Jeux tab: it opens on the first game (Catan, alphabetical) where player 0
+    // won both → 100%.
+    await page.getByRole("button", { name: "Jeux", exact: true }).click();
+    await expect(
+      page.getByText("Statistiques des joueurs sur ce jeu"),
+    ).toBeVisible();
 
     const p0Card = page.getByRole("listitem").filter({ hasText: names[0] });
 
     await expect(p0Card).toContainText("100%");
 
-    // Now the other boardgame: player 0 didn't win its only game → 0%.
-    await page.getByRole("button", { name: "Catan", exact: true }).click();
+    // Pick the other game: player 0 didn't win its only game → 0%.
     await page.getByRole("button", { name: /^Zzz-/ }).first().click();
 
     await expect(

@@ -1,17 +1,36 @@
 /**
  * Cross-game statistics for the global stats page: takes every finished game
- * (reduced to a `GameStatsRecord`) and averages the per-game figures — overall
- * and per player — under optional boardgame / player filters. Pure: no network,
- * no vendor types, unit-tested.
+ * (reduced to a `GameStatsRecord`) and averages the per-game figures — overall,
+ * per player, and per player-per-game — under optional filters (boardgame,
+ * player presence, date window). Pure: no network, no vendor types, unit-tested.
  */
 import type { BoardgameId, GameStatsRecord, PlayerId } from "@/lib/domain";
 
 export interface GlobalStatsFilters {
   /** Keep only games of these boardgames (empty = all). */
   boardgameIds?: BoardgameId[];
-  /** Keep only games featuring at least one of these players, and show only
-   * their rows (empty = all players). */
+  /**
+   * Presence filter: keep only games featuring EVERY one of these players
+   * (empty = all games). Every player of the surviving games is still ranked —
+   * restricting which rows to *display* is the caller's job.
+   */
   playerIds?: PlayerId[];
+  /** Keep games whose end date (YYYY-MM-DD) is ≥ this (inclusive). */
+  from?: string;
+  /** Keep games whose end date (YYYY-MM-DD) is ≤ this (inclusive). */
+  until?: string;
+}
+
+/** One player's record on one boardgame. */
+export interface GameBreakdown {
+  boardgameId: BoardgameId;
+  boardgameName: string;
+  games: number;
+  wins: number;
+  /** Win rate on this game, 0–100. */
+  winRate: number;
+  /** Mean recorded score on this game (null if none scored). */
+  avgScore: number | null;
 }
 
 export interface PlayerAggregate {
@@ -34,6 +53,14 @@ export interface PlayerAggregate {
   avgOvertimeS: number;
   /** Mean paused seconds per game. */
   avgPauseS: number;
+  /** Their record on each boardgame, most-played first. */
+  byGame: GameBreakdown[];
+  /** The boardgame they've played most (null if they've played none). */
+  mostPlayedGame: GameBreakdown | null;
+  /** Best win rate (null unless they've played ≥ 2 distinct boardgames). */
+  bestGame: GameBreakdown | null;
+  /** Worst win rate (null unless they've played ≥ 2 distinct boardgames). */
+  worstGame: GameBreakdown | null;
 }
 
 export interface GlobalStats {
@@ -46,8 +73,51 @@ export interface GlobalStats {
   avgRounds: number;
   /** Mean active seconds of a single turn, across all turns. */
   avgTurnS: number;
+  /** Mean recorded score across every scored participation (null if none). */
+  avgScore: number | null;
   /** Per-player leaderboard, best win rate first. */
   players: PlayerAggregate[];
+}
+
+interface PlayerAcc {
+  name: string;
+  games: number;
+  wins: number;
+  scoreSum: number;
+  scoredGames: number;
+  turnS: number;
+  turnCount: number;
+  shareSum: number;
+  shareGames: number;
+  overtimeS: number;
+  pauseS: number;
+  byGame: Map<
+    string,
+    {
+      name: string;
+      games: number;
+      wins: number;
+      scoreSum: number;
+      scored: number;
+    }
+  >;
+}
+
+function newPlayerAcc(name: string): PlayerAcc {
+  return {
+    name,
+    games: 0,
+    wins: 0,
+    scoreSum: 0,
+    scoredGames: 0,
+    turnS: 0,
+    turnCount: 0,
+    shareSum: 0,
+    shareGames: 0,
+    overtimeS: 0,
+    pauseS: 0,
+    byGame: new Map(),
+  };
 }
 
 function activeTotal(game: GameStatsRecord): number {
@@ -58,6 +128,41 @@ function roundsOf(game: GameStatsRecord): number {
   return game.turns.reduce((max, t) => Math.max(max, t.round), 0);
 }
 
+/**
+ * Games below this many plays are ignored for the best/worst comparison — a
+ * game played once (100% or 0%) would otherwise dominate it meaninglessly.
+ */
+export const MIN_GAMES_FOR_EXTREME = 3;
+
+/** Most-played, best and worst boardgame from a player's per-game records. */
+function extremes(byGame: GameBreakdown[]): {
+  mostPlayedGame: GameBreakdown | null;
+  bestGame: GameBreakdown | null;
+  worstGame: GameBreakdown | null;
+} {
+  /* c8 ignore next 3 -- defensive: callers only pass a non-empty breakdown */
+  if (byGame.length === 0) {
+    return { mostPlayedGame: null, bestGame: null, worstGame: null };
+  }
+
+  // `byGame` arrives sorted most-played first, so the head is the most played.
+  const mostPlayedGame = byGame[0];
+
+  // Best/worst need ≥ 2 games with a big enough sample to mean anything.
+  const eligible = byGame.filter(g => g.games >= MIN_GAMES_FOR_EXTREME);
+  if (eligible.length < 2) {
+    return { mostPlayedGame, bestGame: null, worstGame: null };
+  }
+
+  const byRate = [...eligible].sort((a, b) => a.winRate - b.winRate);
+
+  return {
+    mostPlayedGame,
+    bestGame: byRate[byRate.length - 1],
+    worstGame: byRate[0],
+  };
+}
+
 /** Filters the games, then averages overall + per-player figures over them. */
 export function computeGlobalStats(
   records: GameStatsRecord[],
@@ -65,15 +170,20 @@ export function computeGlobalStats(
 ): GlobalStats {
   const boardgameIds = filters.boardgameIds ?? [];
   const playerIds = filters.playerIds ?? [];
+  const from = filters.from;
+  const until = filters.until;
 
   const games = records.filter(g => {
-    const byGame =
+    const byBoardgame =
       boardgameIds.length === 0 || boardgameIds.includes(g.boardgameId);
+    // Presence: the game must feature EVERY requested player.
     const byPlayer =
       playerIds.length === 0 ||
-      g.players.some(p => playerIds.includes(p.playerId));
+      playerIds.every(id => g.players.some(p => p.playerId === id));
+    const day = g.endedAt?.slice(0, 10) ?? "";
+    const inWindow = (!from || day >= from) && (!until || day <= until);
 
-    return byGame && byPlayer;
+    return byBoardgame && byPlayer && inWindow;
   });
 
   const gameCount = games.length;
@@ -81,23 +191,7 @@ export function computeGlobalStats(
   const totalTurns = games.reduce((sum, g) => sum + g.turns.length, 0);
   const totalRounds = games.reduce((sum, g) => sum + roundsOf(g), 0);
 
-  // Accumulate per-player figures across every game they appear in.
-  const acc = new Map<
-    PlayerId,
-    {
-      name: string;
-      games: number;
-      wins: number;
-      scoreSum: number;
-      scoredGames: number;
-      turnS: number;
-      turnCount: number;
-      shareSum: number;
-      shareGames: number;
-      overtimeS: number;
-      pauseS: number;
-    }
-  >();
+  const acc = new Map<PlayerId, PlayerAcc>();
 
   for (const game of games) {
     const gameActive = activeTotal(game);
@@ -106,19 +200,7 @@ export function computeGlobalStats(
       const own = game.turns.filter(t => t.playerId === p.playerId);
       const ownActive = own.reduce((s, t) => s + t.durationS, 0);
 
-      const cur = acc.get(p.playerId) ?? {
-        name: p.name,
-        games: 0,
-        wins: 0,
-        scoreSum: 0,
-        scoredGames: 0,
-        turnS: 0,
-        turnCount: 0,
-        shareSum: 0,
-        shareGames: 0,
-        overtimeS: 0,
-        pauseS: 0,
-      };
+      const cur = acc.get(p.playerId) ?? newPlayerAcc(p.name);
 
       cur.games += 1;
       cur.wins += p.isWinner ? 1 : 0;
@@ -139,18 +221,40 @@ export function computeGlobalStats(
       cur.overtimeS += own.reduce((s, t) => s + t.overtimeS, 0);
       cur.pauseS += own.reduce((s, t) => s + t.pauseDurationS, 0);
 
+      const bg = cur.byGame.get(game.boardgameId) ?? {
+        name: game.boardgameName,
+        games: 0,
+        wins: 0,
+        scoreSum: 0,
+        scored: 0,
+      };
+      bg.games += 1;
+      bg.wins += p.isWinner ? 1 : 0;
+
+      if (p.score !== null) {
+        bg.scoreSum += p.score;
+        bg.scored += 1;
+      }
+      cur.byGame.set(game.boardgameId, bg);
+
       acc.set(p.playerId, cur);
     }
   }
 
-  const shown =
-    playerIds.length === 0
-      ? [...acc.keys()]
-      : [...acc.keys()].filter(id => playerIds.includes(id));
+  const players: PlayerAggregate[] = [...acc.keys()].map(id => {
+    // `acc` has an entry for every id here (this iterates its own keys).
+    const a = acc.get(id) as PlayerAcc;
 
-  const players: PlayerAggregate[] = shown.map(id => {
-    // `acc` has an entry for every id in `shown` (built from the same games).
-    const a = acc.get(id) as NonNullable<ReturnType<typeof acc.get>>;
+    const byGame: GameBreakdown[] = [...a.byGame.entries()]
+      .map(([boardgameId, g]) => ({
+        boardgameId: boardgameId as BoardgameId,
+        boardgameName: g.name,
+        games: g.games,
+        wins: g.wins,
+        winRate: (g.wins / g.games) * 100,
+        avgScore: g.scored > 0 ? g.scoreSum / g.scored : null,
+      }))
+      .sort((x, y) => y.games - x.games || y.winRate - x.winRate);
 
     // `a.games` is ≥ 1 for any accumulated player (added inside the game loop).
     return {
@@ -165,6 +269,8 @@ export function computeGlobalStats(
       avgSharePct: a.shareGames > 0 ? a.shareSum / a.shareGames : 0,
       avgOvertimeS: a.overtimeS / a.games,
       avgPauseS: a.pauseS / a.games,
+      byGame,
+      ...extremes(byGame),
     };
   });
 
@@ -177,12 +283,22 @@ export function computeGlobalStats(
       x.name.localeCompare(y.name),
   );
 
+  // Overall mean score across every scored participation in the filtered games
+  // (all players, not just the shown rows) — mirrors the other overall tiles.
+  let scoreSum = 0;
+  let scoredCount = 0;
+  for (const a of acc.values()) {
+    scoreSum += a.scoreSum;
+    scoredCount += a.scoredGames;
+  }
+
   return {
     gameCount,
     totalActiveS,
     avgActiveS: gameCount > 0 ? totalActiveS / gameCount : 0,
     avgRounds: gameCount > 0 ? totalRounds / gameCount : 0,
     avgTurnS: totalTurns > 0 ? totalActiveS / totalTurns : 0,
+    avgScore: scoredCount > 0 ? scoreSum / scoredCount : null,
     players,
   };
 }
