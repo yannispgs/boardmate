@@ -16,6 +16,7 @@ import type {
   Game,
   GameId,
   GameListItem,
+  GameStatsRecord,
   GameStatus,
   NewBoardgame,
   NewConfig,
@@ -94,6 +95,11 @@ export interface GameRepository {
    * its participants in play order (for the games list).
    */
   list(filter?: { status?: GameStatus }): Promise<GameListItem[]>;
+  /**
+   * All finished games reduced to what the global stats page averages
+   * (boardgame, participants + winner/score, turn log). One query for the lot.
+   */
+  listStats(): Promise<GameStatsRecord[]>;
   getPopulated(id: GameId): Promise<PopulatedGame | null>;
   create(input: NewGame): Promise<Game>;
   /**

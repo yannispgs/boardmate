@@ -274,6 +274,53 @@ describe("games adapter — listing & ending", () => {
     );
   });
 
+  it("listStats returns ended games with boardgame, participants and turns", async () => {
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    // One recorded turn (30s active, 4s over) then end with a winner + score.
+    await repo().advanceTurn(game.id, 30, 0, 0, 4);
+    await repo().end(game.id, playerIds[0], [
+      { playerId: playerIds[0], score: 12 },
+    ]);
+
+    const records = await repo().listStats();
+    const record = records.find(r => r.gameId === game.id);
+
+    expect(record).toBeDefined();
+    expect(record?.boardgameName).toBe("Catan");
+    expect(record?.players.map(p => p.playerId).sort()).toEqual(
+      [...playerIds].sort(),
+    );
+
+    const winner = record?.players.find(p => p.playerId === playerIds[0]);
+
+    expect(winner?.isWinner).toBe(true);
+    expect(winner?.score).toBe(12);
+
+    // The turn log carries active time + overtime for the aggregation.
+    expect(record?.turns).toHaveLength(1);
+    expect(record?.turns[0].playerId).toBe(playerIds[0]);
+    expect(record?.turns[0].durationS).toBe(30);
+    expect(record?.turns[0].overtimeS).toBe(4);
+
+    // Ongoing games never appear here.
+    const ongoing = await repo().create({
+      boardgameId: CATAN_ID,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(ongoing.id);
+
+    expect((await repo().listStats()).some(r => r.gameId === ongoing.id)).toBe(
+      false,
+    );
+  });
+
   it("records final scores passed to end() (final-entry games)", async () => {
     const game = await repo().create({
       boardgameId: CATAN_ID,

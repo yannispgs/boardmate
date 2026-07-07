@@ -9,6 +9,7 @@ import type {
   GameId,
   GameListItem,
   GamePlayer,
+  GameStatsRecord,
   GameStatus,
   GameTurn,
   GameTurnId,
@@ -90,6 +91,54 @@ function toGameTurn(row: GameTurnRow): GameTurn {
   };
 }
 
+// Shape returned by the lightweight `listStats` select (one row per ended game).
+type StatsRow = {
+  id: string;
+  boardgame_id: string;
+  ended_at: string | null;
+  boardgame: { name: string } | null;
+  game_players: Array<{
+    player_id: string;
+    is_winner: boolean;
+    score: number | null;
+    player: { name: string } | null;
+  }>;
+  game_turns: Array<{
+    player_id: string;
+    round: number;
+    duration_s: number;
+    pause_duration_s: number | null;
+    overtime_s: number | null;
+  }>;
+};
+
+function toStatsRecord(row: StatsRow): GameStatsRecord {
+  return {
+    gameId: row.id as GameId,
+    boardgameId: row.boardgame_id as BoardgameId,
+    /* c8 ignore next -- `?? ""` guards a boardgame row that can't be missing (FK) */
+    boardgameName: row.boardgame?.name ?? "",
+    endedAt: row.ended_at,
+    players: row.game_players.map(gp => ({
+      playerId: gp.player_id as PlayerId,
+      /* c8 ignore next -- `?? "?"` guards a player row that can't be missing (FK) */
+      name: gp.player?.name ?? "?",
+      isWinner: gp.is_winner,
+      score: gp.score,
+    })),
+    turns: row.game_turns.map(t => ({
+      playerId: t.player_id as PlayerId,
+      round: t.round,
+      durationS: t.duration_s,
+      // `?? 0` guards a not-yet-migrated backend missing the columns.
+      /* c8 ignore start */
+      pauseDurationS: t.pause_duration_s ?? 0,
+      overtimeS: t.overtime_s ?? 0,
+      /* c8 ignore stop */
+    })),
+  };
+}
+
 // Shape returned by the nested `getPopulated` select.
 type PopulatedRow = GameRow & {
   // The boardgame plus its config template's fields (for the win threshold's
@@ -146,6 +195,22 @@ export function createGameRepository(
       }
 
       return (data as unknown as GameListRow[]).map(toGameListItem);
+    },
+
+    async listStats() {
+      const { data, error } = await games()
+        .select(
+          "id, boardgame_id, ended_at, boardgame:boardgames(name), " +
+            "game_players(player_id, is_winner, score, player:players(name)), " +
+            "game_turns(player_id, round, duration_s, pause_duration_s, overtime_s)",
+        )
+        .eq("status", "ended");
+      /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */
+      if (error) {
+        throw new Error(`Lecture des statistiques: ${error.message}`);
+      }
+
+      return (data as unknown as StatsRow[]).map(toStatsRecord);
     },
 
     async getPopulated(id: GameId) {

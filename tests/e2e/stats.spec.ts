@@ -1,0 +1,112 @@
+import { expect, test } from "@playwright/test";
+
+import { adminClient, CATAN_ID, seedPlayers } from "./utils/supabase";
+
+/**
+ * The global statistics page (full-suite only — untagged): averages of every
+ * finished game, with the boardgame / player filters narrowing the set. Seeds a
+ * couple of ended games directly (service role) so the aggregation has data.
+ */
+test("shows averaged stats and filters by boardgame and player", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const names = await seedPlayers(3);
+  const gameIds: string[] = [];
+  let otherBoardgameId = "";
+
+  try {
+    const { data: seeded } = await admin
+      .from("players")
+      .select("id, name")
+      .in("name", names);
+    const ids = (seeded ?? []).map(p => p.id as string);
+
+    const { data: other } = await admin
+      .from("boardgames")
+      .insert({
+        name: `Zzz-${Date.now().toString(36)}`,
+        min_players: 1,
+        max_players: 4,
+      })
+      .select("id")
+      .single();
+    otherBoardgameId = other?.id as string;
+
+    async function seedEndedGame(boardgameId: string, winnerIdx: number) {
+      const { data: game } = await admin
+        .from("games")
+        .insert({
+          boardgame_id: boardgameId,
+          status: "ended",
+          round: 1,
+          turn: 1,
+          ended_at: new Date().toISOString(),
+        })
+        .select("id")
+        .single();
+      const gameId = game?.id as string;
+      gameIds.push(gameId);
+
+      await admin.from("game_players").insert(
+        ids.map((player_id, i) => ({
+          game_id: gameId,
+          player_id,
+          seat_order: i,
+          is_winner: i === winnerIdx,
+          score: 10 - i,
+        })),
+      );
+      await admin.from("game_turns").insert(
+        ids.map((player_id, i) => ({
+          game_id: gameId,
+          player_id,
+          round: 1,
+          turn_no: i + 1,
+          duration_s: 30 + i * 10,
+        })),
+      );
+    }
+
+    // Two Catan games (player 0 wins both) + one on the other boardgame.
+    await seedEndedGame(CATAN_ID, 0);
+    await seedEndedGame(CATAN_ID, 0);
+    await seedEndedGame(otherBoardgameId, 1);
+
+    await page.goto("/stats");
+
+    await expect(page.getByText("Classement des joueurs")).toBeVisible();
+
+    // Across all 3 games player 0 won 2 → 67%, topping the ranking.
+    const cards = page.getByRole("listitem");
+
+    await expect(cards.first()).toContainText(names[0]);
+    await expect(cards.first()).toContainText("67%");
+
+    // Filter to Catan: player 0 won both Catan games → 100%.
+    await page.getByRole("button", { name: "Catan", exact: true }).click();
+
+    const p0Card = page.getByRole("listitem").filter({ hasText: names[0] });
+
+    await expect(p0Card).toContainText("100%");
+
+    // Now the other boardgame: player 0 didn't win its only game → 0%.
+    await page.getByRole("button", { name: "Catan", exact: true }).click();
+    await page
+      .getByRole("button", { name: /^Zzz-/ })
+      .first()
+      .click();
+
+    await expect(
+      page.getByRole("listitem").filter({ hasText: names[0] }),
+    ).toContainText("0%");
+  } finally {
+    for (const id of gameIds) {
+      await admin.from("games").delete().eq("id", id);
+    }
+    if (otherBoardgameId) {
+      await admin.from("boardgames").delete().eq("id", otherBoardgameId);
+    }
+    await admin.from("players").delete().in("name", names);
+  }
+});

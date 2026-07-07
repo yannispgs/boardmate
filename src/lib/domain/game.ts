@@ -123,6 +123,33 @@ export interface PopulatedGame extends Game {
   turns: GameTurn[];
 }
 
+/**
+ * A finished game reduced to what cross-game aggregation needs (the global
+ * stats page): its boardgame, participants (winner + final score) and the turn
+ * log. Lighter than `PopulatedGame` — no config/threshold/score timeline — so
+ * many games can be pulled and averaged in one query.
+ */
+export interface GameStatsRecord {
+  gameId: GameId;
+  boardgameId: BoardgameId;
+  boardgameName: string;
+  /** ISO 8601, when the game ended (null defensively — ended games have it). */
+  endedAt: string | null;
+  players: Array<{
+    playerId: PlayerId;
+    name: string;
+    isWinner: boolean;
+    score: number | null;
+  }>;
+  turns: Array<{
+    playerId: PlayerId;
+    round: number;
+    durationS: number;
+    pauseDurationS: number;
+    overtimeS: number;
+  }>;
+}
+
 export interface NewGame {
   boardgameId: BoardgameId;
   configId: ConfigId | null;

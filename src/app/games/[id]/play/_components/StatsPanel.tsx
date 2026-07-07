@@ -3,12 +3,12 @@
 import { useState } from "react";
 
 import { Modal } from "@/components/Modal";
+import { StatTile } from "@/components/StatTile";
 import type { DiceSpec, GamePlayer, GameTurn, Player } from "@/lib/domain";
 import { formatDuration } from "@/lib/game/format-time";
 import { computeGameStats, timeHog } from "@/lib/game/stats";
 import { DiceTimeline } from "./DiceTimeline";
 import { PlayerStatCardList } from "./PlayerStatCardList";
-import { StatTile } from "./StatTile";
 
 /**
  * Live time statistics during play, behind a side button (next to the scores
