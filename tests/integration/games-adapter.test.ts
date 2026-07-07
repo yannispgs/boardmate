@@ -349,7 +349,10 @@ describe("games adapter — listing & ending", () => {
 
     // Clean the throwaway game + boardgame (game first for the FK).
     await admin.from("games").delete().eq("id", noDice.id);
-    await admin.from("boardgames").delete().eq("id", bg?.id as string);
+    await admin
+      .from("boardgames")
+      .delete()
+      .eq("id", bg?.id as string);
   });
 
   it("records final scores passed to end() (final-entry games)", async () => {
