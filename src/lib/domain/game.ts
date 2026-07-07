@@ -1,4 +1,4 @@
-import type { Boardgame } from "./boardgame";
+import type { Boardgame, DiceSpec } from "./boardgame";
 import type { Config, ConfigValues } from "./config";
 import type {
   BoardgameId,
@@ -133,6 +133,8 @@ export interface GameStatsRecord {
   gameId: GameId;
   boardgameId: BoardgameId;
   boardgameName: string;
+  /** The boardgame's dice spec, when it tracks dice (null otherwise). */
+  dice: DiceSpec | null;
   /** ISO 8601, when the game ended (null defensively — ended games have it). */
   endedAt: string | null;
   players: Array<{
@@ -148,6 +150,8 @@ export interface GameStatsRecord {
     pauseDurationS: number;
     overtimeS: number;
   }>;
+  /** Summed dice values rolled this game, in draw order (empty when untracked). */
+  diceRolls: number[];
 }
 
 export interface NewGame {

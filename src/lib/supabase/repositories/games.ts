@@ -96,7 +96,7 @@ type StatsRow = {
   id: string;
   boardgame_id: string;
   ended_at: string | null;
-  boardgame: { name: string } | null;
+  boardgame: { name: string; dice: unknown } | null;
   game_players: Array<{
     player_id: string;
     is_winner: boolean;
@@ -110,6 +110,7 @@ type StatsRow = {
     pause_duration_s: number | null;
     overtime_s: number | null;
   }>;
+  dice_rolls: Array<{ value: number; created_at: string }>;
 };
 
 function toStatsRecord(row: StatsRow): GameStatsRecord {
@@ -118,6 +119,7 @@ function toStatsRecord(row: StatsRow): GameStatsRecord {
     boardgameId: row.boardgame_id as BoardgameId,
     /* c8 ignore next -- `?? ""` guards a boardgame row that can't be missing (FK) */
     boardgameName: row.boardgame?.name ?? "",
+    dice: (row.boardgame?.dice as GameStatsRecord["dice"]) ?? null,
     endedAt: row.ended_at,
     players: row.game_players.map(gp => ({
       playerId: gp.player_id as PlayerId,
@@ -136,6 +138,9 @@ function toStatsRecord(row: StatsRow): GameStatsRecord {
       overtimeS: t.overtime_s ?? 0,
       /* c8 ignore stop */
     })),
+    diceRolls: [...row.dice_rolls]
+      .sort((a, b) => a.created_at.localeCompare(b.created_at))
+      .map(d => d.value),
   };
 }
 
@@ -200,9 +205,10 @@ export function createGameRepository(
     async listStats() {
       const { data, error } = await games()
         .select(
-          "id, boardgame_id, ended_at, boardgame:boardgames(name), " +
+          "id, boardgame_id, ended_at, boardgame:boardgames(name, dice), " +
             "game_players(player_id, is_winner, score, player:players(name)), " +
-            "game_turns(player_id, round, duration_s, pause_duration_s, overtime_s)",
+            "game_turns(player_id, round, duration_s, pause_duration_s, overtime_s), " +
+            "dice_rolls(value, created_at)",
         )
         .eq("status", "ended");
       /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */

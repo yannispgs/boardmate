@@ -5,11 +5,12 @@ import { useMemo, useState } from "react";
 import { StatTile } from "@/components/StatTile";
 import type { BoardgameId, GameStatsRecord, PlayerId } from "@/lib/domain";
 import { formatDuration } from "@/lib/game/format-time";
-import { computeGlobalStats } from "@/lib/game/global-stats";
-import { ChipMultiSelect } from "./ChipMultiSelect";
+import { computeGlobalStats, filterRecords } from "@/lib/game/global-stats";
 import { DateWindow } from "./DateWindow";
 import { GamePicker } from "./GamePicker";
 import { GamePlayerTable } from "./GamePlayerTable";
+import { MultiSelectField } from "./MultiSelectField";
+import { StatsDiceDistribution } from "./StatsDiceDistribution";
 
 /** Distinct boardgames present in the records, sorted by name. */
 function gameOptions(records: GameStatsRecord[]) {
@@ -61,16 +62,28 @@ export function GamesTab({ records }: { records: GameStatsRecord[] }) {
     [records, active],
   );
 
-  const stats = useMemo(
-    () =>
-      computeGlobalStats(records, {
-        boardgameIds: [active as BoardgameId],
-        playerIds: presentIds as PlayerId[],
-        from: from || undefined,
-        until: until || undefined,
-      }),
-    [records, active, presentIds, from, until],
+  const filters = useMemo(
+    () => ({
+      boardgameIds: [active as BoardgameId],
+      playerIds: presentIds as PlayerId[],
+      from: from || undefined,
+      until: until || undefined,
+    }),
+    [active, presentIds, from, until],
   );
+
+  const stats = useMemo(
+    () => computeGlobalStats(records, filters),
+    [records, filters],
+  );
+
+  // Dice games: aggregate every roll across the parties in scope.
+  const dice = useMemo(() => {
+    const scope = filterRecords(records, filters);
+    const spec = scope.find(g => g.dice)?.dice ?? null;
+
+    return { spec, rolls: scope.flatMap(g => g.diceRolls) };
+  }, [records, filters]);
 
   const scored = stats.avgScore !== null;
   const champion = stats.players.reduce<(typeof stats.players)[number] | null>(
@@ -78,22 +91,16 @@ export function GamesTab({ records }: { records: GameStatsRecord[] }) {
     null,
   );
 
-  const togglePresent = (id: string) =>
-    setPresentIds(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id],
-    );
-
   return (
     <div className="flex flex-col gap-6">
       <GamePicker options={games} selected={active} onSelect={setSelected} />
 
       <div className="flex flex-col gap-4 rounded-xl border border-black/10 p-4 dark:border-white/10">
-        <ChipMultiSelect
+        <MultiSelectField
           label="Avec les joueurs"
           options={presenceOptions}
           selected={presentIds}
-          onToggle={togglePresent}
-          onClear={() => setPresentIds([])}
+          onChange={setPresentIds}
         />
         <DateWindow
           from={from}
@@ -139,6 +146,15 @@ export function GamesTab({ records }: { records: GameStatsRecord[] }) {
                 jeu — {champion.wins} victoire{champion.wins > 1 ? "s" : ""} sur{" "}
                 {champion.games}
               </span>
+            </div>
+          ) : null}
+
+          {dice.spec && dice.rolls.length > 0 ? (
+            <div className="flex flex-col gap-3">
+              <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                Distribution des lancers de dés
+              </h2>
+              <StatsDiceDistribution rolls={dice.rolls} spec={dice.spec} />
             </div>
           ) : null}
 

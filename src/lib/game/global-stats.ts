@@ -163,20 +163,24 @@ function extremes(byGame: GameBreakdown[]): {
   };
 }
 
-/** Filters the games, then averages overall + per-player figures over them. */
-export function computeGlobalStats(
+/**
+ * The games matching the filters: of the given boardgames (any, if none),
+ * featuring every requested player (presence), within the end-date window.
+ * Shared by `computeGlobalStats` and callers that need the raw filtered set
+ * (e.g. aggregating dice rolls).
+ */
+export function filterRecords(
   records: GameStatsRecord[],
   filters: GlobalStatsFilters = {},
-): GlobalStats {
+): GameStatsRecord[] {
   const boardgameIds = filters.boardgameIds ?? [];
   const playerIds = filters.playerIds ?? [];
   const from = filters.from;
   const until = filters.until;
 
-  const games = records.filter(g => {
+  return records.filter(g => {
     const byBoardgame =
       boardgameIds.length === 0 || boardgameIds.includes(g.boardgameId);
-    // Presence: the game must feature EVERY requested player.
     const byPlayer =
       playerIds.length === 0 ||
       playerIds.every(id => g.players.some(p => p.playerId === id));
@@ -185,7 +189,14 @@ export function computeGlobalStats(
 
     return byBoardgame && byPlayer && inWindow;
   });
+}
 
+/** Filters the games, then averages overall + per-player figures over them. */
+export function computeGlobalStats(
+  records: GameStatsRecord[],
+  filters: GlobalStatsFilters = {},
+): GlobalStats {
+  const games = filterRecords(records, filters);
   const gameCount = games.length;
   const totalActiveS = games.reduce((sum, g) => sum + activeTotal(g), 0);
   const totalTurns = games.reduce((sum, g) => sum + g.turns.length, 0);

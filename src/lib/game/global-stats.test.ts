@@ -24,6 +24,7 @@ const game1: GameStatsRecord = {
   gameId: "g1" as GameStatsRecord["gameId"],
   boardgameId: CATAN,
   boardgameName: "Catan",
+  dice: null,
   endedAt: "2026-07-01T10:00:00Z",
   players: [
     { playerId: ALICE, name: "Alice", isWinner: true, score: 10 },
@@ -35,6 +36,7 @@ const game1: GameStatsRecord = {
     turn(ALICE, 2, 40),
     turn(BOB, 2, 20),
   ],
+  diceRolls: [],
 };
 
 // Game 2 (Wingspan): Bob beats Alice and Chloé. Alice unscored here.
@@ -42,6 +44,7 @@ const game2: GameStatsRecord = {
   gameId: "g2" as GameStatsRecord["gameId"],
   boardgameId: WINGSPAN,
   boardgameName: "Wingspan",
+  dice: null,
   endedAt: "2026-07-02T10:00:00Z",
   players: [
     { playerId: ALICE, name: "Alice", isWinner: false, score: null },
@@ -49,6 +52,7 @@ const game2: GameStatsRecord = {
     { playerId: CHLOE, name: "Chloé", isWinner: false, score: 70 },
   ],
   turns: [turn(ALICE, 1, 30), turn(BOB, 1, 30), turn(CHLOE, 1, 60)],
+  diceRolls: [],
 };
 
 describe("computeGlobalStats", () => {
@@ -157,6 +161,7 @@ describe("computeGlobalStats", () => {
       gameId: id as GameStatsRecord["gameId"],
       boardgameId,
       boardgameName: name,
+      dice: null,
       endedAt: "2026-07-01T10:00:00Z",
       players: [
         {
@@ -168,6 +173,7 @@ describe("computeGlobalStats", () => {
         { playerId: BOB, name: "Bob", isWinner: winner === BOB, score: 4 },
       ],
       turns: [turn(ALICE, 1, 20), turn(BOB, 1, 20)],
+      diceRolls: [],
     };
   }
 
@@ -242,12 +248,14 @@ describe("computeGlobalStats", () => {
       gameId: "g3" as GameStatsRecord["gameId"],
       boardgameId: CATAN,
       boardgameName: "Catan",
+      dice: null,
       endedAt: null,
       players: [
         { playerId: ALICE, name: "Alice", isWinner: true, score: null },
         { playerId: BOB, name: "Bob", isWinner: false, score: null },
       ],
       turns: [],
+      diceRolls: [],
     };
     const s = computeGlobalStats([empty]);
     const alice = s.players.find(p => p.name === "Alice");

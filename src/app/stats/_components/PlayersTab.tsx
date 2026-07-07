@@ -6,14 +6,14 @@ import { StatTile } from "@/components/StatTile";
 import type { GameStatsRecord, PlayerId } from "@/lib/domain";
 import { formatDuration } from "@/lib/game/format-time";
 import { computeGlobalStats } from "@/lib/game/global-stats";
-import { ChipMultiSelect } from "./ChipMultiSelect";
+import { MultiSelectField } from "./MultiSelectField";
 import { PlayerDetail } from "./PlayerDetail";
 import { PlayerRankingList } from "./PlayerRankingList";
 
 /**
  * "Joueurs" tab: global by default — overall averages plus a ranking of every
  * player's individual stats (win rate, games, most-played / best / worst game).
- * A chip filter narrows which players are shown; tapping a player opens their
+ * A search-select narrows which players are shown; tapping a player opens their
  * detailed stats.
  */
 export function PlayersTab({ records }: { records: GameStatsRecord[] }) {
@@ -40,11 +40,6 @@ export function PlayersTab({ records }: { records: GameStatsRecord[] }) {
       ? stats.players
       : stats.players.filter(p => shownIds.includes(p.playerId));
 
-  const toggle = (id: string) =>
-    setShownIds(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id],
-    );
-
   return (
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -57,12 +52,11 @@ export function PlayersTab({ records }: { records: GameStatsRecord[] }) {
         <StatTile label="Tour moy." value={formatDuration(stats.avgTurnS)} />
       </div>
 
-      <ChipMultiSelect
+      <MultiSelectField
         label="Joueurs"
         options={playerOptions}
         selected={shownIds}
-        onToggle={toggle}
-        onClear={() => setShownIds([])}
+        onChange={setShownIds}
       />
 
       <div className="flex flex-col gap-3">

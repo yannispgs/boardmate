@@ -282,8 +282,10 @@ describe("games adapter — listing & ending", () => {
     });
     gameIds.push(game.id);
 
-    // One recorded turn (30s active, 4s over) then end with a winner + score.
+    // One recorded turn (30s active, 4s over) + two dice rolls, then end.
     await repo().advanceTurn(game.id, 30, 0, 0, 4);
+    await repo().addDiceRoll(game.id, 8);
+    await repo().addDiceRoll(game.id, 6);
     await repo().end(game.id, playerIds[0], [
       { playerId: playerIds[0], score: 12 },
     ]);
@@ -293,6 +295,9 @@ describe("games adapter — listing & ending", () => {
 
     expect(record).toBeDefined();
     expect(record?.boardgameName).toBe("Catan");
+    // Catan tracks 2×d6; its rolls come back in draw order.
+    expect(record?.dice).toEqual({ count: 2, sides: 6 });
+    expect(record?.diceRolls).toEqual([8, 6]);
     expect(record?.players.map(p => p.playerId).sort()).toEqual(
       [...playerIds].sort(),
     );
@@ -319,6 +324,32 @@ describe("games adapter — listing & ending", () => {
     expect((await repo().listStats()).some(r => r.gameId === ongoing.id)).toBe(
       false,
     );
+
+    // A game on a boardgame without dice reports `dice: null`.
+    const admin = serviceClient();
+    const { data: bg } = await admin
+      .from("boardgames")
+      .insert({ name: `NoDice-${Date.now().toString(36)}` })
+      .select("id")
+      .single();
+    const noDice = await repo().create({
+      boardgameId: bg?.id as BoardgameId,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(noDice.id);
+    await repo().end(noDice.id, playerIds[0]);
+
+    const noDiceRecord = (await repo().listStats()).find(
+      r => r.gameId === noDice.id,
+    );
+
+    expect(noDiceRecord?.dice).toBeNull();
+    expect(noDiceRecord?.diceRolls).toEqual([]);
+
+    // Clean the throwaway game + boardgame (game first for the FK).
+    await admin.from("games").delete().eq("id", noDice.id);
+    await admin.from("boardgames").delete().eq("id", bg?.id as string);
   });
 
   it("records final scores passed to end() (final-entry games)", async () => {
