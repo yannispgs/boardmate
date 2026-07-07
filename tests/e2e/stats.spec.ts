@@ -92,10 +92,7 @@ test("shows averaged stats and filters by boardgame and player", async ({
 
     // Now the other boardgame: player 0 didn't win its only game → 0%.
     await page.getByRole("button", { name: "Catan", exact: true }).click();
-    await page
-      .getByRole("button", { name: /^Zzz-/ })
-      .first()
-      .click();
+    await page.getByRole("button", { name: /^Zzz-/ }).first().click();
 
     await expect(
       page.getByRole("listitem").filter({ hasText: names[0] }),
