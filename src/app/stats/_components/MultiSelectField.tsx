@@ -59,10 +59,9 @@ export function MultiSelectField({
         {label}
       </span>
       <div ref={ref} className="relative">
-        <div
-          onClick={() => setOpen(o => !o)}
-          className="flex min-h-[2.75rem] cursor-pointer flex-wrap items-center gap-1.5 rounded-xl border border-black/10 p-2 dark:border-white/15"
-        >
+        {/* The box: pills (each with their own × button) plus a flex-1 trigger
+            button filling the empty space, so a tap anywhere blank opens it. */}
+        <div className="flex min-h-[2.75rem] flex-wrap items-center gap-1.5 rounded-xl border border-black/10 p-2 dark:border-white/15">
           {selected.length === 0 ? (
             <span className="rounded-full border border-indigo-500 bg-indigo-500/10 px-3 py-1 text-sm text-indigo-700 dark:text-indigo-300">
               Tous
@@ -77,10 +76,7 @@ export function MultiSelectField({
                 <button
                   type="button"
                   aria-label={`Retirer ${nameOf(id)}`}
-                  onClick={e => {
-                    e.stopPropagation();
-                    remove(id);
-                  }}
+                  onClick={() => remove(id)}
                   className="flex h-4 w-4 items-center justify-center rounded-full text-indigo-700/70 transition hover:bg-indigo-500/20 hover:text-indigo-700 dark:text-indigo-300/70 dark:hover:text-indigo-300"
                 >
                   ×
@@ -88,9 +84,14 @@ export function MultiSelectField({
               </span>
             ))
           )}
-          <span className="ml-auto pr-1 text-zinc-400" aria-hidden>
+          <button
+            type="button"
+            aria-label="Ouvrir la liste"
+            onClick={() => setOpen(o => !o)}
+            className="ml-auto flex min-w-8 flex-1 cursor-pointer justify-end self-stretch pr-1 text-zinc-400"
+          >
             ▾
-          </span>
+          </button>
         </div>
 
         {open ? (
