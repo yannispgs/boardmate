@@ -20,6 +20,12 @@ test("records dice rolls and charts them in draw order", async ({ page }) => {
   try {
     gameId = await funnelToPlay(page, players);
 
+    // Lift the per-turn roll cap out of the way for this histogram check by
+    // pretending several turns have been played, then reload to pick it up.
+    await adminClient().from("games").update({ turn: 20 }).eq("id", gameId);
+    await page.reload();
+    await expect(page).toHaveURL(/\/play$/);
+
     // Roll 7 three times and 5 once — one tap each.
     await page.getByRole("button", { name: "Lancer de 7" }).click();
     await page.getByRole("button", { name: "Lancer de 5" }).click();
@@ -52,6 +58,47 @@ test("records dice rolls and charts them in draw order", async ({ page }) => {
     // Value 7 came up 3× → its row shows the total.
     await expect(
       grid.getByRole("listitem").filter({ hasText: "3×" }),
+    ).toBeVisible();
+  } finally {
+    const admin = adminClient();
+    if (gameId) {
+      await admin.from("games").delete().eq("id", gameId);
+    }
+    await admin.from("players").delete().in("name", players);
+  }
+});
+
+test("caps the roll count at the number of player-turns played", async ({
+  page,
+}) => {
+  const players = await seedPlayers(CATAN_MIN_PLAYERS);
+  let gameId = "";
+
+  try {
+    // A fresh game is on turn 1 → at most one roll may be recorded.
+    gameId = await funnelToPlay(page, players);
+
+    await page.getByRole("button", { name: "Lancer de 8" }).click();
+    await expect(
+      page.getByRole("button", { name: "Lancer de 8" }).getByText("1", {
+        exact: true,
+      }),
+    ).toBeVisible();
+
+    // The cap is reached: a note appears and a further tap records nothing.
+    await expect(page.getByText(/Maximum atteint/)).toBeVisible();
+    await page.getByRole("button", { name: "Lancer de 6" }).click();
+
+    // 6 stays uncounted (its bar shows no number) and 8 is still at one.
+    await expect(
+      page.getByRole("button", { name: "Lancer de 6" }).getByText("1", {
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "Lancer de 8" }).getByText("1", {
+        exact: true,
+      }),
     ).toBeVisible();
   } finally {
     const admin = adminClient();

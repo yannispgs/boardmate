@@ -10,7 +10,9 @@ const STUB = 6; // min bar height so empty values stay visible + tappable
  * height is how often it's been rolled and whose colour is how "cold" it is —
  * the longer a number has gone without coming up, the more vivid the blue, so
  * the numbers that are "due" jump out. Tapping a bar records one roll of that
- * value. The most recent roll is ringed.
+ * value. The most recent roll is ringed. Recording is capped at the number of
+ * player-turns played (`maxRolls`) — enough to backfill missed rolls but a guard
+ * against runaway missclicks; a line explains the block when the cap is hit.
  */
 export function DiceBar({
   values,
@@ -18,19 +20,23 @@ export function DiceBar({
   lastRolled,
   onRoll,
   disabled,
+  atCap,
+  maxRolls,
 }: {
   values: number[];
   stats: Record<number, DiceValueStat>;
   lastRolled: number | null;
   onRoll: (value: number) => void;
   disabled: boolean;
+  atCap: boolean;
+  maxRolls: number;
 }) {
   const maxCount = Math.max(1, ...values.map(v => stats[v]?.count ?? 0));
   // A value absent for a full cycle of values reads as fully cold.
   const scale = values.length;
 
   return (
-    <div className="w-full max-w-sm">
+    <div className="flex w-full max-w-sm flex-col gap-2">
       <div className="flex items-end justify-between gap-1">
         {values.map(value => {
           const stat = stats[value];
@@ -67,6 +73,13 @@ export function DiceBar({
           );
         })}
       </div>
+
+      {atCap ? (
+        <p className="text-center text-xs text-amber-600 dark:text-amber-400">
+          Maximum atteint ({maxRolls}) — un lancer par tour de joueur. Passe au
+          tour suivant pour en enregistrer d&apos;autres.
+        </p>
+      ) : null}
     </div>
   );
 }

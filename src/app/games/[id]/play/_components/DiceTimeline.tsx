@@ -8,8 +8,9 @@ const LUCK_CLASS: Record<DiceLuck, string> = {
 };
 
 // Fixed spacing per roll so a long game (Catan can reach ~100 rolls) stays
-// legible and scrolls horizontally rather than cramming marks together.
-const PX_PER_ROLL = 8;
+// legible and scrolls horizontally rather than cramming marks together. Kept
+// tight — consecutive marks sit about one tick-width apart (ticks are 2px).
+const PX_PER_ROLL = 4;
 const MIN_LANE = 140;
 
 /** Signed écart with a real minus sign, one decimal (e.g. `+2.5`, `−1.0`). */

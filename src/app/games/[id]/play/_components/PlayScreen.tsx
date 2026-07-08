@@ -224,7 +224,15 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
     if (!game) {
       return;
     }
-    setRolls(r => [...(r ?? []), value]);
+    // Cap the log at the number of player-turns played so far (game.turn): it
+    // lets you backfill missed rolls yet stops a stuck button from flooding the
+    // data. A no-op past the cap; the DiceBar explains it.
+    const current = rolls ?? [];
+    if (current.length >= game.turn) {
+      return;
+    }
+
+    setRolls([...current, value]);
     try {
       await repo.addDiceRoll(game.id, value);
     } catch {
@@ -332,6 +340,8 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   const diceRange = dice ? diceValues(dice) : [];
   const dStats = dice ? diceStats(rollValues, diceRange) : {};
   const lastRolled = rollValues.at(-1) ?? null;
+  // At most one roll per player-turn played (see handleRoll).
+  const atRollCap = rollValues.length >= game.turn;
 
   return (
     <div className="flex flex-col items-center gap-8">
@@ -372,6 +382,8 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
           lastRolled={lastRolled}
           onRoll={handleRoll}
           disabled={game.status !== "ongoing"}
+          atCap={atRollCap}
+          maxRolls={game.turn}
         />
       ) : null}
 
