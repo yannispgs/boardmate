@@ -1,12 +1,10 @@
 import type { PopulatedGame } from "@/lib/domain";
 
-import { diceDeviations, diceValues } from "@/lib/game/dice";
 import { formatDuration } from "@/lib/game/format-time";
 import { buildScoreSeries } from "@/lib/game/score-series";
 import { computeGameStats } from "@/lib/game/stats";
 import { buildTurnTimeSeries } from "@/lib/game/turn-time-series";
 
-import { DiceDeviations } from "./DiceDeviations";
 import { DiceTimeline } from "./DiceTimeline";
 import { PlayerStatCardList } from "./PlayerStatCardList";
 import { ScoreChart } from "./ScoreChart";
@@ -40,8 +38,6 @@ export function GameStats({ game }: { game: PopulatedGame }) {
 
   const dice = game.boardgame.dice;
   const rollValues = game.diceRolls.map(d => d.value);
-  const diceRange = dice ? diceValues(dice) : [];
-  const deviations = dice ? diceDeviations(rollValues, dice) : [];
 
   const tiles: { label: string; value: string; accent?: boolean }[] = [
     {
@@ -164,12 +160,11 @@ export function GameStats({ game }: { game: PopulatedGame }) {
           <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
             Tirages de dés — dans l&apos;ordre
           </h3>
-          <DiceTimeline rolls={rollValues} values={diceRange} />
+          <DiceTimeline rolls={rollValues} spec={dice} />
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            Écart à la moyenne attendue — vert au-dessus, rouge en dessous, gris
-            à ±10 %.
+            À droite : le total et l&apos;écart à la moyenne attendue — vert /
+            rouge au-delà d&apos;un écart-type, gris pour la variance normale.
           </p>
-          <DiceDeviations rows={deviations} />
         </div>
       ) : null}
 

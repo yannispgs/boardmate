@@ -99,7 +99,7 @@ export function diceWeights({
   return dist;
 }
 
-/** Whether a value came up more/less than probability predicts (±10% = even). */
+/** Whether a value came up more/less than probability predicts (within 1σ = even). */
 export type DiceLuck = "over" | "under" | "even";
 
 /** Observed vs. expected occurrences of a value, given the rolls so far. */
@@ -116,9 +116,14 @@ export interface DiceDeviation {
 
 /**
  * Compares each value's observed count against what its probability predicts
- * over the same number of rolls. A value within ±10% of its expected count reads
- * as `"even"`; beyond that it's `"over"` (came up more than the odds) or
- * `"under"`. With no rolls everything is even (expected 0).
+ * over the same number of rolls. A value reads as `"even"` while its `delta`
+ * stays within one standard deviation of the expected count — the natural
+ * spread of chance — and only past that is it `"over"` (luckier than the odds)
+ * or `"under"`. The 1σ band scales with the sample: it's tight for the common
+ * middle values and appropriately wide for the rare extremes (2, 12), so normal
+ * variance there isn't flagged as luck. Modelled as a binomial: for `n` rolls
+ * with per-roll probability `p`, σ = √(n·p·(1−p)). With no rolls everything is
+ * even (expected 0).
  */
 export function diceDeviations(
   rolls: number[],
@@ -134,12 +139,14 @@ export function diceDeviations(
   }
 
   return diceValues(spec).map(value => {
+    const p = weights[value] / total;
     const count = counts[value] ?? 0;
-    const expected = (weights[value] / total) * n;
+    const expected = p * n;
     const delta = count - expected;
+    const sigma = Math.sqrt(n * p * (1 - p));
 
     let luck: DiceLuck = "even";
-    if (expected > 0 && Math.abs(delta) > 0.1 * expected) {
+    if (sigma > 0 && Math.abs(delta) > sigma) {
       luck = delta > 0 ? "over" : "under";
     }
 

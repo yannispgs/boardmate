@@ -1,105 +1,138 @@
-const W = 320;
-const H = 180;
-const TOP = 10;
-const BOTTOM = 22; // room for the roll-order labels
-const LEFT = 24; // room for the value labels
-const RIGHT = 10;
-const PLOT_W = W - LEFT - RIGHT;
-const PLOT_H = H - TOP - BOTTOM;
-const MAX_X_TICKS = 8;
+import type { DiceSpec } from "@/lib/domain";
+import { type DiceLuck, diceDeviations, diceValues } from "@/lib/game/dice";
+
+const LUCK_CLASS: Record<DiceLuck, string> = {
+  over: "text-emerald-600 dark:text-emerald-400",
+  under: "text-red-600 dark:text-red-400",
+  even: "text-zinc-400",
+};
+
+// Fixed spacing per roll so a long game (Catan can reach ~100 rolls) stays
+// legible and scrolls horizontally rather than cramming marks together.
+const PX_PER_ROLL = 8;
+const MIN_LANE = 140;
+
+/** Signed écart with a real minus sign, one decimal (e.g. `+2.5`, `−1.0`). */
+function formatDelta(delta: number): string {
+  const sign = delta >= 0 ? "+" : "−";
+
+  return `${sign}${Math.abs(delta).toFixed(1)}`;
+}
+
+/** A "nice" roll-number step (5 / 10 / 20 / 50 …) giving ~5 axis labels. */
+function axisStep(n: number): number {
+  const rough = n / 5;
+  const pow = 10 ** Math.floor(Math.log10(rough));
+  const base = rough / pow;
+  const nice = base <= 1 ? 1 : base <= 2 ? 2 : base <= 5 ? 5 : 10;
+
+  return Math.max(5, nice * pow);
+}
 
 /**
- * The dice rolls in the order they came up — draw number along the bottom, the
- * summed value up the left (Catan: 2…12). One bar per roll, its top sitting on
- * the value that came up, so the sequence reads left to right and a value's
- * height jumps out. Plain SVG, like the app's other hand-rolled charts.
+ * The dice log the way you'd tally it on paper: one row per value (2…12), each
+ * roll a vertical tick placed left → right in draw order along that value's
+ * lane. A row shows at a glance how often a value came up, the gaps between its
+ * occurrences, and when they clustered. The value (left) and the total + écart
+ * (right) stay pinned while the lanes scroll horizontally, so a long game stays
+ * readable. The écart is vs the count its probability predicts — green past +1σ,
+ * red past −1σ, grey within (normal variance). A faint roll-count scale runs
+ * underneath.
  */
 export function DiceTimeline({
   rolls,
-  values,
+  spec,
 }: {
   rolls: number[];
-  values: number[];
+  spec: DiceSpec;
 }) {
-  const minV = values[0];
-  const maxV = values[values.length - 1];
-  // Floor the bars just below the lowest possible sum so even a min roll shows.
-  const floor = minV - 1;
-  const span = Math.max(1, maxV - floor);
+  const values = diceValues(spec);
+  const byValue = new Map(diceDeviations(rolls, spec).map(d => [d.value, d]));
   const n = rolls.length;
 
-  const py = (value: number) => TOP + ((maxV - value) / span) * PLOT_H;
-  const baseline = py(floor);
+  const pct = (index: number) => (n <= 1 ? 50 : (index / (n - 1)) * 100);
+  const laneMin = Math.max(MIN_LANE, (n - 1) * PX_PER_ROLL);
 
-  const slot = PLOT_W / Math.max(1, n);
-  const barW = Math.max(1, Math.min(slot - 1, 14));
-  const cx = (i: number) => LEFT + (i + 0.5) * slot;
-
-  // Up to 8 evenly-spaced draw-number ticks (1 … n).
-  const xStep = Math.max(1, Math.ceil(n / MAX_X_TICKS));
-  const xTicks: number[] = [];
-  for (let t = 1; t <= n; t += xStep) {
-    xTicks.push(t);
+  // Vertical guides + labels every "nice" number of rolls (1-based roll number).
+  const step = axisStep(n);
+  const ticks: number[] = [];
+  for (let r = step; r <= n; r += step) {
+    ticks.push(r);
   }
 
+  const sticky = "sticky bg-white dark:bg-zinc-900";
+
   return (
-    <svg
-      viewBox={`0 0 ${W} ${H}`}
-      className="w-full rounded-xl border border-black/10 dark:border-white/10"
-      role="img"
-      aria-label="Tirages de dés dans l'ordre"
-    >
-      {/* One faint guide + label per possible value. */}
-      {values.map(value => (
-        <g key={`y-${value}`}>
-          <line
-            x1={LEFT}
-            y1={py(value)}
-            x2={W - RIGHT}
-            y2={py(value)}
-            className="stroke-black/[0.06] dark:stroke-white/[0.08]"
-            strokeWidth={1}
-          />
-          <text
-            x={LEFT - 5}
-            y={py(value)}
-            textAnchor="end"
-            dominantBaseline="middle"
-            fontSize={9}
-            className="fill-zinc-400 tabular-nums"
-          >
-            {value}
-          </text>
-        </g>
-      ))}
+    <div className="overflow-x-auto rounded-xl border border-black/10 dark:border-white/10">
+      <ul
+        aria-label="Tirages de dés dans l'ordre"
+        className="flex flex-col p-1"
+      >
+        {values.map(value => {
+          const d = byValue.get(value);
+          const positions: number[] = [];
+          rolls.forEach((r, i) => {
+            if (r === value) {
+              positions.push(i);
+            }
+          });
 
-      {/* Draw-number labels along the bottom. */}
-      {xTicks.map(t => (
-        <text
-          key={`x-${t}`}
-          x={cx(t - 1)}
-          y={H - 7}
-          textAnchor="middle"
-          fontSize={9}
-          className="fill-zinc-400 tabular-nums"
-        >
-          {t}
-        </text>
-      ))}
+          return (
+            <li key={value} className="flex h-5 items-stretch">
+              <span
+                className={`${sticky} left-0 z-10 flex w-6 shrink-0 items-center justify-end pr-1 text-xs font-medium tabular-nums text-zinc-500 dark:text-zinc-400`}
+              >
+                {value}
+              </span>
+              <div className="relative flex-1" style={{ minWidth: laneMin }}>
+                <div className="absolute inset-x-0 top-1/2 h-4 -translate-y-1/2 rounded bg-black/[0.03] dark:bg-white/[0.04]" />
+                {ticks.map(r => (
+                  <div
+                    key={r}
+                    className="absolute top-0.5 bottom-0.5 w-px bg-black/[0.06] dark:bg-white/[0.08]"
+                    style={{ left: `${pct(r - 1)}%` }}
+                  />
+                ))}
+                {positions.map(i => (
+                  <div
+                    key={i}
+                    className="absolute top-1 bottom-1 w-0.5 -translate-x-1/2 rounded-sm bg-sky-500"
+                    style={{ left: `${pct(i)}%` }}
+                  />
+                ))}
+              </div>
+              <span
+                className={`${sticky} right-0 z-10 flex w-[4.25rem] shrink-0 items-center justify-end gap-1.5 pl-1 text-xs tabular-nums`}
+              >
+                <span>{d?.count ?? 0}×</span>
+                <span
+                  className={`font-medium ${LUCK_CLASS[d?.luck ?? "even"]}`}
+                >
+                  {formatDelta(d?.delta ?? 0)}
+                </span>
+              </span>
+            </li>
+          );
+        })}
 
-      {/* One standalone bar per roll — not joined, so each occurrence stands. */}
-      {rolls.map((v, i) => (
-        <rect
-          // biome-ignore lint/suspicious/noArrayIndexKey: rolls are an ordered log, index IS the identity
-          key={i}
-          x={cx(i) - barW / 2}
-          y={py(v)}
-          width={barW}
-          height={baseline - py(v)}
-          rx={Math.min(1.5, barW / 2)}
-          className="fill-sky-500"
-        />
-      ))}
-    </svg>
+        {ticks.length > 0 ? (
+          <li className="flex h-4 items-start" aria-hidden>
+            <span className={`${sticky} left-0 z-10 w-6 shrink-0`} />
+            <div className="relative flex-1" style={{ minWidth: laneMin }}>
+              {ticks.map(r => (
+                <span
+                  key={r}
+                  className="absolute -translate-x-1/2 text-[9px] tabular-nums text-zinc-400"
+                  style={{ left: `${pct(r - 1)}%` }}
+                >
+                  {r}
+                </span>
+              ))}
+            </div>
+            <span className={`${sticky} right-0 z-10 w-[4.25rem] shrink-0`} />
+          </li>
+        ) : null}
+      </ul>
+    </div>
   );
 }

@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { Modal } from "@/components/Modal";
-import type { GamePlayer, GameTurn, Player } from "@/lib/domain";
+import type { DiceSpec, GamePlayer, GameTurn, Player } from "@/lib/domain";
 import { formatDuration } from "@/lib/game/format-time";
 import { computeGameStats, timeHog } from "@/lib/game/stats";
 import { DiceTimeline } from "./DiceTimeline";
@@ -24,7 +24,7 @@ export function StatsPanel({
 }: {
   players: Array<GamePlayer & { player: Player }>;
   turns: GameTurn[];
-  dice?: { rolls: number[]; values: number[] };
+  dice?: { rolls: number[]; spec: DiceSpec };
 }) {
   const [open, setOpen] = useState(false);
   const stats = computeGameStats({ players, turns });
@@ -80,7 +80,7 @@ export function StatsPanel({
                 <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
                   Tirages de dés — dans l&apos;ordre
                 </h3>
-                <DiceTimeline rolls={dice.rolls} values={dice.values} />
+                <DiceTimeline rolls={dice.rolls} spec={dice.spec} />
               </div>
             ) : null}
 

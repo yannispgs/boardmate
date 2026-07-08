@@ -95,10 +95,10 @@ describe("diceWeights", () => {
 describe("diceDeviations", () => {
   const spec = { count: 2, sides: 6 } as const;
 
-  it("flags values above / below / within ±10% of expectation", () => {
+  it("flags values beyond one standard deviation as over / under", () => {
     // A perfectly flat spread: each of the 11 values 3× → 33 rolls. 7 is the
-    // likeliest (expected 6/36 × 33 = 5.5), so 3 is well under; 2 is rarest
-    // (expected 1/36 × 33 ≈ 0.92), so 3 is well over.
+    // likeliest (expected 5.5, σ ≈ 2.14) so 3 (Δ −2.5) is under; 2 is rarest
+    // (expected 0.92, σ ≈ 0.94) so 3 (Δ +2.08) is over.
     const rolls: number[] = [];
     for (let v = 2; v <= 12; v++) {
       rolls.push(v, v, v);
@@ -116,15 +116,29 @@ describe("diceDeviations", () => {
     expect(byValue[2].luck).toBe("over");
   });
 
-  it("reads as even when the count matches expectation within 10%", () => {
-    // 36 rolls all of value 7 make its own expectation 6, count 36 → over,
-    // but here we check the even band with a value hitting its expectation.
+  it("keeps a count within one σ of expectation even", () => {
     const rolls = Array.from({ length: 36 }, (_, i) => (i % 6) + 4); // 4..9 ×6
-    const dev = diceDeviations(rolls, spec);
-    const seven = dev.find(d => d.value === 7);
 
-    // 7 expected 6, got 6 → even.
-    expect(seven?.count).toBe(6);
+    const dev = diceDeviations(rolls, spec);
+    const byValue = Object.fromEntries(dev.map(d => [d.value, d]));
+
+    // 7 hits its expectation exactly (6) → even.
+    expect(byValue[7].count).toBe(6);
+    expect(byValue[7].luck).toBe("even");
+    // 6 is one over its expectation (5), well inside σ ≈ 2.08 → still even.
+    expect(byValue[6].delta).toBeCloseTo(1);
+    expect(byValue[6].luck).toBe("even");
+  });
+
+  it("does not flag normal variance on a common value (σ band, not ±10%)", () => {
+    // 36 rolls (4..9 ×6) plus two extra 7s → 38 rolls, 7 rolled 8×.
+    const rolls = [...Array.from({ length: 36 }, (_, i) => (i % 6) + 4), 7, 7];
+
+    const seven = diceDeviations(rolls, spec).find(d => d.value === 7);
+
+    // Δ ≈ +1.67 over expectation 6.33, but σ ≈ 2.30 → even. A flat ±10% band
+    // (±0.63) would have wrongly called this "over".
+    expect(seven?.count).toBe(8);
     expect(seven?.luck).toBe("even");
   });
 

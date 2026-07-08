@@ -43,8 +43,15 @@ test("records dice rolls and charts them in draw order", async ({ page }) => {
     // The live-stats modal charts the sequence in draw order.
     await page.getByRole("button", { name: "Ouvrir les statistiques" }).click();
     await expect(page.getByText("Tirages de dés — dans l'ordre")).toBeVisible();
+
+    const grid = page.getByRole("list", {
+      name: "Tirages de dés dans l'ordre",
+    });
+
+    await expect(grid).toBeVisible();
+    // Value 7 came up 3× → its row shows the total.
     await expect(
-      page.getByRole("img", { name: "Tirages de dés dans l'ordre" }),
+      grid.getByRole("listitem").filter({ hasText: "3×" }),
     ).toBeVisible();
   } finally {
     const admin = adminClient();
@@ -99,12 +106,14 @@ test("charts the rolls and per-value écart on the end screen", async ({
 
     await page.goto(`/games/${gameId}/play`);
 
-    await expect(
-      page.getByRole("img", { name: "Tirages de dés dans l'ordre" }),
-    ).toBeVisible();
+    const grid = page.getByRole("list", {
+      name: "Tirages de dés dans l'ordre",
+    });
 
-    // 7 rolled 8× and expected ~2.7 → a green "over" écart.
-    const seven = page.getByRole("listitem").filter({ hasText: "8×" });
+    await expect(grid).toBeVisible();
+
+    // 7 rolled 8× and expected ~2.7 → its row shows a green "over" écart (+…).
+    const seven = grid.getByRole("listitem").filter({ hasText: "8×" });
 
     await expect(seven).toContainText("+");
   } finally {

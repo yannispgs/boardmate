@@ -399,7 +399,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
       <StatsPanel
         players={game.players}
         turns={game.turns}
-        dice={dice ? { rolls: rollValues, values: diceRange } : undefined}
+        dice={dice ? { rolls: rollValues, spec: dice } : undefined}
       />
 
       {game.boardgame.scoring?.timing === "live" ? (
