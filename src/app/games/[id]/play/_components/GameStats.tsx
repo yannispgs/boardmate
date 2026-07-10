@@ -5,6 +5,7 @@ import { buildScoreSeries } from "@/lib/game/score-series";
 import { computeGameStats } from "@/lib/game/stats";
 import { buildTurnTimeSeries } from "@/lib/game/turn-time-series";
 
+import { DiceTimeline } from "./DiceTimeline";
 import { PlayerStatCardList } from "./PlayerStatCardList";
 import { ScoreChart } from "./ScoreChart";
 import { StatTile } from "./StatTile";
@@ -34,6 +35,9 @@ export function GameStats({ game }: { game: PopulatedGame }) {
     game.turns,
     scorePlayers.map(p => p.id),
   );
+
+  const dice = game.boardgame.dice;
+  const rollValues = game.diceRolls.map(d => d.value);
 
   const tiles: { label: string; value: string; accent?: boolean }[] = [
     {
@@ -148,6 +152,19 @@ export function GameStats({ game }: { game: PopulatedGame }) {
             rounds={stats.rounds}
             players={scorePlayers}
           />
+        </div>
+      ) : null}
+
+      {dice && rollValues.length > 0 ? (
+        <div className="flex flex-col gap-3">
+          <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+            Tirages de dés — dans l&apos;ordre
+          </h3>
+          <DiceTimeline rolls={rollValues} spec={dice} />
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            À droite : le total et l&apos;écart à la moyenne attendue — vert /
+            rouge au-delà d&apos;un écart-type, gris pour la variance normale.
+          </p>
         </div>
       ) : null}
 

@@ -94,6 +94,7 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
       logoUrl: "https://example.com/logo.png",
       kind: "cooperative",
       roundLimit: 20,
+      dice: { count: 2, sides: 6 },
       scoring: {
         timing: "final",
         entry: "total",
@@ -107,6 +108,7 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
     expect(updated.tags).toEqual(["oiseaux"]);
     expect(updated.logoUrl).toBe("https://example.com/logo.png");
     expect(updated.kind).toBe("cooperative");
+    expect(updated.dice).toEqual({ count: 2, sides: 6 });
     expect(updated.scoring).toEqual({
       timing: "final",
       entry: "total",
@@ -114,9 +116,13 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
       allowNegative: false,
     });
 
-    // Clearing the scoring back to unscored round-trips as null.
-    const cleared = await repo().update(created.id, { scoring: null });
+    // Clearing the scoring and dice back to unset round-trips as null.
+    const cleared = await repo().update(created.id, {
+      scoring: null,
+      dice: null,
+    });
     expect(cleared.scoring).toBeNull();
+    expect(cleared.dice).toBeNull();
   });
 
   it("round-trips a category scoresheet (sections, fields, colours, bonus)", async () => {

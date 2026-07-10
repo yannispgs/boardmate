@@ -73,6 +73,16 @@ export interface ScoringSpec {
   sheet?: ScoreSheetItem[];
 }
 
+/**
+ * Dice this game rolls, when roll tracking is enabled. `count` dice of `sides`
+ * faces each, summed — so a roll ranges `count`..`count * sides` (Catan: 2 × d6
+ * → 2–12). `null` on the boardgame means no dice tracking.
+ */
+export interface DiceSpec {
+  count: number;
+  sides: number;
+}
+
 export interface Boardgame {
   id: BoardgameId;
   name: string;
@@ -95,6 +105,8 @@ export interface Boardgame {
    * hand).
    */
   roundLimit: number | null;
+  /** Dice for in-game roll tracking (Catan), or `null` when not tracked. */
+  dice: DiceSpec | null;
   /**
    * When false, the boardgame is hidden from selection lists but kept in the
    * database. Deactivate (instead of delete) once it has games, to preserve
@@ -124,6 +136,8 @@ export interface NewBoardgame {
   scoring?: ScoringSpec | null;
   /** Fixed number of rounds after which the game ends, or `null`. */
   roundLimit?: number | null;
+  /** Dice for in-game roll tracking, or `null`. */
+  dice?: DiceSpec | null;
 }
 
 export type BoardgameUpdate = Partial<NewBoardgame>;

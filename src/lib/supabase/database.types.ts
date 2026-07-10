@@ -65,6 +65,7 @@ export type Database = {
         Row: {
           avg_duration_min: number | null
           created_at: string
+          dice: Json | null
           has_games: boolean
           id: string
           is_active: boolean
@@ -82,6 +83,7 @@ export type Database = {
         Insert: {
           avg_duration_min?: number | null
           created_at?: string
+          dice?: Json | null
           has_games?: boolean
           id?: string
           is_active?: boolean
@@ -99,6 +101,7 @@ export type Database = {
         Update: {
           avg_duration_min?: number | null
           created_at?: string
+          dice?: Json | null
           has_games?: boolean
           id?: string
           is_active?: boolean
@@ -166,6 +169,35 @@ export type Database = {
             columns: ["boardgame_id"]
             isOneToOne: false
             referencedRelation: "boardgames"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dice_rolls: {
+        Row: {
+          created_at: string
+          game_id: string
+          id: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          game_id: string
+          id?: string
+          value: number
+        }
+        Update: {
+          created_at?: string
+          game_id?: string
+          id?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dice_rolls_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
             referencedColumns: ["id"]
           },
         ]
