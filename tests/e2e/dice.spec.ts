@@ -85,9 +85,12 @@ test("caps the roll count at the number of player-turns played", async ({
       }),
     ).toBeVisible();
 
-    // The cap is reached: a note appears and a further tap records nothing.
-    await expect(page.getByText(/Maximum atteint/)).toBeVisible();
+    // Reaching the cap alone shows nothing — the note only appears on an
+    // over-tap.
+    await expect(page.getByText(/Maximum atteint/)).toHaveCount(0);
+
     await page.getByRole("button", { name: "Lancer de 6" }).click();
+    await expect(page.getByText(/Maximum atteint/)).toBeVisible();
 
     // 6 stays uncounted (its bar shows no number) and 8 is still at one.
     await expect(

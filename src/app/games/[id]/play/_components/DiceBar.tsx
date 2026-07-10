@@ -12,7 +12,8 @@ const STUB = 6; // min bar height so empty values stay visible + tappable
  * the numbers that are "due" jump out. Tapping a bar records one roll of that
  * value. The most recent roll is ringed. Recording is capped at the number of
  * player-turns played (`maxRolls`) — enough to backfill missed rolls but a guard
- * against runaway missclicks; a line explains the block when the cap is hit.
+ * against runaway missclicks; `capNotice` (set by the parent only when a tap is
+ * rejected at the cap) shows a line explaining the block.
  */
 export function DiceBar({
   values,
@@ -20,7 +21,7 @@ export function DiceBar({
   lastRolled,
   onRoll,
   disabled,
-  atCap,
+  capNotice,
   maxRolls,
 }: {
   values: number[];
@@ -28,7 +29,7 @@ export function DiceBar({
   lastRolled: number | null;
   onRoll: (value: number) => void;
   disabled: boolean;
-  atCap: boolean;
+  capNotice: boolean;
   maxRolls: number;
 }) {
   const maxCount = Math.max(1, ...values.map(v => stats[v]?.count ?? 0));
@@ -74,7 +75,7 @@ export function DiceBar({
         })}
       </div>
 
-      {atCap ? (
+      {capNotice ? (
         <p className="text-center text-xs text-amber-600 dark:text-amber-400">
           Maximum atteint ({maxRolls}) — un lancer par tour de joueur. Passe au
           tour suivant pour en enregistrer d&apos;autres.

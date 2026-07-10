@@ -63,6 +63,9 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   // Dice roll log (values in order), owned locally so a tap shows instantly;
   // each append also persists in the background.
   const [rolls, setRolls] = useState<number[] | null>(null);
+  // Set when a tap is rejected because the per-turn roll cap is reached; shown
+  // until the next turn (cleared when `game.turn` advances, below).
+  const [rollCapNotice, setRollCapNotice] = useState(false);
 
   const timer = useTurnTimer();
   // Keep the screen awake while a turn is actively running; let it sleep on
@@ -101,6 +104,16 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
       setRolls(game.diceRolls.map(d => d.value));
     }
   }, [game, rolls]);
+
+  // The roll-cap notice lasts only until the next turn: clear it whenever the
+  // turn advances (the cap raises with it). `gameTurn` is read so it counts as a
+  // real dependency (the effect exists to react to its change).
+  const gameTurn = game?.turn;
+  useEffect(() => {
+    if (gameTurn !== undefined) {
+      setRollCapNotice(false);
+    }
+  }, [gameTurn]);
 
   // Unlock audio on the first interaction with the play screen: mobile browsers
   // only let an AudioContext start from a user gesture. iOS in particular needs
@@ -226,9 +239,12 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
     }
     // Cap the log at the number of player-turns played so far (game.turn): it
     // lets you backfill missed rolls yet stops a stuck button from flooding the
-    // data. A no-op past the cap; the DiceBar explains it.
+    // data. Tapping past the cap records nothing and surfaces the explanation
+    // (only then — not merely on reaching the cap).
     const current = rolls ?? [];
     if (current.length >= game.turn) {
+      setRollCapNotice(true);
+
       return;
     }
 
@@ -340,8 +356,6 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   const diceRange = dice ? diceValues(dice) : [];
   const dStats = dice ? diceStats(rollValues, diceRange) : {};
   const lastRolled = rollValues.at(-1) ?? null;
-  // At most one roll per player-turn played (see handleRoll).
-  const atRollCap = rollValues.length >= game.turn;
 
   return (
     <div className="flex flex-col items-center gap-8">
@@ -382,7 +396,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
           lastRolled={lastRolled}
           onRoll={handleRoll}
           disabled={game.status !== "ongoing"}
-          atCap={atRollCap}
+          capNotice={rollCapNotice}
           maxRolls={game.turn}
         />
       ) : null}
