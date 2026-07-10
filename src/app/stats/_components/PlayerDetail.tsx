@@ -1,6 +1,10 @@
 import { StatTile } from "@/components/StatTile";
-import { formatDuration } from "@/lib/game/format-time";
 import type { GameBreakdown, PlayerAggregate } from "@/lib/game/global-stats";
+
+/** The time index as a rounded number, or "—" when there's no time data. */
+function fmtIndex(index: number | null): string {
+  return index === null ? "—" : String(Math.round(index));
+}
 
 /** One boardgame line in the player's per-game breakdown. */
 function GameRow({ game }: { game: GameBreakdown }) {
@@ -18,7 +22,7 @@ function GameRow({ game }: { game: GameBreakdown }) {
           style={{ width: `${game.winRate}%` }}
         />
       </div>
-      <div className="flex gap-4 text-xs text-zinc-500 tabular-nums dark:text-zinc-400">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500 tabular-nums dark:text-zinc-400">
         <span>
           {game.games} partie{game.games > 1 ? "s" : ""}
         </span>
@@ -28,6 +32,7 @@ function GameRow({ game }: { game: GameBreakdown }) {
         <span>
           Score moy. {game.avgScore === null ? "—" : game.avgScore.toFixed(1)}
         </span>
+        <span>Part du temps {fmtIndex(game.timeIndex)}</span>
       </div>
     </li>
   );
@@ -56,7 +61,8 @@ export function PlayerDetail({
 
       <h2 className="text-2xl font-semibold tracking-tight">{player.name}</h2>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+      {/* Score / turn means are game-specific → shown per game below, not here. */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <StatTile
           label="Taux de victoire"
           value={`${Math.round(player.winRate)}%`}
@@ -64,16 +70,12 @@ export function PlayerDetail({
         />
         <StatTile label="Parties" value={String(player.games)} />
         <StatTile label="Victoires" value={String(player.wins)} />
-        <StatTile
-          label="Score moyen"
-          value={player.avgScore === null ? "—" : player.avgScore.toFixed(1)}
-        />
-        <StatTile label="Tour moyen" value={formatDuration(player.avgTurnS)} />
-        <StatTile
-          label="Part du temps"
-          value={`${Math.round(player.avgSharePct)}%`}
-        />
+        <StatTile label="Part du temps" value={fmtIndex(player.timeIndex)} />
       </div>
+      <p className="-mt-4 text-xs text-zinc-500 dark:text-zinc-400">
+        Part du temps : 100 = temps attendu ; en dessous = plus rapide,
+        au-dessus = plus lent (normalisé par le nombre de joueurs).
+      </p>
 
       {player.bestGame && player.worstGame ? (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">

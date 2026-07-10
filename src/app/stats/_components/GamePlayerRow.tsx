@@ -16,7 +16,7 @@ const MEDALS = ["🥇", "🥈", "🥉"];
 
 /**
  * One player's line within a single game's stats: their record on THIS game
- * only (win rate, games, wins, mean score, mean turn).
+ * only (win rate, games, wins, mean score, mean turn, time index).
  */
 export function GamePlayerRow({
   rank,
@@ -48,7 +48,7 @@ export function GamePlayerRow({
         />
       </div>
 
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+      <div className="grid grid-cols-3 gap-2">
         <Cell label="Parties" value={String(player.games)} />
         <Cell label="Victoires" value={String(player.wins)} />
         {scored ? (
@@ -58,6 +58,14 @@ export function GamePlayerRow({
           />
         ) : null}
         <Cell label="Tour moy." value={formatDuration(player.avgTurnS)} />
+        <Cell
+          label="Part du temps"
+          value={
+            player.timeIndex === null
+              ? "—"
+              : String(Math.round(player.timeIndex))
+          }
+        />
       </div>
     </li>
   );

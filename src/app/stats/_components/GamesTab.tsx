@@ -162,6 +162,10 @@ export function GamesTab({ records }: { records: GameStatsRecord[] }) {
             <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
               Statistiques des joueurs sur ce jeu
             </h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Part du temps : 100 = temps attendu ; en dessous = plus rapide,
+              au-dessus = plus lent.
+            </p>
             <GamePlayerTable players={stats.players} scored={scored} />
           </div>
         </>

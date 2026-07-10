@@ -107,10 +107,11 @@ describe("computeGlobalStats", () => {
       "Bob",
       "Chloé",
     ]);
-    // Chloé's share in game2: 60 / 120 = 50%.
+    // Chloé took 60 / 120 = 50% of game2's time; fair share among 3 players is
+    // 33%, so her time index is 0.5 × 3 × 100 = 150 (took 1.5× her share).
     const chloe = s.players.find(p => p.name === "Chloé");
 
-    expect(chloe?.avgSharePct).toBe(50);
+    expect(chloe?.timeIndex).toBe(150);
   });
 
   it("player filter is presence-only: keeps their games, ranks everyone in them", () => {
@@ -199,6 +200,53 @@ describe("computeGlobalStats", () => {
     expect(alice?.worstGame?.winRate).toBe(0);
   });
 
+  it("normalises the time index per game (100 = fair share) then averages", () => {
+    // A 2-player Catan with an even split → both at their fair share (100).
+    const evenGame: GameStatsRecord = {
+      gameId: "t1" as GameStatsRecord["gameId"],
+      boardgameId: CATAN,
+      boardgameName: "Catan",
+      dice: null,
+      endedAt: "2026-07-01T10:00:00Z",
+      players: [
+        { playerId: ALICE, name: "Alice", isWinner: true, score: null },
+        { playerId: BOB, name: "Bob", isWinner: false, score: null },
+      ],
+      turns: [turn(ALICE, 1, 20), turn(BOB, 1, 20)],
+      diceRolls: [],
+    };
+    // A 3-player Wingspan where Alice hogs half the time (fair share is a third).
+    const hogGame: GameStatsRecord = {
+      gameId: "t2" as GameStatsRecord["gameId"],
+      boardgameId: WINGSPAN,
+      boardgameName: "Wingspan",
+      dice: null,
+      endedAt: "2026-07-02T10:00:00Z",
+      players: [
+        { playerId: ALICE, name: "Alice", isWinner: false, score: null },
+        { playerId: BOB, name: "Bob", isWinner: true, score: null },
+        { playerId: CHLOE, name: "Chloé", isWinner: false, score: null },
+      ],
+      turns: [turn(ALICE, 1, 60), turn(BOB, 1, 30), turn(CHLOE, 1, 30)],
+      diceRolls: [],
+    };
+
+    const s = computeGlobalStats([evenGame, hogGame]);
+    const alice = s.players.find(p => p.name === "Alice");
+    const bob = s.players.find(p => p.name === "Bob");
+
+    // Per game: Catan even → 100; Wingspan Alice 0.5×3×100 = 150.
+    const aliceCatan = alice?.byGame.find(g => g.boardgameName === "Catan");
+    const aliceWing = alice?.byGame.find(g => g.boardgameName === "Wingspan");
+
+    expect(aliceCatan?.timeIndex).toBe(100);
+    expect(aliceWing?.timeIndex).toBe(150);
+    // Aggregated across games: mean(100, 150) = 125.
+    expect(alice?.timeIndex).toBe(125);
+    // Bob: 100 (Catan) and 0.25×3×100 = 75 (Wingspan) → mean 87.5.
+    expect(bob?.timeIndex).toBe(87.5);
+  });
+
   it("orders a player's games by how often they're played", () => {
     const records = [
       mk("c1", CATAN, "Catan", ALICE),
@@ -263,7 +311,8 @@ describe("computeGlobalStats", () => {
     expect(s.avgTurnS).toBe(0);
     expect(s.avgScore).toBeNull();
     expect(alice?.avgTurnS).toBe(0);
-    expect(alice?.avgSharePct).toBe(0);
+    // No recorded time → the index has no basis.
+    expect(alice?.timeIndex).toBeNull();
     expect(alice?.avgScore).toBeNull();
     expect(alice?.winRate).toBe(100);
   });

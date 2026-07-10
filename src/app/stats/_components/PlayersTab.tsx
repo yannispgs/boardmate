@@ -42,14 +42,14 @@ export function PlayersTab({ records }: { records: GameStatsRecord[] }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {/* Turn/score means are game-specific — shown per game, not globally. */}
+      <div className="grid grid-cols-3 gap-2">
         <StatTile label="Parties" value={String(stats.gameCount)} accent />
         <StatTile
           label="Temps de jeu moy."
           value={formatDuration(stats.avgActiveS)}
         />
         <StatTile label="Tours moy." value={stats.avgRounds.toFixed(1)} />
-        <StatTile label="Tour moy." value={formatDuration(stats.avgTurnS)} />
       </div>
 
       <MultiSelectField

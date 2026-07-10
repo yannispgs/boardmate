@@ -31,6 +31,8 @@ export interface GameBreakdown {
   winRate: number;
   /** Mean recorded score on this game (null if none scored). */
   avgScore: number | null;
+  /** Time index on this game, 100 = their fair share (null without time data). */
+  timeIndex: number | null;
 }
 
 export interface PlayerAggregate {
@@ -47,8 +49,14 @@ export interface PlayerAggregate {
   avgScore: number | null;
   /** Mean active seconds per turn they played (0 if they never played a turn). */
   avgTurnS: number;
-  /** Mean share of the table's active time across their games, 0–100. */
-  avgSharePct: number;
+  /**
+   * Time index: how their time compares to a fair share, averaged per game then
+   * across games. 100 = exactly the fair share (an even split of the table's
+   * active time); below 100 = faster than expected, above = slower. Normalising
+   * per game means table size doesn't penalise players who often play in big
+   * groups. Null when no game had recorded time.
+   */
+  timeIndex: number | null;
   /** Mean overtime seconds per game. */
   avgOvertimeS: number;
   /** Mean paused seconds per game. */
@@ -79,6 +87,16 @@ export interface GlobalStats {
   players: PlayerAggregate[];
 }
 
+interface GameAcc {
+  name: string;
+  games: number;
+  wins: number;
+  scoreSum: number;
+  scored: number;
+  indexSum: number;
+  indexGames: number;
+}
+
 interface PlayerAcc {
   name: string;
   games: number;
@@ -87,20 +105,11 @@ interface PlayerAcc {
   scoredGames: number;
   turnS: number;
   turnCount: number;
-  shareSum: number;
-  shareGames: number;
+  indexSum: number;
+  indexGames: number;
   overtimeS: number;
   pauseS: number;
-  byGame: Map<
-    string,
-    {
-      name: string;
-      games: number;
-      wins: number;
-      scoreSum: number;
-      scored: number;
-    }
-  >;
+  byGame: Map<string, GameAcc>;
 }
 
 function newPlayerAcc(name: string): PlayerAcc {
@@ -112,12 +121,25 @@ function newPlayerAcc(name: string): PlayerAcc {
     scoredGames: 0,
     turnS: 0,
     turnCount: 0,
-    shareSum: 0,
-    shareGames: 0,
+    indexSum: 0,
+    indexGames: 0,
     overtimeS: 0,
     pauseS: 0,
     byGame: new Map(),
   };
+}
+
+/** A player's fair-share time index for one game, or null without time data. */
+function gameTimeIndex(
+  ownActiveS: number,
+  gameActiveS: number,
+  playerCount: number,
+): number | null {
+  if (gameActiveS <= 0) {
+    return null;
+  }
+
+  return (ownActiveS / gameActiveS) * playerCount * 100;
 }
 
 function activeTotal(game: GameStatsRecord): number {
@@ -210,6 +232,7 @@ export function computeGlobalStats(
     for (const p of game.players) {
       const own = game.turns.filter(t => t.playerId === p.playerId);
       const ownActive = own.reduce((s, t) => s + t.durationS, 0);
+      const idx = gameTimeIndex(ownActive, gameActive, game.players.length);
 
       const cur = acc.get(p.playerId) ?? newPlayerAcc(p.name);
 
@@ -224,9 +247,9 @@ export function computeGlobalStats(
       cur.turnS += ownActive;
       cur.turnCount += own.length;
 
-      if (gameActive > 0) {
-        cur.shareSum += (ownActive / gameActive) * 100;
-        cur.shareGames += 1;
+      if (idx !== null) {
+        cur.indexSum += idx;
+        cur.indexGames += 1;
       }
 
       cur.overtimeS += own.reduce((s, t) => s + t.overtimeS, 0);
@@ -238,6 +261,8 @@ export function computeGlobalStats(
         wins: 0,
         scoreSum: 0,
         scored: 0,
+        indexSum: 0,
+        indexGames: 0,
       };
       bg.games += 1;
       bg.wins += p.isWinner ? 1 : 0;
@@ -245,6 +270,11 @@ export function computeGlobalStats(
       if (p.score !== null) {
         bg.scoreSum += p.score;
         bg.scored += 1;
+      }
+
+      if (idx !== null) {
+        bg.indexSum += idx;
+        bg.indexGames += 1;
       }
       cur.byGame.set(game.boardgameId, bg);
 
@@ -264,6 +294,7 @@ export function computeGlobalStats(
         wins: g.wins,
         winRate: (g.wins / g.games) * 100,
         avgScore: g.scored > 0 ? g.scoreSum / g.scored : null,
+        timeIndex: g.indexGames > 0 ? g.indexSum / g.indexGames : null,
       }))
       .sort((x, y) => y.games - x.games || y.winRate - x.winRate);
 
@@ -277,7 +308,7 @@ export function computeGlobalStats(
       scoredGames: a.scoredGames,
       avgScore: a.scoredGames > 0 ? a.scoreSum / a.scoredGames : null,
       avgTurnS: a.turnCount > 0 ? a.turnS / a.turnCount : 0,
-      avgSharePct: a.shareGames > 0 ? a.shareSum / a.shareGames : 0,
+      timeIndex: a.indexGames > 0 ? a.indexSum / a.indexGames : null,
       avgOvertimeS: a.overtimeS / a.games,
       avgPauseS: a.pauseS / a.games,
       byGame,
