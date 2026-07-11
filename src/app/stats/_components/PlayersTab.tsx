@@ -7,7 +7,7 @@ import type { GameStatsRecord, PlayerId } from "@/lib/domain";
 import { computeGlobalStats } from "@/lib/game/global-stats";
 import { MultiSelectField } from "./MultiSelectField";
 import { PlayerDetail } from "./PlayerDetail";
-import { PlayerRankingList } from "./PlayerRankingList";
+import { PlayerRankingTable } from "./PlayerRankingTable";
 
 /**
  * "Joueurs" tab: global by default — overall averages plus a ranking of every
@@ -60,9 +60,9 @@ export function PlayersTab({ records }: { records: GameStatsRecord[] }) {
 
       <div className="flex flex-col gap-3">
         <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-          Classement des joueurs — meilleur taux de victoire d&apos;abord
+          Classement des joueurs
         </h2>
-        <PlayerRankingList players={ranking} onSelect={setDetailId} />
+        <PlayerRankingTable players={ranking} onSelect={setDetailId} />
       </div>
     </div>
   );

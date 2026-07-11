@@ -83,6 +83,14 @@ test("shows player averages and per-game averages across the two tabs", async ({
     await expect(cards.first()).toContainText(names[0]);
     await expect(cards.first()).toContainText("67%");
 
+    // Sort by the time index: player 2 took the most time each game → on top.
+    await page.getByRole("button", { name: "Temps" }).click();
+    await expect(cards.first()).toContainText(names[2]);
+
+    // Sort back by win rate: player 0 (67%) returns to the top.
+    await page.getByRole("button", { name: "Vict." }).click();
+    await expect(cards.first()).toContainText(names[0]);
+
     // Jeux tab: it opens on the first game (Catan, alphabetical) where player 0
     // won both → 100%.
     await page.getByRole("button", { name: "Jeux", exact: true }).click();
