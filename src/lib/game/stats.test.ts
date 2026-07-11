@@ -44,6 +44,7 @@ function turn(
     id: `${playerId}-${turnNo}` as GameTurnId,
     gameId: gid,
     playerId: playerId as PlayerId,
+    blockedById: null,
     round,
     turnNo,
     durationS,

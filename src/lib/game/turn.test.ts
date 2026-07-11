@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { advanceTurn, isFinalTurn, turnPosition } from "./turn";
+import { advanceTurn, isFinalTurn, turnPosition, turnsPerRound } from "./turn";
+
+describe("turnsPerRound", () => {
+  it("is one per player for sequential games", () => {
+    expect(turnsPerRound("sequential", 4)).toBe(4);
+  });
+
+  it("is a single shared turn for simultaneous games", () => {
+    expect(turnsPerRound("simultaneous", 4)).toBe(1);
+  });
+});
 
 describe("turnPosition", () => {
   it("maps turns to seats within the first round", () => {

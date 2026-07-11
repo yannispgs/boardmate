@@ -73,7 +73,16 @@ export interface GamePlayer {
 export interface GameTurn {
   id: GameTurnId;
   gameId: GameId;
-  playerId: PlayerId;
+  /**
+   * Who played the turn — `null` for a simultaneous round (everyone plays at
+   * once, so the round has no single owner; see {@link GameTurn.blockedById}).
+   */
+  playerId: PlayerId | null;
+  /**
+   * Simultaneous rounds only: the player the table waited on this round (tapped
+   * during play), or `null`. Always `null` for sequential turns.
+   */
+  blockedById: PlayerId | null;
   round: number;
   turnNo: number;
   durationS: number;

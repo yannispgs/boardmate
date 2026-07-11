@@ -28,6 +28,7 @@ import type {
   PlayerId,
   PlayerUpdate,
   PopulatedGame,
+  TurnMode,
 } from "@/lib/domain";
 
 /** Call to stop a realtime subscription. */
@@ -118,7 +119,10 @@ export interface GameRepository {
   /**
    * Records the current turn — its active time, any pauses (count + total
    * paused seconds, ≥ 5 s each), and the overtime taken beyond the allotted
-   * duration — then rotates to the next player.
+   * duration — then advances. Sequential games rotate to the next player; for a
+   * `simultaneous` game (`opts.turnMode`) the whole round advances at once, the
+   * turn is recorded with no owner, and `opts.blockedById` optionally flags the
+   * player the table waited on.
    */
   advanceTurn(
     id: GameId,
@@ -126,6 +130,7 @@ export interface GameRepository {
     pauseCount: number,
     pauseDurationSeconds: number,
     overtimeSeconds: number,
+    opts?: { turnMode?: TurnMode; blockedById?: PlayerId | null },
   ): Promise<void>;
   /** Sets one player's current score (live scoring), logged at the given tour. */
   setScore(

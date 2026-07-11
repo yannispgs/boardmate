@@ -18,7 +18,7 @@ import {
   winnerDirection,
 } from "@/lib/game/scoring";
 import { computeGameStats, timeHog } from "@/lib/game/stats";
-import { isFinalTurn } from "@/lib/game/turn";
+import { isFinalTurn, turnsPerRound } from "@/lib/game/turn";
 import { turnDurationForRound } from "@/lib/game/turn-schedule";
 import { useTurnTimer } from "@/lib/hooks/use-turn-timer";
 import { useWakeLock } from "@/lib/hooks/use-wake-lock";
@@ -32,6 +32,7 @@ import { RankingReveal } from "./RankingReveal";
 import { ScorePanel } from "./ScorePanel";
 import { StatsPanel } from "./StatsPanel";
 import { TurnFlow } from "./turn-flow";
+import { WaitPicker } from "./WaitPicker";
 
 /** The computed outcome of a category-scored game, driving the reveal + table. */
 interface CategoryResult {
@@ -49,6 +50,9 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   // when the turn advances (below) so the next turn follows the schedule again.
   const [durationOverride, setDurationOverride] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  // Simultaneous games: the player the table is waiting on this round (tapped),
+  // recorded when the round advances then cleared for the next round.
+  const [blockedById, setBlockedById] = useState<PlayerId | null>(null);
   const [scoreOpen, setScoreOpen] = useState(false);
   const [endOpen, setEndOpen] = useState(false);
   // Category scoring: the end sheet modal, then the reveal → table phases.
@@ -171,7 +175,9 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         pauses.count,
         pauses.durationS,
         overtimeS,
+        { turnMode: game.boardgame.turnMode, blockedById },
       );
+      setBlockedById(null);
       await load();
       timer.reset();
     } catch {
@@ -341,7 +347,10 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   // last round: no more turns, and the scoring UI takes over. Open-ended games
   // keep their end controls available throughout.
   const roundLimit = game.boardgame.roundLimit;
-  const atFinalTurn = isFinalTurn(game.turn, game.players.length, roundLimit);
+  // A simultaneous round is one shared turn, so a "round" is a single turn.
+  const simultaneous = game.boardgame.turnMode === "simultaneous";
+  const perRound = turnsPerRound(game.boardgame.turnMode, game.players.length);
+  const atFinalTurn = isFinalTurn(game.turn, perRound, roundLimit);
   const canEnd = roundLimit === null || atFinalTurn;
 
   // Dice tracking (Catan): a one-tap histogram sharing the screen with a
@@ -369,12 +378,20 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         {roundLimit !== null ? ` / ${roundLimit}` : ""}
       </p>
 
-      <TurnFlow
-        players={game.players.map(p => p.player)}
-        currentPlayerId={game.currentPlayerId}
-        round={game.round}
-        roundLimit={roundLimit}
-      />
+      {simultaneous ? (
+        <WaitPicker
+          players={game.players.map(p => p.player)}
+          value={blockedById}
+          onChange={setBlockedById}
+        />
+      ) : (
+        <TurnFlow
+          players={game.players.map(p => p.player)}
+          currentPlayerId={game.currentPlayerId}
+          round={game.round}
+          roundLimit={roundLimit}
+        />
+      )}
 
       <TimerRing
         remainingS={remainingS}
@@ -423,11 +440,13 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         </button>
       )}
 
-      <StatsPanel
-        players={game.players}
-        turns={game.turns}
-        dice={dice ? { rolls: rollValues, spec: dice } : undefined}
-      />
+      {simultaneous ? null : (
+        <StatsPanel
+          players={game.players}
+          turns={game.turns}
+          dice={dice ? { rolls: rollValues, spec: dice } : undefined}
+        />
+      )}
 
       {game.boardgame.scoring?.timing === "live" ? (
         <ScorePanel

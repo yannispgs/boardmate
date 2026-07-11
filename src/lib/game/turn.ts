@@ -7,6 +7,17 @@
  * mutated `currentPlayer` directly).
  */
 
+import type { TurnMode } from "@/lib/domain";
+
+/**
+ * How many turns make up one round: one per player for sequential games, but a
+ * single shared turn for simultaneous ones (everyone plays at once). Feed this
+ * as the `seatCount` of the rotation functions below.
+ */
+export function turnsPerRound(mode: TurnMode, playerCount: number): number {
+  return mode === "simultaneous" ? 1 : playerCount;
+}
+
 export interface TurnPosition {
   /** 1-based round number. */
   round: number;
