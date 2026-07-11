@@ -21,6 +21,7 @@ const TABLES = [
   "games",
   "game_players",
   "game_turns",
+  "feedback",
   "auth_rate_limits",
 ] as const;
 
