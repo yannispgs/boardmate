@@ -20,6 +20,7 @@ import {
 } from "@/lib/game/scoring";
 import { computeGameStats, timeHog } from "@/lib/game/stats";
 import { isFinalTurn } from "@/lib/game/turn";
+import { turnDurationForRound } from "@/lib/game/turn-schedule";
 import { useTurnTimer } from "@/lib/hooks/use-turn-timer";
 import { useWakeLock } from "@/lib/hooks/use-wake-lock";
 import { getGameRepository } from "@/lib/repositories";
@@ -39,15 +40,15 @@ interface CategoryResult {
   ranking: Ranked[];
 }
 
-const DEFAULT_DURATION_S = 60;
-
 export function PlayScreen({ gameId }: { gameId: GameId }) {
   const repo = getGameRepository();
   const router = useRouter();
   const [game, setGame] = useState<PopulatedGame | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [durationS, setDurationS] = useState(DEFAULT_DURATION_S);
+  // A manual duration for the current turn, overriding the schedule; cleared
+  // when the turn advances (below) so the next turn follows the schedule again.
+  const [durationOverride, setDurationOverride] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [scoreOpen, setScoreOpen] = useState(false);
   const [endOpen, setEndOpen] = useState(false);
@@ -112,6 +113,9 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   useEffect(() => {
     if (gameTurn !== undefined) {
       setRollCapNotice(false);
+      // The manual duration is a one-turn tweak; the next turn follows the
+      // schedule again.
+      setDurationOverride(null);
     }
   }, [gameTurn]);
 
@@ -161,6 +165,13 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
       setToast(`⏱️ ${h.name} monopolise le temps (${Math.round(h.sharePct)} %)`);
     }
   }, [hogName]);
+
+  // The current turn's countdown: the schedule's duration for this round,
+  // unless the user manually overrode it for the turn.
+  const scheduledDurationS = game
+    ? turnDurationForRound(game.turnSchedule, game.round)
+    : 60;
+  const durationS = durationOverride ?? scheduledDurationS;
 
   async function handleNext() {
     if (!game || busy) {
@@ -385,7 +396,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
 
       <DurationEditor
         durationS={durationS}
-        onChange={s => setDurationS(s)}
+        onChange={s => setDurationOverride(s)}
         onPause={timer.pause}
       />
 

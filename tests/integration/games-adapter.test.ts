@@ -123,6 +123,12 @@ describe("games adapter — creation & population", () => {
     expect(populated?.players.map(p => p.seatOrder)).toEqual([0, 1, 2]);
     expect(populated?.currentPlayer?.id).toBe(playerIds[0]);
     expect(populated?.turns).toEqual([]);
+    // The turn schedule resolves from Catan's config template defaults.
+    expect(populated?.turnSchedule).toEqual({
+      baseS: 45,
+      stepS: 5,
+      maxS: 180,
+    });
   });
 
   it("returns null from getPopulated for an unknown id", async () => {
