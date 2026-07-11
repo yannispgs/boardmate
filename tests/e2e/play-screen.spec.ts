@@ -1,7 +1,12 @@
 import { expect, test } from "@playwright/test";
 
 import { funnelToPlay } from "./utils/funnel";
-import { adminClient, CATAN_MIN_PLAYERS, seedPlayers } from "./utils/supabase";
+import {
+  adminClient,
+  CATAN_ID,
+  CATAN_MIN_PLAYERS,
+  seedPlayers,
+} from "./utils/supabase";
 
 /**
  * The play screen controls (exhaustive, full-suite only — untagged): pause /
@@ -269,25 +274,75 @@ test("ends when the target is exceeded, defaulting to the top scorer", async ({
   }
 });
 
-test("banners when a player monopolises the time", async ({ page }) => {
-  const players = await seedPlayers(CATAN_MIN_PLAYERS);
-  let gameId = "";
+test("live-banners a time monopoly and hides it when time is balanced", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const names = await seedPlayers(CATAN_MIN_PLAYERS);
+  const gameIds: string[] = [];
 
   try {
-    gameId = await funnelToPlay(page, players);
+    const { data: seeded } = await admin
+      .from("players")
+      .select("id, name")
+      .in("name", names);
+    const ids = names.map(
+      n => (seeded ?? []).find(p => p.name === n)?.id as string,
+    );
 
-    // Player 1 takes a long turn, the next is instant → player 1 has ~all the
-    // time once two players have played, tripping the live banner.
-    await page.waitForTimeout(2000);
-    await page.getByRole("button", { name: "Tour suivant →" }).click();
-    await page.getByRole("button", { name: "Tour suivant →" }).click();
+    // An ongoing Catan game whose round-1 turns had the given durations.
+    async function seedOngoing(durations: number[]) {
+      const { data: game } = await admin
+        .from("games")
+        .insert({
+          boardgame_id: CATAN_ID,
+          status: "ongoing",
+          round: 2,
+          turn: ids.length + 1,
+          current_player_id: ids[0],
+        })
+        .select("id")
+        .single();
+      const gameId = game?.id as string;
+      gameIds.push(gameId);
 
-    await expect(page.getByText(/monopolise le temps/)).toBeVisible();
-  } finally {
-    const admin = adminClient();
-    if (gameId) {
-      await admin.from("games").delete().eq("id", gameId);
+      await admin.from("game_players").insert(
+        ids.map((player_id, i) => ({
+          game_id: gameId,
+          player_id,
+          seat_order: i,
+        })),
+      );
+      await admin.from("game_turns").insert(
+        ids.map((player_id, i) => ({
+          game_id: gameId,
+          player_id,
+          round: 1,
+          turn_no: i + 1,
+          duration_s: durations[i],
+        })),
+      );
+
+      return gameId;
     }
-    await admin.from("players").delete().in("name", players);
+
+    // Player 1 took almost all the time → the banner names them.
+    const hogGame = await seedOngoing([100, 5, 5]);
+    await page.goto(`/games/${hogGame}/play`);
+
+    const banner = page.getByText(/monopolise le temps/);
+    await expect(banner).toBeVisible();
+    await expect(banner).toContainText(names[0]);
+
+    // A balanced game → nobody is over their fair share → no banner.
+    const evenGame = await seedOngoing([20, 20, 20]);
+    await page.goto(`/games/${evenGame}/play`);
+
+    await expect(page.getByText(/monopolise le temps/)).toHaveCount(0);
+  } finally {
+    for (const id of gameIds) {
+      await admin.from("games").delete().eq("id", id);
+    }
+    await admin.from("players").delete().in("name", names);
   }
 });

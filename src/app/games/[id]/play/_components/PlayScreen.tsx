@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Toast } from "@/components/Toast";
 import type {
   GameId,
   PlayerId,
@@ -59,8 +58,6 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   // Live running scores, seeded once from the loaded game then owned here so
   // they survive turn reloads and feed both the score panel and the end prompt.
   const [scores, setScores] = useState<Record<string, number> | null>(null);
-  // Transient "X is monopolising the time" banner.
-  const [toast, setToast] = useState<string | null>(null);
   // Dice roll log (values in order), owned locally so a tap shows instantly;
   // each append also persists in the background.
   const [rolls, setRolls] = useState<number[] | null>(null);
@@ -144,27 +141,14 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
     loadSound(RING_URL);
   }, []);
 
-  // Whoever is monopolising the table's time (from the turns played so far).
+  // Whoever is monopolising the table's time (from the turns played so far). A
+  // live value: it updates as turns are recorded and clears once no one is over
+  // their fair share, driving the banner below.
   const hog = game
     ? timeHog(
         computeGameStats({ players: game.players, turns: game.turns }).players,
       )
     : null;
-  const hogName = hog?.name ?? null;
-  // Latest hog for the banner text, without re-firing on every share-% tick.
-  const hogRef = useRef(hog);
-  hogRef.current = hog;
-  // Pop the banner when a (new) hog emerges — keyed on the name so it fires on a
-  // change of hog, not on every share-% tick; the ref carries the live text.
-  useEffect(() => {
-    if (hogName === null) {
-      return;
-    }
-    const h = hogRef.current;
-    if (h) {
-      setToast(`⏱️ ${h.name} monopolise le temps (${Math.round(h.sharePct)} %)`);
-    }
-  }, [hogName]);
 
   // The current turn's countdown: the schedule's duration for this round,
   // unless the user manually overrode it for the turn.
@@ -370,8 +354,14 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
 
   return (
     <div className="flex flex-col items-center gap-8">
-      {toast ? (
-        <Toast message={toast} onDismiss={() => setToast(null)} />
+      {hog ? (
+        <div className="flex w-full max-w-sm items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-3 text-sm">
+          <span aria-hidden>⏱️</span>
+          <span>
+            <span className="font-semibold">{hog.name}</span> monopolise le
+            temps ({Math.round(hog.sharePct)} %)
+          </span>
+        </div>
       ) : null}
 
       <p className="text-sm uppercase tracking-wide text-zinc-400">
