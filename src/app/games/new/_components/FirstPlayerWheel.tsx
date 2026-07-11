@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { Modal } from "@/components/Modal";
 import type { Player } from "@/lib/domain";
 import {
   nextRotation,
@@ -92,137 +93,128 @@ export function FirstPlayerWheel({
   const winner = settledIndex !== null ? players[settledIndex] : null;
 
   return (
-    <div
-      role="dialog"
-      aria-label="Roue du premier joueur"
-      aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onClick={e => {
-        if (e.target === e.currentTarget && !spinning) {
-          onClose();
-        }
-      }}
+    <Modal
+      onClose={onClose}
+      dismissable={!spinning}
+      label="Roue du premier joueur"
+      className="flex w-full max-w-sm flex-col items-center gap-4 rounded-2xl border border-black/10 bg-white p-6 dark:border-white/10 dark:bg-zinc-900"
     >
-      <div className="flex w-full max-w-sm flex-col items-center gap-4 rounded-2xl border border-black/10 bg-white p-6 dark:border-white/10 dark:bg-zinc-900">
-        <h2 className="text-center text-lg font-semibold">
-          Qui commence&nbsp;?
-        </h2>
+      <h2 className="text-center text-lg font-semibold">Qui commence&nbsp;?</h2>
 
-        <div className="relative">
-          {/* Pointer at the top, aimed into the wheel. */}
-          <div
-            aria-hidden
-            className="-translate-x-1/2 absolute top-0 left-1/2 z-10"
+      <div className="relative">
+        {/* Pointer at the top, aimed into the wheel. */}
+        <div
+          aria-hidden
+          className="-translate-x-1/2 absolute top-0 left-1/2 z-10"
+          style={{
+            width: 0,
+            height: 0,
+            borderLeft: "10px solid transparent",
+            borderRight: "10px solid transparent",
+            borderTop: "16px solid #18181b",
+          }}
+        />
+        <svg viewBox="0 0 200 200" className="h-64 w-64" aria-hidden>
+          <title>Roue du premier joueur</title>
+          <g
+            onTransitionEnd={handleSettled}
             style={{
-              width: 0,
-              height: 0,
-              borderLeft: "10px solid transparent",
-              borderRight: "10px solid transparent",
-              borderTop: "16px solid #18181b",
+              transform: `rotate(${rotation}deg)`,
+              transformOrigin: "center",
+              transition: spinning
+                ? "transform 4s cubic-bezier(0.15, 0.6, 0.15, 1)"
+                : "none",
             }}
+          >
+            {players.map((p, i) => {
+              const mid = i * seg + seg / 2;
+              const [tx, ty] = polar(RADIUS * 0.62, mid);
+              return (
+                <g key={p.id}>
+                  <path
+                    d={slicePath(i * seg, (i + 1) * seg)}
+                    fill={SEGMENT_COLORS[i % SEGMENT_COLORS.length]}
+                    stroke="white"
+                    strokeWidth={1}
+                  />
+                  <text
+                    x={tx}
+                    y={ty}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fontSize={players.length > 6 ? 9 : 11}
+                    fontWeight={600}
+                    fill="white"
+                  >
+                    {p.name.length > 10 ? `${p.name.slice(0, 9)}…` : p.name}
+                  </text>
+                </g>
+              );
+            })}
+          </g>
+          <circle
+            cx={CENTER}
+            cy={CENTER}
+            r={10}
+            fill="white"
+            stroke="#18181b"
+            strokeWidth={2}
           />
-          <svg viewBox="0 0 200 200" className="h-64 w-64" aria-hidden>
-            <title>Roue du premier joueur</title>
-            <g
-              onTransitionEnd={handleSettled}
-              style={{
-                transform: `rotate(${rotation}deg)`,
-                transformOrigin: "center",
-                transition: spinning
-                  ? "transform 4s cubic-bezier(0.15, 0.6, 0.15, 1)"
-                  : "none",
-              }}
-            >
-              {players.map((p, i) => {
-                const mid = i * seg + seg / 2;
-                const [tx, ty] = polar(RADIUS * 0.62, mid);
-                return (
-                  <g key={p.id}>
-                    <path
-                      d={slicePath(i * seg, (i + 1) * seg)}
-                      fill={SEGMENT_COLORS[i % SEGMENT_COLORS.length]}
-                      stroke="white"
-                      strokeWidth={1}
-                    />
-                    <text
-                      x={tx}
-                      y={ty}
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      fontSize={players.length > 6 ? 9 : 11}
-                      fontWeight={600}
-                      fill="white"
-                    >
-                      {p.name.length > 10 ? `${p.name.slice(0, 9)}…` : p.name}
-                    </text>
-                  </g>
-                );
-              })}
-            </g>
-            <circle
-              cx={CENTER}
-              cy={CENTER}
-              r={10}
-              fill="white"
-              stroke="#18181b"
-              strokeWidth={2}
-            />
-          </svg>
-        </div>
-
-        {winner ? (
-          <p className="text-center text-base" aria-live="polite">
-            🎉 <span className="font-semibold">{winner.name}</span>{" "}
-            commence&nbsp;!
-          </p>
-        ) : (
-          <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
-            {spinning ? "La roue tourne…" : "Lance la roue pour tirer au sort."}
-          </p>
-        )}
-
-        <div className="flex w-full gap-2">
-          {winner ? (
-            <>
-              <button
-                type="button"
-                onClick={() =>
-                  onResult(rotateToFirst(players, settledIndex ?? 0))
-                }
-                className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
-              >
-                {winner.name} commence
-              </button>
-              <button
-                type="button"
-                onClick={spin}
-                className="rounded-lg border border-black/10 px-4 py-2 transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
-              >
-                Relancer
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={spin}
-                disabled={spinning}
-                className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
-              >
-                Tourner la roue
-              </button>
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={spinning}
-                className="rounded-lg border border-black/10 px-4 py-2 transition hover:bg-black/5 disabled:opacity-60 dark:border-white/15 dark:hover:bg-white/5"
-              >
-                Annuler
-              </button>
-            </>
-          )}
-        </div>
+        </svg>
       </div>
-    </div>
+
+      {winner ? (
+        <p className="text-center text-base" aria-live="polite">
+          🎉 <span className="font-semibold">{winner.name}</span>{" "}
+          commence&nbsp;!
+        </p>
+      ) : (
+        <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
+          {spinning ? "La roue tourne…" : "Lance la roue pour tirer au sort."}
+        </p>
+      )}
+
+      <div className="flex w-full gap-2">
+        {winner ? (
+          <>
+            <button
+              type="button"
+              onClick={() =>
+                onResult(rotateToFirst(players, settledIndex ?? 0))
+              }
+              className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
+            >
+              {winner.name} commence
+            </button>
+            <button
+              type="button"
+              onClick={spin}
+              className="rounded-lg border border-black/10 px-4 py-2 transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+            >
+              Relancer
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={spin}
+              disabled={spinning}
+              className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
+            >
+              Tourner la roue
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={spinning}
+              className="rounded-lg border border-black/10 px-4 py-2 transition hover:bg-black/5 disabled:opacity-60 dark:border-white/15 dark:hover:bg-white/5"
+            >
+              Annuler
+            </button>
+          </>
+        )}
+      </div>
+    </Modal>
   );
 }
