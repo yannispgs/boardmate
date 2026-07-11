@@ -3,11 +3,13 @@ export * from "./types";
 import { createClient } from "@/lib/supabase/client";
 import { createBoardgameRepository } from "@/lib/supabase/repositories/boardgames";
 import { createConfigRepository } from "@/lib/supabase/repositories/configs";
+import { createFeedbackRepository } from "@/lib/supabase/repositories/feedback";
 import { createGameRepository } from "@/lib/supabase/repositories/games";
 import { createPlayerRepository } from "@/lib/supabase/repositories/players";
 import type {
   BoardgameRepository,
   ConfigRepository,
+  FeedbackRepository,
   GameRepository,
   PlayerRepository,
 } from "./types";
@@ -52,4 +54,13 @@ export function getGameRepository(): GameRepository {
     gameRepository = createGameRepository(createClient());
   }
   return gameRepository;
+}
+
+let feedbackRepository: FeedbackRepository | null = null;
+
+export function getFeedbackRepository(): FeedbackRepository {
+  if (!feedbackRepository) {
+    feedbackRepository = createFeedbackRepository(createClient());
+  }
+  return feedbackRepository;
 }

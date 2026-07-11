@@ -13,6 +13,7 @@ import type {
   ConfigId,
   ConfigTemplate,
   ConfigValues,
+  Feedback,
   Game,
   GameId,
   GameListItem,
@@ -20,6 +21,7 @@ import type {
   GameStatus,
   NewBoardgame,
   NewConfig,
+  NewFeedback,
   NewGame,
   NewPlayer,
   Player,
@@ -140,10 +142,17 @@ export interface GameRepository {
   subscribe(onChange: () => void): Unsubscribe;
 }
 
+export interface FeedbackRepository {
+  /** Improvement ideas, newest first. */
+  list(): Promise<Feedback[]>;
+  create(input: NewFeedback): Promise<Feedback>;
+}
+
 /** Aggregate of all repositories, resolved by the active adapter. */
 export interface Repositories {
   players: PlayerRepository;
   boardgames: BoardgameRepository;
   configs: ConfigRepository;
   games: GameRepository;
+  feedback: FeedbackRepository;
 }

@@ -12,8 +12,8 @@ const TOOLS: {
   { name: "Joueurs", emoji: "👥", status: "v1", href: "/players" },
   { name: "Jeux", emoji: "🎲", status: "v1", href: "/boardgames" },
   { name: "Parties", emoji: "🃏", status: "v1", href: "/games" },
-  { name: "Lancer de dés", emoji: "🎯", status: "bientôt" },
   { name: "Statistiques", emoji: "📊", status: "v1", href: "/stats" },
+  { name: "Retours", emoji: "📝", status: "v1", href: "/feedback" },
 ];
 
 const cardClass =

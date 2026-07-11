@@ -12,3 +12,4 @@ export type BoardgameId = Id<"boardgame">;
 export type ConfigId = Id<"config">;
 export type GameId = Id<"game">;
 export type GameTurnId = Id<"gameTurn">;
+export type FeedbackId = Id<"feedback">;
