@@ -19,7 +19,9 @@ test("creates, edits and deletes a boardgame", async ({ page }) => {
 
   await page.goto("/boardgames");
 
-  await page.getByRole("button", { name: "+ Ajouter un jeu" }).click();
+  // Adding a game is now a dedicated page, not an inline panel.
+  await page.getByRole("link", { name: "+ Ajouter un jeu" }).click();
+  await expect(page).toHaveURL(/\/boardgames\/new$/);
   await page.getByLabel("Nom du jeu").fill(name);
   await page.getByLabel("Joueurs min").fill("2");
   await page.getByLabel("Joueurs max").fill("5");
@@ -32,8 +34,9 @@ test("creates, edits and deletes a boardgame", async ({ page }) => {
 
   await expect(page.getByText(name, { exact: true })).toBeVisible();
 
-  // Edit → the round limit round-trips into the form → rename.
-  await page.getByRole("button", { name: `Modifier ${name}` }).click();
+  // Edit → its own page → the round limit round-trips into the form → rename.
+  await page.getByRole("link", { name: `Modifier ${name}` }).click();
+  await expect(page).toHaveURL(/\/boardgames\/[0-9a-f-]+\/edit$/);
   await expect(page.getByText("Modifier le jeu")).toBeVisible();
   await expect(
     page.getByLabel("Nombre de tours (vide = illimité)"),
@@ -58,7 +61,7 @@ test("edits a boardgame's scoring type", async ({ page }) => {
 
   try {
     await page.goto("/boardgames");
-    await page.getByRole("button", { name: "+ Ajouter un jeu" }).click();
+    await page.getByRole("link", { name: "+ Ajouter un jeu" }).click();
     await page.getByLabel("Nom du jeu").fill(name);
 
     // Enable scoring, final tally, lowest total wins (Skyjo-like).
@@ -68,7 +71,7 @@ test("edits a boardgame's scoring type", async ({ page }) => {
     await expect(page.getByText(name, { exact: true })).toBeVisible();
 
     // Re-open the edit form: the saved scoring type round-trips into it.
-    await page.getByRole("button", { name: `Modifier ${name}` }).click();
+    await page.getByRole("link", { name: `Modifier ${name}` }).click();
     await expect(
       page.getByLabel("Ce jeu se joue avec des points"),
     ).toBeChecked();
@@ -85,7 +88,7 @@ test("builds a category scoresheet from the edit form", async ({ page }) => {
 
   try {
     await page.goto("/boardgames");
-    await page.getByRole("button", { name: "+ Ajouter un jeu" }).click();
+    await page.getByRole("link", { name: "+ Ajouter un jeu" }).click();
     await page.getByLabel("Nom du jeu").fill(name);
 
     // Scored, tallied by categories: a section with a field + a standalone one.
@@ -104,7 +107,7 @@ test("builds a category scoresheet from the edit form", async ({ page }) => {
     await expect(page.getByText(name, { exact: true })).toBeVisible();
 
     // Re-open: the whole sheet round-trips into the editor.
-    await page.getByRole("button", { name: `Modifier ${name}` }).click();
+    await page.getByRole("link", { name: `Modifier ${name}` }).click();
     await expect(page.getByLabel("Décompte des points")).toHaveValue(
       "categories",
     );
@@ -124,7 +127,7 @@ test("deactivates then reactivates a boardgame", async ({ page }) => {
 
   try {
     await page.goto("/boardgames");
-    await page.getByRole("button", { name: "+ Ajouter un jeu" }).click();
+    await page.getByRole("link", { name: "+ Ajouter un jeu" }).click();
     await page.getByLabel("Nom du jeu").fill(name);
     await page.getByRole("button", { name: "Ajouter" }).click();
     await expect(page.getByText(name, { exact: true })).toBeVisible();
@@ -149,7 +152,7 @@ test("deactivates then reactivates a boardgame", async ({ page }) => {
 
 test("offers three logo sources and uploads a file", async ({ page }) => {
   await page.goto("/boardgames");
-  await page.getByRole("button", { name: "+ Ajouter un jeu" }).click();
+  await page.getByRole("link", { name: "+ Ajouter un jeu" }).click();
 
   // File is the default source: its picker is shown.
   await expect(

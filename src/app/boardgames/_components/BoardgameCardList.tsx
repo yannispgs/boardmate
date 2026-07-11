@@ -13,7 +13,6 @@ import { BoardgameCard } from "./BoardgameCard";
 export function BoardgameCardList({
   title,
   boardgames,
-  onEdit,
   onToggle,
   actionLabel,
   onDelete,
@@ -22,7 +21,6 @@ export function BoardgameCardList({
 }: {
   title: string;
   boardgames: Boardgame[];
-  onEdit: (b: Boardgame) => void;
   onToggle: (b: Boardgame) => void;
   actionLabel: string;
   onDelete: (b: Boardgame) => void;
@@ -39,7 +37,6 @@ export function BoardgameCardList({
         <BoardgameCard
           key={b.id}
           boardgame={b}
-          onEdit={onEdit}
           onToggle={onToggle}
           onDelete={onDelete}
           actionLabel={actionLabel}
