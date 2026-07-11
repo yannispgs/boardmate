@@ -137,6 +137,35 @@ test("a full round cycles back to the first player", async ({ page }) => {
   }
 });
 
+test("the turn timer grows each round per the schedule", async ({ page }) => {
+  const players = await seedPlayers(CATAN_MIN_PLAYERS);
+  let gameId = "";
+
+  try {
+    gameId = await funnelToPlay(page, players);
+
+    // Catan's schedule: 45 s base, +15 s each round.
+    await expect(
+      page.getByRole("button", { name: "Durée du tour : 45s — modifier" }),
+    ).toBeVisible();
+
+    // A full round of turns brings the game to round 2 → 60 s.
+    for (let i = 0; i < players.length; i++) {
+      await page.getByRole("button", { name: "Tour suivant →" }).click();
+    }
+
+    await expect(
+      page.getByRole("button", { name: "Durée du tour : 60s — modifier" }),
+    ).toBeVisible();
+  } finally {
+    const admin = adminClient();
+    if (gameId) {
+      await admin.from("games").delete().eq("id", gameId);
+    }
+    await admin.from("players").delete().in("name", players);
+  }
+});
+
 test("live scores float at zero and persist across the score sheet", async ({
   page,
 }) => {

@@ -20,6 +20,7 @@ import type {
 } from "@/lib/domain";
 import { winThresholdFrom } from "@/lib/game/scoring";
 import { advanceTurn as nextTurnState } from "@/lib/game/turn";
+import { turnScheduleFrom } from "@/lib/game/turn-schedule";
 import type { GameRepository, Unsubscribe } from "@/lib/repositories/types";
 import type { Database, Json } from "@/lib/supabase/database.types";
 import { toBoardgame } from "@/lib/supabase/repositories/boardgames";
@@ -259,6 +260,7 @@ export function createGameRepository(
             templateFields,
           )
         : null;
+      const turnSchedule = turnScheduleFrom(effectiveValues, templateFields);
 
       const scoreEvents = [...row.score_events]
         .sort((a, b) => a.created_at.localeCompare(b.created_at))
@@ -278,6 +280,7 @@ export function createGameRepository(
         boardgame,
         config,
         winThreshold,
+        turnSchedule,
         scoreEvents,
         diceRolls,
         players,

@@ -104,6 +104,17 @@ export interface DiceRoll {
   at: string;
 }
 
+/**
+ * The per-round turn-time schedule: a turn lasts `baseS`, growing by `stepS`
+ * each round (tour de table), capped at `maxS`. `stepS = 0` is a constant timer.
+ * Resolved from the game's config (value, else the config template default).
+ */
+export interface TurnSchedule {
+  baseS: number;
+  stepS: number;
+  maxS: number;
+}
+
 /** A game with its related entities resolved, for the play / detail screen. */
 export interface PopulatedGame extends Game {
   boardgame: Boardgame;
@@ -118,6 +129,8 @@ export interface PopulatedGame extends Game {
    * Null when the game isn't threshold-scored.
    */
   winThreshold: number | null;
+  /** Per-round turn-time schedule, resolved from config / template defaults. */
+  turnSchedule: TurnSchedule;
   players: Array<GamePlayer & { player: Player }>;
   currentPlayer: Player | null;
   turns: GameTurn[];
