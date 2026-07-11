@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 
-import { EyeIcon, EyeOffIcon, SlidersIcon, TrashIcon } from "@/components/icons";
+import {
+  EyeIcon,
+  EyeOffIcon,
+  SlidersIcon,
+  TrashIcon,
+} from "@/components/icons";
 import { dangerIconButtonClass, iconButtonClass } from "@/components/ui";
 import type { Boardgame } from "@/lib/domain";
 
