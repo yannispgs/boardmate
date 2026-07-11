@@ -126,7 +126,7 @@ describe("games adapter — creation & population", () => {
     // The turn schedule resolves from Catan's config template defaults.
     expect(populated?.turnSchedule).toEqual({
       baseS: 45,
-      stepS: 15,
+      stepS: 5,
       maxS: 180,
     });
   });

@@ -7,11 +7,11 @@
 -- carrying just the schedule. Catan grows steadily; Cascadia grows more gently
 -- (owner's call).
 
--- Catan: 45 s + 15 s / tour, capped at 180 s.
+-- Catan: 45 s + 5 s / tour, capped at 180 s.
 update public.config_templates t
 set fields = t.fields || '[
     { "key": "turnBaseS", "label": "Durée de base (s)", "type": "integer", "min": 5, "max": 600, "default": 45 },
-    { "key": "turnStepS", "label": "Augmentation par tour (s)", "type": "integer", "min": 0, "max": 120, "default": 15 },
+    { "key": "turnStepS", "label": "Augmentation par tour (s)", "type": "integer", "min": 0, "max": 120, "default": 5 },
     { "key": "turnMaxS", "label": "Durée max (s)", "type": "integer", "min": 5, "max": 900, "default": 180 }
   ]'::jsonb
 from public.boardgames b

@@ -144,18 +144,18 @@ test("the turn timer grows each round per the schedule", async ({ page }) => {
   try {
     gameId = await funnelToPlay(page, players);
 
-    // Catan's schedule: 45 s base, +15 s each round.
+    // Catan's schedule: 45 s base, +5 s each round.
     await expect(
       page.getByRole("button", { name: "Durée du tour : 45s — modifier" }),
     ).toBeVisible();
 
-    // A full round of turns brings the game to round 2 → 60 s.
+    // A full round of turns brings the game to round 2 → 50 s.
     for (let i = 0; i < players.length; i++) {
       await page.getByRole("button", { name: "Tour suivant →" }).click();
     }
 
     await expect(
-      page.getByRole("button", { name: "Durée du tour : 60s — modifier" }),
+      page.getByRole("button", { name: "Durée du tour : 50s — modifier" }),
     ).toBeVisible();
   } finally {
     const admin = adminClient();
