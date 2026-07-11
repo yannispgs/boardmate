@@ -1,3 +1,4 @@
+import { timeShareColor } from "@/lib/game/colors";
 import { formatDuration } from "@/lib/game/format-time";
 import type { PlayerTimeStats } from "@/lib/game/stats";
 
@@ -5,17 +6,21 @@ import type { PlayerTimeStats } from "@/lib/game/stats";
  * One player's time card: a proportion bar for their share of the table's
  * active time, and a compact "rhythm" track spanning their fastest→slowest turn
  * (scaled to the game's longest turn so players compare at a glance), with a tick
- * at their mean. The winner's proportion bar is tinted amber.
+ * at their mean. The proportion bar reddens as the player monopolises the time
+ * (fully red at the monopoly threshold); a non-monopolising winner stays amber.
  */
 export function PlayerStatCard({
   stat,
   rank,
   scaleS,
+  playerCount,
 }: {
   stat: PlayerTimeStats;
   rank: number;
   /** Longest single turn of the whole game — shared scale for the rhythm track. */
   scaleS: number;
+  /** Seated players — sets the fair share the bar's redness is measured against. */
+  playerCount: number;
 }) {
   const played = stat.turnCount > 0;
   const pct = (v: number) => (scaleS > 0 ? (v / scaleS) * 100 : 0);
@@ -44,10 +49,15 @@ export function PlayerStatCard({
 
       <div className="h-2.5 w-full overflow-hidden rounded-full bg-black/5 dark:bg-white/10">
         <div
-          className={`h-full rounded-full ${
-            stat.isWinner ? "bg-amber-400" : "bg-indigo-500"
-          }`}
-          style={{ width: `${stat.sharePct}%` }}
+          className="h-full rounded-full transition-colors"
+          style={{
+            width: `${stat.sharePct}%`,
+            backgroundColor: timeShareColor(
+              stat.sharePct,
+              playerCount,
+              stat.isWinner,
+            ),
+          }}
         />
       </div>
 

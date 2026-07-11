@@ -18,6 +18,7 @@ export function PlayerStatCardList({
           stat={stat}
           rank={i + 1}
           scaleS={scaleS}
+          playerCount={players.length}
         />
       ))}
     </ul>
