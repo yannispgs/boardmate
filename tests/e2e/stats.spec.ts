@@ -118,3 +118,100 @@ test("shows player averages and per-game averages across the two tabs", async ({
     await admin.from("players").delete().in("name", names);
   }
 });
+
+test("recomputes the ranking from games where the selected players played", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const names = await seedPlayers(3);
+  const gameIds: string[] = [];
+  let bgId = "";
+
+  try {
+    const { data: seeded } = await admin
+      .from("players")
+      .select("id, name")
+      .in("name", names);
+    const ids = names.map(
+      n => (seeded ?? []).find(p => p.name === n)?.id as string,
+    );
+
+    // A boardgame that allows 2-player games (so one game can exclude a player).
+    const { data: bg } = await admin
+      .from("boardgames")
+      .insert({
+        name: `Prez-${Date.now().toString(36)}`,
+        min_players: 1,
+        max_players: 4,
+      })
+      .select("id")
+      .single();
+    bgId = bg?.id as string;
+
+    async function seed(playerIdxs: number[], winnerIdx: number) {
+      const { data: game } = await admin
+        .from("games")
+        .insert({
+          boardgame_id: bgId,
+          status: "ended",
+          round: 1,
+          turn: 1,
+          ended_at: new Date().toISOString(),
+        })
+        .select("id")
+        .single();
+      const gameId = game?.id as string;
+      gameIds.push(gameId);
+
+      await admin.from("game_players").insert(
+        playerIdxs.map((idx, seat) => ({
+          game_id: gameId,
+          player_id: ids[idx],
+          seat_order: seat,
+          is_winner: idx === winnerIdx,
+          score: 5,
+        })),
+      );
+      await admin.from("game_turns").insert(
+        playerIdxs.map((idx, seat) => ({
+          game_id: gameId,
+          player_id: ids[idx],
+          round: 1,
+          turn_no: seat + 1,
+          duration_s: 20,
+        })),
+      );
+    }
+
+    // Player 0 wins two of three games; the third has no player 2.
+    await seed([0, 1, 2], 0);
+    await seed([0, 1, 2], 2);
+    await seed([0, 1], 0);
+
+    await page.goto("/stats");
+
+    const p0Row = () =>
+      page.getByRole("listitem").filter({ hasText: names[0] });
+
+    // Across all 3 games: player 0 won 2 → 67%.
+    await expect(p0Row()).toContainText("67%");
+
+    // Keep only games where player 2 was present → drops the 2-player game.
+    await page.getByRole("button", { name: "Ouvrir la liste" }).click();
+    await page.getByRole("button", { name: names[2], exact: true }).click();
+    // Close the dropdown (re-tap the trigger) so its own list items don't
+    // shadow the table rows.
+    await page.getByRole("button", { name: "Ouvrir la liste" }).click();
+
+    // Player 0 now won 1 of 2 → 50%.
+    await expect(p0Row()).toContainText("50%");
+  } finally {
+    for (const id of gameIds) {
+      await admin.from("games").delete().eq("id", id);
+    }
+    if (bgId) {
+      await admin.from("boardgames").delete().eq("id", bgId);
+    }
+    await admin.from("players").delete().in("name", names);
+  }
+});
