@@ -38,6 +38,24 @@ function repo() {
 }
 
 describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
+  it("exposes the seeded category-scored games with their scoresheets", async () => {
+    const all = await repo().list();
+    const byName = (n: string) => all.find(b => b.name === n);
+
+    const foret = byName("Forêt Mixte");
+    expect(foret?.scoring?.timing).toBe("final");
+    expect(foret?.scoring?.entry).toBe("categories");
+    expect(
+      foret?.scoring?.sheet?.map(i => ("key" in i ? i.key : null)),
+    ).toEqual(["cartesHaut", "cartesBas", "cartesCote", "grotte"]);
+
+    const wingspan = byName("Wingspan");
+    expect(wingspan?.scoring?.entry).toBe("categories");
+    expect(wingspan?.scoring?.sheet).toHaveLength(7);
+    expect(wingspan?.minPlayers).toBe(1);
+    expect(wingspan?.maxPlayers).toBe(5);
+  });
+
   it("maps a created row to the domain shape with defaults", async () => {
     const bg = await repo().create({
       name: uniq("Catan"),
