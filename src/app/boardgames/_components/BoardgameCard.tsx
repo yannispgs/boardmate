@@ -38,14 +38,12 @@ function formatMeta(b: Boardgame): string {
  */
 export function BoardgameCard({
   boardgame: b,
-  onEdit,
   onToggle,
   onDelete,
   actionLabel,
   dimmed = false,
 }: {
   boardgame: Boardgame;
-  onEdit: (b: Boardgame) => void;
   onToggle: (b: Boardgame) => void;
   onDelete: (b: Boardgame) => void;
   actionLabel: string;
@@ -84,15 +82,14 @@ export function BoardgameCard({
       >
         <SlidersIcon />
       </Link>
-      <button
-        type="button"
-        onClick={() => onEdit(b)}
+      <Link
+        href={`/boardgames/${b.id}/edit`}
         aria-label={`Modifier ${b.name}`}
         title="Modifier"
         className={iconButtonClass}
       >
         <PencilIcon />
-      </button>
+      </Link>
       <button
         type="button"
         onClick={() => onToggle(b)}
