@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 
 import { StatTile } from "@/components/StatTile";
 import type { GameStatsRecord, PlayerId } from "@/lib/domain";
-import { formatDuration } from "@/lib/game/format-time";
 import { computeGlobalStats } from "@/lib/game/global-stats";
 import { MultiSelectField } from "./MultiSelectField";
 import { PlayerDetail } from "./PlayerDetail";
@@ -42,14 +41,14 @@ export function PlayersTab({ records }: { records: GameStatsRecord[] }) {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Turn/score means are game-specific — shown per game, not globally. */}
-      <div className="grid grid-cols-3 gap-2">
-        <StatTile label="Parties" value={String(stats.gameCount)} accent />
+      {/* Only the game count is meaningful globally; time/turn/score means mix
+          boardgames, so they live in the per-game (Jeux) tab. */}
+      <div className="w-40">
         <StatTile
-          label="Temps de jeu moy."
-          value={formatDuration(stats.avgActiveS)}
+          label="Parties terminées"
+          value={String(stats.gameCount)}
+          accent
         />
-        <StatTile label="Tours moy." value={stats.avgRounds.toFixed(1)} />
       </div>
 
       <MultiSelectField

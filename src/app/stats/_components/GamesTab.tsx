@@ -116,12 +116,13 @@ export function GamesTab({ records }: { records: GameStatsRecord[] }) {
         </p>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             <StatTile label="Parties" value={String(stats.gameCount)} accent />
             <StatTile
               label="Temps de jeu moy."
               value={formatDuration(stats.avgActiveS)}
             />
+            <StatTile label="Tours moy." value={stats.avgRounds.toFixed(1)} />
             <StatTile
               label="Tour moy."
               value={formatDuration(stats.avgTurnS)}
@@ -133,9 +134,7 @@ export function GamesTab({ records }: { records: GameStatsRecord[] }) {
                   stats.avgScore === null ? "—" : stats.avgScore.toFixed(1)
                 }
               />
-            ) : (
-              <StatTile label="Tours moy." value={stats.avgRounds.toFixed(1)} />
-            )}
+            ) : null}
           </div>
 
           {champion && champion.wins > 0 ? (
