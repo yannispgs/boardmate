@@ -13,7 +13,10 @@ test("creates, edits and deletes a config", async ({ page }) => {
   const renamed = `${name} v2`;
 
   try {
+    // The config management now lives on the unified settings page; the old
+    // /configs route redirects there.
     await page.goto(`/boardgames/${CATAN_ID}/configs`);
+    await expect(page).toHaveURL(new RegExp(`/boardgames/${CATAN_ID}/edit$`));
 
     await page
       .getByRole("button", { name: "+ Nouvelle configuration" })
@@ -27,9 +30,13 @@ test("creates, edits and deletes a config", async ({ page }) => {
 
     // Edit → rename.
     await page.getByRole("button", { name: `Modifier ${name}` }).click();
-    await expect(page.getByText("Modifier la configuration")).toBeVisible();
+    await expect(
+      page.getByText("Modifier la configuration", { exact: true }),
+    ).toBeVisible();
     await page.getByPlaceholder("ex. Partie rapide").fill(renamed);
-    await page.getByRole("button", { name: "Enregistrer" }).click();
+    await page
+      .getByRole("button", { name: "Enregistrer la configuration" })
+      .click();
 
     await expect(page.getByText(renamed, { exact: true })).toBeVisible();
 
@@ -63,9 +70,13 @@ test("edits the game's default configuration and persists it", async ({
     await page
       .getByRole("button", { name: "Modifier la configuration par défaut" })
       .click();
-    await expect(page.getByText("Configuration par défaut")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Enregistrer les valeurs par défaut" }),
+    ).toBeVisible();
     await page.locator("#pointsToWin").fill("15");
-    await page.getByRole("button", { name: "Enregistrer" }).click();
+    await page
+      .getByRole("button", { name: "Enregistrer les valeurs par défaut" })
+      .click();
 
     // Reload (proving it round-tripped through the DB) → the create form now
     // pre-fills the new default.
@@ -97,9 +108,10 @@ test("rejects a points value outside the allowed range", async ({ page }) => {
     await page.locator("#pointsToWin").fill("999");
     await page.getByRole("button", { name: "Créer" }).click();
 
-    // A field error surfaces and the config is not created.
+    // A field error surfaces and the config is not created (still on the
+    // create form, not persisted).
     await expect(page.getByRole("alert").first()).toBeVisible();
-    await expect(page.getByText("Modifier la configuration")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Créer" })).toBeVisible();
   } finally {
     await deleteConfigs([name]);
   }

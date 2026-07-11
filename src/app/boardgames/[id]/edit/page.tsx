@@ -2,10 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import type { BoardgameId } from "@/lib/domain";
+import { createBoardgameRepository } from "@/lib/supabase/repositories/boardgames";
+import { createClient } from "@/lib/supabase/server";
 import { BoardgameFormPage } from "../../_components/BoardgameFormPage";
+import { ConfigsManager } from "../_components/ConfigsManager";
 
 export const metadata: Metadata = {
-  title: "Modifier un jeu — Boardmate",
+  title: "Réglages d'un jeu — Boardmate",
 };
 
 export default async function EditBoardgamePage({
@@ -14,6 +17,13 @@ export default async function EditBoardgamePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+
+  // Resolve the boardgame name server-side (via the repository adapter) so the
+  // title names the game whose settings these are.
+  const supabase = await createClient();
+  const boardgame = await createBoardgameRepository(supabase)
+    .get(id as BoardgameId)
+    .catch(() => null);
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-6 py-10">
@@ -25,14 +35,21 @@ export default async function EditBoardgamePage({
           ← Jeux
         </Link>
         <h1 className="text-3xl font-semibold tracking-tight">
-          Modifier le jeu
+          {boardgame ? `Réglages — ${boardgame.name}` : "Réglages"}
         </h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Mets à jour ses informations, son logo et son score.
+          Les informations du jeu et ses configurations, au même endroit.
         </p>
       </header>
 
-      <BoardgameFormPage boardgameId={id as BoardgameId} />
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+          Informations du jeu
+        </h2>
+        <BoardgameFormPage boardgameId={id as BoardgameId} />
+      </section>
+
+      <ConfigsManager boardgameId={id as BoardgameId} />
     </main>
   );
 }

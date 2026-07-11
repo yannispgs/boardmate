@@ -14,6 +14,7 @@ import type {
   ConfigId,
   ConfigTemplate,
   ConfigValues,
+  FieldSpec,
 } from "@/lib/domain";
 import { useConfigs } from "@/lib/hooks/use-configs";
 import { ConfigCardList } from "./ConfigCardList";
@@ -23,6 +24,26 @@ interface FormInit {
   name: string;
   values: ConfigValues;
   editingId: ConfigId | null;
+}
+
+const sectionHeading =
+  "text-sm font-semibold uppercase tracking-wide text-zinc-400";
+
+/** Human-readable rendering of a field's default value for the summary. */
+function formatDefault(field: FieldSpec, value: unknown): string {
+  if (field.type === "boolean") {
+    return value ? "Oui" : "Non";
+  }
+
+  if (field.type === "enum") {
+    return field.options.find(o => o.value === value)?.label ?? "—";
+  }
+
+  if (value === undefined || value === null || value === "") {
+    return "—";
+  }
+
+  return String(value);
 }
 
 export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
@@ -121,8 +142,10 @@ export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
     );
   }
 
+  const defaults = buildDefaults(template.fields);
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       {actionError ? (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
           {actionError}
@@ -134,45 +157,71 @@ export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
         </p>
       ) : null}
 
-      <ConfigCardList
-        configs={configs}
-        onDuplicate={startDuplicate}
-        onEdit={startEdit}
-        onDelete={handleDelete}
-      />
+      {/* 1 · The default configuration (pre-fills every new game / config). */}
+      <section className="flex flex-col gap-3">
+        <h2 className={sectionHeading}>Configuration par défaut</h2>
+        {editingDefaults ? (
+          <ConfigDefaultsEditor
+            template={template}
+            onSave={submitDefaults}
+            onCancel={() => setEditingDefaults(false)}
+          />
+        ) : (
+          <div className="flex flex-col gap-3 rounded-xl border border-black/10 p-4 dark:border-white/10">
+            <dl className="grid grid-cols-1 gap-x-4 gap-y-1 text-sm sm:grid-cols-2">
+              {template.fields.map(field => (
+                <div key={field.key} className="flex justify-between gap-3">
+                  <dt className="text-zinc-500 dark:text-zinc-400">
+                    {field.label}
+                  </dt>
+                  <dd className="font-medium tabular-nums">
+                    {formatDefault(field, defaults[field.key])}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            <button
+              type="button"
+              onClick={() => {
+                setFormInit(null);
+                setEditingDefaults(true);
+              }}
+              className="self-start rounded-lg border border-black/10 px-4 py-2 font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+            >
+              Modifier la configuration par défaut
+            </button>
+          </div>
+        )}
+      </section>
 
-      {formInit ? (
-        <ConfigForm
-          key={formKey}
-          template={template}
-          init={formInit}
-          onSubmit={submitConfig}
-          onCancel={() => setFormInit(null)}
+      {/* 2 · Named custom configurations, reusable at launch. */}
+      <section className="flex flex-col gap-3">
+        <h2 className={sectionHeading}>Configurations personnalisées</h2>
+        <ConfigCardList
+          configs={configs}
+          onDuplicate={startDuplicate}
+          onEdit={startEdit}
+          onDelete={handleDelete}
         />
-      ) : editingDefaults ? (
-        <ConfigDefaultsEditor
-          template={template}
-          onSave={submitDefaults}
-          onCancel={() => setEditingDefaults(false)}
-        />
-      ) : (
-        <div className="flex flex-wrap gap-2">
+
+        {formInit ? (
+          <ConfigForm
+            key={formKey}
+            template={template}
+            init={formInit}
+            onSubmit={submitConfig}
+            onCancel={() => setFormInit(null)}
+          />
+        ) : (
           <button
             type="button"
             onClick={openCreate}
-            className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
+            className="self-start rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
           >
             + Nouvelle configuration
           </button>
-          <button
-            type="button"
-            onClick={() => setEditingDefaults(true)}
-            className="rounded-lg border border-black/10 px-4 py-2 font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
-          >
-            Modifier la configuration par défaut
-          </button>
-        </div>
-      )}
+        )}
+      </section>
 
       {confirmDialog}
     </div>
@@ -266,7 +315,7 @@ function ConfigForm({
           disabled={submitting || name.trim() === ""}
           className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
         >
-          {editing ? "Enregistrer" : "Créer"}
+          {editing ? "Enregistrer la configuration" : "Créer"}
         </button>
         <button
           type="button"

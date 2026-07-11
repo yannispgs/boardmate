@@ -2,13 +2,7 @@
 
 import Link from "next/link";
 
-import {
-  EyeIcon,
-  EyeOffIcon,
-  PencilIcon,
-  SlidersIcon,
-  TrashIcon,
-} from "@/components/icons";
+import { EyeIcon, EyeOffIcon, PencilIcon, TrashIcon } from "@/components/icons";
 import { dangerIconButtonClass, iconButtonClass } from "@/components/ui";
 import type { Boardgame } from "@/lib/domain";
 
@@ -75,17 +69,9 @@ export function BoardgameCard({
         <span className="text-xs text-zinc-500">{formatMeta(b)}</span>
       </div>
       <Link
-        href={`/boardgames/${b.id}/configs`}
-        aria-label={`Configurations de ${b.name}`}
-        title="Configurations"
-        className={iconButtonClass}
-      >
-        <SlidersIcon />
-      </Link>
-      <Link
         href={`/boardgames/${b.id}/edit`}
-        aria-label={`Modifier ${b.name}`}
-        title="Modifier"
+        aria-label={`Réglages de ${b.name}`}
+        title="Réglages"
         className={iconButtonClass}
       >
         <PencilIcon />
