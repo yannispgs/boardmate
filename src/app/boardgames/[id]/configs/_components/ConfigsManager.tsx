@@ -1,9 +1,13 @@
 "use client";
 
 import { type FormEvent, useState } from "react";
-import { ConfigField } from "@/components/ConfigField";
+import { ConfigFieldList } from "@/components/ConfigFieldList";
 import { useConfirm } from "@/components/use-confirm";
-import { buildDefaults, validateConfigValues } from "@/lib/config/validation";
+import {
+  buildDefaults,
+  collectFieldErrors,
+  validateConfigValues,
+} from "@/lib/config/validation";
 import type {
   BoardgameId,
   Config,
@@ -207,14 +211,7 @@ function ConfigForm({
 
     const result = validateConfigValues(template.fields, values);
     if (!result.success) {
-      const errs: Record<string, string> = {};
-      for (const issue of result.error.issues) {
-        const key = String(issue.path[0] ?? "");
-        if (key && !errs[key]) {
-          errs[key] = issue.message;
-        }
-      }
-      setFieldErrors(errs);
+      setFieldErrors(collectFieldErrors(result.error));
       setFormError("Certains champs sont invalides.");
       return;
     }
@@ -250,15 +247,12 @@ function ConfigForm({
         />
       </label>
 
-      {template.fields.map(field => (
-        <ConfigField
-          key={field.key}
-          field={field}
-          value={values[field.key]}
-          error={fieldErrors[field.key]}
-          onChange={v => setValues(prev => ({ ...prev, [field.key]: v }))}
-        />
-      ))}
+      <ConfigFieldList
+        fields={template.fields}
+        values={values}
+        errors={fieldErrors}
+        onChange={(key, v) => setValues(prev => ({ ...prev, [key]: v }))}
+      />
 
       {formError ? (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
