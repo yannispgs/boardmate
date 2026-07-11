@@ -34,16 +34,20 @@ test("creates, edits and deletes a boardgame", async ({ page }) => {
 
   await expect(page.getByText(name, { exact: true })).toBeVisible();
 
-  // Edit → its own page → the round limit round-trips into the form → rename.
-  await page.getByRole("link", { name: `Modifier ${name}` }).click();
+  // Edit → the unified settings page → the round limit round-trips → rename.
+  await page.getByRole("link", { name: `Réglages de ${name}` }).click();
   await expect(page).toHaveURL(/\/boardgames\/[0-9a-f-]+\/edit$/);
-  await expect(page.getByText("Modifier le jeu")).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Réglages/ })).toBeVisible();
   await expect(
     page.getByLabel("Nombre de tours (vide = illimité)"),
   ).toHaveValue("20");
   await page.getByLabel("Nom du jeu").fill(renamed);
-  await page.getByRole("button", { name: "Enregistrer" }).click();
+  // Saving stays on the settings page (it's the game's hub) and confirms.
+  await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
+  await expect(page.getByText("Enregistré")).toBeVisible();
 
+  // Back to the list to see the rename and delete it.
+  await page.getByRole("link", { name: "← Jeux" }).click();
   await expect(page.getByText(renamed, { exact: true })).toBeVisible();
   await expect(page.getByText(name, { exact: true })).toHaveCount(0);
 
@@ -71,7 +75,7 @@ test("edits a boardgame's scoring type", async ({ page }) => {
     await expect(page.getByText(name, { exact: true })).toBeVisible();
 
     // Re-open the edit form: the saved scoring type round-trips into it.
-    await page.getByRole("link", { name: `Modifier ${name}` }).click();
+    await page.getByRole("link", { name: `Réglages de ${name}` }).click();
     await expect(
       page.getByLabel("Ce jeu se joue avec des points"),
     ).toBeChecked();
@@ -95,6 +99,8 @@ test("builds a category scoresheet from the edit form", async ({ page }) => {
     await page.getByLabel("Ce jeu se joue avec des points").check();
     await page.getByLabel("Décompte des points").selectOption("categories");
 
+    // The category sheet is collapsed by default — open it to edit it.
+    await page.getByText("Détail des catégories", { exact: true }).click();
     await page.getByRole("button", { name: "+ Section" }).click();
     await page.getByPlaceholder("Nom de la section").fill("Animaux");
     await page.getByRole("button", { name: "+ Champ dans la section" }).click();
@@ -107,10 +113,12 @@ test("builds a category scoresheet from the edit form", async ({ page }) => {
     await expect(page.getByText(name, { exact: true })).toBeVisible();
 
     // Re-open: the whole sheet round-trips into the editor.
-    await page.getByRole("link", { name: `Modifier ${name}` }).click();
+    await page.getByRole("link", { name: `Réglages de ${name}` }).click();
     await expect(page.getByLabel("Décompte des points")).toHaveValue(
       "categories",
     );
+    // Expand the collapsed category sheet to inspect it.
+    await page.getByText("Détail des catégories", { exact: true }).click();
     await expect(page.getByPlaceholder("Nom de la section")).toHaveValue(
       "Animaux",
     );

@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 
-import { UploadIcon } from "@/components/icons";
+import { ChevronRightIcon, UploadIcon } from "@/components/icons";
 import type {
   Boardgame,
   BoardgameId,
@@ -245,6 +245,7 @@ export function BoardgameForm({
   onSubmit,
   onCancel,
   uploadLogo,
+  saved = false,
 }: {
   initial: Boardgame | null;
   onSubmit: (
@@ -253,6 +254,8 @@ export function BoardgameForm({
   ) => Promise<void>;
   onCancel: () => void;
   uploadLogo: (file: File) => Promise<string>;
+  /** When true, shows a transient "Enregistré" next to the submit button. */
+  saved?: boolean;
 }) {
   const editing = initial !== null;
   const [form, setForm] = useState<FormState>(
@@ -360,9 +363,11 @@ export function BoardgameForm({
           resolvedLogo = url;
         }
       }
-      // On success the parent navigates away; no need to reset state.
+      // On create the parent navigates away; on edit it stays, so re-enable the
+      // button for further tweaks.
       const scoring = formToScoring(form, sheet);
       await onSubmit(toInput(form, resolvedLogo, scoring), initial?.id ?? null);
+      setSubmitting(false);
     } catch {
       setFormError(
         editing ? "Modification impossible." : "Ajout impossible. Réessaie.",
@@ -572,7 +577,15 @@ export function BoardgameForm({
             </label>
 
             {form.entry === "categories" ? (
-              <ScoreSheetEditor value={sheet} onChange={setSheet} />
+              <details className="group flex flex-col gap-2">
+                <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-zinc-400">
+                  <ChevronRightIcon className="h-3.5 w-3.5 transition-transform group-open:rotate-90" />
+                  Détail des catégories
+                </summary>
+                <div className="mt-1">
+                  <ScoreSheetEditor value={sheet} onChange={setSheet} />
+                </div>
+              </details>
             ) : null}
           </div>
         ) : null}
@@ -601,6 +614,14 @@ export function BoardgameForm({
         >
           Annuler
         </button>
+        {saved ? (
+          <span
+            role="status"
+            className="flex items-center text-sm font-medium text-emerald-600 dark:text-emerald-400"
+          >
+            Enregistré ✓
+          </span>
+        ) : null}
       </div>
     </form>
   );

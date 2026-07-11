@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 import type { BoardgameId, NewBoardgame } from "@/lib/domain";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
@@ -8,9 +9,10 @@ import { BoardgameForm } from "./BoardgameForm";
 
 /**
  * Wraps {@link BoardgameForm} in the page's data flow: create (`boardgameId`
- * absent) or edit (looked up in the synced list). On success or cancel it
- * navigates back to the boardgames list — the form is a dedicated route now,
- * not an inline panel.
+ * absent) or edit (looked up in the synced list). Creating a game sends you back
+ * to the list; editing an existing one saves in place (this is the game's
+ * settings hub) and flashes "Enregistré", so you can keep tweaking its
+ * configurations below.
  */
 export function BoardgameFormPage({
   boardgameId,
@@ -20,17 +22,19 @@ export function BoardgameFormPage({
   const router = useRouter();
   const { boardgames, loading, addBoardgame, editBoardgame, uploadLogo } =
     useBoardgames();
+  const [saved, setSaved] = useState(false);
 
   const back = () => router.push("/boardgames");
 
   async function submit(input: NewBoardgame, editingId: BoardgameId | null) {
     if (editingId) {
       await editBoardgame(editingId, input);
+      setSaved(true);
+      window.setTimeout(() => setSaved(false), 3000);
     } else {
       await addBoardgame(input);
+      back();
     }
-
-    back();
   }
 
   if (!boardgameId) {
@@ -64,6 +68,7 @@ export function BoardgameFormPage({
       onSubmit={submit}
       onCancel={back}
       uploadLogo={uploadLogo}
+      saved={saved}
     />
   );
 }

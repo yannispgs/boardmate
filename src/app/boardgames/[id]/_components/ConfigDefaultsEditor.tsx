@@ -59,12 +59,9 @@ export function ConfigDefaultsEditor({
       onSubmit={handleSubmit}
       className="flex flex-col gap-4 rounded-xl border border-black/10 p-4 dark:border-white/10"
     >
-      <div className="flex flex-col gap-1">
-        <h2 className="text-sm font-semibold">Configuration par défaut</h2>
-        <p className="text-xs text-zinc-500">
-          Ces valeurs pré-remplissent chaque nouvelle configuration de ce jeu.
-        </p>
-      </div>
+      <p className="text-xs text-zinc-500">
+        Ces valeurs pré-remplissent chaque nouvelle configuration de ce jeu.
+      </p>
 
       <ConfigFieldList
         fields={template.fields}
@@ -85,7 +82,7 @@ export function ConfigDefaultsEditor({
           disabled={submitting}
           className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
         >
-          Enregistrer
+          Enregistrer les valeurs par défaut
         </button>
         <button
           type="button"
