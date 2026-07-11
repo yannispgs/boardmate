@@ -1,6 +1,7 @@
 /**
- * A labelled value in the end-of-game summary grid: a large value with a small
- * caption beneath, optionally tinted to stand out (e.g. the headline duration).
+ * A labelled value in a stats summary grid: a large value with a small caption
+ * beneath, optionally tinted to stand out (e.g. a headline figure). Shared by
+ * the end-of-game panel, the live panel, and the global stats page.
  */
 export function StatTile({
   label,

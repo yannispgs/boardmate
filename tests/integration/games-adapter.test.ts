@@ -274,6 +274,87 @@ describe("games adapter — listing & ending", () => {
     );
   });
 
+  it("listStats returns ended games with boardgame, participants and turns", async () => {
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    // One recorded turn (30s active, 4s over) + two dice rolls, then end.
+    await repo().advanceTurn(game.id, 30, 0, 0, 4);
+    await repo().addDiceRoll(game.id, 8);
+    await repo().addDiceRoll(game.id, 6);
+    await repo().end(game.id, playerIds[0], [
+      { playerId: playerIds[0], score: 12 },
+    ]);
+
+    const records = await repo().listStats();
+    const record = records.find(r => r.gameId === game.id);
+
+    expect(record).toBeDefined();
+    expect(record?.boardgameName).toBe("Catan");
+    // Catan tracks 2×d6; its rolls come back in draw order.
+    expect(record?.dice).toEqual({ count: 2, sides: 6 });
+    expect(record?.diceRolls).toEqual([8, 6]);
+    expect(record?.players.map(p => p.playerId).sort()).toEqual(
+      [...playerIds].sort(),
+    );
+
+    const winner = record?.players.find(p => p.playerId === playerIds[0]);
+
+    expect(winner?.isWinner).toBe(true);
+    expect(winner?.score).toBe(12);
+
+    // The turn log carries active time + overtime for the aggregation.
+    expect(record?.turns).toHaveLength(1);
+    expect(record?.turns[0].playerId).toBe(playerIds[0]);
+    expect(record?.turns[0].durationS).toBe(30);
+    expect(record?.turns[0].overtimeS).toBe(4);
+
+    // Ongoing games never appear here.
+    const ongoing = await repo().create({
+      boardgameId: CATAN_ID,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(ongoing.id);
+
+    expect((await repo().listStats()).some(r => r.gameId === ongoing.id)).toBe(
+      false,
+    );
+
+    // A game on a boardgame without dice reports `dice: null`.
+    const admin = serviceClient();
+    const { data: bg } = await admin
+      .from("boardgames")
+      .insert({ name: `NoDice-${Date.now().toString(36)}` })
+      .select("id")
+      .single();
+    const noDice = await repo().create({
+      boardgameId: bg?.id as BoardgameId,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(noDice.id);
+    await repo().end(noDice.id, playerIds[0]);
+
+    const noDiceRecord = (await repo().listStats()).find(
+      r => r.gameId === noDice.id,
+    );
+
+    expect(noDiceRecord?.dice).toBeNull();
+    expect(noDiceRecord?.diceRolls).toEqual([]);
+
+    // Clean the throwaway game + boardgame (game first for the FK).
+    await admin.from("games").delete().eq("id", noDice.id);
+    await admin
+      .from("boardgames")
+      .delete()
+      .eq("id", bg?.id as string);
+  });
+
   it("records final scores passed to end() (final-entry games)", async () => {
     const game = await repo().create({
       boardgameId: CATAN_ID,

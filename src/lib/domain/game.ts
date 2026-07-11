@@ -1,4 +1,4 @@
-import type { Boardgame } from "./boardgame";
+import type { Boardgame, DiceSpec } from "./boardgame";
 import type { Config, ConfigValues } from "./config";
 import type {
   BoardgameId,
@@ -121,6 +121,37 @@ export interface PopulatedGame extends Game {
   players: Array<GamePlayer & { player: Player }>;
   currentPlayer: Player | null;
   turns: GameTurn[];
+}
+
+/**
+ * A finished game reduced to what cross-game aggregation needs (the global
+ * stats page): its boardgame, participants (winner + final score) and the turn
+ * log. Lighter than `PopulatedGame` — no config/threshold/score timeline — so
+ * many games can be pulled and averaged in one query.
+ */
+export interface GameStatsRecord {
+  gameId: GameId;
+  boardgameId: BoardgameId;
+  boardgameName: string;
+  /** The boardgame's dice spec, when it tracks dice (null otherwise). */
+  dice: DiceSpec | null;
+  /** ISO 8601, when the game ended (null defensively — ended games have it). */
+  endedAt: string | null;
+  players: Array<{
+    playerId: PlayerId;
+    name: string;
+    isWinner: boolean;
+    score: number | null;
+  }>;
+  turns: Array<{
+    playerId: PlayerId;
+    round: number;
+    durationS: number;
+    pauseDurationS: number;
+    overtimeS: number;
+  }>;
+  /** Summed dice values rolled this game, in draw order (empty when untracked). */
+  diceRolls: number[];
 }
 
 export interface NewGame {

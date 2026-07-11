@@ -1,14 +1,12 @@
+import { StatTile } from "@/components/StatTile";
 import type { PopulatedGame } from "@/lib/domain";
-
 import { formatDuration } from "@/lib/game/format-time";
 import { buildScoreSeries } from "@/lib/game/score-series";
 import { computeGameStats } from "@/lib/game/stats";
 import { buildTurnTimeSeries } from "@/lib/game/turn-time-series";
-
 import { DiceTimeline } from "./DiceTimeline";
 import { PlayerStatCardList } from "./PlayerStatCardList";
 import { ScoreChart } from "./ScoreChart";
-import { StatTile } from "./StatTile";
 import { TurnTimeChart } from "./TurnTimeChart";
 
 /**
