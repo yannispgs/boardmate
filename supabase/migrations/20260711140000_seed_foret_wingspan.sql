@@ -22,12 +22,12 @@ values (
   }'::jsonb
 );
 
--- Forêt Mixte timer: 45 s + 10 s / tour, capped at 150 s.
+-- Forêt Mixte timer: 45 s + 3 s / tour, capped at 120 s.
 insert into public.config_templates (boardgame_id, fields)
 select id, '[
     { "key": "turnBaseS", "label": "Durée de base (s)", "type": "integer", "min": 5, "max": 600, "default": 45 },
-    { "key": "turnStepS", "label": "Augmentation par tour (s)", "type": "integer", "min": 0, "max": 120, "default": 10 },
-    { "key": "turnMaxS", "label": "Durée max (s)", "type": "integer", "min": 5, "max": 900, "default": 150 }
+    { "key": "turnStepS", "label": "Augmentation par tour (s)", "type": "integer", "min": 0, "max": 120, "default": 3 },
+    { "key": "turnMaxS", "label": "Durée max (s)", "type": "integer", "min": 5, "max": 900, "default": 120 }
   ]'::jsonb
 from public.boardgames
 where name = 'Forêt Mixte'
