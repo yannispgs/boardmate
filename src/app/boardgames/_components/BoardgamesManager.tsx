@@ -632,6 +632,22 @@ function BoardgameForm({
         </label>
       </div>
 
+      <LogoPicker
+        logoUrl={logoUrl}
+        logoSource={logoSource}
+        logoUrlInput={logoUrlInput}
+        fileName={fileName}
+        uploading={uploading}
+        checkingUrl={checkingUrl}
+        fileRef={fileRef}
+        onSwitchSource={switchSource}
+        onPickFile={handleLogo}
+        onUrlChange={setLogoUrlInput}
+        onUrlBlur={checkLogoUrl}
+        onPasteImage={file => uploadFile(file, "Image collée")}
+        onPasteError={setFormError}
+      />
+
       <fieldset className="flex flex-col gap-2 rounded-lg border border-black/10 p-3 dark:border-white/10">
         <legend className="px-1 text-xs text-zinc-500">Score</legend>
         <label className="flex items-center gap-2 text-sm">
@@ -735,22 +751,6 @@ function BoardgameForm({
           </div>
         ) : null}
       </fieldset>
-
-      <LogoPicker
-        logoUrl={logoUrl}
-        logoSource={logoSource}
-        logoUrlInput={logoUrlInput}
-        fileName={fileName}
-        uploading={uploading}
-        checkingUrl={checkingUrl}
-        fileRef={fileRef}
-        onSwitchSource={switchSource}
-        onPickFile={handleLogo}
-        onUrlChange={setLogoUrlInput}
-        onUrlBlur={checkLogoUrl}
-        onPasteImage={file => uploadFile(file, "Image collée")}
-        onPasteError={setFormError}
-      />
 
       {formError ? (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
