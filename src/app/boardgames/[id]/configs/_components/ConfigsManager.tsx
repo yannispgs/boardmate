@@ -1,9 +1,13 @@
 "use client";
 
 import { type FormEvent, useState } from "react";
-import { ConfigField } from "@/components/ConfigField";
+import { ConfigFieldList } from "@/components/ConfigFieldList";
 import { useConfirm } from "@/components/use-confirm";
-import { buildDefaults, validateConfigValues } from "@/lib/config/validation";
+import {
+  buildDefaults,
+  collectFieldErrors,
+  validateConfigValues,
+} from "@/lib/config/validation";
 import type {
   BoardgameId,
   Config,
@@ -13,6 +17,7 @@ import type {
 } from "@/lib/domain";
 import { useConfigs } from "@/lib/hooks/use-configs";
 import { ConfigCardList } from "./ConfigCardList";
+import { ConfigDefaultsEditor } from "./ConfigDefaultsEditor";
 
 interface FormInit {
   name: string;
@@ -21,17 +26,31 @@ interface FormInit {
 }
 
 export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
-  const { template, configs, loading, error, saveConfig, removeConfig } =
-    useConfigs(boardgameId);
+  const {
+    template,
+    configs,
+    loading,
+    error,
+    saveConfig,
+    removeConfig,
+    saveDefaults,
+  } = useConfigs(boardgameId);
 
   const [formInit, setFormInit] = useState<FormInit | null>(null);
   const [formKey, setFormKey] = useState(0);
+  const [editingDefaults, setEditingDefaults] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const { requestConfirm, confirmDialog } = useConfirm();
 
   function openForm(init: FormInit) {
+    setEditingDefaults(false);
     setFormInit(init);
     setFormKey(k => k + 1); // remount the form with fresh initial state
+  }
+
+  async function submitDefaults(defaults: ConfigValues) {
+    await saveDefaults(defaults);
+    setEditingDefaults(false);
   }
 
   function openCreate() {
@@ -130,14 +149,29 @@ export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
           onSubmit={submitConfig}
           onCancel={() => setFormInit(null)}
         />
+      ) : editingDefaults ? (
+        <ConfigDefaultsEditor
+          template={template}
+          onSave={submitDefaults}
+          onCancel={() => setEditingDefaults(false)}
+        />
       ) : (
-        <button
-          type="button"
-          onClick={openCreate}
-          className="self-start rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
-        >
-          + Nouvelle configuration
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={openCreate}
+            className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
+          >
+            + Nouvelle configuration
+          </button>
+          <button
+            type="button"
+            onClick={() => setEditingDefaults(true)}
+            className="rounded-lg border border-black/10 px-4 py-2 font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+          >
+            Modifier la configuration par défaut
+          </button>
+        </div>
       )}
 
       {confirmDialog}
@@ -177,14 +211,7 @@ function ConfigForm({
 
     const result = validateConfigValues(template.fields, values);
     if (!result.success) {
-      const errs: Record<string, string> = {};
-      for (const issue of result.error.issues) {
-        const key = String(issue.path[0] ?? "");
-        if (key && !errs[key]) {
-          errs[key] = issue.message;
-        }
-      }
-      setFieldErrors(errs);
+      setFieldErrors(collectFieldErrors(result.error));
       setFormError("Certains champs sont invalides.");
       return;
     }
@@ -220,15 +247,12 @@ function ConfigForm({
         />
       </label>
 
-      {template.fields.map(field => (
-        <ConfigField
-          key={field.key}
-          field={field}
-          value={values[field.key]}
-          error={fieldErrors[field.key]}
-          onChange={v => setValues(prev => ({ ...prev, [field.key]: v }))}
-        />
-      ))}
+      <ConfigFieldList
+        fields={template.fields}
+        values={values}
+        errors={fieldErrors}
+        onChange={(key, v) => setValues(prev => ({ ...prev, [key]: v }))}
+      />
 
       {formError ? (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">

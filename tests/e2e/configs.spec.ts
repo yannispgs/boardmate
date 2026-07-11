@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { CATAN_ID, deleteConfigs } from "./utils/supabase";
+import { adminClient, CATAN_ID, deleteConfigs } from "./utils/supabase";
 
 /**
  * Config management for a boardgame (exhaustive, full-suite only — untagged).
@@ -42,6 +42,44 @@ test("creates, edits and deletes a config", async ({ page }) => {
     await expect(page.getByText(renamed, { exact: true })).toHaveCount(0);
   } finally {
     await deleteConfigs([name, renamed]);
+  }
+});
+
+test("edits the game's default configuration and persists it", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  // Snapshot the shared template's fields so the seed defaults are restored.
+  const { data: before } = await admin
+    .from("config_templates")
+    .select("fields")
+    .eq("boardgame_id", CATAN_ID)
+    .single();
+
+  try {
+    await page.goto(`/boardgames/${CATAN_ID}/configs`);
+
+    // Open the defaults editor and bump the points-to-win default to 15.
+    await page
+      .getByRole("button", { name: "Modifier la configuration par défaut" })
+      .click();
+    await expect(page.getByText("Configuration par défaut")).toBeVisible();
+    await page.locator("#pointsToWin").fill("15");
+    await page.getByRole("button", { name: "Enregistrer" }).click();
+
+    // Reload (proving it round-tripped through the DB) → the create form now
+    // pre-fills the new default.
+    await page.reload();
+    await page
+      .getByRole("button", { name: "+ Nouvelle configuration" })
+      .click();
+
+    await expect(page.locator("#pointsToWin")).toHaveValue("15");
+  } finally {
+    await admin
+      .from("config_templates")
+      .update({ fields: before?.fields })
+      .eq("boardgame_id", CATAN_ID);
   }
 });
 

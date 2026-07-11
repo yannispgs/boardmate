@@ -79,6 +79,17 @@ export interface ConfigRepository {
   /** The fixed template describing the fields for a boardgame. */
   getTemplate(boardgameId: BoardgameId): Promise<ConfigTemplate | null>;
   listTemplates(): Promise<ConfigTemplate[]>;
+  /**
+   * Rewrites the template's field defaults from `defaults` (keyed by field key)
+   * — the values that pre-fill every new config for this boardgame. Only scalar
+   * leaf fields carry a default; object/array fields are left untouched. Lets
+   * the owner tune a game's default configuration (timer included) from the UI
+   * instead of editing the seed data.
+   */
+  updateTemplateDefaults(
+    boardgameId: BoardgameId,
+    defaults: ConfigValues,
+  ): Promise<ConfigTemplate>;
   /** Config instances, optionally filtered by boardgame. */
   list(boardgameId?: BoardgameId): Promise<Config[]>;
   get(id: ConfigId): Promise<Config | null>;

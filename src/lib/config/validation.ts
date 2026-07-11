@@ -73,6 +73,21 @@ export function validateConfigValues(
   ) as z.ZodSafeParseResult<ConfigValues>;
 }
 
+/**
+ * Reduces a Zod error to at most one message per top-level field key, so each
+ * message can be surfaced inline next to the `ConfigField` it belongs to.
+ */
+export function collectFieldErrors(error: z.ZodError): Record<string, string> {
+  const errors: Record<string, string> = {};
+  for (const issue of error.issues) {
+    const key = String(issue.path[0] ?? "");
+    if (key && !errors[key]) {
+      errors[key] = issue.message;
+    }
+  }
+  return errors;
+}
+
 /** Initial values for a form built from a template (uses declared defaults). */
 export function buildDefaults(fields: FieldSpec[]): ConfigValues {
   const out: ConfigValues = {};

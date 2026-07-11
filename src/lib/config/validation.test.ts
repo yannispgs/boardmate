@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
 import type { FieldSpec } from "@/lib/domain";
-import { buildDefaults, validateConfigValues } from "./validation";
+import {
+  buildDefaults,
+  collectFieldErrors,
+  validateConfigValues,
+} from "./validation";
 
 /** A realistic Catan-like template (the agreed v1 example). */
 const catanTemplate: FieldSpec[] = [
@@ -300,5 +305,38 @@ describe("buildDefaults", () => {
   it("produces defaults that pass their own validation", () => {
     const defaults = buildDefaults(catanTemplate);
     expect(validateConfigValues(catanTemplate, defaults).success).toBe(true);
+  });
+});
+
+describe("collectFieldErrors", () => {
+  it("keeps the first message per field key", () => {
+    // Two invalid fields → one message each, keyed by field.
+    const result = validateConfigValues(catanTemplate, {
+      points_to_win: "nan",
+      longest_road: "nope",
+      largest_army: true,
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) {
+      return;
+    }
+
+    const errors = collectFieldErrors(result.error);
+    expect(Object.keys(errors)).toEqual(
+      expect.arrayContaining(["points_to_win", "longest_road"]),
+    );
+    expect(typeof errors.points_to_win).toBe("string");
+  });
+
+  it("keeps only the first message per key and drops path-less issues", () => {
+    // Two issues on the same key + one with an empty path (no field to attach).
+    const error = new z.ZodError([
+      { code: "custom", path: ["pts"], message: "first", input: undefined },
+      { code: "custom", path: ["pts"], message: "second", input: undefined },
+      { code: "custom", path: [], message: "root", input: undefined },
+    ]);
+
+    expect(collectFieldErrors(error)).toEqual({ pts: "first" });
   });
 });
