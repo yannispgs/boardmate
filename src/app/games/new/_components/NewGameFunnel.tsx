@@ -17,6 +17,7 @@ import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useConfigs } from "@/lib/hooks/use-configs";
 import { useGames } from "@/lib/hooks/use-games";
 import { usePlayers } from "@/lib/hooks/use-players";
+import { FirstPlayerWheel } from "./FirstPlayerWheel";
 
 const tileClass =
   "rounded-xl border border-black/10 bg-white px-4 py-3 text-left transition hover:border-indigo-400 dark:border-white/10 dark:bg-zinc-900";
@@ -124,6 +125,7 @@ export function NewGameFunnel() {
         creating={creating}
         error={error}
         onBack={() => setStep(3)}
+        onReorderPlayers={setPlayers}
         onLaunch={launch}
       />
     );
@@ -309,6 +311,7 @@ function RecapStep({
   creating,
   error,
   onBack,
+  onReorderPlayers,
   onLaunch,
 }: {
   boardgame: Boardgame;
@@ -317,12 +320,14 @@ function RecapStep({
   creating: boolean;
   error: string | null;
   onBack: () => void;
+  onReorderPlayers: (players: Player[]) => void;
   onLaunch: (values: ConfigValues | null) => void;
 }) {
   const { template, loading } = useConfigs(boardgame.id);
   const { requestConfirm, confirmDialog } = useConfirm();
   const [values, setValues] = useState<ConfigValues | null>(null);
   const [invalid, setInvalid] = useState<string | null>(null);
+  const [wheelOpen, setWheelOpen] = useState(false);
 
   // Prefill the form from the selected config over the template defaults, so
   // every attribute shows a value that can be tweaked for this game only.
@@ -410,6 +415,24 @@ function RecapStep({
             </div>
           </dl>
 
+          {players.length >= 2 ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-black/10 bg-black/[0.02] p-4 text-sm dark:border-white/10 dark:bg-white/[0.02]">
+              <span>
+                <span className="text-zinc-500 dark:text-zinc-400">
+                  Premier joueur ·{" "}
+                </span>
+                <span className="font-medium">{players[0]?.name}</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setWheelOpen(true)}
+                className="rounded-lg border border-indigo-500/40 px-3 py-1.5 font-medium text-indigo-600 transition hover:bg-indigo-500/10 dark:text-indigo-400"
+              >
+                🎡 Tirer au sort
+              </button>
+            </div>
+          ) : null}
+
           {editableFields.length > 0 ? (
             <div className="flex flex-col gap-3">
               <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
@@ -478,6 +501,16 @@ function RecapStep({
             {creating ? "Création…" : "Lancer la partie"}
           </button>
           {confirmDialog}
+          {wheelOpen ? (
+            <FirstPlayerWheel
+              players={players}
+              onResult={ordered => {
+                onReorderPlayers(ordered);
+                setWheelOpen(false);
+              }}
+              onClose={() => setWheelOpen(false)}
+            />
+          ) : null}
         </>
       )}
     </Step>
