@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { applyDefaults } from "@/lib/config/apply-defaults";
 import type {
   BoardgameId,
   Config,
@@ -67,6 +68,30 @@ export function createConfigRepository(
         throw new Error(`Lecture des modèles: ${error.message}`);
       }
       return data.map(toTemplate);
+    },
+
+    async updateTemplateDefaults(
+      boardgameId: BoardgameId,
+      defaults: ConfigValues,
+    ) {
+      const current = await this.getTemplate(boardgameId);
+      if (!current) {
+        throw new Error("Ce jeu n'a pas de modèle de configuration.");
+      }
+
+      const fields = applyDefaults(current.fields, defaults);
+
+      const { data, error } = await templates()
+        .update({ fields: fields as unknown as Json })
+        .eq("boardgame_id", boardgameId)
+        .select("*")
+        .single();
+      /* c8 ignore next 3 -- defensive guard: a healthy update doesn't error */
+      if (error) {
+        throw new Error(`Mise à jour du modèle: ${error.message}`);
+      }
+
+      return toTemplate(data);
     },
 
     async list(boardgameId?: BoardgameId) {

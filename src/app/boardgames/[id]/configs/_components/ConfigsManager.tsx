@@ -13,6 +13,7 @@ import type {
 } from "@/lib/domain";
 import { useConfigs } from "@/lib/hooks/use-configs";
 import { ConfigCardList } from "./ConfigCardList";
+import { ConfigDefaultsEditor } from "./ConfigDefaultsEditor";
 
 interface FormInit {
   name: string;
@@ -21,17 +22,31 @@ interface FormInit {
 }
 
 export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
-  const { template, configs, loading, error, saveConfig, removeConfig } =
-    useConfigs(boardgameId);
+  const {
+    template,
+    configs,
+    loading,
+    error,
+    saveConfig,
+    removeConfig,
+    saveDefaults,
+  } = useConfigs(boardgameId);
 
   const [formInit, setFormInit] = useState<FormInit | null>(null);
   const [formKey, setFormKey] = useState(0);
+  const [editingDefaults, setEditingDefaults] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const { requestConfirm, confirmDialog } = useConfirm();
 
   function openForm(init: FormInit) {
+    setEditingDefaults(false);
     setFormInit(init);
     setFormKey(k => k + 1); // remount the form with fresh initial state
+  }
+
+  async function submitDefaults(defaults: ConfigValues) {
+    await saveDefaults(defaults);
+    setEditingDefaults(false);
   }
 
   function openCreate() {
@@ -130,14 +145,29 @@ export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
           onSubmit={submitConfig}
           onCancel={() => setFormInit(null)}
         />
+      ) : editingDefaults ? (
+        <ConfigDefaultsEditor
+          template={template}
+          onSave={submitDefaults}
+          onCancel={() => setEditingDefaults(false)}
+        />
       ) : (
-        <button
-          type="button"
-          onClick={openCreate}
-          className="self-start rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
-        >
-          + Nouvelle configuration
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={openCreate}
+            className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
+          >
+            + Nouvelle configuration
+          </button>
+          <button
+            type="button"
+            onClick={() => setEditingDefaults(true)}
+            className="rounded-lg border border-black/10 px-4 py-2 font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+          >
+            Modifier la configuration par défaut
+          </button>
+        </div>
       )}
 
       {confirmDialog}

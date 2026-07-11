@@ -22,6 +22,8 @@ interface UseConfigs {
     id?: ConfigId,
   ) => Promise<void>;
   removeConfig: (id: ConfigId) => Promise<void>;
+  /** Rewrites the template's field defaults (the pre-fill for new configs). */
+  saveDefaults: (defaults: ConfigValues) => Promise<void>;
 }
 
 /**
@@ -91,5 +93,20 @@ export function useConfigs(boardgameId: BoardgameId): UseConfigs {
     [repo, refresh],
   );
 
-  return { template, configs, loading, error, saveConfig, removeConfig };
+  const saveDefaults = useCallback(
+    async (defaults: ConfigValues) => {
+      setTemplate(await repo.updateTemplateDefaults(boardgameId, defaults));
+    },
+    [repo, boardgameId],
+  );
+
+  return {
+    template,
+    configs,
+    loading,
+    error,
+    saveConfig,
+    removeConfig,
+    saveDefaults,
+  };
 }

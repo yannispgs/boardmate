@@ -152,6 +152,53 @@ describe("configs adapter — instances CRUD & jsonb round-trip", () => {
   });
 });
 
+describe("configs adapter — template defaults", () => {
+  it("rewrites the seeded field defaults and round-trips them", async () => {
+    const admin = serviceClient();
+    // Snapshot the raw fields so the shared template is restored afterwards.
+    const { data: before } = await admin
+      .from("config_templates")
+      .select("fields")
+      .eq("boardgame_id", CATAN_ID)
+      .single();
+
+    try {
+      const updated = await repo().updateTemplateDefaults(CATAN_ID, {
+        pointsToWin: 12,
+        longestRoad: true,
+        // A key absent from the template is ignored (no field to attach to).
+        unknownKey: 99,
+      });
+
+      const points = updated.fields.find(f => f.key === "pointsToWin");
+      const road = updated.fields.find(f => f.key === "longestRoad");
+
+      expect(points?.type === "integer" && points.default).toBe(12);
+      expect(road?.type === "boolean" && road.default).toBe(true);
+      expect(updated.fields.some(f => f.key === "unknownKey")).toBe(false);
+
+      // Persisted: a fresh read sees the new defaults.
+      const reread = await repo().getTemplate(CATAN_ID);
+      const rereadPoints = reread?.fields.find(f => f.key === "pointsToWin");
+      expect(rereadPoints?.type === "integer" && rereadPoints.default).toBe(12);
+    } finally {
+      await admin
+        .from("config_templates")
+        .update({ fields: before?.fields })
+        .eq("boardgame_id", CATAN_ID);
+    }
+  });
+
+  it("throws when the boardgame has no template", async () => {
+    await expect(
+      repo().updateTemplateDefaults(
+        "00000000-0000-0000-0000-000000000000" as BoardgameId,
+        { pointsToWin: 10 },
+      ),
+    ).rejects.toThrow(/pas de modèle/);
+  });
+});
+
 describe("configs adapter — error mapping", () => {
   const BAD_UUID = "not-a-uuid";
 
