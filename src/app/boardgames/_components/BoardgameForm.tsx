@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 
-import { UploadIcon } from "@/components/icons";
+import { ChevronRightIcon, UploadIcon } from "@/components/icons";
 import type {
   Boardgame,
   BoardgameId,
@@ -577,7 +577,15 @@ export function BoardgameForm({
             </label>
 
             {form.entry === "categories" ? (
-              <ScoreSheetEditor value={sheet} onChange={setSheet} />
+              <details className="group flex flex-col gap-2">
+                <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-zinc-400">
+                  <ChevronRightIcon className="h-3.5 w-3.5 transition-transform group-open:rotate-90" />
+                  Détail des catégories
+                </summary>
+                <div className="mt-1">
+                  <ScoreSheetEditor value={sheet} onChange={setSheet} />
+                </div>
+              </details>
             ) : null}
           </div>
         ) : null}

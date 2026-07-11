@@ -99,6 +99,8 @@ test("builds a category scoresheet from the edit form", async ({ page }) => {
     await page.getByLabel("Ce jeu se joue avec des points").check();
     await page.getByLabel("Décompte des points").selectOption("categories");
 
+    // The category sheet is collapsed by default — open it to edit it.
+    await page.getByText("Détail des catégories", { exact: true }).click();
     await page.getByRole("button", { name: "+ Section" }).click();
     await page.getByPlaceholder("Nom de la section").fill("Animaux");
     await page.getByRole("button", { name: "+ Champ dans la section" }).click();
@@ -115,6 +117,8 @@ test("builds a category scoresheet from the edit form", async ({ page }) => {
     await expect(page.getByLabel("Décompte des points")).toHaveValue(
       "categories",
     );
+    // Expand the collapsed category sheet to inspect it.
+    await page.getByText("Détail des catégories", { exact: true }).click();
     await expect(page.getByPlaceholder("Nom de la section")).toHaveValue(
       "Animaux",
     );
