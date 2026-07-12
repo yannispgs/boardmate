@@ -575,6 +575,38 @@ describe("games adapter — listing & ending", () => {
     );
     expect(populated?.players.every(p => p.score === null)).toBe(true);
   });
+
+  it("endCoop marks every player a winner on a shared victory", async () => {
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    await repo().endCoop(game.id, true);
+
+    const populated = await repo().getPopulated(game.id);
+    expect(populated?.status).toBe("ended");
+    expect(populated?.endedAt).not.toBeNull();
+    // The whole table wins together: no individual winner.
+    expect(populated?.players.every(p => p.isWinner)).toBe(true);
+  });
+
+  it("endCoop marks no winner on a shared defeat", async () => {
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    await repo().endCoop(game.id, false);
+
+    const populated = await repo().getPopulated(game.id);
+    expect(populated?.status).toBe("ended");
+    expect(populated?.players.some(p => p.isWinner)).toBe(false);
+  });
 });
 
 describe("games adapter — error mapping", () => {
@@ -591,6 +623,8 @@ describe("games adapter — error mapping", () => {
     await expect(
       repo().end(BAD_UUID as GameId, playerIds[0]),
     ).rejects.toThrow();
+
+    await expect(repo().endCoop(BAD_UUID as GameId, true)).rejects.toThrow();
   });
 
   it("rethrows a generic error when create references a bad boardgame id", async () => {

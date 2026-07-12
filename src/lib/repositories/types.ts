@@ -176,6 +176,12 @@ export interface GameRepository {
       breakdown?: Record<string, number>;
     }>,
   ): Promise<void>;
+  /**
+   * Ends a cooperative game on a *shared* outcome: `won` marks every player a
+   * winner, otherwise none — the group wins or loses together (no individual
+   * winner). Scored coop games will refine this later.
+   */
+  endCoop(id: GameId, won: boolean): Promise<void>;
   subscribe(onChange: () => void): Unsubscribe;
 }
 

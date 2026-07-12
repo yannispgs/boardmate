@@ -104,18 +104,23 @@ export function GameCard({
   boardgameName,
   logoUrl,
   ended = false,
+  coop = false,
   onAbandon,
 }: {
   game: GameListItem;
   boardgameName: string;
   logoUrl: string | null;
   ended?: boolean;
+  /** Cooperative game: a finished one shows a shared victory/defeat, no winner. */
+  coop?: boolean;
   /** When set (ongoing games only), shows an "abandon" (delete) button. */
   onAbandon?: () => void;
 }) {
   const count = game.players.length;
   const currentPlayer = game.players.find(p => p.id === game.currentPlayerId);
   const winner = game.players.find(p => p.isWinner);
+  // Cooperative games win or lose as a group (some player `isWinner`, or none).
+  const coopWon = game.players.some(p => p.isWinner);
   // A finished game has no "current" player to emphasise.
   const highlightId = ended ? null : game.currentPlayerId;
 
@@ -164,11 +169,13 @@ export function GameCard({
             </span>
             {ended ? (
               <span className="mt-0.5 text-xs font-medium text-amber-600 dark:text-amber-500">
-                {winner
-                  ? `🏆 ${winner.name}${
-                      winner.score !== null ? ` (${winner.score} pts)` : ""
-                    } · `
-                  : ""}
+                {coop
+                  ? `${coopWon ? "🎉 Victoire" : "😔 Défaite"} · `
+                  : winner
+                    ? `🏆 ${winner.name}${
+                        winner.score !== null ? ` (${winner.score} pts)` : ""
+                      } · `
+                    : ""}
                 {game.round} tour{game.round > 1 ? "s" : ""}
               </span>
             ) : currentPlayer ? (

@@ -494,6 +494,25 @@ export function createGameRepository(
       }
     },
 
+    async endCoop(id: GameId, won: boolean) {
+      const { error } = await games()
+        .update({ status: "ended", ended_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) {
+        throw new Error(`Fin de la partie: ${error.message}`);
+      }
+
+      // Shared outcome: everyone wins together, or no one does.
+      const { error: coopError } = await supabase
+        .from("game_players")
+        .update({ is_winner: won })
+        .eq("game_id", id);
+      /* c8 ignore next 3 -- defensive guard: update errors surface via e2e */
+      if (coopError) {
+        throw new Error(`Enregistrement du résultat: ${coopError.message}`);
+      }
+    },
+
     /* c8 ignore start -- Realtime channel glue, exercised via e2e/manual */
     subscribe(onChange: () => void): Unsubscribe {
       const channel = supabase
