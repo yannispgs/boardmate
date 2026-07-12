@@ -94,6 +94,26 @@ export function createConfigRepository(
       return toTemplate(data);
     },
 
+    async saveTemplateFields(boardgameId: BoardgameId, fields: FieldSpec[]) {
+      // One template row per boardgame (boardgame_id PK) → upsert creates it or
+      // replaces its field definitions.
+      const { data, error } = await templates()
+        .upsert(
+          {
+            boardgame_id: boardgameId,
+            fields: fields as unknown as Json,
+          },
+          { onConflict: "boardgame_id" },
+        )
+        .select("*")
+        .single();
+      if (error) {
+        throw new Error(`Enregistrement du modèle: ${error.message}`);
+      }
+
+      return toTemplate(data);
+    },
+
     async list(boardgameId?: BoardgameId) {
       let query = configs().select("*").order("name", { ascending: true });
       if (boardgameId) {

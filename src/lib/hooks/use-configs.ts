@@ -8,6 +8,7 @@ import type {
   ConfigId,
   ConfigTemplate,
   ConfigValues,
+  FieldSpec,
 } from "@/lib/domain";
 import { getConfigRepository } from "@/lib/repositories";
 
@@ -24,6 +25,8 @@ interface UseConfigs {
   removeConfig: (id: ConfigId) => Promise<void>;
   /** Rewrites the template's field defaults (the pre-fill for new configs). */
   saveDefaults: (defaults: ConfigValues) => Promise<void>;
+  /** Creates or replaces the template's field definitions (the config schema). */
+  saveFields: (fields: FieldSpec[]) => Promise<void>;
 }
 
 /**
@@ -100,6 +103,13 @@ export function useConfigs(boardgameId: BoardgameId): UseConfigs {
     [repo, boardgameId],
   );
 
+  const saveFields = useCallback(
+    async (fields: FieldSpec[]) => {
+      setTemplate(await repo.saveTemplateFields(boardgameId, fields));
+    },
+    [repo, boardgameId],
+  );
+
   return {
     template,
     configs,
@@ -108,5 +118,6 @@ export function useConfigs(boardgameId: BoardgameId): UseConfigs {
     saveConfig,
     removeConfig,
     saveDefaults,
+    saveFields,
   };
 }

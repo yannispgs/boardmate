@@ -14,6 +14,7 @@ import type {
   ConfigTemplate,
   ConfigValues,
   Feedback,
+  FieldSpec,
   Game,
   GameId,
   GameListItem,
@@ -90,6 +91,16 @@ export interface ConfigRepository {
   updateTemplateDefaults(
     boardgameId: BoardgameId,
     defaults: ConfigValues,
+  ): Promise<ConfigTemplate>;
+  /**
+   * Creates or replaces the template's FIELD DEFINITIONS (the schema of tunable
+   * parameters — timer, options…), upserting the single config_templates row
+   * for the boardgame. Lets the owner define a game's configuration from the UI
+   * rather than the seed data.
+   */
+  saveTemplateFields(
+    boardgameId: BoardgameId,
+    fields: FieldSpec[],
   ): Promise<ConfigTemplate>;
   /** Config instances, optionally filtered by boardgame. */
   list(boardgameId?: BoardgameId): Promise<Config[]>;
