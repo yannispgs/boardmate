@@ -15,7 +15,10 @@ export interface RoundTime {
 export interface WaitCount {
   playerId: PlayerId;
   name: string;
+  /** How many rounds the table waited on this player. */
   count: number;
+  /** Total seconds the table waited on them (tap → advance), across rounds. */
+  totalS: number;
 }
 
 export interface SimultaneousStats {
@@ -58,16 +61,26 @@ export function computeSimultaneousStats({
     null,
   );
 
-  // Tally how many rounds the table waited on each player.
-  const counts = new Map<PlayerId, number>();
+  // Tally how many rounds the table waited on each player, and for how long.
+  const tally = new Map<PlayerId, { count: number; totalS: number }>();
   for (const t of turns) {
     if (t.blockedById !== null) {
-      counts.set(t.blockedById, (counts.get(t.blockedById) ?? 0) + 1);
+      const prev = tally.get(t.blockedById) ?? { count: 0, totalS: 0 };
+      tally.set(t.blockedById, {
+        count: prev.count + 1,
+        totalS: prev.totalS + t.waitedS,
+      });
     }
   }
-  const waited: WaitCount[] = [...counts.entries()]
-    .map(([playerId, count]) => ({ playerId, name: nameOf(playerId), count }))
-    .sort((a, b) => b.count - a.count);
+  const waited: WaitCount[] = [...tally.entries()]
+    .map(([playerId, { count, totalS }]) => ({
+      playerId,
+      name: nameOf(playerId),
+      count,
+      totalS,
+    }))
+    // Most-waited first; break ties by longer total wait.
+    .sort((a, b) => b.count - a.count || b.totalS - a.totalS);
 
   return {
     totalS,

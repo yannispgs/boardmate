@@ -48,21 +48,27 @@ export function SimultaneousGameStats({ game }: { game: PopulatedGame }) {
         ))}
       </div>
 
-      {stats.mostWaited ? (
-        <div className="flex items-center justify-between gap-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] p-3">
-          <span className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+      {stats.waited.length > 0 ? (
+        <div className="flex flex-col gap-2">
+          <h3 className="flex items-center gap-2 text-sm font-medium text-zinc-500 dark:text-zinc-400">
             <span aria-hidden>⏳</span>
-            On a le plus attendu
-          </span>
-          <span className="text-sm tabular-nums">
-            <span className="font-semibold text-amber-700 dark:text-amber-300">
-              {stats.mostWaited.name}
-            </span>{" "}
-            <span className="text-zinc-500 dark:text-zinc-400">
-              · {stats.mostWaited.count} tour
-              {stats.mostWaited.count > 1 ? "s" : ""}
-            </span>
-          </span>
+            On a attendu — nombre de fois &amp; temps total
+          </h3>
+          <ul className="flex flex-col gap-1.5">
+            {stats.waited.map(w => (
+              <li
+                key={w.playerId}
+                className="flex items-center justify-between gap-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] p-3 text-sm"
+              >
+                <span className="font-semibold text-amber-700 dark:text-amber-300">
+                  {w.name}
+                </span>
+                <span className="tabular-nums text-zinc-500 dark:text-zinc-400">
+                  {w.count} fois · {formatDuration(w.totalS)}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
 

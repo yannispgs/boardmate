@@ -45,6 +45,7 @@ function turn(
     gameId: gid,
     playerId: playerId as PlayerId,
     blockedById: null,
+    waitedS: 0,
     round,
     turnNo,
     durationS,

@@ -13,6 +13,7 @@ function turn(playerId: string, round: number, durationS: number): GameTurn {
     gameId: gid,
     playerId: p(playerId),
     blockedById: null,
+    waitedS: 0,
     round,
     turnNo: round,
     durationS,

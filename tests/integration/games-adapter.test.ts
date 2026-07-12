@@ -212,6 +212,7 @@ describe("games adapter — turn rotation & time logging", () => {
     await repo().advanceTurn(game.id, 40, 0, 0, 0, {
       turnMode: "simultaneous",
       blockedById: playerIds[1],
+      waitedSeconds: 12,
     });
     let p = await repo().getPopulated(game.id);
     expect(p?.turn).toBe(2);
@@ -220,9 +221,10 @@ describe("games adapter — turn rotation & time logging", () => {
     expect(p?.turns).toHaveLength(1);
     expect(p?.turns[0].playerId).toBeNull();
     expect(p?.turns[0].blockedById).toBe(playerIds[1]);
+    expect(p?.turns[0].waitedS).toBe(12);
     expect(p?.turns[0].durationS).toBe(40);
 
-    // A round nobody was flagged on records a null blocker.
+    // A round nobody was flagged on records a null blocker and no wait time.
     await repo().advanceTurn(game.id, 20, 0, 0, 0, {
       turnMode: "simultaneous",
       blockedById: null,
@@ -231,6 +233,16 @@ describe("games adapter — turn rotation & time logging", () => {
     expect(p?.round).toBe(3);
     expect(p?.turns).toHaveLength(2);
     expect(p?.turns[1].blockedById).toBeNull();
+    expect(p?.turns[1].waitedS).toBe(0);
+
+    // Flagged but no wait time provided → defaults to 0.
+    await repo().advanceTurn(game.id, 15, 0, 0, 0, {
+      turnMode: "simultaneous",
+      blockedById: playerIds[2],
+    });
+    p = await repo().getPopulated(game.id);
+    expect(p?.turns[2].blockedById).toBe(playerIds[2]);
+    expect(p?.turns[2].waitedS).toBe(0);
   });
 
   it("logs dice rolls and returns them in draw order", async () => {

@@ -51,8 +51,16 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   const [durationOverride, setDurationOverride] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   // Simultaneous games: the player the table is waiting on this round (tapped),
-  // recorded when the round advances then cleared for the next round.
+  // recorded when the round advances then cleared for the next round. The ref
+  // holds when they were tapped, to time the wait (tap → advance).
   const [blockedById, setBlockedById] = useState<PlayerId | null>(null);
+  const blockedAtRef = useRef<number | null>(null);
+
+  // Tapping a player starts the wait clock; untapping (null) clears it.
+  const pickBlocked = useCallback((id: PlayerId | null) => {
+    setBlockedById(id);
+    blockedAtRef.current = id === null ? null : Date.now();
+  }, []);
   const [scoreOpen, setScoreOpen] = useState(false);
   const [endOpen, setEndOpen] = useState(false);
   // Category scoring: the end sheet modal, then the reveal → table phases.
@@ -169,15 +177,19 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
     try {
       const pauses = timer.pauseStats();
       const overtimeS = Math.max(0, timer.elapsedS - durationS);
+      const waitedSeconds =
+        blockedById !== null && blockedAtRef.current !== null
+          ? (Date.now() - blockedAtRef.current) / 1000
+          : 0;
       await repo.advanceTurn(
         game.id,
         timer.elapsedS,
         pauses.count,
         pauses.durationS,
         overtimeS,
-        { turnMode: game.boardgame.turnMode, blockedById },
+        { turnMode: game.boardgame.turnMode, blockedById, waitedSeconds },
       );
-      setBlockedById(null);
+      pickBlocked(null);
       await load();
       timer.reset();
     } catch {
@@ -382,7 +394,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         <WaitPicker
           players={game.players.map(p => p.player)}
           value={blockedById}
-          onChange={setBlockedById}
+          onChange={pickBlocked}
         />
       ) : (
         <TurnFlow

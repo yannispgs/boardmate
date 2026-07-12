@@ -23,12 +23,18 @@ function player(id: string, name: string) {
   } as GamePlayer & { player: { id: PlayerId; name: string } };
 }
 
-function round(round: number, durationS: number, blockedBy?: string): GameTurn {
+function round(
+  round: number,
+  durationS: number,
+  blockedBy?: string,
+  waitedS = 0,
+): GameTurn {
   return {
     id: `t-${round}` as GameTurnId,
     gameId: gid,
     playerId: null,
     blockedById: (blockedBy ?? null) as PlayerId | null,
+    waitedS,
     round,
     turnNo: round,
     durationS,
@@ -54,26 +60,37 @@ describe("computeSimultaneousStats", () => {
     expect(stats.longestRound).toEqual({ round: 3, durationS: 50 });
   });
 
-  it("tallies who the table waited on, most first", () => {
+  it("tallies who the table waited on — count + total time, most first", () => {
     const stats = computeSimultaneousStats({
       players,
       turns: [
-        round(1, 30, "a"),
-        round(2, 40, "b"),
-        round(3, 50, "a"),
+        round(1, 30, "a", 10),
+        round(2, 40, "b", 8),
+        round(3, 50, "a", 15),
         round(4, 20),
       ],
     });
 
     expect(stats.waited).toEqual([
-      { playerId: "a", name: "Alice", count: 2 },
-      { playerId: "b", name: "Bob", count: 1 },
+      { playerId: "a", name: "Alice", count: 2, totalS: 25 },
+      { playerId: "b", name: "Bob", count: 1, totalS: 8 },
     ]);
     expect(stats.mostWaited).toEqual({
       playerId: "a",
       name: "Alice",
       count: 2,
+      totalS: 25,
     });
+  });
+
+  it("breaks equal counts by the longer total wait", () => {
+    const stats = computeSimultaneousStats({
+      players,
+      // Both waited once; Bob's wait was longer → Bob first.
+      turns: [round(1, 30, "a", 5), round(2, 30, "b", 20)],
+    });
+
+    expect(stats.waited.map(w => w.name)).toEqual(["Bob", "Alice"]);
   });
 
   it("is empty and waitless for no turns", () => {
@@ -96,6 +113,7 @@ describe("computeSimultaneousStats", () => {
       playerId: "zzz",
       name: "?",
       count: 1,
+      totalS: 0,
     });
   });
 });

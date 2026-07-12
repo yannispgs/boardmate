@@ -82,6 +82,8 @@ function toGameTurn(row: GameTurnRow): GameTurn {
     playerId: (row.player_id as PlayerId | null) ?? null,
     /* c8 ignore next -- `?? null` guards a backend without the column yet */
     blockedById: (row.blocked_by_player_id as PlayerId | null) ?? null,
+    /* c8 ignore next -- `?? 0` guards a backend without the column yet */
+    waitedS: row.waited_s ?? 0,
     round: row.round,
     turnNo: row.turn_no,
     durationS: row.duration_s,
@@ -335,10 +337,18 @@ export function createGameRepository(
       pauseCount: number,
       pauseDurationSeconds: number,
       overtimeSeconds: number,
-      opts?: { turnMode?: TurnMode; blockedById?: PlayerId | null },
+      opts?: {
+        turnMode?: TurnMode;
+        blockedById?: PlayerId | null;
+        waitedSeconds?: number;
+      },
     ) {
       const simultaneous = opts?.turnMode === "simultaneous";
       const blockedById = opts?.blockedById ?? null;
+      const waitedS =
+        simultaneous && blockedById !== null
+          ? Math.max(0, Math.round(opts?.waitedSeconds ?? 0))
+          : null;
 
       const { data: game, error } = await games()
         .select("round, turn, current_player_id")
@@ -370,6 +380,7 @@ export function createGameRepository(
           game_id: id,
           player_id: simultaneous ? null : game.current_player_id,
           blocked_by_player_id: simultaneous ? blockedById : null,
+          waited_s: waitedS,
           round: game.round,
           turn_no: game.turn,
           duration_s: Math.max(0, Math.round(elapsedSeconds)),

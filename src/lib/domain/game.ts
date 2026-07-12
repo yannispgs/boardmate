@@ -83,6 +83,11 @@ export interface GameTurn {
    * during play), or `null`. Always `null` for sequential turns.
    */
   blockedById: PlayerId | null;
+  /**
+   * Simultaneous rounds only: seconds waited on {@link GameTurn.blockedById} —
+   * from tapping them to advancing the round. 0 when nobody was flagged.
+   */
+  waitedS: number;
   round: number;
   turnNo: number;
   durationS: number;

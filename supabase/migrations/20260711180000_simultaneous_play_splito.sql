@@ -7,10 +7,12 @@ alter table public.boardgames
     check (turn_mode in ('sequential', 'simultaneous'));
 
 -- A simultaneous round is a single shared turn with no owner, so a turn can now
--- have no player. It may instead record which player the table waited on.
+-- have no player. It may instead record which player the table waited on, and
+-- for how long (seconds between tapping "we're waiting on them" and advancing).
 alter table public.game_turns alter column player_id drop not null;
 alter table public.game_turns
   add column if not exists blocked_by_player_id uuid references public.players(id);
+alter table public.game_turns add column if not exists waited_s integer;
 
 -- Splito: 3-8 players, 13 fixed rounds, simultaneous, highest total wins.
 insert into public.boardgames

@@ -278,6 +278,7 @@ export type Database = {
           player_id: string | null
           round: number
           turn_no: number
+          waited_s: number | null
         }
         Insert: {
           blocked_by_player_id?: string | null
@@ -291,6 +292,7 @@ export type Database = {
           player_id?: string | null
           round: number
           turn_no: number
+          waited_s?: number | null
         }
         Update: {
           blocked_by_player_id?: string | null
@@ -304,6 +306,7 @@ export type Database = {
           player_id?: string | null
           round?: number
           turn_no?: number
+          waited_s?: number | null
         }
         Relationships: [
           {
