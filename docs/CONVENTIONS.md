@@ -143,7 +143,9 @@ otherwise. **Updated on every remark from the project owner.**
   `CHANGELOG.md`, and on merge tags the commit and publishes a GitHub Release.
   The owner merges the release PR like any other. Pre-1.0: breaking changes bump
   the **minor** (`bump-minor-pre-major`). Never hand-edit `CHANGELOG.md` or the
-  version in `package.json` — release-please owns them.
+  version in `package.json` — release-please owns them. **Tag format**: plain
+  `vX.Y.Z` (e.g. `v1.0.0`) with no component prefix — `include-v-in-tag: true` +
+  `include-component-in-tag: false`; the GitHub Release is named after that tag.
 - **CD**: deployment on **Vercel** via its native Git integration (preview
   deploy per PR, production on `main`).
 - **Per-PR preview URL**: every PR is reachable at a stable, predictable
@@ -286,3 +288,6 @@ separate so the fast one never needs a database:
   whole `a11y` rule category (`linter.rules.a11y: "off"`). Owner's call — small
   private app for a known audience; don't add ARIA/keyboard handling just for
   compliance.
+- _2026-07-12_ — Release tags are plain `vX.Y.Z` with no component prefix
+  (§10): set `include-component-in-tag: false` (kept `include-v-in-tag: true`),
+  so v1 tags as `v1.0.0` instead of `boardmate-v1.0.0`. Owner's call.
