@@ -68,14 +68,18 @@ test("edits a boardgame's scoring type", async ({ page }) => {
     await page.getByRole("link", { name: "+ Ajouter un jeu" }).click();
     await page.getByLabel("Nom du jeu").fill(name);
 
-    // Enable scoring, final tally, lowest total wins (Skyjo-like); simultaneous.
+    // Scoring (lowest wins), simultaneous mode, coop kind, 2×d6 dice tracking.
     await page.getByLabel("Ce jeu se joue avec des points").check();
     await page.getByLabel("Condition de victoire").selectOption("lowest");
     await page.getByLabel("Mode de jeu").selectOption("simultaneous");
+    await page.getByLabel("Type de jeu").selectOption("cooperative");
+    await page.getByLabel("Suivre les lancers de dés").check();
+    await page.getByLabel("Nombre de dés").fill("2");
+    await page.getByLabel("Faces par dé").fill("6");
     await page.getByRole("button", { name: "Ajouter" }).click();
     await expect(page.getByText(name, { exact: true })).toBeVisible();
 
-    // Re-open the edit form: the saved scoring type + turn mode round-trip.
+    // Re-open the edit form: all of it round-trips.
     await page.getByRole("link", { name: `Réglages de ${name}` }).click();
     await expect(
       page.getByLabel("Ce jeu se joue avec des points"),
@@ -84,6 +88,10 @@ test("edits a boardgame's scoring type", async ({ page }) => {
       "lowest",
     );
     await expect(page.getByLabel("Mode de jeu")).toHaveValue("simultaneous");
+    await expect(page.getByLabel("Type de jeu")).toHaveValue("cooperative");
+    await expect(page.getByLabel("Suivre les lancers de dés")).toBeChecked();
+    await expect(page.getByLabel("Nombre de dés")).toHaveValue("2");
+    await expect(page.getByLabel("Faces par dé")).toHaveValue("6");
   } finally {
     await adminClient().from("boardgames").delete().eq("name", name);
   }
