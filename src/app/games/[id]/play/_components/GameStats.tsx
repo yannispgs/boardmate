@@ -7,6 +7,7 @@ import { buildTurnTimeSeries } from "@/lib/game/turn-time-series";
 import { DiceTimeline } from "./DiceTimeline";
 import { PlayerStatCardList } from "./PlayerStatCardList";
 import { ScoreChart } from "./ScoreChart";
+import { SimultaneousGameStats } from "./SimultaneousGameStats";
 import { TurnTimeChart } from "./TurnTimeChart";
 
 /**
@@ -15,6 +16,11 @@ import { TurnTimeChart } from "./TurnTimeChart";
  * turn log by `computeGameStats`; nothing here needs the network.
  */
 export function GameStats({ game }: { game: PopulatedGame }) {
+  // Simultaneous games have no per-player turns — a different summary applies.
+  if (game.boardgame.turnMode === "simultaneous") {
+    return <SimultaneousGameStats game={game} />;
+  }
+
   const stats = computeGameStats({
     players: game.players,
     turns: game.turns,

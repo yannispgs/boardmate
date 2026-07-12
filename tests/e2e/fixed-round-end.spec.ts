@@ -61,9 +61,8 @@ test("ends automatically after the last round, then scores", async ({
     // Player 1 hands over to the last player.
     await page.getByRole("button", { name: "Tour suivant →" }).click();
 
-    // Player 2 is the final turn: no more advancing, the game is over and the
-    // scoring takes over.
-    await expect(page.getByText("Dernier tour joué")).toBeVisible();
+    // Player 2 is the final turn: no more advancing — end the game to score.
+    await expect(page.getByText(/Dernier tour/)).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Tour suivant →" }),
     ).toHaveCount(0);
@@ -71,8 +70,16 @@ test("ends automatically after the last round, then scores", async ({
     await expect(
       page.getByRole("img", { name: "Fin de la partie" }),
     ).toBeVisible();
+    // The countdown is still here — the last turn is being played.
+    await expect(
+      page.getByRole("button", { name: /Durée du tour/ }),
+    ).toBeVisible();
 
     await page.getByRole("button", { name: "Compter les points" }).click();
+    // Opening the score form takes the timer's place.
+    await expect(
+      page.getByRole("button", { name: /Durée du tour/ }),
+    ).toHaveCount(0);
     await page.getByLabel(`Points — ${players[0]}`).fill("5");
     await page.getByLabel(`Points — ${players[1]}`).fill("2");
     await page.getByRole("button", { name: "Total final" }).click();

@@ -112,7 +112,12 @@ export function computeGameStats({ players, turns }: StatsInput): GameStats {
     return av - bv;
   });
 
-  const longest = turns.reduce<GameTurn | null>(
+  // Per-player stats only apply to sequential games, whose turns always have an
+  // owner; ignore any owner-less (simultaneous) turns defensively.
+  const ownedTurns = turns.filter(
+    (t): t is GameTurn & { playerId: PlayerId } => t.playerId !== null,
+  );
+  const longest = ownedTurns.reduce<(GameTurn & { playerId: PlayerId }) | null>(
     (best, t) => (best === null || t.durationS > best.durationS ? t : best),
     null,
   );

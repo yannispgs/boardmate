@@ -68,13 +68,14 @@ test("edits a boardgame's scoring type", async ({ page }) => {
     await page.getByRole("link", { name: "+ Ajouter un jeu" }).click();
     await page.getByLabel("Nom du jeu").fill(name);
 
-    // Enable scoring, final tally, lowest total wins (Skyjo-like).
+    // Enable scoring, final tally, lowest total wins (Skyjo-like); simultaneous.
     await page.getByLabel("Ce jeu se joue avec des points").check();
     await page.getByLabel("Condition de victoire").selectOption("lowest");
+    await page.getByLabel("Mode de jeu").selectOption("simultaneous");
     await page.getByRole("button", { name: "Ajouter" }).click();
     await expect(page.getByText(name, { exact: true })).toBeVisible();
 
-    // Re-open the edit form: the saved scoring type round-trips into it.
+    // Re-open the edit form: the saved scoring type + turn mode round-trip.
     await page.getByRole("link", { name: `Réglages de ${name}` }).click();
     await expect(
       page.getByLabel("Ce jeu se joue avec des points"),
@@ -82,6 +83,7 @@ test("edits a boardgame's scoring type", async ({ page }) => {
     await expect(page.getByLabel("Condition de victoire")).toHaveValue(
       "lowest",
     );
+    await expect(page.getByLabel("Mode de jeu")).toHaveValue("simultaneous");
   } finally {
     await adminClient().from("boardgames").delete().eq("name", name);
   }

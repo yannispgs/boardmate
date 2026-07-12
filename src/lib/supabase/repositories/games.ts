@@ -17,6 +17,7 @@ import type {
   Player,
   PlayerId,
   PopulatedGame,
+  TurnMode,
 } from "@/lib/domain";
 import { winThresholdFrom } from "@/lib/game/scoring";
 import { advanceTurn as nextTurnState } from "@/lib/game/turn";
@@ -77,7 +78,12 @@ function toGameTurn(row: GameTurnRow): GameTurn {
   return {
     id: row.id as GameTurnId,
     gameId: row.game_id as GameId,
-    playerId: row.player_id as PlayerId,
+    // Null for a simultaneous round (no single owner).
+    playerId: (row.player_id as PlayerId | null) ?? null,
+    /* c8 ignore next -- `?? null` guards a backend without the column yet */
+    blockedById: (row.blocked_by_player_id as PlayerId | null) ?? null,
+    /* c8 ignore next -- `?? 0` guards a backend without the column yet */
+    waitedS: row.waited_s ?? 0,
     round: row.round,
     turnNo: row.turn_no,
     durationS: row.duration_s,
@@ -331,7 +337,19 @@ export function createGameRepository(
       pauseCount: number,
       pauseDurationSeconds: number,
       overtimeSeconds: number,
+      opts?: {
+        turnMode?: TurnMode;
+        blockedById?: PlayerId | null;
+        waitedSeconds?: number;
+      },
     ) {
+      const simultaneous = opts?.turnMode === "simultaneous";
+      const blockedById = opts?.blockedById ?? null;
+      const waitedS =
+        simultaneous && blockedById !== null
+          ? Math.max(0, Math.round(opts?.waitedSeconds ?? 0))
+          : null;
+
       const { data: game, error } = await games()
         .select("round, turn, current_player_id")
         .eq("id", id)
@@ -350,12 +368,19 @@ export function createGameRepository(
         throw new Error(`Lecture des joueurs: ${seatsError.message}`);
       }
 
-      // Record the completed turn's active time for the player who just played.
-      /* c8 ignore next -- a live game always has a current player to record */
-      if (game.current_player_id) {
+      // A simultaneous round is one shared turn per round (no owner, optional
+      // "waited on" player); a sequential turn is one per seat.
+      const perRound = simultaneous ? 1 : seats.length;
+
+      // Record the completed turn: the round's active time, attributed to the
+      // player who just played (sequential) or to nobody (simultaneous).
+      /* c8 ignore next -- a live sequential game always has a current player */
+      if (simultaneous || game.current_player_id) {
         const { error: turnError } = await supabase.from("game_turns").insert({
           game_id: id,
-          player_id: game.current_player_id,
+          player_id: simultaneous ? null : game.current_player_id,
+          blocked_by_player_id: simultaneous ? blockedById : null,
+          waited_s: waitedS,
           round: game.round,
           turn_no: game.turn,
           duration_s: Math.max(0, Math.round(elapsedSeconds)),
@@ -369,13 +394,16 @@ export function createGameRepository(
         }
       }
 
-      const next = nextTurnState(game.turn, seats.length);
+      const next = nextTurnState(game.turn, perRound);
       const { error: updateError } = await games()
         .update({
           turn: next.turn,
           round: next.round,
+          // Simultaneous games have no current player.
           /* c8 ignore next -- defensive `?.`/`?? null`; seat index is in range */
-          current_player_id: seats[next.seatIndex]?.player_id ?? null,
+          current_player_id: simultaneous
+            ? null
+            : (seats[next.seatIndex]?.player_id ?? null),
         })
         .eq("id", id);
       /* c8 ignore next 3 -- defensive guard: update errors surface via e2e */

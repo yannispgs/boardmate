@@ -7,6 +7,16 @@ import type { BoardgameId } from "./ids";
 export type BoardgameKind = "competitive" | "cooperative" | "hybrid";
 
 /**
+ * How turns flow:
+ * - `sequential`: players take individual turns in seat order (the default —
+ *   Catan, Cascadia…). A round is one lap of the table.
+ * - `simultaneous`: everyone plays at once each round (Splito). There is no
+ *   per-player turn; a round is a single shared turn, and "Tour suivant"
+ *   advances the whole round.
+ */
+export type TurnMode = "sequential" | "simultaneous";
+
+/**
  * How the winner is decided by score:
  * - `highest` / `lowest`: best total wins (Cascadia/Wingspan ; Skyjo/Papayoo).
  * - `threshold`: first to reach a target wins (Catan). The target is the value
@@ -95,6 +105,8 @@ export interface Boardgame {
   recMinPlayers: number | null;
   recMaxPlayers: number | null;
   kind: BoardgameKind;
+  /** Sequential turns (default) or everyone-plays-at-once (Splito). */
+  turnMode: TurnMode;
   avgDurationMin: number | null;
   tags: string[];
   /** How the game is scored, or `null` when it isn't. */
@@ -130,6 +142,7 @@ export interface NewBoardgame {
   recMinPlayers?: number | null;
   recMaxPlayers?: number | null;
   kind?: BoardgameKind;
+  turnMode?: TurnMode;
   avgDurationMin?: number | null;
   tags?: string[];
   /** How the game is scored, or `null` when it isn't. */

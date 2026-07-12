@@ -79,6 +79,7 @@ export type Database = {
           round_limit: number | null
           scoring: Json | null
           tags: string[]
+          turn_mode: string
         }
         Insert: {
           avg_duration_min?: number | null
@@ -97,6 +98,7 @@ export type Database = {
           round_limit?: number | null
           scoring?: Json | null
           tags?: string[]
+          turn_mode?: string
         }
         Update: {
           avg_duration_min?: number | null
@@ -115,6 +117,7 @@ export type Database = {
           round_limit?: number | null
           scoring?: Json | null
           tags?: string[]
+          turn_mode?: string
         }
         Relationships: []
       }
@@ -264,6 +267,7 @@ export type Database = {
       }
       game_turns: {
         Row: {
+          blocked_by_player_id: string | null
           created_at: string
           duration_s: number
           game_id: string
@@ -271,11 +275,13 @@ export type Database = {
           overtime_s: number
           pause_count: number
           pause_duration_s: number
-          player_id: string
+          player_id: string | null
           round: number
           turn_no: number
+          waited_s: number | null
         }
         Insert: {
+          blocked_by_player_id?: string | null
           created_at?: string
           duration_s: number
           game_id: string
@@ -283,11 +289,13 @@ export type Database = {
           overtime_s?: number
           pause_count?: number
           pause_duration_s?: number
-          player_id: string
+          player_id?: string | null
           round: number
           turn_no: number
+          waited_s?: number | null
         }
         Update: {
+          blocked_by_player_id?: string | null
           created_at?: string
           duration_s?: number
           game_id?: string
@@ -295,11 +303,19 @@ export type Database = {
           overtime_s?: number
           pause_count?: number
           pause_duration_s?: number
-          player_id?: string
+          player_id?: string | null
           round?: number
           turn_no?: number
+          waited_s?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "game_turns_blocked_by_player_id_fkey"
+            columns: ["blocked_by_player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "game_turns_game_id_fkey"
             columns: ["game_id"]

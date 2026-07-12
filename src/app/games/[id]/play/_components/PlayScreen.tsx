@@ -18,7 +18,7 @@ import {
   winnerDirection,
 } from "@/lib/game/scoring";
 import { computeGameStats, timeHog } from "@/lib/game/stats";
-import { isFinalTurn } from "@/lib/game/turn";
+import { isFinalTurn, turnsPerRound } from "@/lib/game/turn";
 import { turnDurationForRound } from "@/lib/game/turn-schedule";
 import { useTurnTimer } from "@/lib/hooks/use-turn-timer";
 import { useWakeLock } from "@/lib/hooks/use-wake-lock";
@@ -32,6 +32,7 @@ import { RankingReveal } from "./RankingReveal";
 import { ScorePanel } from "./ScorePanel";
 import { StatsPanel } from "./StatsPanel";
 import { TurnFlow } from "./turn-flow";
+import { WaitPicker } from "./WaitPicker";
 
 /** The computed outcome of a category-scored game, driving the reveal + table. */
 interface CategoryResult {
@@ -49,8 +50,22 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   // when the turn advances (below) so the next turn follows the schedule again.
   const [durationOverride, setDurationOverride] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  // Simultaneous games: the player the table is waiting on this round (tapped),
+  // recorded when the round advances then cleared for the next round. The ref
+  // holds when they were tapped, to time the wait (tap → advance).
+  const [blockedById, setBlockedById] = useState<PlayerId | null>(null);
+  const blockedAtRef = useRef<number | null>(null);
+
+  // Tapping a player starts the wait clock; untapping (null) clears it.
+  const pickBlocked = useCallback((id: PlayerId | null) => {
+    setBlockedById(id);
+    blockedAtRef.current = id === null ? null : Date.now();
+  }, []);
   const [scoreOpen, setScoreOpen] = useState(false);
   const [endOpen, setEndOpen] = useState(false);
+  // Whether the end-of-game score form (final total / winner pick) is open —
+  // when it is, it takes the timer's place.
+  const [endFormOpen, setEndFormOpen] = useState(false);
   // Category scoring: the end sheet modal, then the reveal → table phases.
   const [catOpen, setCatOpen] = useState(false);
   const [phase, setPhase] = useState<"play" | "reveal" | "table">("play");
@@ -141,6 +156,15 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
     loadSound(RING_URL);
   }, []);
 
+  // The end score form replaces the timer once opened; pause the timer then so
+  // it doesn't keep ticking (and running down the wake lock) behind the form.
+  const scoreFormOpen = endFormOpen || catOpen;
+  useEffect(() => {
+    if (scoreFormOpen) {
+      timer.pause();
+    }
+  }, [scoreFormOpen, timer.pause]);
+
   // Whoever is monopolising the table's time (from the turns played so far). A
   // live value: it updates as turns are recorded and clears once no one is over
   // their fair share, driving the banner below.
@@ -162,18 +186,35 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
       return;
     }
     setBusy(true);
+
+    // Snapshot the finished turn's numbers, then restart the timer *immediately*
+    // — the new turn's clock starts on the click, not when Supabase replies, so
+    // the countdown never keeps ticking during the async persist.
+    const elapsedS = timer.elapsedS;
+    const pauses = timer.pauseStats();
+    const overtimeS = Math.max(0, elapsedS - durationS);
+    const waitedSeconds =
+      blockedById !== null && blockedAtRef.current !== null
+        ? (Date.now() - blockedAtRef.current) / 1000
+        : 0;
+    const blocked = blockedById;
+    timer.reset();
+    pickBlocked(null);
+
     try {
-      const pauses = timer.pauseStats();
-      const overtimeS = Math.max(0, timer.elapsedS - durationS);
       await repo.advanceTurn(
         game.id,
-        timer.elapsedS,
+        elapsedS,
         pauses.count,
         pauses.durationS,
         overtimeS,
+        {
+          turnMode: game.boardgame.turnMode,
+          blockedById: blocked,
+          waitedSeconds,
+        },
       );
       await load();
-      timer.reset();
     } catch {
       setError("Impossible de passer au tour suivant.");
     } finally {
@@ -341,7 +382,10 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   // last round: no more turns, and the scoring UI takes over. Open-ended games
   // keep their end controls available throughout.
   const roundLimit = game.boardgame.roundLimit;
-  const atFinalTurn = isFinalTurn(game.turn, game.players.length, roundLimit);
+  // A simultaneous round is one shared turn, so a "round" is a single turn.
+  const simultaneous = game.boardgame.turnMode === "simultaneous";
+  const perRound = turnsPerRound(game.boardgame.turnMode, game.players.length);
+  const atFinalTurn = isFinalTurn(game.turn, perRound, roundLimit);
   const canEnd = roundLimit === null || atFinalTurn;
 
   // Dice tracking (Catan): a one-tap histogram sharing the screen with a
@@ -369,38 +413,52 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         {roundLimit !== null ? ` / ${roundLimit}` : ""}
       </p>
 
-      <TurnFlow
-        players={game.players.map(p => p.player)}
-        currentPlayerId={game.currentPlayerId}
-        round={game.round}
-        roundLimit={roundLimit}
-      />
+      {/* The whole play block (who's up / countdown / dice) gives way to the
+          score form once you end the game. */}
+      {scoreFormOpen ? null : (
+        <>
+          {simultaneous ? (
+            <WaitPicker
+              players={game.players.map(p => p.player)}
+              value={blockedById}
+              onChange={pickBlocked}
+            />
+          ) : (
+            <TurnFlow
+              players={game.players.map(p => p.player)}
+              currentPlayerId={game.currentPlayerId}
+              round={game.round}
+              roundLimit={roundLimit}
+            />
+          )}
 
-      <TimerRing
-        remainingS={remainingS}
-        durationS={durationS}
-        running={timer.running}
-        onToggle={timer.toggle}
-        size={dice ? 168 : undefined}
-      />
+          <TimerRing
+            remainingS={remainingS}
+            durationS={durationS}
+            running={timer.running}
+            onToggle={timer.toggle}
+            size={dice ? 168 : undefined}
+          />
 
-      <DurationEditor
-        durationS={durationS}
-        onChange={s => setDurationOverride(s)}
-        onPause={timer.pause}
-      />
+          <DurationEditor
+            durationS={durationS}
+            onChange={s => setDurationOverride(s)}
+            onPause={timer.pause}
+          />
 
-      {dice ? (
-        <DiceBar
-          values={diceRange}
-          stats={dStats}
-          lastRolled={lastRolled}
-          onRoll={handleRoll}
-          disabled={game.status !== "ongoing"}
-          capNotice={rollCapNotice}
-          maxRolls={game.turn}
-        />
-      ) : null}
+          {dice ? (
+            <DiceBar
+              values={diceRange}
+              stats={dStats}
+              lastRolled={lastRolled}
+              onRoll={handleRoll}
+              disabled={game.status !== "ongoing"}
+              capNotice={rollCapNotice}
+              maxRolls={game.turn}
+            />
+          ) : null}
+        </>
+      )}
 
       {error ? (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
@@ -408,9 +466,9 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         </p>
       ) : null}
 
-      {atFinalTurn ? (
+      {scoreFormOpen ? null : atFinalTurn ? (
         <p className="text-center text-sm font-semibold text-amber-600 dark:text-amber-400">
-          Dernier tour joué — la partie est terminée.
+          Dernier tour — terminez la partie pour compter les points.
         </p>
       ) : (
         <button
@@ -423,11 +481,13 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         </button>
       )}
 
-      <StatsPanel
-        players={game.players}
-        turns={game.turns}
-        dice={dice ? { rolls: rollValues, spec: dice } : undefined}
-      />
+      {simultaneous ? null : (
+        <StatsPanel
+          players={game.players}
+          turns={game.turns}
+          dice={dice ? { rolls: rollValues, spec: dice } : undefined}
+        />
+      )}
 
       {game.boardgame.scoring?.timing === "live" ? (
         <ScorePanel
@@ -471,6 +531,8 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
               winCondition={game.boardgame.scoring.winCondition}
               onEnd={handleEnd}
               disabled={busy}
+              open={endFormOpen}
+              onOpenChange={setEndFormOpen}
             />
           )
         ) : (
@@ -478,6 +540,8 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
             players={game.players.map(p => p.player)}
             onPick={handleEnd}
             disabled={busy}
+            open={endFormOpen}
+            onOpenChange={setEndFormOpen}
           />
         )
       ) : null}
@@ -753,18 +817,20 @@ function WinnerPicker({
   players,
   onPick,
   disabled,
+  open,
+  onOpenChange,
 }: {
   players: { id: PlayerId; name: string }[];
   onPick: (id: PlayerId) => void;
   disabled: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
-
   if (!open) {
     return (
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => onOpenChange(true)}
         className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-black transition hover:bg-amber-300"
       >
         Terminer la partie
@@ -788,7 +854,7 @@ function WinnerPicker({
       ))}
       <button
         type="button"
-        onClick={() => setOpen(false)}
+        onClick={() => onOpenChange(false)}
         className="text-xs text-zinc-500 hover:underline"
       >
         Annuler
@@ -808,6 +874,8 @@ function ScoreEntry({
   winCondition,
   onEnd,
   disabled,
+  open,
+  onOpenChange,
 }: {
   players: { id: PlayerId; name: string }[];
   winCondition: WinCondition;
@@ -816,8 +884,9 @@ function ScoreEntry({
     scores: Array<{ playerId: PlayerId; score: number }>,
   ) => void;
   disabled: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [raw, setRaw] = useState<Record<string, string>>({});
   const [override, setOverride] = useState<PlayerId | null>(null);
 
@@ -838,7 +907,7 @@ function ScoreEntry({
     return (
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => onOpenChange(true)}
         className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-black transition hover:bg-amber-300"
       >
         Terminer la partie
@@ -894,7 +963,7 @@ function ScoreEntry({
       </button>
       <button
         type="button"
-        onClick={() => setOpen(false)}
+        onClick={() => onOpenChange(false)}
         className="text-xs text-zinc-500 hover:underline"
       >
         Annuler

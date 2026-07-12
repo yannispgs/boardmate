@@ -15,6 +15,7 @@ import type {
   NewBoardgame,
   ScoreSheetItem,
   ScoringSpec,
+  TurnMode,
   WinCondition,
 } from "@/lib/domain";
 import { ScoreSheetEditor } from "./ScoreSheetEditor";
@@ -29,6 +30,8 @@ interface FormState {
   // Fixed number of rounds after which the game ends (empty = open-ended).
   roundLimit: string;
   tags: string;
+  // Sequential turns, or everyone-plays-at-once (Splito).
+  turnMode: TurnMode;
   scored: boolean;
   scoreTiming: "final" | "live";
   // "total" = one number per player; "categories" = a per-category scoresheet
@@ -48,6 +51,7 @@ const EMPTY: FormState = {
   avgDurationMin: "",
   roundLimit: "",
   tags: "",
+  turnMode: "sequential",
   scored: false,
   scoreTiming: "final",
   entry: "total",
@@ -68,6 +72,7 @@ function fromBoardgame(b: Boardgame): FormState {
     avgDurationMin: b.avgDurationMin?.toString() ?? "",
     roundLimit: b.roundLimit?.toString() ?? "",
     tags: b.tags.join(", "),
+    turnMode: b.turnMode,
     scored: s !== null,
     scoreTiming: s?.timing ?? "final",
     entry: s?.entry ?? "total",
@@ -158,6 +163,7 @@ function toInput(
       .split(",")
       .map(t => t.trim())
       .filter(Boolean),
+    turnMode: form.turnMode,
     scoring,
   };
 }
@@ -462,6 +468,24 @@ export function BoardgameForm({
           />
         </label>
       </div>
+
+      <label className="flex flex-col gap-1 text-xs text-zinc-500">
+        Mode de jeu
+        <select
+          value={form.turnMode}
+          onChange={e =>
+            setForm({ ...form, turnMode: e.target.value as TurnMode })
+          }
+          className={field}
+        >
+          <option value="sequential">Chacun son tour</option>
+          <option value="simultaneous">Tout le monde joue en même temps</option>
+        </select>
+        <span className="text-[11px] text-zinc-400">
+          « Tout le monde en même temps » (ex. Splito) : un seul tour partagé
+          par round, sans rotation joueur par joueur.
+        </span>
+      </label>
 
       <LogoPicker
         logoUrl={logoUrl}

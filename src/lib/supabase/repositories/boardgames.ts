@@ -7,6 +7,7 @@ import type {
   BoardgameUpdate,
   NewBoardgame,
   ScoringSpec,
+  TurnMode,
 } from "@/lib/domain";
 import { BoardgameInUseError } from "@/lib/repositories/errors";
 import type {
@@ -32,6 +33,7 @@ export function toBoardgame(row: BoardgameRow): Boardgame {
     recMinPlayers: row.rec_min_players,
     recMaxPlayers: row.rec_max_players,
     kind: row.kind as BoardgameKind,
+    turnMode: row.turn_mode as TurnMode,
     avgDurationMin: row.avg_duration_min,
     tags: row.tags,
     // Authored per boardgame as data; null when the game isn't scored.
@@ -72,6 +74,9 @@ function toRow(input: NewBoardgame | BoardgameUpdate): BoardgameWrite {
   }
   if (input.kind !== undefined) {
     row.kind = input.kind;
+  }
+  if (input.turnMode !== undefined) {
+    row.turn_mode = input.turnMode;
   }
   if (input.avgDurationMin !== undefined) {
     row.avg_duration_min = input.avgDurationMin;

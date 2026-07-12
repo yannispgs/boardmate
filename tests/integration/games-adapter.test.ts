@@ -199,6 +199,52 @@ describe("games adapter — turn rotation & time logging", () => {
     expect(total).toBe(47);
   });
 
+  it("records a simultaneous round with no owner and who we waited on", async () => {
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    // Simultaneous: one shared turn advances the whole round, tagged with the
+    // player the table waited on (no per-player owner).
+    await repo().advanceTurn(game.id, 40, 0, 0, 0, {
+      turnMode: "simultaneous",
+      blockedById: playerIds[1],
+      waitedSeconds: 12,
+    });
+    let p = await repo().getPopulated(game.id);
+    expect(p?.turn).toBe(2);
+    expect(p?.round).toBe(2); // a round is one turn, so it advances every turn
+    expect(p?.currentPlayer).toBeNull();
+    expect(p?.turns).toHaveLength(1);
+    expect(p?.turns[0].playerId).toBeNull();
+    expect(p?.turns[0].blockedById).toBe(playerIds[1]);
+    expect(p?.turns[0].waitedS).toBe(12);
+    expect(p?.turns[0].durationS).toBe(40);
+
+    // A round nobody was flagged on records a null blocker and no wait time.
+    await repo().advanceTurn(game.id, 20, 0, 0, 0, {
+      turnMode: "simultaneous",
+      blockedById: null,
+    });
+    p = await repo().getPopulated(game.id);
+    expect(p?.round).toBe(3);
+    expect(p?.turns).toHaveLength(2);
+    expect(p?.turns[1].blockedById).toBeNull();
+    expect(p?.turns[1].waitedS).toBe(0);
+
+    // Flagged but no wait time provided → defaults to 0.
+    await repo().advanceTurn(game.id, 15, 0, 0, 0, {
+      turnMode: "simultaneous",
+      blockedById: playerIds[2],
+    });
+    p = await repo().getPopulated(game.id);
+    expect(p?.turns[2].blockedById).toBe(playerIds[2]);
+    expect(p?.turns[2].waitedS).toBe(0);
+  });
+
   it("logs dice rolls and returns them in draw order", async () => {
     const game = await repo().create({
       boardgameId: CATAN_ID,
