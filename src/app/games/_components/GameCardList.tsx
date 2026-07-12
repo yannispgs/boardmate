@@ -41,6 +41,7 @@ export function GameCardList({
             boardgameName={boardgame?.name ?? "Partie"}
             logoUrl={boardgame?.logoUrl ?? null}
             ended={ended}
+            coop={boardgame?.kind === "cooperative"}
             onAbandon={onAbandon ? () => onAbandon(game) : undefined}
           />
         );

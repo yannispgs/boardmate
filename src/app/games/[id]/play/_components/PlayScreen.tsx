@@ -240,6 +240,22 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
     }
   }
 
+  // Cooperative games end on a shared outcome (all win, or none).
+  async function handleEndCoop(won: boolean) {
+    if (!game || busy) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await repo.endCoop(game.id, won);
+      await load();
+    } catch {
+      setError("Impossible de terminer la partie.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   // Live scoring: set a player's absolute total (clamped for positive-only
   // games), persist it, then offer to end when the target is reached OR
   // exceeded — a turn can bring several points at once.
@@ -384,6 +400,8 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   const roundLimit = game.boardgame.roundLimit;
   // A simultaneous round is one shared turn, so a "round" is a single turn.
   const simultaneous = game.boardgame.turnMode === "simultaneous";
+  // Cooperative games end on a shared outcome, not by picking a winner.
+  const coop = game.boardgame.kind === "cooperative";
   const perRound = turnsPerRound(game.boardgame.turnMode, game.players.length);
   const atFinalTurn = isFinalTurn(game.turn, perRound, roundLimit);
   const canEnd = roundLimit === null || atFinalTurn;
@@ -503,7 +521,14 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
       ) : null}
 
       {canEnd ? (
-        game.boardgame.scoring?.timing === "final" ? (
+        coop ? (
+          <CoopEnd
+            open={endFormOpen}
+            onOpenChange={setEndFormOpen}
+            onEnd={handleEndCoop}
+            disabled={busy}
+          />
+        ) : game.boardgame.scoring?.timing === "final" ? (
           game.boardgame.scoring.entry === "categories" &&
           game.boardgame.scoring.sheet ? (
             <>
@@ -852,6 +877,65 @@ function WinnerPicker({
           {p.name}
         </button>
       ))}
+      <button
+        type="button"
+        onClick={() => onOpenChange(false)}
+        className="text-xs text-zinc-500 hover:underline"
+      >
+        Annuler
+      </button>
+    </div>
+  );
+}
+
+/**
+ * End-of-game control for a cooperative game: no individual winner, just a
+ * shared outcome — the whole table wins together or loses together. Once
+ * opened, it offers a common victory or a defeat (both end the game via
+ * `onEnd`), or cancels back to the play screen.
+ */
+function CoopEnd({
+  open,
+  onOpenChange,
+  onEnd,
+  disabled,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onEnd: (won: boolean) => void;
+  disabled: boolean;
+}) {
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => onOpenChange(true)}
+        className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-black transition hover:bg-amber-300"
+      >
+        Terminer la partie
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex w-full max-w-xs flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10">
+      <p className="text-sm font-semibold">Résultat de la partie</p>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onEnd(true)}
+        className="rounded-lg bg-emerald-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:opacity-60"
+      >
+        🎉 Victoire commune
+      </button>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onEnd(false)}
+        className="rounded-lg border border-black/10 px-3 py-2 text-sm transition hover:border-rose-400 disabled:opacity-60 dark:border-white/10"
+      >
+        😔 Défaite
+      </button>
       <button
         type="button"
         onClick={() => onOpenChange(false)}

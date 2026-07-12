@@ -18,6 +18,11 @@ export function EndedGame({ game }: { game: PopulatedGame }) {
   const winner = winnerEntry?.player ?? null;
   const winnerScore = winnerEntry?.score ?? null;
 
+  // Cooperative games have no individual winner: the whole table wins or loses
+  // together (every player `isWinner`, or none).
+  const coop = game.boardgame.kind === "cooperative";
+  const coopWon = game.players.some(p => p.isWinner);
+
   const seeStats = () => {
     statsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -31,11 +36,19 @@ export function EndedGame({ game }: { game: PopulatedGame }) {
       <div className="flex min-h-[calc(100lvh-6rem)] flex-col items-center text-center">
         <div className="flex flex-1 flex-col items-center justify-center gap-4">
           <span aria-hidden className="text-6xl">
-            🏆
+            {coop ? (coopWon ? "🎉" : "😔") : "🏆"}
           </span>
           <div className="flex flex-col gap-1">
             <h2 className="text-2xl font-bold">Partie terminée !</h2>
-            {winner ? (
+            {coop ? (
+              <p className="text-zinc-500 dark:text-zinc-400">
+                {coopWon ? (
+                  <span className="font-semibold">Victoire commune 🎉</span>
+                ) : (
+                  <span className="font-semibold">Défaite 😔</span>
+                )}
+              </p>
+            ) : winner ? (
               <p className="text-zinc-500 dark:text-zinc-400">
                 Bravo <span className="font-semibold">{winner.name}</span> 🎉
                 {winnerScore !== null ? (
