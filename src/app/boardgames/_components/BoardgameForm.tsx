@@ -479,13 +479,11 @@ export function BoardgameForm({
           className={field}
         >
           <option value="sequential">Chacun son tour</option>
-          <option value="simultaneous">
-            Tout le monde joue en même temps
-          </option>
+          <option value="simultaneous">Tout le monde joue en même temps</option>
         </select>
         <span className="text-[11px] text-zinc-400">
-          « Tout le monde en même temps » (ex. Splito) : un seul tour partagé par
-          round, sans rotation joueur par joueur.
+          « Tout le monde en même temps » (ex. Splito) : un seul tour partagé
+          par round, sans rotation joueur par joueur.
         </span>
       </label>
 
