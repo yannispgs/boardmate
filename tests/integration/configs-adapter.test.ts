@@ -199,6 +199,59 @@ describe("configs adapter — template defaults", () => {
   });
 });
 
+describe("configs adapter — template fields (saveTemplateFields)", () => {
+  it("creates a template then replaces its field definitions", async () => {
+    const admin = serviceClient();
+    const { data: bg } = await admin
+      .from("boardgames")
+      .insert({ name: `Tpl ${Date.now().toString(36)}` })
+      .select("id")
+      .single();
+    const bgId = bg?.id as BoardgameId;
+
+    try {
+      const created = await repo().saveTemplateFields(bgId, [
+        {
+          key: "pointsToWin",
+          label: "Points",
+          type: "integer",
+          min: 5,
+          max: 20,
+          default: 10,
+        },
+      ]);
+      expect(created.fields).toHaveLength(1);
+      expect(created.fields[0]).toMatchObject({
+        key: "pointsToWin",
+        default: 10,
+      });
+
+      const reread = await repo().getTemplate(bgId);
+      expect(reread?.fields[0]?.key).toBe("pointsToWin");
+
+      // Upsert replaces the whole field set.
+      const replaced = await repo().saveTemplateFields(bgId, [
+        { key: "turnBaseS", label: "Base", type: "integer", default: 45 },
+        { key: "turnStepS", label: "Pas", type: "integer", default: 5 },
+      ]);
+      expect(replaced.fields.map(f => f.key)).toEqual([
+        "turnBaseS",
+        "turnStepS",
+      ]);
+    } finally {
+      await admin.from("boardgames").delete().eq("id", bgId);
+    }
+  });
+
+  it("rethrows a generic error on an invalid boardgame id", async () => {
+    await expect(
+      repo().saveTemplateFields("not-a-uuid" as BoardgameId, [
+        { key: "x", label: "X", type: "integer" },
+      ]),
+    ).rejects.toThrow();
+  });
+});
+
 describe("configs adapter — error mapping", () => {
   const BAD_UUID = "not-a-uuid";
 

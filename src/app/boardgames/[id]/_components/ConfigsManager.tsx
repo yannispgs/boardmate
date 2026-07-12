@@ -19,6 +19,7 @@ import type {
 import { useConfigs } from "@/lib/hooks/use-configs";
 import { ConfigCardList } from "./ConfigCardList";
 import { ConfigDefaultsEditor } from "./ConfigDefaultsEditor";
+import { ConfigTemplateEditor } from "./ConfigTemplateEditor";
 
 interface FormInit {
   name: string;
@@ -55,16 +56,19 @@ export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
     saveConfig,
     removeConfig,
     saveDefaults,
+    saveFields,
   } = useConfigs(boardgameId);
 
   const [formInit, setFormInit] = useState<FormInit | null>(null);
   const [formKey, setFormKey] = useState(0);
   const [editingDefaults, setEditingDefaults] = useState(false);
+  const [editingFields, setEditingFields] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const { requestConfirm, confirmDialog } = useConfirm();
 
   function openForm(init: FormInit) {
     setEditingDefaults(false);
+    setEditingFields(false);
     setFormInit(init);
     setFormKey(k => k + 1); // remount the form with fresh initial state
   }
@@ -72,6 +76,11 @@ export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
   async function submitDefaults(defaults: ConfigValues) {
     await saveDefaults(defaults);
     setEditingDefaults(false);
+  }
+
+  async function submitFields(fields: FieldSpec[]) {
+    await saveFields(fields);
+    setEditingFields(false);
   }
 
   function openCreate() {
@@ -135,10 +144,29 @@ export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
 
   if (!template) {
     return (
-      <p className="text-sm text-zinc-500">
-        Ce jeu n&apos;a pas encore de modèle de configuration. Les modèles sont
-        définis dans les données du projet (pas d&apos;éditeur en v1).
-      </p>
+      <section className="flex flex-col gap-3">
+        <h2 className={sectionHeading}>Configuration par défaut</h2>
+        {editingFields ? (
+          <ConfigTemplateEditor
+            initialFields={[]}
+            onSave={submitFields}
+            onCancel={() => setEditingFields(false)}
+          />
+        ) : (
+          <div className="flex flex-col gap-3 rounded-xl border border-black/10 p-4 text-sm dark:border-white/10">
+            <p className="text-zinc-500 dark:text-zinc-400">
+              Ce jeu n&apos;a pas encore de configuration (timer, paramètres…).
+            </p>
+            <button
+              type="button"
+              onClick={() => setEditingFields(true)}
+              className="self-start rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
+            >
+              Définir la configuration
+            </button>
+          </div>
+        )}
+      </section>
     );
   }
 
@@ -160,7 +188,13 @@ export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
       {/* 1 · The default configuration (pre-fills every new game / config). */}
       <section className="flex flex-col gap-3">
         <h2 className={sectionHeading}>Configuration par défaut</h2>
-        {editingDefaults ? (
+        {editingFields ? (
+          <ConfigTemplateEditor
+            initialFields={template.fields}
+            onSave={submitFields}
+            onCancel={() => setEditingFields(false)}
+          />
+        ) : editingDefaults ? (
           <ConfigDefaultsEditor
             template={template}
             onSave={submitDefaults}
@@ -180,16 +214,28 @@ export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
                 </div>
               ))}
             </dl>
-            <button
-              type="button"
-              onClick={() => {
-                setFormInit(null);
-                setEditingDefaults(true);
-              }}
-              className="self-start rounded-lg border border-black/10 px-4 py-2 font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
-            >
-              Modifier la configuration par défaut
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setFormInit(null);
+                  setEditingDefaults(true);
+                }}
+                className="self-start rounded-lg border border-black/10 px-4 py-2 font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+              >
+                Modifier la configuration par défaut
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFormInit(null);
+                  setEditingFields(true);
+                }}
+                className="self-start rounded-lg border border-black/10 px-4 py-2 font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+              >
+                Modifier les champs
+              </button>
+            </div>
           </div>
         )}
       </section>

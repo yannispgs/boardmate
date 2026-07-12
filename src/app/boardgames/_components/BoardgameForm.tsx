@@ -12,6 +12,7 @@ import { ChevronRightIcon, UploadIcon } from "@/components/icons";
 import type {
   Boardgame,
   BoardgameId,
+  BoardgameKind,
   NewBoardgame,
   ScoreSheetItem,
   ScoringSpec,
@@ -32,6 +33,11 @@ interface FormState {
   tags: string;
   // Sequential turns, or everyone-plays-at-once (Splito).
   turnMode: TurnMode;
+  kind: BoardgameKind;
+  // Dice tracking (e.g. Catan's 2×d6): when on, `diceCount` × d`diceSides`.
+  diceTracked: boolean;
+  diceCount: string;
+  diceSides: string;
   scored: boolean;
   scoreTiming: "final" | "live";
   // "total" = one number per player; "categories" = a per-category scoresheet
@@ -52,6 +58,10 @@ const EMPTY: FormState = {
   roundLimit: "",
   tags: "",
   turnMode: "sequential",
+  kind: "competitive",
+  diceTracked: false,
+  diceCount: "",
+  diceSides: "",
   scored: false,
   scoreTiming: "final",
   entry: "total",
@@ -73,6 +83,10 @@ function fromBoardgame(b: Boardgame): FormState {
     roundLimit: b.roundLimit?.toString() ?? "",
     tags: b.tags.join(", "),
     turnMode: b.turnMode,
+    kind: b.kind,
+    diceTracked: b.dice !== null,
+    diceCount: b.dice?.count?.toString() ?? "",
+    diceSides: b.dice?.sides?.toString() ?? "",
     scored: s !== null,
     scoreTiming: s?.timing ?? "final",
     entry: s?.entry ?? "total",
@@ -164,6 +178,13 @@ function toInput(
       .map(t => t.trim())
       .filter(Boolean),
     turnMode: form.turnMode,
+    kind: form.kind,
+    dice: form.diceTracked
+      ? {
+          count: toNum(form.diceCount) ?? 2,
+          sides: toNum(form.diceSides) ?? 6,
+        }
+      : null,
     scoring,
   };
 }
@@ -486,6 +507,57 @@ export function BoardgameForm({
           par round, sans rotation joueur par joueur.
         </span>
       </label>
+
+      <label className="flex flex-col gap-1 text-xs text-zinc-500">
+        Type de jeu
+        <select
+          value={form.kind}
+          onChange={e =>
+            setForm({ ...form, kind: e.target.value as BoardgameKind })
+          }
+          className={field}
+        >
+          <option value="competitive">Compétitif</option>
+          <option value="cooperative">Coopératif</option>
+          <option value="hybrid">Hybride</option>
+        </select>
+      </label>
+
+      <fieldset className="flex flex-col gap-2 rounded-lg border border-black/10 p-3 dark:border-white/10">
+        <legend className="px-1 text-xs text-zinc-500">Dés</legend>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={form.diceTracked}
+            onChange={e => setForm({ ...form, diceTracked: e.target.checked })}
+          />
+          Suivre les lancers de dés
+        </label>
+        {form.diceTracked ? (
+          <div className="grid grid-cols-2 gap-3">
+            <label className="flex flex-col gap-1 text-xs text-zinc-500">
+              Nombre de dés
+              <input
+                type="number"
+                min={1}
+                value={form.diceCount}
+                onChange={e => setForm({ ...form, diceCount: e.target.value })}
+                className={field}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-zinc-500">
+              Faces par dé
+              <input
+                type="number"
+                min={2}
+                value={form.diceSides}
+                onChange={e => setForm({ ...form, diceSides: e.target.value })}
+                className={field}
+              />
+            </label>
+          </div>
+        ) : null}
+      </fieldset>
 
       <LogoPicker
         logoUrl={logoUrl}
