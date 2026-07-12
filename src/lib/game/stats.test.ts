@@ -182,6 +182,14 @@ describe("timeHog", () => {
     });
   });
 
+  it("flags the hog even when they are not first in the list", () => {
+    // The leader sits mid-list, so the scan must switch to a later player.
+    expect(timeHog([p("Bob", 25), p("Alice", 60), p("Cara", 15)])).toEqual({
+      name: "Alice",
+      sharePct: 60,
+    });
+  });
+
   it("returns null when the leader is near an even split", () => {
     expect(timeHog([p("Alice", 40), p("Bob", 35), p("Cara", 25)])).toBeNull();
   });
