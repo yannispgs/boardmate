@@ -19,12 +19,15 @@ export function GameCardList({
   ended = false,
   collapsible = false,
   title,
+  onAbandon,
 }: {
   games: GameListItem[];
   boardgameFor: (id: BoardgameId) => Boardgame | undefined;
   ended?: boolean;
   collapsible?: boolean;
   title?: string;
+  /** Ongoing games only: abandon (delete) a game. */
+  onAbandon?: (game: GameListItem) => void;
 }) {
   const cards = (
     <ul className="flex flex-col gap-2">
@@ -38,6 +41,7 @@ export function GameCardList({
             boardgameName={boardgame?.name ?? "Partie"}
             logoUrl={boardgame?.logoUrl ?? null}
             ended={ended}
+            onAbandon={onAbandon ? () => onAbandon(game) : undefined}
           />
         );
       })}

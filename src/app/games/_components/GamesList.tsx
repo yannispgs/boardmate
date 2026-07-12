@@ -2,16 +2,30 @@
 
 import Link from "next/link";
 
-import type { BoardgameId } from "@/lib/domain";
+import { useConfirm } from "@/components/use-confirm";
+import type { BoardgameId, GameListItem } from "@/lib/domain";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useGames } from "@/lib/hooks/use-games";
 import { GameCardList } from "./GameCardList";
 
 export function GamesList() {
-  const { games, endedGames, loading, error } = useGames();
+  const { games, endedGames, loading, error, removeGame } = useGames();
   const { boardgames } = useBoardgames();
+  const { requestConfirm, confirmDialog } = useConfirm();
 
   const boardgameFor = (id: BoardgameId) => boardgames.find(b => b.id === id);
+
+  function handleAbandon(game: GameListItem) {
+    const name = boardgameFor(game.boardgameId)?.name ?? "cette partie";
+
+    requestConfirm({
+      message:
+        `Abandonner la partie de « ${name} » ?\n\n` +
+        "Elle sera définitivement supprimée (aucun score enregistré).",
+      confirmLabel: "Abandonner",
+      onConfirm: () => removeGame(game.id),
+    });
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -35,7 +49,11 @@ export function GamesList() {
       ) : (
         <div className="flex flex-col gap-6">
           {games.length > 0 ? (
-            <GameCardList games={games} boardgameFor={boardgameFor} />
+            <GameCardList
+              games={games}
+              boardgameFor={boardgameFor}
+              onAbandon={handleAbandon}
+            />
           ) : (
             <p className="text-sm text-zinc-500">Aucune partie en cours.</p>
           )}
@@ -51,6 +69,8 @@ export function GamesList() {
           ) : null}
         </div>
       )}
+
+      {confirmDialog}
     </div>
   );
 }

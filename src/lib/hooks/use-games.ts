@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import type { Game, GameListItem, NewGame } from "@/lib/domain";
+import type { Game, GameId, GameListItem, NewGame } from "@/lib/domain";
 import { getGameRepository } from "@/lib/repositories";
 
 interface UseGames {
@@ -13,6 +13,8 @@ interface UseGames {
   loading: boolean;
   error: string | null;
   createGame: (input: NewGame) => Promise<Game>;
+  /** Abandons a game — permanently deletes it and its rows. */
+  removeGame: (id: GameId) => Promise<void>;
 }
 
 /**
@@ -59,5 +61,13 @@ export function useGames(): UseGames {
     [repo, refresh],
   );
 
-  return { games, endedGames, loading, error, createGame };
+  const removeGame = useCallback(
+    async (id: GameId) => {
+      await repo.remove(id);
+      await refresh();
+    },
+    [repo, refresh],
+  );
+
+  return { games, endedGames, loading, error, createGame, removeGame };
 }
