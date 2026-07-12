@@ -153,6 +153,22 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
     loadSound(RING_URL);
   }, []);
 
+  // Once the final turn is reached the game is over (scoring takes over): stop
+  // the timer so it doesn't keep ticking with nothing left to time.
+  useEffect(() => {
+    if (game?.status !== "ongoing") {
+      return;
+    }
+    const final = isFinalTurn(
+      game.turn,
+      turnsPerRound(game.boardgame.turnMode, game.players.length),
+      game.boardgame.roundLimit,
+    );
+    if (final) {
+      timer.pause();
+    }
+  }, [game, timer.pause]);
+
   // Whoever is monopolising the table's time (from the turns played so far). A
   // live value: it updates as turns are recorded and clears once no one is over
   // their fair share, driving the banner below.
@@ -174,24 +190,35 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
       return;
     }
     setBusy(true);
+
+    // Snapshot the finished turn's numbers, then restart the timer *immediately*
+    // — the new turn's clock starts on the click, not when Supabase replies, so
+    // the countdown never keeps ticking during the async persist.
+    const elapsedS = timer.elapsedS;
+    const pauses = timer.pauseStats();
+    const overtimeS = Math.max(0, elapsedS - durationS);
+    const waitedSeconds =
+      blockedById !== null && blockedAtRef.current !== null
+        ? (Date.now() - blockedAtRef.current) / 1000
+        : 0;
+    const blocked = blockedById;
+    timer.reset();
+    pickBlocked(null);
+
     try {
-      const pauses = timer.pauseStats();
-      const overtimeS = Math.max(0, timer.elapsedS - durationS);
-      const waitedSeconds =
-        blockedById !== null && blockedAtRef.current !== null
-          ? (Date.now() - blockedAtRef.current) / 1000
-          : 0;
       await repo.advanceTurn(
         game.id,
-        timer.elapsedS,
+        elapsedS,
         pauses.count,
         pauses.durationS,
         overtimeS,
-        { turnMode: game.boardgame.turnMode, blockedById, waitedSeconds },
+        {
+          turnMode: game.boardgame.turnMode,
+          blockedById: blocked,
+          waitedSeconds,
+        },
       );
-      pickBlocked(null);
       await load();
-      timer.reset();
     } catch {
       setError("Impossible de passer au tour suivant.");
     } finally {
@@ -405,19 +432,25 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         />
       )}
 
-      <TimerRing
-        remainingS={remainingS}
-        durationS={durationS}
-        running={timer.running}
-        onToggle={timer.toggle}
-        size={dice ? 168 : undefined}
-      />
+      {/* The countdown vanishes on the final turn — the game is over and the
+          scoring below takes its place (nothing left to time). */}
+      {atFinalTurn ? null : (
+        <>
+          <TimerRing
+            remainingS={remainingS}
+            durationS={durationS}
+            running={timer.running}
+            onToggle={timer.toggle}
+            size={dice ? 168 : undefined}
+          />
 
-      <DurationEditor
-        durationS={durationS}
-        onChange={s => setDurationOverride(s)}
-        onPause={timer.pause}
-      />
+          <DurationEditor
+            durationS={durationS}
+            onChange={s => setDurationOverride(s)}
+            onPause={timer.pause}
+          />
+        </>
+      )}
 
       {dice ? (
         <DiceBar
@@ -439,7 +472,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
 
       {atFinalTurn ? (
         <p className="text-center text-sm font-semibold text-amber-600 dark:text-amber-400">
-          Dernier tour joué — la partie est terminée.
+          Dernier tour joué — comptez les points ci-dessous.
         </p>
       ) : (
         <button

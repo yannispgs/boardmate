@@ -71,6 +71,10 @@ test("ends automatically after the last round, then scores", async ({
     await expect(
       page.getByRole("img", { name: "Fin de la partie" }),
     ).toBeVisible();
+    // The countdown is gone — nothing left to time; the scoring takes its place.
+    await expect(
+      page.getByRole("button", { name: /Durée du tour/ }),
+    ).toHaveCount(0);
 
     await page.getByRole("button", { name: "Compter les points" }).click();
     await page.getByLabel(`Points — ${players[0]}`).fill("5");
