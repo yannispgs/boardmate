@@ -331,6 +331,14 @@ export function createGameRepository(
       return toGame(game);
     },
 
+    async remove(id: GameId) {
+      // Turns / players / scores / dice cascade from the games row's FKs.
+      const { error } = await games().delete().eq("id", id);
+      if (error) {
+        throw new Error(`Suppression de la partie: ${error.message}`);
+      }
+    },
+
     async advanceTurn(
       id: GameId,
       elapsedSeconds: number,

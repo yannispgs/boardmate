@@ -128,6 +128,12 @@ export interface GameRepository {
   getPopulated(id: GameId): Promise<PopulatedGame | null>;
   create(input: NewGame): Promise<Game>;
   /**
+   * Permanently deletes a game and all its rows (turns, scores, dice) — used to
+   * abandon a game in progress. History deletion goes through this too, but the
+   * UI only offers it for ongoing games.
+   */
+  remove(id: GameId): Promise<void>;
+  /**
    * Records the current turn — its active time, any pauses (count + total
    * paused seconds, ≥ 5 s each), and the overtime taken beyond the allotted
    * duration — then advances. Sequential games rotate to the next player; for a

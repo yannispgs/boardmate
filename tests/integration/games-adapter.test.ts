@@ -264,6 +264,59 @@ describe("games adapter — turn rotation & time logging", () => {
   });
 });
 
+describe("games adapter — removing (abandoning) a game", () => {
+  it("deletes the game and its rows, and recomputes has_games", async () => {
+    const admin = serviceClient();
+    // A throwaway boardgame so the game is its only one.
+    const { data: bg } = await admin
+      .from("boardgames")
+      .insert({ name: `Abandon ${Date.now().toString(36)}` })
+      .select("id")
+      .single();
+    const bgId = bg?.id as BoardgameId;
+
+    try {
+      const game = await repo().create({
+        boardgameId: bgId,
+        configId: null,
+        playerIds,
+      });
+      await repo().advanceTurn(game.id, 10, 0, 0, 0); // leaves a game_turn
+
+      // Creating the game flipped the boardgame to "has games".
+      const before = await admin
+        .from("boardgames")
+        .select("has_games")
+        .eq("id", bgId)
+        .single();
+      expect(before.data?.has_games).toBe(true);
+
+      await repo().remove(game.id);
+
+      expect(await repo().getPopulated(game.id)).toBeNull();
+      const { count } = await admin
+        .from("game_players")
+        .select("*", { count: "exact", head: true })
+        .eq("game_id", game.id);
+      expect(count).toBe(0);
+
+      // Deleting its only game recomputed has_games back to false.
+      const after = await admin
+        .from("boardgames")
+        .select("has_games")
+        .eq("id", bgId)
+        .single();
+      expect(after.data?.has_games).toBe(false);
+    } finally {
+      await admin.from("boardgames").delete().eq("id", bgId);
+    }
+  });
+
+  it("rethrows a generic error on an invalid id", async () => {
+    await expect(repo().remove("not-a-uuid" as GameId)).rejects.toThrow();
+  });
+});
+
 describe("games adapter — listing & ending", () => {
   it("lists ongoing by default, then moves to ended with a winner", async () => {
     const game = await repo().create({

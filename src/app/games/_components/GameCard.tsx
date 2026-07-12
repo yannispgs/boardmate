@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { TrashIcon } from "@/components/icons";
 import { Tooltip } from "@/components/Tooltip";
 import type { GameListItem, PlayerId } from "@/lib/domain";
 
@@ -103,11 +104,14 @@ export function GameCard({
   boardgameName,
   logoUrl,
   ended = false,
+  onAbandon,
 }: {
   game: GameListItem;
   boardgameName: string;
   logoUrl: string | null;
   ended?: boolean;
+  /** When set (ongoing games only), shows an "abandon" (delete) button. */
+  onAbandon?: () => void;
 }) {
   const count = game.players.length;
   const currentPlayer = game.players.find(p => p.id === game.currentPlayerId);
@@ -116,10 +120,10 @@ export function GameCard({
   const highlightId = ended ? null : game.currentPlayerId;
 
   return (
-    <li>
+    <li className="flex items-stretch gap-2">
       <Link
         href={`/games/${game.id}/play`}
-        className={`flex items-center justify-between gap-3 rounded-xl border border-black/10 bg-white px-4 py-3 transition hover:border-indigo-400 dark:border-white/10 dark:bg-zinc-900 ${
+        className={`flex flex-1 items-center justify-between gap-3 rounded-xl border border-black/10 bg-white px-4 py-3 transition hover:border-indigo-400 dark:border-white/10 dark:bg-zinc-900 ${
           ended ? "opacity-60" : ""
         }`}
       >
@@ -188,6 +192,17 @@ export function GameCard({
           </span>
         )}
       </Link>
+      {onAbandon ? (
+        <button
+          type="button"
+          onClick={onAbandon}
+          aria-label={`Abandonner la partie de ${boardgameName}`}
+          title="Abandonner la partie"
+          className="flex shrink-0 items-center rounded-xl border border-black/10 px-3 text-zinc-400 transition hover:border-red-400 hover:text-red-500 dark:border-white/10"
+        >
+          <TrashIcon />
+        </button>
+      ) : null}
     </li>
   );
 }
