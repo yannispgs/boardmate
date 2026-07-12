@@ -20,10 +20,26 @@ test("plays a simultaneous game: shared round + wait picker", async ({
     await page
       .getByRole("button", { name: "Sans configuration", exact: true })
       .click();
+
+    // No turn order → the step title omits "(dans l'ordre de jeu)".
+    await expect(
+      page.getByRole("heading", {
+        name: "3 · Choisis les joueurs",
+        exact: true,
+      }),
+    ).toBeVisible();
     for (const name of players) {
       await page.getByRole("button", { name, exact: true }).click();
     }
+    // Selection is a checkmark, not an order number.
+    await expect(page.getByText("✓").first()).toBeVisible();
     await page.getByRole("button", { name: "Continuer →" }).click();
+
+    // Recap: no "premier joueur" / wheel for a game without order.
+    await expect(page.getByText("Premier joueur")).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: /Tirer au sort/ }),
+    ).toHaveCount(0);
 
     await page.getByRole("button", { name: "Lancer la partie" }).click();
     await page

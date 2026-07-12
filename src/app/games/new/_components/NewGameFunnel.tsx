@@ -106,6 +106,7 @@ export function NewGameFunnel() {
       <PlayersStep
         minPlayers={boardgame.minPlayers}
         maxPlayers={boardgame.maxPlayers}
+        simultaneous={boardgame.turnMode === "simultaneous"}
         initial={players}
         onBack={() => setStep(2)}
         onConfirm={picked => {
@@ -210,12 +211,15 @@ function ConfigStep({
 function PlayersStep({
   minPlayers,
   maxPlayers,
+  simultaneous,
   initial,
   onConfirm,
   onBack,
 }: {
   minPlayers: number | null;
   maxPlayers: number | null;
+  /** Simultaneous games have no turn order — selection is just a checkmark. */
+  simultaneous: boolean;
   initial: Player[];
   onConfirm: (players: Player[]) => void;
   onBack: () => void;
@@ -245,7 +249,14 @@ function PlayersStep({
   }
 
   return (
-    <Step title="3 · Choisis les joueurs (dans l’ordre de jeu)" onBack={onBack}>
+    <Step
+      title={
+        simultaneous
+          ? "3 · Choisis les joueurs"
+          : "3 · Choisis les joueurs (dans l’ordre de jeu)"
+      }
+      onBack={onBack}
+    >
       {loading ? (
         <p className="text-sm text-zinc-500">Chargement…</p>
       ) : active.length === 0 ? (
@@ -270,7 +281,7 @@ function PlayersStep({
                   <span>{p.name}</span>
                   {picked ? (
                     <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-semibold text-white">
-                      {order + 1}
+                      {simultaneous ? "✓" : order + 1}
                     </span>
                   ) : null}
                 </button>
@@ -328,6 +339,8 @@ function RecapStep({
   const [values, setValues] = useState<ConfigValues | null>(null);
   const [invalid, setInvalid] = useState<string | null>(null);
   const [wheelOpen, setWheelOpen] = useState(false);
+  // Simultaneous games have no turn order → no numbered list, no first player.
+  const simultaneous = boardgame.turnMode === "simultaneous";
 
   // Prefill the form from the selected config over the template defaults, so
   // every attribute shows a value that can be tweaked for this game only.
@@ -410,12 +423,14 @@ function RecapStep({
             <div className="flex justify-between gap-3">
               <dt className="text-zinc-500 dark:text-zinc-400">Joueurs</dt>
               <dd className="text-right font-medium">
-                {players.map((p, i) => `${i + 1}. ${p.name}`).join(" · ")}
+                {simultaneous
+                  ? players.map(p => p.name).join(", ")
+                  : players.map((p, i) => `${i + 1}. ${p.name}`).join(" · ")}
               </dd>
             </div>
           </dl>
 
-          {players.length >= 2 ? (
+          {!simultaneous && players.length >= 2 ? (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-black/10 bg-black/[0.02] p-4 text-sm dark:border-white/10 dark:bg-white/[0.02]">
               <span>
                 <span className="text-zinc-500 dark:text-zinc-400">
