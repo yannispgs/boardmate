@@ -413,24 +413,25 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         {roundLimit !== null ? ` / ${roundLimit}` : ""}
       </p>
 
-      {simultaneous ? (
-        <WaitPicker
-          players={game.players.map(p => p.player)}
-          value={blockedById}
-          onChange={pickBlocked}
-        />
-      ) : (
-        <TurnFlow
-          players={game.players.map(p => p.player)}
-          currentPlayerId={game.currentPlayerId}
-          round={game.round}
-          roundLimit={roundLimit}
-        />
-      )}
-
-      {/* The countdown gives way to the score form once you end the game. */}
+      {/* The whole play block (who's up / countdown / dice) gives way to the
+          score form once you end the game. */}
       {scoreFormOpen ? null : (
         <>
+          {simultaneous ? (
+            <WaitPicker
+              players={game.players.map(p => p.player)}
+              value={blockedById}
+              onChange={pickBlocked}
+            />
+          ) : (
+            <TurnFlow
+              players={game.players.map(p => p.player)}
+              currentPlayerId={game.currentPlayerId}
+              round={game.round}
+              roundLimit={roundLimit}
+            />
+          )}
+
           <TimerRing
             remainingS={remainingS}
             durationS={durationS}
@@ -444,20 +445,20 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
             onChange={s => setDurationOverride(s)}
             onPause={timer.pause}
           />
+
+          {dice ? (
+            <DiceBar
+              values={diceRange}
+              stats={dStats}
+              lastRolled={lastRolled}
+              onRoll={handleRoll}
+              disabled={game.status !== "ongoing"}
+              capNotice={rollCapNotice}
+              maxRolls={game.turn}
+            />
+          ) : null}
         </>
       )}
-
-      {dice ? (
-        <DiceBar
-          values={diceRange}
-          stats={dStats}
-          lastRolled={lastRolled}
-          onRoll={handleRoll}
-          disabled={game.status !== "ongoing"}
-          capNotice={rollCapNotice}
-          maxRolls={game.turn}
-        />
-      ) : null}
 
       {error ? (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
