@@ -63,6 +63,9 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   }, []);
   const [scoreOpen, setScoreOpen] = useState(false);
   const [endOpen, setEndOpen] = useState(false);
+  // Whether the end-of-game score form (final total / winner pick) is open —
+  // when it is, it takes the timer's place.
+  const [endFormOpen, setEndFormOpen] = useState(false);
   // Category scoring: the end sheet modal, then the reveal → table phases.
   const [catOpen, setCatOpen] = useState(false);
   const [phase, setPhase] = useState<"play" | "reveal" | "table">("play");
@@ -153,21 +156,14 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
     loadSound(RING_URL);
   }, []);
 
-  // Once the final turn is reached the game is over (scoring takes over): stop
-  // the timer so it doesn't keep ticking with nothing left to time.
+  // The end score form replaces the timer once opened; pause the timer then so
+  // it doesn't keep ticking (and running down the wake lock) behind the form.
+  const scoreFormOpen = endFormOpen || catOpen;
   useEffect(() => {
-    if (game?.status !== "ongoing") {
-      return;
-    }
-    const final = isFinalTurn(
-      game.turn,
-      turnsPerRound(game.boardgame.turnMode, game.players.length),
-      game.boardgame.roundLimit,
-    );
-    if (final) {
+    if (scoreFormOpen) {
       timer.pause();
     }
-  }, [game, timer.pause]);
+  }, [scoreFormOpen, timer.pause]);
 
   // Whoever is monopolising the table's time (from the turns played so far). A
   // live value: it updates as turns are recorded and clears once no one is over
@@ -432,9 +428,8 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         />
       )}
 
-      {/* The countdown vanishes on the final turn — the game is over and the
-          scoring below takes its place (nothing left to time). */}
-      {atFinalTurn ? null : (
+      {/* The countdown gives way to the score form once you end the game. */}
+      {scoreFormOpen ? null : (
         <>
           <TimerRing
             remainingS={remainingS}
@@ -470,9 +465,9 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         </p>
       ) : null}
 
-      {atFinalTurn ? (
+      {scoreFormOpen ? null : atFinalTurn ? (
         <p className="text-center text-sm font-semibold text-amber-600 dark:text-amber-400">
-          Dernier tour joué — comptez les points ci-dessous.
+          Dernier tour — terminez la partie pour compter les points.
         </p>
       ) : (
         <button
@@ -535,6 +530,8 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
               winCondition={game.boardgame.scoring.winCondition}
               onEnd={handleEnd}
               disabled={busy}
+              open={endFormOpen}
+              onOpenChange={setEndFormOpen}
             />
           )
         ) : (
@@ -542,6 +539,8 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
             players={game.players.map(p => p.player)}
             onPick={handleEnd}
             disabled={busy}
+            open={endFormOpen}
+            onOpenChange={setEndFormOpen}
           />
         )
       ) : null}
@@ -817,18 +816,20 @@ function WinnerPicker({
   players,
   onPick,
   disabled,
+  open,
+  onOpenChange,
 }: {
   players: { id: PlayerId; name: string }[];
   onPick: (id: PlayerId) => void;
   disabled: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
-
   if (!open) {
     return (
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => onOpenChange(true)}
         className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-black transition hover:bg-amber-300"
       >
         Terminer la partie
@@ -852,7 +853,7 @@ function WinnerPicker({
       ))}
       <button
         type="button"
-        onClick={() => setOpen(false)}
+        onClick={() => onOpenChange(false)}
         className="text-xs text-zinc-500 hover:underline"
       >
         Annuler
@@ -872,6 +873,8 @@ function ScoreEntry({
   winCondition,
   onEnd,
   disabled,
+  open,
+  onOpenChange,
 }: {
   players: { id: PlayerId; name: string }[];
   winCondition: WinCondition;
@@ -880,8 +883,9 @@ function ScoreEntry({
     scores: Array<{ playerId: PlayerId; score: number }>,
   ) => void;
   disabled: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [raw, setRaw] = useState<Record<string, string>>({});
   const [override, setOverride] = useState<PlayerId | null>(null);
 
@@ -902,7 +906,7 @@ function ScoreEntry({
     return (
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => onOpenChange(true)}
         className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-black transition hover:bg-amber-300"
       >
         Terminer la partie
@@ -958,7 +962,7 @@ function ScoreEntry({
       </button>
       <button
         type="button"
-        onClick={() => setOpen(false)}
+        onClick={() => onOpenChange(false)}
         className="text-xs text-zinc-500 hover:underline"
       >
         Annuler
