@@ -6,7 +6,7 @@ import { Modal } from "@/components/Modal";
 import { StatTile } from "@/components/StatTile";
 import type { DiceSpec, GamePlayer, GameTurn, Player } from "@/lib/domain";
 import { formatDuration } from "@/lib/game/format-time";
-import { computeGameStats, timeHog } from "@/lib/game/stats";
+import { computeGameStats, liveTimeHog } from "@/lib/game/stats";
 import { DiceTimeline } from "./DiceTimeline";
 import { PlayerStatCardList } from "./PlayerStatCardList";
 
@@ -20,15 +20,18 @@ import { PlayerStatCardList } from "./PlayerStatCardList";
 export function StatsPanel({
   players,
   turns,
+  currentRound,
   dice,
 }: {
   players: Array<GamePlayer & { player: Player }>;
   turns: GameTurn[];
+  /** The in-progress round, so the hog only counts completed rounds. */
+  currentRound: number;
   dice?: { rolls: number[]; spec: DiceSpec };
 }) {
   const [open, setOpen] = useState(false);
   const stats = computeGameStats({ players, turns });
-  const hog = timeHog(stats.players);
+  const hog = liveTimeHog(players, turns, currentRound);
   const hasRolls = (dice?.rolls.length ?? 0) > 0;
 
   return (

@@ -290,15 +290,23 @@ test("live-banners a time monopoly and hides it when time is balanced", async ({
       n => (seeded ?? []).find(p => p.name === n)?.id as string,
     );
 
-    // An ongoing Catan game whose round-1 turns had the given durations.
-    async function seedOngoing(durations: number[]) {
+    // An ongoing Catan game: one turn per entry in `durations` (played in
+    // `turnRound`), the game sitting in `gameRound`. Fewer durations than
+    // players = a round still in progress.
+    async function seedOngoing(
+      durations: number[],
+      {
+        gameRound = 2,
+        turnRound = 1,
+      }: { gameRound?: number; turnRound?: number } = {},
+    ) {
       const { data: game } = await admin
         .from("games")
         .insert({
           boardgame_id: CATAN_ID,
           status: "ongoing",
-          round: 2,
-          turn: ids.length + 1,
+          round: gameRound,
+          turn: durations.length + 1,
           current_player_id: ids[0],
         })
         .select("id")
@@ -314,12 +322,12 @@ test("live-banners a time monopoly and hides it when time is balanced", async ({
         })),
       );
       await admin.from("game_turns").insert(
-        ids.map((player_id, i) => ({
+        durations.map((duration_s, i) => ({
           game_id: gameId,
-          player_id,
-          round: 1,
+          player_id: ids[i],
+          round: turnRound,
           turn_no: i + 1,
-          duration_s: durations[i],
+          duration_s,
         })),
       );
 
@@ -337,6 +345,14 @@ test("live-banners a time monopoly and hides it when time is balanced", async ({
     // A balanced game → nobody is over their fair share → no banner.
     const evenGame = await seedOngoing([20, 20, 20]);
     await page.goto(`/games/${evenGame}/play`);
+
+    await expect(page.getByText(/monopolise le temps/)).toHaveCount(0);
+
+    // Mid-round: only player 1 has played this (in-progress) round 1, holding
+    // all the recorded time — but no round is complete yet, so no banner. The
+    // hog only refreshes once everyone has played the round.
+    const midRound = await seedOngoing([100], { gameRound: 1, turnRound: 1 });
+    await page.goto(`/games/${midRound}/play`);
 
     await expect(page.getByText(/monopolise le temps/)).toHaveCount(0);
   } finally {
