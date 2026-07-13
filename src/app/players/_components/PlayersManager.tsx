@@ -2,6 +2,7 @@
 
 import { type FormEvent, useState } from "react";
 
+import { StickyActionBar } from "@/components/StickyActionBar";
 import { useConfirm } from "@/components/use-confirm";
 import type { Player } from "@/lib/domain";
 import { usePlayers } from "@/lib/hooks/use-players";
@@ -132,7 +133,7 @@ export function PlayersManager() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
       {actionError ? (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
           {actionError}
@@ -145,92 +146,100 @@ export function PlayersManager() {
         </p>
       ) : null}
 
-      {/* Existing players first */}
-      {loading ? (
-        <p className="text-sm text-zinc-500">Chargement…</p>
-      ) : players.length === 0 ? (
-        <p className="text-sm text-zinc-500">
-          Aucun joueur pour l&apos;instant.
-        </p>
-      ) : (
-        <div className="flex flex-col gap-6">
-          <PlayerCardList
-            title="Joueurs actifs"
-            players={active}
-            onToggle={p => handleToggle(p, false)}
-            actionLabel="Désactiver"
-            onDelete={handleDelete}
-          />
-          {inactive.length > 0 ? (
+      {/* Only the list of players scrolls; the header above and the action bar
+          below stay put. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto pb-4">
+        {loading ? (
+          <p className="text-sm text-zinc-500">Chargement…</p>
+        ) : players.length === 0 ? (
+          <p className="text-sm text-zinc-500">
+            Aucun joueur pour l&apos;instant.
+          </p>
+        ) : (
+          <>
             <PlayerCardList
-              title="Désactivés"
-              players={inactive}
-              onToggle={p => handleToggle(p, true)}
-              actionLabel="Réactiver"
+              title="Joueurs actifs"
+              players={active}
+              onToggle={p => handleToggle(p, false)}
+              actionLabel="Désactiver"
               onDelete={handleDelete}
-              dimmed
-              collapsible
             />
-          ) : null}
-        </div>
-      )}
+            {inactive.length > 0 ? (
+              <PlayerCardList
+                title="Désactivés"
+                players={inactive}
+                onToggle={p => handleToggle(p, true)}
+                actionLabel="Réactiver"
+                onDelete={handleDelete}
+                dimmed
+                collapsible
+              />
+            ) : null}
+          </>
+        )}
+      </div>
 
-      {/* Add a player: the form lives below the list, behind a button */}
-      {formOpen ? (
-        <form
-          onSubmit={handleSubmit}
-          className="flex flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10"
-        >
-          <h2 className="text-sm font-semibold">Nouveau joueur</h2>
-          <input
-            value={name}
-            onChange={e => {
-              setName(e.target.value);
-              if (nameError) {
-                setNameError(null);
-              }
-            }}
-            placeholder="Nom du joueur"
-            aria-label="Nom du joueur"
-            aria-invalid={nameError ? true : undefined}
-            maxLength={20}
-            className={`rounded-lg border bg-white px-3 py-2 outline-none dark:bg-zinc-900 ${
-              nameError
-                ? "border-red-500 focus:border-red-500"
-                : "border-black/15 focus:border-indigo-500 dark:border-white/15"
-            }`}
-          />
-          {nameError ? (
-            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-              {nameError}
-            </p>
-          ) : null}
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={submitting || name.trim() === ""}
-              className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
-            >
-              Ajouter
-            </button>
-            <button
-              type="button"
-              onClick={closeForm}
-              className="rounded-lg border border-black/10 px-4 py-2 transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
-            >
-              Annuler
-            </button>
-          </div>
-        </form>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setFormOpen(true)}
-          className="self-start rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
-        >
-          + Ajouter un joueur
-        </button>
-      )}
+      {/* Add a player: fixed at the bottom, the form expands in place. */}
+      <StickyActionBar>
+        {formOpen ? (
+          <form
+            onSubmit={handleSubmit}
+            className="flex flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10"
+          >
+            <h2 className="text-sm font-semibold">Nouveau joueur</h2>
+            <input
+              value={name}
+              onChange={e => {
+                setName(e.target.value);
+                if (nameError) {
+                  setNameError(null);
+                }
+              }}
+              placeholder="Nom du joueur"
+              aria-label="Nom du joueur"
+              aria-invalid={nameError ? true : undefined}
+              maxLength={20}
+              className={`rounded-lg border bg-white px-3 py-2 outline-none dark:bg-zinc-900 ${
+                nameError
+                  ? "border-red-500 focus:border-red-500"
+                  : "border-black/15 focus:border-indigo-500 dark:border-white/15"
+              }`}
+            />
+            {nameError ? (
+              <p
+                role="alert"
+                className="text-sm text-red-600 dark:text-red-400"
+              >
+                {nameError}
+              </p>
+            ) : null}
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={submitting || name.trim() === ""}
+                className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
+              >
+                Ajouter
+              </button>
+              <button
+                type="button"
+                onClick={closeForm}
+                className="rounded-lg border border-black/10 px-4 py-2 transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+              >
+                Annuler
+              </button>
+            </div>
+          </form>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setFormOpen(true)}
+            className="self-start rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
+          >
+            + Ajouter un joueur
+          </button>
+        )}
+      </StickyActionBar>
 
       {confirmDialog}
     </div>

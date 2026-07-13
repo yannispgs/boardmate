@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { StickyActionBar } from "@/components/StickyActionBar";
 import { useConfirm } from "@/components/use-confirm";
 import type { Boardgame } from "@/lib/domain";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
@@ -75,7 +76,7 @@ export function BoardgamesManager() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
       {actionError ? (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
           {actionError}
@@ -88,40 +89,47 @@ export function BoardgamesManager() {
         </p>
       ) : null}
 
-      {/* Existing boardgames first */}
-      {loading ? (
-        <p className="text-sm text-zinc-500">Chargement…</p>
-      ) : boardgames.length === 0 ? (
-        <p className="text-sm text-zinc-500">Aucun jeu pour l&apos;instant.</p>
-      ) : (
-        <div className="flex flex-col gap-6">
-          <BoardgameCardList
-            title="Jeux actifs"
-            boardgames={active}
-            onToggle={b => handleToggle(b, false)}
-            actionLabel="Désactiver"
-            onDelete={handleDelete}
-          />
-          {inactive.length > 0 ? (
+      {/* Only the list of games scrolls; the header above and the action bar
+          below stay put. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto pb-4">
+        {loading ? (
+          <p className="text-sm text-zinc-500">Chargement…</p>
+        ) : boardgames.length === 0 ? (
+          <p className="text-sm text-zinc-500">
+            Aucun jeu pour l&apos;instant.
+          </p>
+        ) : (
+          <>
             <BoardgameCardList
-              title="Désactivés"
-              boardgames={inactive}
-              onToggle={b => handleToggle(b, true)}
-              actionLabel="Réactiver"
+              title="Jeux actifs"
+              boardgames={active}
+              onToggle={b => handleToggle(b, false)}
+              actionLabel="Désactiver"
               onDelete={handleDelete}
-              dimmed
-              collapsible
             />
-          ) : null}
-        </div>
-      )}
+            {inactive.length > 0 ? (
+              <BoardgameCardList
+                title="Désactivés"
+                boardgames={inactive}
+                onToggle={b => handleToggle(b, true)}
+                actionLabel="Réactiver"
+                onDelete={handleDelete}
+                dimmed
+                collapsible
+              />
+            ) : null}
+          </>
+        )}
+      </div>
 
-      <Link
-        href="/boardgames/new"
-        className="self-start rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
-      >
-        + Ajouter un jeu
-      </Link>
+      <StickyActionBar>
+        <Link
+          href="/boardgames/new"
+          className="self-start rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
+        >
+          + Ajouter un jeu
+        </Link>
+      </StickyActionBar>
 
       {confirmDialog}
     </div>

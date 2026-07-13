@@ -9,8 +9,8 @@ export const metadata: Metadata = {
 
 export default function PlayersPage() {
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-6 py-10">
-      <header className="flex flex-col gap-1">
+    <main className="mx-auto flex h-dvh w-full max-w-2xl flex-col px-6">
+      <header className="flex shrink-0 flex-col gap-1 pt-10 pb-4">
         <Link
           href="/"
           className="text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"

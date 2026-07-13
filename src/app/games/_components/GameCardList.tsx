@@ -51,14 +51,14 @@ export function GameCardList({
 
   if (collapsible) {
     return (
-      <details className="group flex flex-col gap-2">
+      <details className="group flex flex-col">
         <summary
-          className={`flex cursor-pointer list-none items-center gap-1.5 ${headingClass}`}
+          className={`sticky top-0 z-10 flex cursor-pointer list-none items-center gap-1.5 bg-[var(--background)] pt-1 pb-2 ${headingClass}`}
         >
           <ChevronRightIcon className="h-3.5 w-3.5 transition-transform group-open:rotate-90" />
           {title} · {games.length}
         </summary>
-        <div className="mt-2">{cards}</div>
+        {cards}
       </details>
     );
   }
