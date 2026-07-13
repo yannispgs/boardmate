@@ -50,21 +50,23 @@ export function PlayerCardList({
 
   if (collapsible) {
     return (
-      <details className="group flex flex-col gap-2">
+      <details className="group flex flex-col">
         <summary
-          className={`flex cursor-pointer list-none items-center gap-1.5 ${headingClass}`}
+          className={`sticky top-0 z-10 flex cursor-pointer list-none items-center gap-1.5 bg-[var(--background)] pt-1 pb-2 ${headingClass}`}
         >
           <ChevronRightIcon className="h-3.5 w-3.5 transition-transform group-open:rotate-90" />
           {title} · {players.length}
         </summary>
-        <div className="mt-2">{cards}</div>
+        {cards}
       </details>
     );
   }
 
   return (
-    <section className="flex flex-col gap-2">
-      <h2 className={headingClass}>
+    <section className="flex flex-col">
+      <h2
+        className={`sticky top-0 z-10 bg-[var(--background)] pt-1 pb-2 ${headingClass}`}
+      >
         {title} · {players.length}
       </h2>
       {cards}

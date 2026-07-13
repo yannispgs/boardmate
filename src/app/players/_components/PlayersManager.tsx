@@ -133,7 +133,7 @@ export function PlayersManager() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
       {actionError ? (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
           {actionError}
@@ -146,38 +146,40 @@ export function PlayersManager() {
         </p>
       ) : null}
 
-      {/* Existing players first */}
-      {loading ? (
-        <p className="text-sm text-zinc-500">Chargement…</p>
-      ) : players.length === 0 ? (
-        <p className="text-sm text-zinc-500">
-          Aucun joueur pour l&apos;instant.
-        </p>
-      ) : (
-        <div className="flex flex-col gap-6">
-          <PlayerCardList
-            title="Joueurs actifs"
-            players={active}
-            onToggle={p => handleToggle(p, false)}
-            actionLabel="Désactiver"
-            onDelete={handleDelete}
-          />
-          {inactive.length > 0 ? (
+      {/* Only the list of players scrolls; the header above and the action bar
+          below stay put. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto pb-4">
+        {loading ? (
+          <p className="text-sm text-zinc-500">Chargement…</p>
+        ) : players.length === 0 ? (
+          <p className="text-sm text-zinc-500">
+            Aucun joueur pour l&apos;instant.
+          </p>
+        ) : (
+          <>
             <PlayerCardList
-              title="Désactivés"
-              players={inactive}
-              onToggle={p => handleToggle(p, true)}
-              actionLabel="Réactiver"
+              title="Joueurs actifs"
+              players={active}
+              onToggle={p => handleToggle(p, false)}
+              actionLabel="Désactiver"
               onDelete={handleDelete}
-              dimmed
-              collapsible
             />
-          ) : null}
-        </div>
-      )}
+            {inactive.length > 0 ? (
+              <PlayerCardList
+                title="Désactivés"
+                players={inactive}
+                onToggle={p => handleToggle(p, true)}
+                actionLabel="Réactiver"
+                onDelete={handleDelete}
+                dimmed
+                collapsible
+              />
+            ) : null}
+          </>
+        )}
+      </div>
 
-      {/* Add a player: pinned at the bottom of the screen, the form expands
-          in place. */}
+      {/* Add a player: fixed at the bottom, the form expands in place. */}
       <StickyActionBar>
         {formOpen ? (
           <form
