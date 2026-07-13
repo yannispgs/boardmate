@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { StickyActionBar } from "@/components/StickyActionBar";
 import { useConfirm } from "@/components/use-confirm";
 import type { BoardgameId, GameListItem } from "@/lib/domain";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
@@ -29,13 +30,6 @@ export function GamesList() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Link
-        href="/games/new"
-        className="self-start rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
-      >
-        + Nouvelle partie
-      </Link>
-
       {error ? (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
           {error}
@@ -69,6 +63,15 @@ export function GamesList() {
           ) : null}
         </div>
       )}
+
+      <StickyActionBar>
+        <Link
+          href="/games/new"
+          className="self-start rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
+        >
+          + Nouvelle partie
+        </Link>
+      </StickyActionBar>
 
       {confirmDialog}
     </div>

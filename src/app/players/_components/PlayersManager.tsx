@@ -2,6 +2,7 @@
 
 import { type FormEvent, useState } from "react";
 
+import { StickyActionBar } from "@/components/StickyActionBar";
 import { useConfirm } from "@/components/use-confirm";
 import type { Player } from "@/lib/domain";
 import { usePlayers } from "@/lib/hooks/use-players";
@@ -175,62 +176,68 @@ export function PlayersManager() {
         </div>
       )}
 
-      {/* Add a player: the form lives below the list, behind a button */}
-      {formOpen ? (
-        <form
-          onSubmit={handleSubmit}
-          className="flex flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10"
-        >
-          <h2 className="text-sm font-semibold">Nouveau joueur</h2>
-          <input
-            value={name}
-            onChange={e => {
-              setName(e.target.value);
-              if (nameError) {
-                setNameError(null);
-              }
-            }}
-            placeholder="Nom du joueur"
-            aria-label="Nom du joueur"
-            aria-invalid={nameError ? true : undefined}
-            maxLength={20}
-            className={`rounded-lg border bg-white px-3 py-2 outline-none dark:bg-zinc-900 ${
-              nameError
-                ? "border-red-500 focus:border-red-500"
-                : "border-black/15 focus:border-indigo-500 dark:border-white/15"
-            }`}
-          />
-          {nameError ? (
-            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-              {nameError}
-            </p>
-          ) : null}
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={submitting || name.trim() === ""}
-              className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
-            >
-              Ajouter
-            </button>
-            <button
-              type="button"
-              onClick={closeForm}
-              className="rounded-lg border border-black/10 px-4 py-2 transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
-            >
-              Annuler
-            </button>
-          </div>
-        </form>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setFormOpen(true)}
-          className="self-start rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
-        >
-          + Ajouter un joueur
-        </button>
-      )}
+      {/* Add a player: pinned at the bottom of the screen, the form expands
+          in place. */}
+      <StickyActionBar>
+        {formOpen ? (
+          <form
+            onSubmit={handleSubmit}
+            className="flex flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10"
+          >
+            <h2 className="text-sm font-semibold">Nouveau joueur</h2>
+            <input
+              value={name}
+              onChange={e => {
+                setName(e.target.value);
+                if (nameError) {
+                  setNameError(null);
+                }
+              }}
+              placeholder="Nom du joueur"
+              aria-label="Nom du joueur"
+              aria-invalid={nameError ? true : undefined}
+              maxLength={20}
+              className={`rounded-lg border bg-white px-3 py-2 outline-none dark:bg-zinc-900 ${
+                nameError
+                  ? "border-red-500 focus:border-red-500"
+                  : "border-black/15 focus:border-indigo-500 dark:border-white/15"
+              }`}
+            />
+            {nameError ? (
+              <p
+                role="alert"
+                className="text-sm text-red-600 dark:text-red-400"
+              >
+                {nameError}
+              </p>
+            ) : null}
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={submitting || name.trim() === ""}
+                className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
+              >
+                Ajouter
+              </button>
+              <button
+                type="button"
+                onClick={closeForm}
+                className="rounded-lg border border-black/10 px-4 py-2 transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+              >
+                Annuler
+              </button>
+            </div>
+          </form>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setFormOpen(true)}
+            className="self-start rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
+          >
+            + Ajouter un joueur
+          </button>
+        )}
+      </StickyActionBar>
 
       {confirmDialog}
     </div>

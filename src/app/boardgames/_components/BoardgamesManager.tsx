@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { StickyActionBar } from "@/components/StickyActionBar";
 import { useConfirm } from "@/components/use-confirm";
 import type { Boardgame } from "@/lib/domain";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
@@ -116,12 +117,14 @@ export function BoardgamesManager() {
         </div>
       )}
 
-      <Link
-        href="/boardgames/new"
-        className="self-start rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
-      >
-        + Ajouter un jeu
-      </Link>
+      <StickyActionBar>
+        <Link
+          href="/boardgames/new"
+          className="self-start rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
+        >
+          + Ajouter un jeu
+        </Link>
+      </StickyActionBar>
 
       {confirmDialog}
     </div>
