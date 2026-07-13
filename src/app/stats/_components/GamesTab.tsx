@@ -6,10 +6,12 @@ import { StatTile } from "@/components/StatTile";
 import type { BoardgameId, GameStatsRecord, PlayerId } from "@/lib/domain";
 import { formatDuration } from "@/lib/game/format-time";
 import { computeGlobalStats, filterRecords } from "@/lib/game/global-stats";
+import { scoreHistogram } from "@/lib/game/score-distribution";
 import { DateWindow } from "./DateWindow";
 import { GamePicker } from "./GamePicker";
 import { GamePlayerTable } from "./GamePlayerTable";
 import { MultiSelectField } from "./MultiSelectField";
+import { ScoreDistribution } from "./ScoreDistribution";
 import { StatsDiceDistribution } from "./StatsDiceDistribution";
 
 /** Distinct boardgames present in the records, sorted by name. */
@@ -85,6 +87,16 @@ export function GamesTab({ records }: { records: GameStatsRecord[] }) {
     return { spec, rolls: scope.flatMap(g => g.diceRolls) };
   }, [records, filters]);
 
+  // Distribution of the final scores recorded across the parties in scope.
+  const scoreHist = useMemo(() => {
+    const scores = filterRecords(records, filters)
+      .flatMap(g => g.players)
+      .map(p => p.score)
+      .filter((s): s is number => s !== null);
+
+    return scoreHistogram(scores);
+  }, [records, filters]);
+
   const scored = stats.avgScore !== null;
   const champion = stats.players.reduce<(typeof stats.players)[number] | null>(
     (best, p) => (p.wins > (best?.wins ?? 0) ? p : best),
@@ -145,6 +157,15 @@ export function GamesTab({ records }: { records: GameStatsRecord[] }) {
                 jeu — {champion.wins} victoire{champion.wins > 1 ? "s" : ""} sur{" "}
                 {champion.games}
               </span>
+            </div>
+          ) : null}
+
+          {scored && scoreHist ? (
+            <div className="flex flex-col gap-3">
+              <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                Répartition des scores
+              </h2>
+              <ScoreDistribution histogram={scoreHist} />
             </div>
           ) : null}
 
