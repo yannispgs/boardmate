@@ -12,6 +12,7 @@ const TOOLS: {
   { name: "Jeux", emoji: "🎲", href: "/boardgames" },
   { name: "Parties", emoji: "🃏", href: "/games" },
   { name: "Statistiques", emoji: "📊", href: "/stats" },
+  { name: "Plateau Catan", emoji: "🗺️", href: "/tools/catan" },
   { name: "Retours", emoji: "📝", href: "/feedback" },
 ];
 

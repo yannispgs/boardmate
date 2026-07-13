@@ -1,0 +1,219 @@
+import {
+  axialToPixel,
+  type CatanBoard,
+  type CatanPortType,
+  type CatanTerrain,
+  isRedNumber,
+  pipCount,
+} from "@/lib/catan/board";
+
+const SIZE = 42; // hex circumradius in px
+
+const TERRAIN: Record<CatanTerrain, { fill: string; stroke: string }> = {
+  forest: { fill: "#2e7d46", stroke: "#1f5a31" },
+  pasture: { fill: "#7cb342", stroke: "#5c8a2f" },
+  fields: { fill: "#e5b731", stroke: "#b98f1f" },
+  hills: { fill: "#c1673b", stroke: "#9a4f2b" },
+  mountains: { fill: "#8a929c", stroke: "#69707a" },
+  desert: { fill: "#e0cfa3", stroke: "#c3ac79" },
+};
+
+const PORT_COLOR: Record<CatanPortType, string> = {
+  generic: "#94a3b8",
+  wood: "#2e7d46",
+  wool: "#7cb342",
+  grain: "#e5b731",
+  brick: "#c1673b",
+  ore: "#8a929c",
+};
+
+/** The six corners of a pointy-top hexagon centred at (cx, cy). */
+function hexCorners(cx: number, cy: number): Array<[number, number]> {
+  const pts: Array<[number, number]> = [];
+
+  for (let i = 0; i < 6; i++) {
+    const a = ((60 * i - 90) * Math.PI) / 180;
+    pts.push([cx + SIZE * Math.cos(a), cy + SIZE * Math.sin(a)]);
+  }
+
+  return pts;
+}
+
+/** Small probability dots under a number token (5 = most likely). */
+function Pips({ cx, cy, n }: { cx: number; cy: number; n: number }) {
+  const count = pipCount(n);
+  const gap = 3.4;
+  const start = cx - ((count - 1) * gap) / 2;
+  const fill = isRedNumber(n) ? "#c62828" : "#3f3f46";
+  const xs = Array.from({ length: count }, (_, i) => start + i * gap);
+
+  return (
+    <>
+      {xs.map(x => (
+        <circle key={x} cx={x} cy={cy} r={1.1} fill={fill} />
+      ))}
+    </>
+  );
+}
+
+/**
+ * Renders a generated Catan board as an SVG: coloured terrain hexes with their
+ * number tokens (6 and 8 in red, with probability pips), the robber on the
+ * desert, and the nine harbours on the coast (2:1 resource ports coloured, 3:1
+ * generic ports grey). Purely presentational.
+ */
+const PORT_R = 11; // harbour marker radius
+
+export function CatanBoardSvg({ board }: { board: CatanBoard }) {
+  const centres = board.hexes.map(h => axialToPixel(h.q, h.r, SIZE));
+
+  // Harbours: anchor pushed off the coast into the sea, with two dock lines
+  // back to the edge's corners.
+  const ports = board.ports.map(port => {
+    const c = centres[port.hexId];
+    const o = axialToPixel(
+      board.hexes[port.hexId].q + port.dq,
+      board.hexes[port.hexId].r + port.dr,
+      SIZE,
+    );
+    const mid = { x: (c.x + o.x) / 2, y: (c.y + o.y) / 2 };
+    const nx = mid.x - c.x;
+    const ny = mid.y - c.y;
+    const len = Math.hypot(nx, ny);
+    const anchor = {
+      x: mid.x + (nx / len) * 13,
+      y: mid.y + (ny / len) * 13,
+    };
+    const ends = hexCorners(c.x, c.y)
+      .map(p => ({ p, d: (p[0] - mid.x) ** 2 + (p[1] - mid.y) ** 2 }))
+      .sort((a, b) => a.d - b.d)
+      .slice(0, 2)
+      .map(e => e.p);
+
+    return { port, anchor, ends };
+  });
+
+  // Bounds from hex corners and the harbour markers.
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  const stretch = (x: number, y: number) => {
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  };
+
+  for (const c of centres) {
+    for (const [x, y] of hexCorners(c.x, c.y)) {
+      stretch(x, y);
+    }
+  }
+  for (const p of ports) {
+    stretch(p.anchor.x - PORT_R, p.anchor.y - PORT_R);
+    stretch(p.anchor.x + PORT_R, p.anchor.y + PORT_R);
+  }
+
+  const pad = SIZE * 0.5;
+  const vb = [
+    minX - pad,
+    minY - pad,
+    maxX - minX + pad * 2,
+    maxY - minY + pad * 2,
+  ].join(" ");
+
+  return (
+    <svg
+      viewBox={vb}
+      role="img"
+      aria-label="Plateau de Catan généré"
+      className="h-auto w-full max-w-md"
+    >
+      {board.hexes.map(h => {
+        const c = centres[h.id];
+        const points = hexCorners(c.x, c.y)
+          .map(p => `${p[0]},${p[1]}`)
+          .join(" ");
+        const t = TERRAIN[h.terrain];
+
+        return (
+          <g key={h.id}>
+            <polygon
+              points={points}
+              fill={t.fill}
+              stroke={t.stroke}
+              strokeWidth={2}
+              strokeLinejoin="round"
+            />
+            {h.number === null ? (
+              <circle cx={c.x} cy={c.y} r={7} fill="#4b5563" opacity={0.85} />
+            ) : (
+              <>
+                <circle
+                  cx={c.x}
+                  cy={c.y}
+                  r={14}
+                  fill="#faf7ef"
+                  stroke="#0000001a"
+                />
+                <text
+                  x={c.x}
+                  y={c.y + 1}
+                  textAnchor="middle"
+                  fontSize={15}
+                  fontWeight="700"
+                  fill={isRedNumber(h.number) ? "#c62828" : "#27272a"}
+                >
+                  {h.number}
+                </text>
+                <Pips cx={c.x} cy={c.y + 9} n={h.number} />
+              </>
+            )}
+          </g>
+        );
+      })}
+
+      {/* Harbours drawn on top, sitting in the sea with two docks to the coast. */}
+      {ports.map(({ port, anchor, ends }) => (
+        <g key={`${port.hexId}-${port.dq}-${port.dr}`}>
+          {ends.map(e => (
+            <line
+              key={`${e[0]},${e[1]}`}
+              x1={anchor.x}
+              y1={anchor.y}
+              x2={e[0]}
+              y2={e[1]}
+              stroke="#a16207"
+              strokeWidth={1.5}
+            />
+          ))}
+          <circle
+            cx={anchor.x}
+            cy={anchor.y}
+            r={PORT_R}
+            fill="#fdf6e3"
+            stroke="#a16207"
+          />
+          <circle
+            cx={anchor.x}
+            cy={anchor.y - 3.5}
+            r={3}
+            fill={PORT_COLOR[port.type]}
+          />
+          <text
+            x={anchor.x}
+            y={anchor.y + 6}
+            textAnchor="middle"
+            fontSize={7}
+            fontWeight="700"
+            fill="#3f3f46"
+          >
+            {port.type === "generic" ? "3:1" : "2:1"}
+          </text>
+        </g>
+      ))}
+    </svg>
+  );
+}
