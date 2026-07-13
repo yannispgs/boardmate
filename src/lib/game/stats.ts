@@ -200,3 +200,21 @@ export function timeHog(
     ? { name: top.name, sharePct: top.sharePct }
     : null;
 }
+
+/**
+ * The live "monopolise le temps" hog during play, but judged only on the rounds
+ * that are **complete** (`round < currentRound`). Mid-round, the player who is
+ * simply one turn ahead of the table would otherwise hold most of the recorded
+ * time and be flagged unfairly; excluding the in-progress round means the hog
+ * only refreshes once everyone has played that round — i.e. when the table
+ * moves on to the next one.
+ */
+export function liveTimeHog(
+  players: StatsInput["players"],
+  turns: GameTurn[],
+  currentRound: number,
+): { name: string; sharePct: number } | null {
+  const completed = turns.filter(t => t.round < currentRound);
+
+  return timeHog(computeGameStats({ players, turns: completed }).players);
+}

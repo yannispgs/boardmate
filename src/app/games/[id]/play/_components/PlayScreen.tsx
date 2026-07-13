@@ -17,7 +17,7 @@ import {
   scoreCategories,
   winnerDirection,
 } from "@/lib/game/scoring";
-import { computeGameStats, timeHog } from "@/lib/game/stats";
+import { liveTimeHog } from "@/lib/game/stats";
 import { isFinalTurn, turnsPerRound } from "@/lib/game/turn";
 import { turnDurationForRound } from "@/lib/game/turn-schedule";
 import { useTurnTimer } from "@/lib/hooks/use-turn-timer";
@@ -165,14 +165,10 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
     }
   }, [scoreFormOpen, timer.pause]);
 
-  // Whoever is monopolising the table's time (from the turns played so far). A
-  // live value: it updates as turns are recorded and clears once no one is over
-  // their fair share, driving the banner below.
-  const hog = game
-    ? timeHog(
-        computeGameStats({ players: game.players, turns: game.turns }).players,
-      )
-    : null;
+  // Whoever is monopolising the table's time, judged on COMPLETED rounds only
+  // (see liveTimeHog): it refreshes when the table moves to the next round —
+  // not mid-round, where whoever is a turn ahead would look like the hog.
+  const hog = game ? liveTimeHog(game.players, game.turns, game.round) : null;
 
   // The current turn's countdown: the schedule's duration for this round,
   // unless the user manually overrode it for the turn.
@@ -503,6 +499,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         <StatsPanel
           players={game.players}
           turns={game.turns}
+          currentRound={game.round}
           dice={dice ? { rolls: rollValues, spec: dice } : undefined}
         />
       )}

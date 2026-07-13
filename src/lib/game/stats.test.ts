@@ -8,7 +8,7 @@ import type {
   PlayerId,
 } from "@/lib/domain";
 
-import { computeGameStats, timeHog } from "./stats";
+import { computeGameStats, liveTimeHog, timeHog } from "./stats";
 
 const gid = "g1" as GameId;
 
@@ -197,5 +197,48 @@ describe("timeHog", () => {
   it("needs at least two players who have played", () => {
     expect(timeHog([p("Alice", 100), p("Bob", 0, 0)])).toBeNull();
     expect(timeHog([])).toBeNull();
+  });
+});
+
+describe("liveTimeHog", () => {
+  it("ignores the in-progress round so a mid-round leader isn't flagged", () => {
+    const players = [
+      player("a", "Alice", 0),
+      player("b", "Bob", 1),
+      player("c", "Cara", 2),
+    ];
+    // Round 1 is complete and even (20/20/20). In round 2 only Alice has
+    // played, a big 40s turn — she's simply a turn ahead of the table.
+    const turns = [
+      turn("a", 1, 1, 20),
+      turn("b", 1, 2, 20),
+      turn("c", 1, 3, 20),
+      turn("a", 2, 4, 40),
+    ];
+
+    // Over ALL turns Alice holds 60% (> the ~53% threshold) → the naive
+    // computation flags her. Judged on the completed round 1, it's even.
+    expect(timeHog(computeGameStats({ players, turns }).players)?.name).toBe(
+      "Alice",
+    );
+    expect(liveTimeHog(players, turns, 2)).toBeNull();
+  });
+
+  it("flags a hog once the round it's in is complete", () => {
+    const players = [player("a", "Alice", 0), player("b", "Bob", 1)];
+    const turns = [turn("a", 1, 1, 60), turn("b", 1, 2, 10)];
+
+    // Round 1 is complete (both played) and lopsided; round 2 is in progress.
+    const hog = liveTimeHog(players, turns, 2);
+
+    expect(hog?.name).toBe("Alice");
+    expect(hog?.sharePct).toBeCloseTo((60 / 70) * 100);
+  });
+
+  it("shows no hog while the first round is still in progress", () => {
+    const players = [player("a", "Alice", 0), player("b", "Bob", 1)];
+    const turns = [turn("a", 1, 1, 60)];
+
+    expect(liveTimeHog(players, turns, 1)).toBeNull();
   });
 });
