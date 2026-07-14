@@ -10,6 +10,7 @@ import { DateWindow } from "./DateWindow";
 import { GamePicker } from "./GamePicker";
 import { GamePlayerTable } from "./GamePlayerTable";
 import { MultiSelectField } from "./MultiSelectField";
+import { ScoreDistribution } from "./ScoreDistribution";
 import { StatsDiceDistribution } from "./StatsDiceDistribution";
 
 /** Distinct boardgames present in the records, sorted by name. */
@@ -85,6 +86,17 @@ export function GamesTab({ records }: { records: GameStatsRecord[] }) {
     return { spec, rolls: scope.flatMap(g => g.diceRolls) };
   }, [records, filters]);
 
+  // The final scores recorded across the parties in scope (drives the
+  // distribution chart).
+  const scores = useMemo(
+    () =>
+      filterRecords(records, filters)
+        .flatMap(g => g.players)
+        .map(p => p.score)
+        .filter((s): s is number => s !== null),
+    [records, filters],
+  );
+
   const scored = stats.avgScore !== null;
   const champion = stats.players.reduce<(typeof stats.players)[number] | null>(
     (best, p) => (p.wins > (best?.wins ?? 0) ? p : best),
@@ -145,6 +157,15 @@ export function GamesTab({ records }: { records: GameStatsRecord[] }) {
                 jeu — {champion.wins} victoire{champion.wins > 1 ? "s" : ""} sur{" "}
                 {champion.games}
               </span>
+            </div>
+          ) : null}
+
+          {scored && scores.length > 0 ? (
+            <div className="flex flex-col gap-3">
+              <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                Répartition des scores
+              </h2>
+              <ScoreDistribution scores={scores} />
             </div>
           ) : null}
 

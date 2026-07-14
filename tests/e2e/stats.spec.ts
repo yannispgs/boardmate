@@ -215,3 +215,65 @@ test("recomputes the ranking from games where the selected players played", asyn
     await admin.from("players").delete().in("name", names);
   }
 });
+
+test("charts the score distribution for a scored game", async ({ page }) => {
+  const admin = adminClient();
+  const names = await seedPlayers(3);
+  const gameIds: string[] = [];
+
+  try {
+    const { data: seeded } = await admin
+      .from("players")
+      .select("id, name")
+      .in("name", names);
+    const ids = (seeded ?? []).map(p => p.id as string);
+
+    async function seedScored(scores: number[]) {
+      const { data: game } = await admin
+        .from("games")
+        .insert({
+          boardgame_id: CATAN_ID,
+          status: "ended",
+          round: 1,
+          turn: 1,
+          ended_at: new Date().toISOString(),
+        })
+        .select("id")
+        .single();
+      const gameId = game?.id as string;
+      gameIds.push(gameId);
+
+      await admin.from("game_players").insert(
+        ids.map((player_id, i) => ({
+          game_id: gameId,
+          player_id,
+          seat_order: i,
+          is_winner: i === 0,
+          score: scores[i],
+        })),
+      );
+    }
+
+    // Two scored Catan games → scores 3,5,6,8,10,10.
+    await seedScored([10, 6, 3]);
+    await seedScored([10, 8, 5]);
+
+    await page.goto("/stats");
+    await page.getByRole("button", { name: "Jeux", exact: true }).click();
+    await page.getByRole("button", { name: "Catan", exact: true }).click();
+
+    await expect(page.getByText("Répartition des scores")).toBeVisible();
+    await expect(page.getByText(/6 scores · de 3 à 10/)).toBeVisible();
+
+    // Toggle from the histogram to the dot plot.
+    await page.getByRole("button", { name: "Nuage de points" }).click();
+    await expect(
+      page.getByRole("img", { name: "Nuage de points des scores" }),
+    ).toBeVisible();
+  } finally {
+    for (const id of gameIds) {
+      await admin.from("games").delete().eq("id", id);
+    }
+    await admin.from("players").delete().in("name", names);
+  }
+});
