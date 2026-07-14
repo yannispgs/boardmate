@@ -143,6 +143,16 @@ export interface CatanBoard {
   seed: number;
 }
 
+/** Tunable rules for the generator. */
+export interface BoardOptions {
+  /**
+   * Keep the desert on the **centre** hex (base-game convention, the default).
+   * When `false` the desert may also land on the **inner ring** — but never on
+   * the outer coast.
+   */
+  desertCentered?: boolean;
+}
+
 /** Axial radius-2 hexagon → 19 cells, ordered by row (r) then column (q). */
 function buildCells(): HexCell[] {
   const cells: HexCell[] = [];
@@ -279,16 +289,26 @@ function shuffle<T>(items: T[], rng: () => number): T[] {
   return out;
 }
 
-function terrainBag(): CatanTerrain[] {
+/** The 18 non-desert terrain tiles (the desert is placed on its own). */
+function nonDesertTerrains(): CatanTerrain[] {
   const bag: CatanTerrain[] = [];
 
   for (const terrain of Object.keys(TERRAIN_COUNTS) as CatanTerrain[]) {
+    if (terrain === "desert") {
+      continue;
+    }
+
     for (let i = 0; i < TERRAIN_COUNTS[terrain]; i++) {
       bag.push(terrain);
     }
   }
 
   return bag;
+}
+
+/** Ring of a hex from the centre: 0 (centre), 1 (inner ring), 2 (coast). */
+function ringOf(cell: HexCell): number {
+  return (Math.abs(cell.q) + Math.abs(cell.r) + Math.abs(cell.q + cell.r)) / 2;
 }
 
 /**
@@ -407,22 +427,35 @@ const CANDIDATES = 40;
 
 /**
  * Generates a balanced Catan board. Deterministic for a given `seed`
- * (defaults to a random one). Terrain is shuffled freely; numbers obey the
- * balance rules and the most evenly-spread candidate is returned.
+ * (defaults to a random one). The desert is placed per `options`
+ * (centre by default), the other 18 terrains are shuffled freely, and the
+ * numbers obey the balance rules with the most evenly-spread candidate kept.
  */
-export function generateCatanBoard(seed?: number): CatanBoard {
+export function generateCatanBoard(
+  seed?: number,
+  options?: BoardOptions,
+): CatanBoard {
+  const desertCentered = options?.desertCentered ?? true;
   // A random 32-bit seed when none is given. Uses Web Crypto (not
   // `Math.random`) purely to keep static analysis happy — a board layout has no
   // security relevance either way.
   const actualSeed = seed ?? crypto.getRandomValues(new Uint32Array(1))[0];
   const rng = mulberry32(actualSeed);
 
-  const terrains = shuffle(terrainBag(), rng);
-  const hexes: BoardHex[] = HEX_CELLS.map((cell, i) => ({
+  // Place the desert on an allowed hex (centre only, or the inner ring too),
+  // then shuffle the other 18 terrains over the remaining hexes.
+  const desertHexes = HEX_CELLS.filter(c =>
+    desertCentered ? ringOf(c) === 0 : ringOf(c) <= 1,
+  );
+  const desertId = desertHexes[Math.floor(rng() * desertHexes.length)].id;
+
+  const rest = shuffle(nonDesertTerrains(), rng);
+  let ri = 0;
+  const hexes: BoardHex[] = HEX_CELLS.map(cell => ({
     id: cell.id,
     q: cell.q,
     r: cell.r,
-    terrain: terrains[i],
+    terrain: cell.id === desertId ? "desert" : rest[ri++],
     number: null,
   }));
 

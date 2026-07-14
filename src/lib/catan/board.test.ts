@@ -178,4 +178,34 @@ describe("generateCatanBoard", () => {
     expect(board.hexes).toHaveLength(19);
     expect(board.seed).toBeGreaterThanOrEqual(0);
   });
+
+  const ring = (q: number, r: number) =>
+    (Math.abs(q) + Math.abs(r) + Math.abs(q + r)) / 2;
+
+  it("keeps the desert on the centre hex by default", () => {
+    for (let seed = 0; seed < 20; seed++) {
+      const desert = generateCatanBoard(seed).hexes.find(
+        h => h.terrain === "desert",
+      );
+
+      expect(desert?.q).toBe(0);
+      expect(desert?.r).toBe(0);
+    }
+  });
+
+  it("lets the desert off-centre but never on the outer ring", () => {
+    const spots = new Set<string>();
+
+    for (let seed = 0; seed < 40; seed++) {
+      const desert = generateCatanBoard(seed, {
+        desertCentered: false,
+      }).hexes.find(h => h.terrain === "desert");
+
+      expect(ring(desert?.q ?? 0, desert?.r ?? 0)).toBeLessThanOrEqual(1);
+      spots.add(`${desert?.q},${desert?.r}`);
+    }
+
+    // Over many seeds it lands somewhere other than the centre at least once.
+    expect(spots.size).toBeGreaterThan(1);
+  });
 });

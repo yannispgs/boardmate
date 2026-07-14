@@ -32,4 +32,8 @@ test("generates and regenerates a Catan board", async ({ page }) => {
   await expect(async () => {
     expect(await board.textContent()).not.toBe(before);
   }).toPass();
+
+  // The generator settings: toggling the desert option regenerates the board.
+  await page.getByLabel("Forcer le désert au centre").uncheck();
+  await expect(board).toBeVisible();
 });

@@ -15,17 +15,24 @@ const LEGEND: { label: string; resource: string; color: string }[] = [
 ];
 
 /**
- * Interactive Catan board generator: shows a balanced random board and a
- * "Nouveau plateau" button to roll another. The first render is deterministic
- * (so server and client markup match), then a fresh random board is drawn on
- * mount.
+ * Interactive Catan board generator: shows a balanced random board, a "Nouveau
+ * plateau" button to roll another, and a settings section (only the desert
+ * placement for now). The first render is deterministic (so server and client
+ * markup match), then a fresh random board is drawn on mount.
  */
 export function CatanBoardGenerator() {
-  const [board, setBoard] = useState<CatanBoard>(() => generateCatanBoard(1));
+  const [desertCentered, setDesertCentered] = useState(true);
+  const [board, setBoard] = useState<CatanBoard>(() =>
+    generateCatanBoard(1, { desertCentered: true }),
+  );
 
   useEffect(() => {
-    setBoard(generateCatanBoard());
+    setBoard(generateCatanBoard(undefined, { desertCentered: true }));
   }, []);
+
+  function newBoard(desert = desertCentered) {
+    setBoard(generateCatanBoard(undefined, { desertCentered: desert }));
+  }
 
   return (
     <div className="flex flex-col items-center gap-6">
@@ -33,7 +40,7 @@ export function CatanBoardGenerator() {
 
       <button
         type="button"
-        onClick={() => setBoard(generateCatanBoard())}
+        onClick={() => newBoard()}
         className="rounded-lg bg-indigo-600 px-5 py-2.5 font-medium text-white transition hover:bg-indigo-500"
       >
         🎲 Nouveau plateau
@@ -66,6 +73,26 @@ export function CatanBoardGenerator() {
           fréquence.
         </p>
       </div>
+
+      <section className="flex w-full max-w-md flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10">
+        <h2 className="text-sm font-semibold">Configuration du générateur</h2>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={desertCentered}
+            onChange={e => {
+              setDesertCentered(e.target.checked);
+              newBoard(e.target.checked);
+            }}
+            className="h-4 w-4 accent-indigo-600"
+          />
+          Forcer le désert au centre
+        </label>
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          Décoché, le désert peut aussi tomber sur la couronne intérieure —
+          jamais sur la couronne extérieure.
+        </p>
+      </section>
     </div>
   );
 }
