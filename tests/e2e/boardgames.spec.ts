@@ -196,3 +196,55 @@ test("offers three logo sources and uploads a file", async ({ page }) => {
 
   await page.getByRole("button", { name: "Annuler" }).click();
 });
+
+test("edits a boardgame with a logo without touching it", async ({ page }) => {
+  const admin = adminClient();
+  const name = `Logo-${Date.now().toString(36)}`;
+  let id = "";
+
+  try {
+    const { data } = await admin
+      .from("boardgames")
+      .insert({
+        name,
+        min_players: 2,
+        max_players: 4,
+        logo_url: "https://cdn.example.com/stored-logo.png",
+      })
+      .select("id")
+      .single();
+    id = data?.id as string;
+
+    await page.goto(`/boardgames/${id}/edit`);
+
+    // The existing logo shows as a preview + a "Modifier le logo" button — it is
+    // NOT loaded into the URL picker (whose re-validation would fail on save).
+    await expect(
+      page.getByRole("button", { name: "Modifier le logo" }),
+    ).toBeVisible();
+    await expect(page.getByRole("img", { name: "Logo" })).toBeVisible();
+    await expect(page.getByLabel("URL du logo (PNG ou JPEG)")).toHaveCount(0);
+
+    // Saving without touching the logo succeeds — no validation error.
+    await page
+      .getByRole("button", { name: "Enregistrer", exact: true })
+      .click();
+    await expect(page.getByText(/impossible|invalide/i)).toHaveCount(0);
+
+    // Clicking "modifier" reveals the picker (and a way to cancel back).
+    await page.getByRole("button", { name: "Modifier le logo" }).click();
+    await expect(
+      page.getByRole("button", { name: "Fichier", exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Annuler la modification du logo" })
+      .click();
+    await expect(
+      page.getByRole("button", { name: "Modifier le logo" }),
+    ).toBeVisible();
+  } finally {
+    if (id) {
+      await admin.from("boardgames").delete().eq("id", id);
+    }
+  }
+});

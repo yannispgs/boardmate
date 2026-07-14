@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 
-import { ChevronRightIcon, UploadIcon } from "@/components/icons";
+import { ChevronRightIcon, PencilIcon, UploadIcon } from "@/components/icons";
 import type {
   Boardgame,
   BoardgameId,
@@ -294,12 +294,12 @@ export function BoardgameForm({
   const [logoUrl, setLogoUrl] = useState<string | null>(
     initial?.logoUrl ?? null,
   );
-  // Show an existing logo as an editable URL (works whether it was uploaded to
-  // Storage or pasted as an external link); the user can switch to "file".
-  const [logoSource, setLogoSource] = useState<LogoSource>(
-    initial?.logoUrl ? "url" : "file",
-  );
-  const [logoUrlInput, setLogoUrlInput] = useState(initial?.logoUrl ?? "");
+  const [logoSource, setLogoSource] = useState<LogoSource>("file");
+  const [logoUrlInput, setLogoUrlInput] = useState("");
+  // An existing logo is shown as a preview and left untouched unless the user
+  // clicks "modifier". We must NOT load it into the URL picker by default:
+  // re-validating a Storage URL as a plain link fails (CORS) and blocks saving.
+  const [logoEditing, setLogoEditing] = useState(initial?.logoUrl == null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [checkingUrl, setCheckingUrl] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -329,6 +329,27 @@ export function BoardgameForm({
     }
 
     uploadFile(file, file.name);
+  }
+
+  // Reveal the logo picker (a fresh one) to replace the existing logo.
+  function startEditLogo() {
+    setLogoEditing(true);
+    setLogoSource("file");
+    setLogoUrl(null);
+    setLogoUrlInput("");
+    setFileName(null);
+    setFormError(null);
+    if (fileRef.current) {
+      fileRef.current.value = "";
+    }
+  }
+
+  // Cancel a logo change and keep the one already saved.
+  function cancelEditLogo() {
+    setLogoEditing(false);
+    setLogoSource("file");
+    setLogoUrl(initial?.logoUrl ?? null);
+    setFormError(null);
   }
 
   function switchSource(next: LogoSource) {
@@ -373,10 +394,11 @@ export function BoardgameForm({
     setSubmitting(true);
     setFormError(null);
     try {
-      // Resolve the logo from the active source. In URL mode, (re)validate the
-      // pasted link so an unchecked or edited URL can't be saved.
+      // Resolve the logo. An untouched existing logo keeps its value as-is (no
+      // re-validation — its Storage URL isn't a plain fetchable link). While
+      // editing in URL mode, (re)validate the pasted link before saving.
       let resolvedLogo = logoUrl;
-      if (logoSource === "url") {
+      if (logoEditing && logoSource === "url") {
         const url = logoUrlInput.trim();
         if (url === "") {
           resolvedLogo = null;
@@ -559,21 +581,55 @@ export function BoardgameForm({
         ) : null}
       </fieldset>
 
-      <LogoPicker
-        logoUrl={logoUrl}
-        logoSource={logoSource}
-        logoUrlInput={logoUrlInput}
-        fileName={fileName}
-        uploading={uploading}
-        checkingUrl={checkingUrl}
-        fileRef={fileRef}
-        onSwitchSource={switchSource}
-        onPickFile={handleLogo}
-        onUrlChange={setLogoUrlInput}
-        onUrlBlur={checkLogoUrl}
-        onPasteImage={file => uploadFile(file, "Image collée")}
-        onPasteError={setFormError}
-      />
+      {!logoEditing && initial?.logoUrl ? (
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-zinc-500">Logo</span>
+          <div className="flex items-center gap-2">
+            {/* biome-ignore lint/performance/noImgElement: arbitrary Storage URLs, no next/image loader configured yet */}
+            <img
+              src={initial.logoUrl}
+              alt="Logo"
+              className="h-12 w-12 shrink-0 rounded-lg object-cover"
+            />
+            <button
+              type="button"
+              onClick={startEditLogo}
+              aria-label="Modifier le logo"
+              title="Modifier le logo"
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-black/15 text-zinc-500 transition hover:border-indigo-400 hover:text-indigo-600 dark:border-white/15"
+            >
+              <PencilIcon className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <LogoPicker
+            logoUrl={logoUrl}
+            logoSource={logoSource}
+            logoUrlInput={logoUrlInput}
+            fileName={fileName}
+            uploading={uploading}
+            checkingUrl={checkingUrl}
+            fileRef={fileRef}
+            onSwitchSource={switchSource}
+            onPickFile={handleLogo}
+            onUrlChange={setLogoUrlInput}
+            onUrlBlur={checkLogoUrl}
+            onPasteImage={file => uploadFile(file, "Image collée")}
+            onPasteError={setFormError}
+          />
+          {initial?.logoUrl ? (
+            <button
+              type="button"
+              onClick={cancelEditLogo}
+              className="self-start text-xs text-zinc-500 transition hover:underline"
+            >
+              Annuler la modification du logo
+            </button>
+          ) : null}
+        </div>
+      )}
 
       <fieldset className="flex flex-col gap-2 rounded-lg border border-black/10 p-3 dark:border-white/10">
         <legend className="px-1 text-xs text-zinc-500">Score</legend>
