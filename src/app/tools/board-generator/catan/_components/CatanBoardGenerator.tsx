@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { type CatanBoard, generateCatanBoard } from "@/lib/catan/board";
+import { BoardStructure } from "./BoardStructure";
 import { CatanBoardSvg } from "./CatanBoardSvg";
 
 const LEGEND: { label: string; resource: string; color: string }[] = [
@@ -56,6 +57,8 @@ export function CatanBoardGenerator() {
       >
         🎲 Nouveau plateau
       </button>
+
+      <BoardStructure board={board} />
 
       <div className="flex flex-col gap-2">
         <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm sm:grid-cols-3">

@@ -12,6 +12,7 @@ import {
   NUMBER_TOKENS,
   PORT_SLOTS,
   pipCount,
+  resourceCombinations,
   TERRAIN_RESOURCE,
 } from "./board";
 
@@ -274,5 +275,40 @@ describe("generateCatanBoard", () => {
     }
 
     expect(spots.size).toBeGreaterThan(1);
+  });
+
+  it("sums each resource's dice combinations (58 in total)", () => {
+    const rows = resourceCombinations(generateCatanBoard(1).hexes);
+
+    expect(rows.map(r => r.resource)).toEqual([
+      "wood",
+      "brick",
+      "wool",
+      "grain",
+      "ore",
+    ]);
+    // The 18 tokens always carry 58 pips between them.
+    expect(rows.reduce((s, r) => s + r.combos, 0)).toBe(58);
+  });
+
+  it("skips the desert and number-less tiles, zero for absent resources", () => {
+    const hex = (terrain: CatanTerrain, number: number | null) => ({
+      id: 0,
+      q: 0,
+      r: 0,
+      terrain,
+      number,
+    });
+    const rows = resourceCombinations([
+      hex("desert", null), // desert → no resource
+      hex("forest", 6), // wood +5 pips
+      hex("forest", null), // wood tile with no number → skipped
+      hex("fields", 8), // grain +5 pips
+    ]);
+    const by = (r: string) => rows.find(x => x.resource === r)?.combos;
+
+    expect(by("wood")).toBe(5);
+    expect(by("grain")).toBe(5);
+    expect(by("ore")).toBe(0);
   });
 });

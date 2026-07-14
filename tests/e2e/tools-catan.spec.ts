@@ -23,6 +23,8 @@ test("generates and regenerates a Catan board", async ({ page }) => {
   await expect(board).toBeVisible();
   // The legend documents the terrains.
   await expect(page.getByText("Forêt")).toBeVisible();
+  // The structure recap (dice combinations per resource) is shown.
+  await expect(page.getByText("Structure du plateau")).toBeVisible();
 
   // Regenerating swaps the board for a different one (fresh random seed).
   const before = await board.textContent();

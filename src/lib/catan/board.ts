@@ -85,6 +85,34 @@ export function isRedNumber(n: number): boolean {
   return n === 6 || n === 8;
 }
 
+/**
+ * Total dice combinations (summed pips) each resource can produce on a board —
+ * a quick read of its structure: which resource is over- or under-served. The
+ * five resources always sum to 58 (the total pips of the 18 tokens).
+ */
+export function resourceCombinations(
+  hexes: BoardHex[],
+): Array<{ resource: CatanResource; combos: number }> {
+  const totals = new Map<CatanResource, number>();
+
+  for (const h of hexes) {
+    const res = TERRAIN_RESOURCE[h.terrain];
+
+    if (res === null || h.number === null) {
+      continue;
+    }
+
+    totals.set(res, (totals.get(res) ?? 0) + pipCount(h.number));
+  }
+
+  const order: CatanResource[] = ["wood", "brick", "wool", "grain", "ore"];
+
+  return order.map(resource => ({
+    resource,
+    combos: totals.get(resource) ?? 0,
+  }));
+}
+
 /** The six axial neighbour directions (orientation-independent). */
 const DIRECTIONS: ReadonlyArray<readonly [number, number]> = [
   [1, 0],
