@@ -1,20 +1,22 @@
 import Link from "next/link";
-
 import { signOut } from "@/lib/auth/actions";
 import { getCurrentUser } from "@/lib/auth/session";
+import pkg from "../../package.json";
 
 const TOOLS: {
   name: string;
   emoji: string;
-  status: string;
   href?: string;
 }[] = [
-  { name: "Joueurs", emoji: "👥", status: "v1", href: "/players" },
-  { name: "Jeux", emoji: "🎲", status: "v1", href: "/boardgames" },
-  { name: "Parties", emoji: "🃏", status: "v1", href: "/games" },
-  { name: "Statistiques", emoji: "📊", status: "v1", href: "/stats" },
-  { name: "Retours", emoji: "📝", status: "v1", href: "/feedback" },
+  { name: "Joueurs", emoji: "👥", href: "/players" },
+  { name: "Jeux", emoji: "🎲", href: "/boardgames" },
+  { name: "Parties", emoji: "🃏", href: "/games" },
+  { name: "Statistiques", emoji: "📊", href: "/stats" },
+  { name: "Retours", emoji: "📝", href: "/feedback" },
 ];
+
+// Short commit hash of the deployed build, when running on Vercel.
+const build = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7);
 
 const cardClass =
   "flex flex-col items-center gap-1 rounded-xl border border-black/10 bg-white p-4 text-center dark:border-white/10 dark:bg-zinc-900";
@@ -55,9 +57,6 @@ export default async function Home() {
                 {tool.emoji}
               </span>
               <span className="text-sm font-medium">{tool.name}</span>
-              <span className="text-[11px] uppercase tracking-wide text-zinc-400">
-                {tool.status}
-              </span>
             </>
           );
           return (
@@ -78,7 +77,8 @@ export default async function Home() {
       </ul>
 
       <p className="text-center text-xs text-zinc-400">
-        Fondations en place — la suite arrive.
+        v{pkg.version}
+        {build ? ` · ${build}` : ""}
       </p>
     </main>
   );
