@@ -311,4 +311,34 @@ describe("generateCatanBoard", () => {
     expect(by("grain")).toBe(5);
     expect(by("ore")).toBe(0);
   });
+
+  it("keeps each resource within the balance tolerance (±25% default)", () => {
+    const expected = (tiles: number) => (tiles * 58) / 18;
+
+    for (let seed = 0; seed < 40; seed++) {
+      for (const { resource, combos } of resourceCombinations(
+        generateCatanBoard(seed).hexes,
+      )) {
+        const tiles = ["wood", "wool", "grain"].includes(resource) ? 4 : 3;
+        const e = expected(tiles);
+
+        expect(combos).toBeGreaterThanOrEqual(e * 0.75 - 1e-9);
+        expect(combos).toBeLessThanOrEqual(e * 1.25 + 1e-9);
+      }
+    }
+  });
+
+  it("honours the tolerance option (loose and tight both yield a board)", () => {
+    // Loose → still a valid full board with the token set intact.
+    const loose = resourceCombinations(
+      generateCatanBoard(1, { balanceTolerance: 1 }).hexes,
+    );
+
+    expect(loose.reduce((s, r) => s + r.combos, 0)).toBe(58);
+
+    // Tight (0% — never exactly reachable) → best-effort, never throws.
+    const tight = generateCatanBoard(1, { balanceTolerance: 0 });
+
+    expect(tight.hexes).toHaveLength(19);
+  });
 });

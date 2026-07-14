@@ -188,6 +188,13 @@ export interface BoardOptions {
    * balancing, desert ring) for a fully random board.
    */
   ignoreConstraints?: boolean;
+  /**
+   * How far each resource's total dice combinations may stray from its balanced
+   * share, as a fraction (default `0.25` = ±25%). The balanced share is
+   * proportional to a resource's tile count, so with 25% the 4-tile resources
+   * land in ~[9.7, 16.1] and the 3-tile ones in ~[7.3, 12.1].
+   */
+  balanceTolerance?: number;
 }
 
 /** Axial radius-2 hexagon → 19 cells, ordered by row (r) then column (q). */
@@ -427,12 +434,31 @@ function placeNumbers(
   return assigned;
 }
 
+/** The 4-tile resources; the other two (brick, ore) have 3 tiles. */
+const MAJOR_RESOURCES: CatanResource[] = ["wood", "wool", "grain"];
+
+/** Default allowed deviation from a resource's balanced share (±25%). */
+const DEFAULT_TOLERANCE = 0.25;
+
+/** Total pips across the 18 tokens (58) — split among the resources. */
+const TOTAL_PIPS = NUMBER_TOKENS.reduce((sum, n) => sum + pipCount(n), 0);
+
+/** A resource's balanced combinations, proportional to its tile count. */
+function expectedCombos(resource: CatanResource): number {
+  const tiles = MAJOR_RESOURCES.includes(resource) ? 4 : 3;
+
+  return (tiles * TOTAL_PIPS) / NUMBER_TOKENS.length;
+}
+
 /**
- * Lower is better: how UNbalanced this number placement is. Combines the
- * spread of production across intersections (variance of the pip totals where
- * three hexes meet) with an even spread of pips per resource.
+ * Lower is better. Rather than forcing every resource to the same total (which
+ * makes boards feel samey), each resource's combinations must land within
+ * `tolerance` of its balanced share (proportional to its tile count) — that
+ * leaves natural variety. In-tolerance boards are then ranked by how evenly
+ * production spreads across the intersections; boards outside the tolerance
+ * score worse, the closest to it least so.
  */
-function imbalance(hexes: BoardHex[]): number {
+function numberBalance(hexes: BoardHex[], tolerance: number): number {
   const pips = hexes.map(h => (h.number === null ? 0 : pipCount(h.number)));
 
   const sums = HEX_VERTICES.map(([a, b, c]) => pips[a] + pips[b] + pips[c]);
@@ -451,12 +477,21 @@ function imbalance(hexes: BoardHex[]): number {
     perResource.set(res, (perResource.get(res) ?? 0) + pips[h.id]);
   }
 
-  const totals = [...perResource.values()];
-  const resMean = totals.reduce((s, v) => s + v, 0) / totals.length;
-  const resVar =
-    totals.reduce((s, v) => s + (v - resMean) ** 2, 0) / totals.length;
+  let outOfRange = 0;
 
-  return vertexVar + resVar;
+  for (const [res, combos] of perResource) {
+    const expected = expectedCombos(res);
+    const lo = expected * (1 - tolerance);
+    const hi = expected * (1 + tolerance);
+
+    if (combos < lo) {
+      outOfRange += lo - combos;
+    } else if (combos > hi) {
+      outOfRange += combos - hi;
+    }
+  }
+
+  return outOfRange > 0 ? 1000 + outOfRange : vertexVar;
 }
 
 /** Number of balanced candidates evaluated per generation (best is kept). */
@@ -567,6 +602,7 @@ export function generateCatanBoard(
   const innerOk = options?.desertInnerRing ?? false;
   const outerOk = options?.desertOuterRing ?? false;
   const ignore = options?.ignoreConstraints ?? false;
+  const tolerance = options?.balanceTolerance ?? DEFAULT_TOLERANCE;
   // A random 32-bit seed when none is given. Uses Web Crypto (not
   // `Math.random`) purely to keep static analysis happy — a board layout has no
   // security relevance either way.
@@ -647,7 +683,7 @@ export function generateCatanBoard(
         ...h,
         number: placement.get(h.id) ?? null,
       }));
-      const score = imbalance(scored);
+      const score = numberBalance(scored, tolerance);
 
       if (score < bestScore) {
         bestScore = score;

@@ -35,8 +35,15 @@ test("generates and regenerates a Catan board", async ({ page }) => {
     expect(await board.textContent()).not.toBe(before);
   }).toPass();
 
-  // The generator settings regenerate the board: open the outer ring for the
-  // desert, then drop all constraints entirely.
+  // The settings are hidden behind a button; open them, then tweak options
+  // (each regenerates the board): the balance tolerance, the outer-ring desert,
+  // and finally dropping all constraints.
+  await expect(page.getByLabel("la couronne extérieure")).toHaveCount(0);
+  await page.getByRole("button", { name: /Configurer les paramètres/ }).click();
+
+  await page.getByLabel("Écart de production toléré en pourcentage").fill("40");
+  await expect(board).toBeVisible();
+
   await page.getByLabel("la couronne extérieure").check();
   await expect(board).toBeVisible();
 

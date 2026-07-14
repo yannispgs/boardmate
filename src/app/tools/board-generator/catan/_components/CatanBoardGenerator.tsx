@@ -18,30 +18,47 @@ const LEGEND: { label: string; resource: string; color: string }[] = [
 const sectionClass =
   "flex w-full max-w-md flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10";
 
+/** Generator settings — session-only (they reset to these on every visit). */
+interface Options {
+  desertInner: boolean;
+  desertOuter: boolean;
+  ignore: boolean;
+  /** Allowed deviation from each resource's balanced share, in percent. */
+  tolerancePct: number;
+}
+
+const DEFAULTS: Options = {
+  desertInner: false,
+  desertOuter: false,
+  ignore: false,
+  tolerancePct: 25,
+};
+
 /**
- * Interactive Catan board generator: a board, a "Nouveau plateau" button, a
- * settings section (desert placement + an escape hatch to drop all rules) and a
- * recap of every placement rule. The first render is deterministic (so server
- * and client markup match), then a fresh random board is drawn on mount.
+ * Interactive Catan board generator: a board, a "Nouveau plateau" button, the
+ * board's structure, a legend, the generator settings (behind a button, reset
+ * every visit) and a recap of the placement rules. The first render is
+ * deterministic (so server and client markup match), then a fresh random board
+ * is drawn on mount.
  */
 export function CatanBoardGenerator() {
-  const [desertInner, setDesertInner] = useState(false);
-  const [desertOuter, setDesertOuter] = useState(false);
-  const [ignore, setIgnore] = useState(false);
+  const [opts, setOpts] = useState<Options>(DEFAULTS);
+  const [showConfig, setShowConfig] = useState(false);
   const [board, setBoard] = useState<CatanBoard>(() => generateCatanBoard(1));
 
   useEffect(() => {
     setBoard(generateCatanBoard());
   }, []);
 
-  function regen(
-    over: { inner?: boolean; outer?: boolean; ignore?: boolean } = {},
-  ) {
+  function regen(patch: Partial<Options> = {}) {
+    const next = { ...opts, ...patch };
+    setOpts(next);
     setBoard(
       generateCatanBoard(undefined, {
-        desertInnerRing: over.inner ?? desertInner,
-        desertOuterRing: over.outer ?? desertOuter,
-        ignoreConstraints: over.ignore ?? ignore,
+        desertInnerRing: next.desertInner,
+        desertOuterRing: next.desertOuter,
+        ignoreConstraints: next.ignore,
+        balanceTolerance: next.tolerancePct / 100,
       }),
     );
   }
@@ -83,60 +100,90 @@ export function CatanBoardGenerator() {
         </p>
       </div>
 
-      <section className={sectionClass}>
-        <h2 className="text-sm font-semibold">Configuration du générateur</h2>
+      {showConfig ? (
+        <section className={sectionClass}>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Paramètres du générateur</h2>
+            <button
+              type="button"
+              onClick={() => setShowConfig(false)}
+              className="text-xs text-zinc-500 transition hover:underline"
+            >
+              Masquer
+            </button>
+          </div>
 
-        <fieldset
-          disabled={ignore}
-          className="flex flex-col gap-1.5 disabled:opacity-50"
+          <fieldset
+            disabled={opts.ignore}
+            className="flex flex-col gap-3 disabled:opacity-50"
+          >
+            <div className="flex flex-col gap-1.5">
+              <legend className="text-sm">Permettre un désert sur :</legend>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={opts.desertInner}
+                  onChange={e => regen({ desertInner: e.target.checked })}
+                  className="h-4 w-4 accent-indigo-600"
+                />
+                la couronne intérieure
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={opts.desertOuter}
+                  onChange={e => regen({ desertOuter: e.target.checked })}
+                  className="h-4 w-4 accent-indigo-600"
+                />
+                la couronne extérieure
+              </label>
+            </div>
+
+            <label className="flex flex-col gap-1 text-sm">
+              <span>Écart de production toléré : ±{opts.tolerancePct} %</span>
+              <input
+                type="range"
+                min={0}
+                max={60}
+                step={5}
+                value={opts.tolerancePct}
+                onChange={e => regen({ tolerancePct: Number(e.target.value) })}
+                aria-label="Écart de production toléré en pourcentage"
+                className="accent-indigo-600"
+              />
+              <span className="text-[11px] text-zinc-400">
+                De chaque ressource par rapport à sa part équilibrée. 0 % =
+                parts strictement égales ; plus haut = plus de variété.
+              </span>
+            </label>
+          </fieldset>
+
+          <label className="mt-1 flex items-center gap-2 border-t border-black/10 pt-3 text-sm dark:border-white/10">
+            <input
+              type="checkbox"
+              checked={opts.ignore}
+              onChange={e => regen({ ignore: e.target.checked })}
+              className="h-4 w-4 accent-indigo-600"
+            />
+            Ignorer les contraintes de placement
+          </label>
+        </section>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setShowConfig(true)}
+          className="rounded-lg border border-black/15 px-4 py-2 text-sm font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
         >
-          <legend className="mb-1 text-sm">Permettre un désert sur :</legend>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={desertInner}
-              onChange={e => {
-                setDesertInner(e.target.checked);
-                regen({ inner: e.target.checked });
-              }}
-              className="h-4 w-4 accent-indigo-600"
-            />
-            la couronne intérieure
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={desertOuter}
-              onChange={e => {
-                setDesertOuter(e.target.checked);
-                regen({ outer: e.target.checked });
-              }}
-              className="h-4 w-4 accent-indigo-600"
-            />
-            la couronne extérieure
-          </label>
-        </fieldset>
-
-        <label className="mt-1 flex items-center gap-2 border-t border-black/10 pt-3 text-sm dark:border-white/10">
-          <input
-            type="checkbox"
-            checked={ignore}
-            onChange={e => {
-              setIgnore(e.target.checked);
-              regen({ ignore: e.target.checked });
-            }}
-            className="h-4 w-4 accent-indigo-600"
-          />
-          Ignorer les contraintes de placement
-        </label>
-      </section>
+          ⚙️ Configurer les paramètres du générateur
+        </button>
+      )}
 
       <section className={`${sectionClass} text-sm`}>
         <h2 className="font-semibold">Règles de placement</h2>
         <ul className="flex list-disc flex-col gap-1 pl-4 text-zinc-600 dark:text-zinc-300">
           <li>
             Le désert est au centre par défaut (couronnes intérieure /
-            extérieure activables ci-dessus).
+            extérieure activables dans les paramètres).
           </li>
           <li>
             Jamais de triangle de même ressource, et les regroupements de 3
@@ -150,9 +197,9 @@ export function CatanBoardGenerator() {
           </li>
           <li>Deux nombres identiques ne sont jamais adjacents.</li>
           <li>
-            Production équilibrée : les points sont répartis le plus
-            uniformément possible entre les ressources et entre les
-            intersections.
+            Production équilibrée : chaque ressource reste à ±
+            {opts.tolerancePct} % de sa part attendue (réglable), sans être
+            strictement identique — de quoi garder de la variété.
           </li>
           <li>9 ports : 4 génériques (3:1) + un port 2:1 par ressource.</li>
         </ul>
