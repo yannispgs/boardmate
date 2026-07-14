@@ -264,6 +264,12 @@ test("charts the score distribution for a scored game", async ({ page }) => {
 
     await expect(page.getByText("Répartition des scores")).toBeVisible();
     await expect(page.getByText(/6 scores · de 3 à 10/)).toBeVisible();
+
+    // Toggle from the histogram to the dot plot.
+    await page.getByRole("button", { name: "Nuage de points" }).click();
+    await expect(
+      page.getByRole("img", { name: "Nuage de points des scores" }),
+    ).toBeVisible();
   } finally {
     for (const id of gameIds) {
       await admin.from("games").delete().eq("id", id);

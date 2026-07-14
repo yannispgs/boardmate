@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { scoreHistogram } from "./score-distribution";
+import { dotPlot, scoreHistogram } from "./score-distribution";
 
 /** Sum of the bin counts must always equal the number of scores. */
 function totalCount(scores: number[], maxBins?: number) {
@@ -70,5 +70,48 @@ describe("scoreHistogram", () => {
 
     expect(h?.step).toBe(50);
     expect(totalCount([0, 20, 60, 100], 4)).toBe(4);
+  });
+});
+
+describe("dotPlot", () => {
+  it("returns null when there are no scores", () => {
+    expect(dotPlot([])).toBeNull();
+  });
+
+  it("stacks equal values in the same column", () => {
+    const d = dotPlot([5, 5, 5], 10);
+
+    expect(d?.min).toBe(5);
+    expect(d?.max).toBe(5);
+    expect(d?.maxStack).toBe(3);
+    // All in one column, stacked 0/1/2.
+    expect(d?.points.map(p => p.col)).toEqual([0, 0, 0]);
+    expect(d?.points.map(p => p.row)).toEqual([0, 1, 2]);
+  });
+
+  it("spreads values across columns and keeps every point", () => {
+    const scores = [0, 10, 5, 10, 0];
+    const d = dotPlot(scores, 11);
+
+    expect(d?.min).toBe(0);
+    expect(d?.max).toBe(10);
+    // Ascending: 0,0 → col 0 rows 0/1; 5 → col 5; 10,10 → col 10 rows 0/1.
+    expect(d?.points).toEqual([
+      { col: 0, row: 0, value: 0 },
+      { col: 0, row: 1, value: 0 },
+      { col: 5, row: 0, value: 5 },
+      { col: 10, row: 0, value: 10 },
+      { col: 10, row: 1, value: 10 },
+    ]);
+    expect(d?.points).toHaveLength(scores.length);
+    expect(d?.maxStack).toBe(2);
+  });
+
+  it("handles unsorted input with negatives", () => {
+    const d = dotPlot([9, -3, 4, -3], 24);
+
+    expect(d?.min).toBe(-3);
+    expect(d?.max).toBe(9);
+    expect(d?.points).toHaveLength(4);
   });
 });

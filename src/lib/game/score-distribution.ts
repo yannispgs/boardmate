@@ -80,3 +80,69 @@ export function scoreHistogram(
 
   return { bins, step, count: scores.length, min, max, mean };
 }
+
+/** One dot in a dot plot: its column (by value) and stack position. */
+export interface DotPlotPoint {
+  /** Column index, 0..columns-1, mapped from the score's value. */
+  col: number;
+  /** Stack position within the column (0 = bottom). */
+  row: number;
+  value: number;
+}
+
+export interface DotPlot {
+  points: DotPlotPoint[];
+  columns: number;
+  min: number;
+  max: number;
+  /** Tallest stack — the number of dots in the busiest column. */
+  maxStack: number;
+}
+
+/**
+ * Lays scores out as a Wilkinson-style dot plot: each score is a dot placed in
+ * the column matching its value and stacked on the ones already there, so
+ * clusters rise as taller stacks. No bucketing of the values themselves and no
+ * randomness — every result is shown and the layout is deterministic (scores
+ * are stacked in ascending order). `null` when there are no scores.
+ */
+export function dotPlot(scores: number[], columns = 24): DotPlot | null {
+  if (scores.length === 0) {
+    return null;
+  }
+
+  let min = scores[0];
+  let max = scores[0];
+
+  for (const s of scores) {
+    if (s < min) {
+      min = s;
+    }
+    if (s > max) {
+      max = s;
+    }
+  }
+
+  const span = max - min || 1;
+  const heights = new Array<number>(columns).fill(0);
+
+  const points = [...scores]
+    .sort((a, b) => a - b)
+    .map(value => {
+      const col = Math.round(((value - min) / span) * (columns - 1));
+      const row = heights[col];
+      heights[col] += 1;
+
+      return { col, row, value };
+    });
+
+  let maxStack = 0;
+
+  for (const h of heights) {
+    if (h > maxStack) {
+      maxStack = h;
+    }
+  }
+
+  return { points, columns, min, max, maxStack };
+}

@@ -6,7 +6,6 @@ import { StatTile } from "@/components/StatTile";
 import type { BoardgameId, GameStatsRecord, PlayerId } from "@/lib/domain";
 import { formatDuration } from "@/lib/game/format-time";
 import { computeGlobalStats, filterRecords } from "@/lib/game/global-stats";
-import { scoreHistogram } from "@/lib/game/score-distribution";
 import { DateWindow } from "./DateWindow";
 import { GamePicker } from "./GamePicker";
 import { GamePlayerTable } from "./GamePlayerTable";
@@ -87,15 +86,16 @@ export function GamesTab({ records }: { records: GameStatsRecord[] }) {
     return { spec, rolls: scope.flatMap(g => g.diceRolls) };
   }, [records, filters]);
 
-  // Distribution of the final scores recorded across the parties in scope.
-  const scoreHist = useMemo(() => {
-    const scores = filterRecords(records, filters)
-      .flatMap(g => g.players)
-      .map(p => p.score)
-      .filter((s): s is number => s !== null);
-
-    return scoreHistogram(scores);
-  }, [records, filters]);
+  // The final scores recorded across the parties in scope (drives the
+  // distribution chart).
+  const scores = useMemo(
+    () =>
+      filterRecords(records, filters)
+        .flatMap(g => g.players)
+        .map(p => p.score)
+        .filter((s): s is number => s !== null),
+    [records, filters],
+  );
 
   const scored = stats.avgScore !== null;
   const champion = stats.players.reduce<(typeof stats.players)[number] | null>(
@@ -160,12 +160,12 @@ export function GamesTab({ records }: { records: GameStatsRecord[] }) {
             </div>
           ) : null}
 
-          {scored && scoreHist ? (
+          {scored && scores.length > 0 ? (
             <div className="flex flex-col gap-3">
               <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
                 Répartition des scores
               </h2>
-              <ScoreDistribution histogram={scoreHist} />
+              <ScoreDistribution scores={scores} />
             </div>
           ) : null}
 
