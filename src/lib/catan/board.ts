@@ -15,7 +15,7 @@
  *    intersections where three hexes meet, plus an even spread per resource).
  *
  * Pure and deterministic given a `seed`, so it is fully unit-testable; the UI
- * seeds it from `Date.now()` for a fresh board each tap.
+ * omits the seed for a fresh random board each tap.
  */
 
 export type CatanTerrain =
@@ -411,7 +411,10 @@ const CANDIDATES = 40;
  * balance rules and the most evenly-spread candidate is returned.
  */
 export function generateCatanBoard(seed?: number): CatanBoard {
-  const actualSeed = seed ?? Math.floor(Math.random() * 0xffffffff);
+  // A random 32-bit seed when none is given. Uses Web Crypto (not
+  // `Math.random`) purely to keep static analysis happy — a board layout has no
+  // security relevance either way.
+  const actualSeed = seed ?? crypto.getRandomValues(new Uint32Array(1))[0];
   const rng = mulberry32(actualSeed);
 
   const terrains = shuffle(terrainBag(), rng);
