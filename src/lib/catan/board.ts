@@ -8,11 +8,17 @@
  * 2:1 per resource).
  *
  * "Balanced" adds the community/expert rules on top of a pure shuffle:
+ *  - the desert stays on the centre by default (`BoardOptions` can open the
+ *    inner/outer ring);
+ *  - resources never form a **mono-coloured triangle** (a straight line of 3–4
+ *    is fine — only the closed triangle of three mutually-adjacent same tiles);
  *  - the red numbers **6 and 8 are never adjacent** (official expert rule);
  *  - **two identical numbers are never adjacent**;
  *  - among many valid candidates we keep the one whose production is spread
  *    most evenly across the board (lowest variance of the pip totals at the
  *    intersections where three hexes meet, plus an even spread per resource).
+ *
+ * `BoardOptions.ignoreConstraints` drops all of the above for a raw shuffle.
  *
  * Pure and deterministic given a `seed`, so it is fully unit-testable; the UI
  * omits the seed for a fresh random board each tap.
@@ -145,12 +151,15 @@ export interface CatanBoard {
 
 /** Tunable rules for the generator. */
 export interface BoardOptions {
+  /** Allow the desert on the inner ring (default: centre only). */
+  desertInnerRing?: boolean;
+  /** Allow the desert on the outer coast (default: centre only). */
+  desertOuterRing?: boolean;
   /**
-   * Keep the desert on the **centre** hex (base-game convention, the default).
-   * When `false` the desert may also land on the **inner ring** — but never on
-   * the outer coast.
+   * Drop every placement constraint (mono-triangle, adjacent reds/duplicates,
+   * balancing, desert ring) for a fully random board.
    */
-  desertCentered?: boolean;
+  ignoreConstraints?: boolean;
 }
 
 /** Axial radius-2 hexagon → 19 cells, ordered by row (r) then column (q). */
@@ -425,69 +434,146 @@ function imbalance(hexes: BoardHex[]): number {
 /** Number of balanced candidates evaluated per generation (best is kept). */
 const CANDIDATES = 40;
 
+/** Rejection-sampling budget for a mono-triangle-free terrain layout. */
+const TERRAIN_ATTEMPTS = 100;
+
 /**
- * Generates a balanced Catan board. Deterministic for a given `seed`
- * (defaults to a random one). The desert is placed per `options`
- * (centre by default), the other 18 terrains are shuffled freely, and the
+ * True when three mutually-adjacent hexes share the same resource — a
+ * "triangle" of identical terrain. A straight line of 3–4 same-resource tiles
+ * is fine; only the closed triangle is disallowed. (The desert is unique, so
+ * it can never form one.)
+ */
+export function hasMonoTriangle(terrainByHex: CatanTerrain[]): boolean {
+  for (const [a, b, c] of HEX_VERTICES) {
+    if (
+      terrainByHex[a] === terrainByHex[b] &&
+      terrainByHex[a] === terrainByHex[c]
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/** Desert on `desertId`, the 18 resources shuffled over the other hexes. */
+function layTerrain(desertId: number, rng: () => number): CatanTerrain[] {
+  const rest = shuffle(nonDesertTerrains(), rng);
+  const map: CatanTerrain[] = [];
+  let ri = 0;
+
+  for (const cell of HEX_CELLS) {
+    map[cell.id] = cell.id === desertId ? "desert" : rest[ri++];
+  }
+
+  return map;
+}
+
+/** An unconstrained shuffle of the 18 tokens onto the numbered hexes. */
+function randomNumbers(
+  hexIds: number[],
+  rng: () => number,
+): Map<number, number> {
+  const tokens = shuffle([...NUMBER_TOKENS], rng);
+  const map = new Map<number, number>();
+
+  hexIds.forEach((id, i) => {
+    map.set(id, tokens[i]);
+  });
+
+  return map;
+}
+
+/**
+ * Generates a Catan board. Deterministic for a given `seed` (defaults to a
+ * random one). By default: the desert sits on the centre (the inner/outer ring
+ * options open that up), the resources avoid a mono-coloured triangle, and the
  * numbers obey the balance rules with the most evenly-spread candidate kept.
+ * `ignoreConstraints` drops all of that for a fully random board.
  */
 export function generateCatanBoard(
   seed?: number,
   options?: BoardOptions,
 ): CatanBoard {
-  const desertCentered = options?.desertCentered ?? true;
+  const innerOk = options?.desertInnerRing ?? false;
+  const outerOk = options?.desertOuterRing ?? false;
+  const ignore = options?.ignoreConstraints ?? false;
   // A random 32-bit seed when none is given. Uses Web Crypto (not
   // `Math.random`) purely to keep static analysis happy — a board layout has no
   // security relevance either way.
   const actualSeed = seed ?? crypto.getRandomValues(new Uint32Array(1))[0];
   const rng = mulberry32(actualSeed);
 
-  // Place the desert on an allowed hex (centre only, or the inner ring too),
-  // then shuffle the other 18 terrains over the remaining hexes.
-  const desertHexes = HEX_CELLS.filter(c =>
-    desertCentered ? ringOf(c) === 0 : ringOf(c) <= 1,
-  );
+  // Desert: centre by default; the inner/outer ring options widen it, and
+  // ignoring constraints frees it anywhere.
+  const desertHexes = HEX_CELLS.filter(c => {
+    if (ignore) {
+      return true;
+    }
+
+    const ring = ringOf(c);
+
+    return ring === 0 || (ring === 1 && innerOk) || (ring === 2 && outerOk);
+  });
   const desertId = desertHexes[Math.floor(rng() * desertHexes.length)].id;
 
-  const rest = shuffle(nonDesertTerrains(), rng);
-  let ri = 0;
+  // Terrain: re-lay until no triangle of identical resources (unless ignoring).
+  let terrainByHex = layTerrain(desertId, rng);
+  if (!ignore) {
+    for (
+      let i = 0;
+      i < TERRAIN_ATTEMPTS && hasMonoTriangle(terrainByHex);
+      i++
+    ) {
+      terrainByHex = layTerrain(desertId, rng);
+    }
+  }
+
   const hexes: BoardHex[] = HEX_CELLS.map(cell => ({
     id: cell.id,
     q: cell.q,
     r: cell.r,
-    terrain: cell.id === desertId ? "desert" : rest[ri++],
+    terrain: terrainByHex[cell.id],
     number: null,
   }));
 
   const numberedIds = hexes.filter(h => h.terrain !== "desert").map(h => h.id);
 
-  let best: Map<number, number> | null = null;
-  let bestScore = Number.POSITIVE_INFINITY;
+  // Numbers: an unconstrained shuffle when ignoring, else the balanced search.
+  let best: Map<number, number>;
 
-  for (let i = 0; i < CANDIDATES; i++) {
-    const placement = placeNumbers(numberedIds, rng);
+  if (ignore) {
+    best = randomNumbers(numberedIds, rng);
+  } else {
+    let candidate: Map<number, number> | null = null;
+    let bestScore = Number.POSITIVE_INFINITY;
 
-    /* c8 ignore next 3 -- defensive: this constraint set is always solvable */
-    if (placement === null) {
-      continue;
+    for (let i = 0; i < CANDIDATES; i++) {
+      const placement = placeNumbers(numberedIds, rng);
+
+      /* c8 ignore next 3 -- defensive: this constraint set is always solvable */
+      if (placement === null) {
+        continue;
+      }
+
+      const scored = hexes.map(h => ({
+        ...h,
+        number: placement.get(h.id) ?? null,
+      }));
+      const score = imbalance(scored);
+
+      if (score < bestScore) {
+        bestScore = score;
+        candidate = placement;
+      }
     }
 
-    const scored = hexes.map(h => ({
-      ...h,
-      number: placement.get(h.id) ?? null,
-    }));
-    const score = imbalance(scored);
-
-    if (score < bestScore) {
-      bestScore = score;
-      best = placement;
+    /* c8 ignore next 3 -- unreachable: a valid placement always exists */
+    if (candidate === null) {
+      candidate = placeNumbers(numberedIds, rng) ?? new Map();
     }
-  }
 
-  // Backtracking on these constraints is always solvable, but guard anyway.
-  /* c8 ignore next 3 -- unreachable: a valid placement always exists */
-  if (best === null) {
-    best = placeNumbers(numberedIds, rng) ?? new Map();
+    best = candidate;
   }
 
   for (const h of hexes) {

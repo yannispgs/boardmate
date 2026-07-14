@@ -33,7 +33,14 @@ test("generates and regenerates a Catan board", async ({ page }) => {
     expect(await board.textContent()).not.toBe(before);
   }).toPass();
 
-  // The generator settings: toggling the desert option regenerates the board.
-  await page.getByLabel("Forcer le désert au centre").uncheck();
+  // The generator settings regenerate the board: open the outer ring for the
+  // desert, then drop all constraints entirely.
+  await page.getByLabel("la couronne extérieure").check();
   await expect(board).toBeVisible();
+
+  await page.getByLabel("Ignorer les contraintes de placement").check();
+  await expect(board).toBeVisible();
+
+  // The recap of placement rules is shown at the bottom.
+  await expect(page.getByText("Règles de placement")).toBeVisible();
 });

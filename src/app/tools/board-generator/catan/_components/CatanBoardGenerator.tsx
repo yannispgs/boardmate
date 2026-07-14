@@ -14,24 +14,35 @@ const LEGEND: { label: string; resource: string; color: string }[] = [
   { label: "Désert", resource: "voleur", color: "#e0cfa3" },
 ];
 
+const sectionClass =
+  "flex w-full max-w-md flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10";
+
 /**
- * Interactive Catan board generator: shows a balanced random board, a "Nouveau
- * plateau" button to roll another, and a settings section (only the desert
- * placement for now). The first render is deterministic (so server and client
- * markup match), then a fresh random board is drawn on mount.
+ * Interactive Catan board generator: a board, a "Nouveau plateau" button, a
+ * settings section (desert placement + an escape hatch to drop all rules) and a
+ * recap of every placement rule. The first render is deterministic (so server
+ * and client markup match), then a fresh random board is drawn on mount.
  */
 export function CatanBoardGenerator() {
-  const [desertCentered, setDesertCentered] = useState(true);
-  const [board, setBoard] = useState<CatanBoard>(() =>
-    generateCatanBoard(1, { desertCentered: true }),
-  );
+  const [desertInner, setDesertInner] = useState(false);
+  const [desertOuter, setDesertOuter] = useState(false);
+  const [ignore, setIgnore] = useState(false);
+  const [board, setBoard] = useState<CatanBoard>(() => generateCatanBoard(1));
 
   useEffect(() => {
-    setBoard(generateCatanBoard(undefined, { desertCentered: true }));
+    setBoard(generateCatanBoard());
   }, []);
 
-  function newBoard(desert = desertCentered) {
-    setBoard(generateCatanBoard(undefined, { desertCentered: desert }));
+  function regen(
+    over: { inner?: boolean; outer?: boolean; ignore?: boolean } = {},
+  ) {
+    setBoard(
+      generateCatanBoard(undefined, {
+        desertInnerRing: over.inner ?? desertInner,
+        desertOuterRing: over.outer ?? desertOuter,
+        ignoreConstraints: over.ignore ?? ignore,
+      }),
+    );
   }
 
   return (
@@ -40,13 +51,13 @@ export function CatanBoardGenerator() {
 
       <button
         type="button"
-        onClick={() => newBoard()}
+        onClick={() => regen()}
         className="rounded-lg bg-indigo-600 px-5 py-2.5 font-medium text-white transition hover:bg-indigo-500"
       >
         🎲 Nouveau plateau
       </button>
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
         <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm sm:grid-cols-3">
           {LEGEND.map(item => (
             <li key={item.label} className="flex items-center gap-2">
@@ -65,32 +76,86 @@ export function CatanBoardGenerator() {
           ))}
         </ul>
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          Équilibré : <span className="font-semibold text-red-600">6</span> et{" "}
-          <span className="font-semibold text-red-600">8</span> (les plus
-          fréquents, en rouge) ne se touchent jamais, pas deux nombres
-          identiques côte à côte, et la production est répartie le plus
-          uniformément possible. Les pastilles sous chaque nombre indiquent sa
-          fréquence.
+          Les pastilles sous chaque nombre indiquent sa fréquence de sortie.
         </p>
       </div>
 
-      <section className="flex w-full max-w-md flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10">
+      <section className={sectionClass}>
         <h2 className="text-sm font-semibold">Configuration du générateur</h2>
-        <label className="flex items-center gap-2 text-sm">
+
+        <fieldset
+          disabled={ignore}
+          className="flex flex-col gap-1.5 disabled:opacity-50"
+        >
+          <legend className="mb-1 text-sm">Permettre un désert sur :</legend>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={desertInner}
+              onChange={e => {
+                setDesertInner(e.target.checked);
+                regen({ inner: e.target.checked });
+              }}
+              className="h-4 w-4 accent-indigo-600"
+            />
+            la couronne intérieure
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={desertOuter}
+              onChange={e => {
+                setDesertOuter(e.target.checked);
+                regen({ outer: e.target.checked });
+              }}
+              className="h-4 w-4 accent-indigo-600"
+            />
+            la couronne extérieure
+          </label>
+        </fieldset>
+
+        <label className="mt-1 flex items-center gap-2 border-t border-black/10 pt-3 text-sm dark:border-white/10">
           <input
             type="checkbox"
-            checked={desertCentered}
+            checked={ignore}
             onChange={e => {
-              setDesertCentered(e.target.checked);
-              newBoard(e.target.checked);
+              setIgnore(e.target.checked);
+              regen({ ignore: e.target.checked });
             }}
             className="h-4 w-4 accent-indigo-600"
           />
-          Forcer le désert au centre
+          Ignorer les contraintes de placement
         </label>
+      </section>
+
+      <section className={`${sectionClass} text-sm`}>
+        <h2 className="font-semibold">Règles de placement</h2>
+        <ul className="flex list-disc flex-col gap-1 pl-4 text-zinc-600 dark:text-zinc-300">
+          <li>
+            Le désert est au centre par défaut (couronnes intérieure /
+            extérieure activables ci-dessus).
+          </li>
+          <li>
+            Aucun triangle de trois tuiles de même ressource — une ligne de 3 à
+            4 identiques reste permise.
+          </li>
+          <li>
+            Les nombres rouges{" "}
+            <span className="font-semibold text-red-600">6</span> et{" "}
+            <span className="font-semibold text-red-600">8</span> (les plus
+            fréquents) ne sont jamais adjacents.
+          </li>
+          <li>Deux nombres identiques ne sont jamais adjacents.</li>
+          <li>
+            Production équilibrée : les points sont répartis le plus
+            uniformément possible entre les ressources et entre les
+            intersections.
+          </li>
+          <li>9 ports : 4 génériques (3:1) + un port 2:1 par ressource.</li>
+        </ul>
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          Décoché, le désert peut aussi tomber sur la couronne intérieure —
-          jamais sur la couronne extérieure.
+          « Ignorer les contraintes de placement » désactive toutes ces règles :
+          désert et nombres deviennent totalement aléatoires.
         </p>
       </section>
     </div>

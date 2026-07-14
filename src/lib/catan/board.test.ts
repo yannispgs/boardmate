@@ -6,6 +6,7 @@ import {
   generateCatanBoard,
   HEX_CELLS,
   HEX_NEIGHBOURS,
+  hasMonoTriangle,
   isRedNumber,
   NUMBER_TOKENS,
   PORT_SLOTS,
@@ -182,30 +183,76 @@ describe("generateCatanBoard", () => {
   const ring = (q: number, r: number) =>
     (Math.abs(q) + Math.abs(r) + Math.abs(q + r)) / 2;
 
+  const desertOf = (board: ReturnType<typeof generateCatanBoard>) =>
+    board.hexes.find(h => h.terrain === "desert");
+
   it("keeps the desert on the centre hex by default", () => {
     for (let seed = 0; seed < 20; seed++) {
-      const desert = generateCatanBoard(seed).hexes.find(
-        h => h.terrain === "desert",
-      );
+      const d = desertOf(generateCatanBoard(seed));
 
-      expect(desert?.q).toBe(0);
-      expect(desert?.r).toBe(0);
+      expect(d?.q).toBe(0);
+      expect(d?.r).toBe(0);
     }
   });
 
-  it("lets the desert off-centre but never on the outer ring", () => {
+  it("opens the inner ring but never the coast when only inner is allowed", () => {
     const spots = new Set<string>();
 
     for (let seed = 0; seed < 40; seed++) {
-      const desert = generateCatanBoard(seed, {
-        desertCentered: false,
-      }).hexes.find(h => h.terrain === "desert");
+      const d = desertOf(generateCatanBoard(seed, { desertInnerRing: true }));
 
-      expect(ring(desert?.q ?? 0, desert?.r ?? 0)).toBeLessThanOrEqual(1);
-      spots.add(`${desert?.q},${desert?.r}`);
+      expect(ring(d?.q ?? 0, d?.r ?? 0)).toBeLessThanOrEqual(1);
+      spots.add(`${d?.q},${d?.r}`);
     }
 
-    // Over many seeds it lands somewhere other than the centre at least once.
+    expect(spots.size).toBeGreaterThan(1);
+  });
+
+  it("opens the outer ring but not the inner when only outer is allowed", () => {
+    for (let seed = 0; seed < 40; seed++) {
+      const d = desertOf(generateCatanBoard(seed, { desertOuterRing: true }));
+
+      expect(ring(d?.q ?? 0, d?.r ?? 0)).not.toBe(1);
+    }
+  });
+
+  it("never places a triangle of identical resources", () => {
+    for (let seed = 0; seed < 30; seed++) {
+      const byId: CatanTerrain[] = [];
+
+      for (const h of generateCatanBoard(seed).hexes) {
+        byId[h.id] = h.terrain;
+      }
+
+      expect(hasMonoTriangle(byId)).toBe(false);
+    }
+
+    // An all-one-resource board is nothing but triangles.
+    expect(hasMonoTriangle(HEX_CELLS.map(() => "forest"))).toBe(true);
+  });
+
+  it("ignores every constraint when asked (still the right pieces)", () => {
+    const board = generateCatanBoard(3, { ignoreConstraints: true });
+
+    expect(board.hexes).toHaveLength(19);
+    expect(board.hexes.filter(h => h.terrain === "desert")).toHaveLength(1);
+    expect(board.ports).toHaveLength(9);
+
+    const numbers = board.hexes
+      .filter(h => h.terrain !== "desert")
+      .map(h => h.number as number)
+      .sort((a, b) => a - b);
+
+    expect(numbers).toEqual([...NUMBER_TOKENS].sort((a, b) => a - b));
+
+    // Freed of the ring rule, the desert can leave the centre across seeds.
+    const spots = new Set<string>();
+
+    for (let seed = 0; seed < 40; seed++) {
+      const d = desertOf(generateCatanBoard(seed, { ignoreConstraints: true }));
+      spots.add(`${d?.q},${d?.r}`);
+    }
+
     expect(spots.size).toBeGreaterThan(1);
   });
 });
