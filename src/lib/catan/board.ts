@@ -434,8 +434,8 @@ function imbalance(hexes: BoardHex[]): number {
 /** Number of balanced candidates evaluated per generation (best is kept). */
 const CANDIDATES = 40;
 
-/** Rejection-sampling budget for a mono-triangle-free terrain layout. */
-const TERRAIN_ATTEMPTS = 100;
+/** Terrain layouts sampled per generation; the least-clustered valid one wins. */
+const TERRAIN_CANDIDATES = 60;
 
 /**
  * True when three mutually-adjacent hexes share the same resource — a
@@ -454,6 +454,47 @@ export function hasMonoTriangle(terrainByHex: CatanTerrain[]): boolean {
   }
 
   return false;
+}
+
+/**
+ * How clustered the terrain is: for each connected group of same-resource
+ * hexes, the tiles it holds beyond a pair (`size - 2` for groups of 3+, 0 for
+ * singletons and pairs). So a stray pair costs nothing, but blobs of 3, 4… are
+ * penalised — the generator prefers spread-out resources. The desert is
+ * skipped (it is unique).
+ */
+export function clusterPenalty(terrainByHex: CatanTerrain[]): number {
+  const seen: boolean[] = [];
+  let penalty = 0;
+
+  for (let start = 0; start < HEX_CELLS.length; start++) {
+    if (seen[start] || terrainByHex[start] === "desert") {
+      continue;
+    }
+
+    const resource = terrainByHex[start];
+    const queue = [start];
+    seen[start] = true;
+    let size = 0;
+
+    while (queue.length > 0) {
+      const h = queue.pop() as number;
+      size += 1;
+
+      for (const nb of HEX_NEIGHBOURS[h]) {
+        if (!seen[nb] && terrainByHex[nb] === resource) {
+          seen[nb] = true;
+          queue.push(nb);
+        }
+      }
+    }
+
+    if (size >= 3) {
+      penalty += size - 2;
+    }
+  }
+
+  return penalty;
 }
 
 /** Desert on `desertId`, the 18 resources shuffled over the other hexes. */
@@ -517,16 +558,34 @@ export function generateCatanBoard(
   });
   const desertId = desertHexes[Math.floor(rng() * desertHexes.length)].id;
 
-  // Terrain: re-lay until no triangle of identical resources (unless ignoring).
-  let terrainByHex = layTerrain(desertId, rng);
-  if (!ignore) {
-    for (
-      let i = 0;
-      i < TERRAIN_ATTEMPTS && hasMonoTriangle(terrainByHex);
-      i++
-    ) {
-      terrainByHex = layTerrain(desertId, rng);
+  // Terrain: no mono-triangle of resources, and among many valid layouts keep
+  // the least clustered (fewest 3+ blobs of a resource). Ignoring drops both.
+  let terrainByHex: CatanTerrain[];
+
+  if (ignore) {
+    terrainByHex = layTerrain(desertId, rng);
+  } else {
+    let best = layTerrain(desertId, rng);
+    let bestCost = hasMonoTriangle(best)
+      ? Number.POSITIVE_INFINITY
+      : clusterPenalty(best);
+
+    for (let i = 1; i < TERRAIN_CANDIDATES; i++) {
+      const cand = layTerrain(desertId, rng);
+
+      if (hasMonoTriangle(cand)) {
+        continue;
+      }
+
+      const cost = clusterPenalty(cand);
+
+      if (cost < bestCost) {
+        bestCost = cost;
+        best = cand;
+      }
     }
+
+    terrainByHex = best;
   }
 
   const hexes: BoardHex[] = HEX_CELLS.map(cell => ({

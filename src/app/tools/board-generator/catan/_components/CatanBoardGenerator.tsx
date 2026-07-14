@@ -136,8 +136,8 @@ export function CatanBoardGenerator() {
             extérieure activables ci-dessus).
           </li>
           <li>
-            Aucun triangle de trois tuiles de même ressource — une ligne de 3 à
-            4 identiques reste permise.
+            Jamais de triangle de même ressource, et les regroupements de 3
+            tuiles identiques ou plus sont évités (ressources réparties).
           </li>
           <li>
             Les nombres rouges{" "}

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   axialToPixel,
   type CatanTerrain,
+  clusterPenalty,
   generateCatanBoard,
   HEX_CELLS,
   HEX_NEIGHBOURS,
@@ -229,6 +230,25 @@ describe("generateCatanBoard", () => {
 
     // An all-one-resource board is nothing but triangles.
     expect(hasMonoTriangle(HEX_CELLS.map(() => "forest"))).toBe(true);
+  });
+
+  it("scores clustering by tiles beyond a pair in each same-resource group", () => {
+    // One big forest blob (17 tiles) + a lone pasture + the desert.
+    const t: CatanTerrain[] = HEX_CELLS.map(() => "forest");
+    t[0] = "desert";
+    t[9] = "pasture";
+
+    // Forest group of 17 → 15 over a pair; the lone pasture costs nothing.
+    expect(clusterPenalty(t)).toBe(15);
+
+    // A generated board keeps the clustering low.
+    const byId: CatanTerrain[] = [];
+
+    for (const h of generateCatanBoard(1).hexes) {
+      byId[h.id] = h.terrain;
+    }
+
+    expect(clusterPenalty(byId)).toBeLessThan(4);
   });
 
   it("ignores every constraint when asked (still the right pieces)", () => {
