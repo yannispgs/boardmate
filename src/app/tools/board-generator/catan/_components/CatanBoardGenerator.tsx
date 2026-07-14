@@ -63,6 +63,16 @@ export function CatanBoardGenerator() {
     );
   }
 
+  // Where the desert may land, per the current settings (for the recap below).
+  const desertZone =
+    opts.desertInner && opts.desertOuter
+      ? "n'importe où sur le plateau"
+      : opts.desertInner
+        ? "au centre ou sur la couronne intérieure"
+        : opts.desertOuter
+          ? "au centre ou sur la couronne extérieure"
+          : "au centre";
+
   return (
     <div className="flex flex-col items-center gap-6">
       <CatanBoardSvg board={board} />
@@ -179,34 +189,36 @@ export function CatanBoardGenerator() {
       )}
 
       <section className={`${sectionClass} text-sm`}>
-        <h2 className="font-semibold">Règles de placement</h2>
-        <ul className="flex list-disc flex-col gap-1 pl-4 text-zinc-600 dark:text-zinc-300">
-          <li>
-            Le désert est au centre par défaut (couronnes intérieure /
-            extérieure activables dans les paramètres).
-          </li>
-          <li>
-            Jamais de triangle de même ressource, et les regroupements de 3
-            tuiles identiques ou plus sont évités (ressources réparties).
-          </li>
-          <li>
-            Les nombres rouges{" "}
-            <span className="font-semibold text-red-600">6</span> et{" "}
-            <span className="font-semibold text-red-600">8</span> (les plus
-            fréquents) ne sont jamais adjacents.
-          </li>
-          <li>Deux nombres identiques ne sont jamais adjacents.</li>
-          <li>
-            Production équilibrée : chaque ressource reste à ±
-            {opts.tolerancePct} % de sa part attendue (réglable), sans être
-            strictement identique — de quoi garder de la variété.
-          </li>
-          <li>9 ports : 4 génériques (3:1) + un port 2:1 par ressource.</li>
-        </ul>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          « Ignorer les contraintes de placement » désactive toutes ces règles :
-          désert et nombres deviennent totalement aléatoires.
-        </p>
+        <h2 className="font-semibold">Règles de placement appliquées</h2>
+        {opts.ignore ? (
+          <p className="text-zinc-600 dark:text-zinc-300">
+            Contraintes <span className="font-semibold">désactivées</span> — le
+            plateau est totalement aléatoire : le désert peut tomber
+            n&apos;importe où, et les ressources comme les nombres ne suivent
+            aucune règle.
+          </p>
+        ) : (
+          <ul className="flex list-disc flex-col gap-1 pl-4 text-zinc-600 dark:text-zinc-300">
+            <li>Le désert est placé {desertZone}.</li>
+            <li>
+              Jamais de triangle de même ressource, et les regroupements de 3
+              tuiles identiques ou plus sont évités (ressources réparties).
+            </li>
+            <li>
+              Les nombres rouges{" "}
+              <span className="font-semibold text-red-600">6</span> et{" "}
+              <span className="font-semibold text-red-600">8</span> (les plus
+              fréquents) ne sont jamais adjacents.
+            </li>
+            <li>Deux nombres identiques ne sont jamais adjacents.</li>
+            <li>
+              {opts.tolerancePct === 0
+                ? "Production strictement équilibrée : chaque ressource a exactement sa part attendue."
+                : `Production équilibrée : chaque ressource reste à ±${opts.tolerancePct} % de sa part attendue — de quoi garder de la variété.`}
+            </li>
+            <li>9 ports : 4 génériques (3:1) + un port 2:1 par ressource.</li>
+          </ul>
+        )}
       </section>
     </div>
   );

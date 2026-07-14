@@ -43,13 +43,17 @@ test("generates and regenerates a Catan board", async ({ page }) => {
 
   await page.getByLabel("Écart de production toléré en pourcentage").fill("40");
   await expect(board).toBeVisible();
+  // The recap tracks the settings: the tolerance is reflected.
+  await expect(page.getByText(/reste à ±40 %/)).toBeVisible();
 
   await page.getByLabel("la couronne extérieure").check();
   await expect(board).toBeVisible();
+  await expect(
+    page.getByText(/désert est placé au centre ou sur la couronne extérieure/),
+  ).toBeVisible();
 
+  // Dropping all constraints flips the recap to the fully-random note.
   await page.getByLabel("Ignorer les contraintes de placement").check();
   await expect(board).toBeVisible();
-
-  // The recap of placement rules is shown at the bottom.
-  await expect(page.getByText("Règles de placement")).toBeVisible();
+  await expect(page.getByText(/totalement aléatoire/)).toBeVisible();
 });
