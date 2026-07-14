@@ -1,17 +1,22 @@
 import { expect, test } from "@playwright/test";
 
 /**
- * The Catan board generator: reachable from the home menu, renders a board,
- * and "Nouveau plateau" rolls a different one. No DB, no fixtures. Full-suite
- * only (untagged).
+ * The board generator: from the home menu → "Générer un plateau" → the list of
+ * supported games → Catan, which renders a board and "Nouveau plateau" rolls a
+ * different one. No DB, no fixtures. Full-suite only (untagged).
  */
 test("generates and regenerates a Catan board", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("link", { name: "Plateau Catan" }).click();
+  await page.getByRole("link", { name: "Générer un plateau" }).click();
 
   await expect(
-    page.getByRole("heading", { name: "Plateau Catan" }),
+    page.getByRole("heading", { name: "Générer un plateau" }),
   ).toBeVisible();
+
+  // The supported-games list → Catan.
+  await page.getByRole("link", { name: "Catan" }).click();
+
+  await expect(page.getByRole("heading", { name: "Catan" })).toBeVisible();
 
   const board = page.getByRole("img", { name: "Plateau de Catan généré" });
 
