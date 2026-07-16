@@ -52,8 +52,14 @@ test("generates and regenerates a Catan board", async ({ page }) => {
     page.getByText(/désert est placé au centre ou sur la couronne extérieure/),
   ).toBeVisible();
 
+  // Turning a constraint off drops it from the recap.
+  await expect(page.getByText(/rouges/)).toBeVisible();
+  await page.getByLabel("Pas de 6/8 adjacents").uncheck();
+  await expect(board).toBeVisible();
+  await expect(page.getByText(/rouges/)).toHaveCount(0);
+
   // Dropping all constraints flips the recap to the fully-random note.
-  await page.getByLabel("Ignorer les contraintes de placement").check();
+  await page.getByLabel("Ignorer toutes les contraintes de placement").check();
   await expect(board).toBeVisible();
   await expect(page.getByText(/totalement aléatoire/)).toBeVisible();
 });

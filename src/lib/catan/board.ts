@@ -191,10 +191,24 @@ export interface BoardOptions {
   /**
    * How far each resource's total dice combinations may stray from its balanced
    * share, as a fraction (default `0.25` = ±25%). The balanced share is
-   * proportional to a resource's tile count, so with 25% the 4-tile resources
-   * land in ~[9.7, 16.1] and the 3-tile ones in ~[7.3, 12.1].
+   * proportional to a resource's tile count, so a 3-tile resource (brick, ore)
+   * expects 25% fewer combinations than a 4-tile one (wood, wool, grain).
    */
   balanceTolerance?: number;
+  /** Forbid two red numbers (6/8) on adjacent hexes (default `true`). */
+  avoidAdjacentReds?: boolean;
+  /** Forbid the same number on adjacent hexes (default `true`). */
+  avoidAdjacentDuplicates?: boolean;
+  /** Prefer terrains that avoid 3+ blobs of a resource (default `true`). */
+  avoidResourceClusters?: boolean;
+  /** Rank numbers by even production across intersections (default `true`). */
+  balanceIntersections?: boolean;
+  /** Keep a 2:1 port off a coastal tile of its own resource (default `false`). */
+  avoidPortOnResource?: boolean;
+  /** Terrain layouts sampled (default 60). */
+  terrainCandidates?: number;
+  /** Number placements sampled (default 40). */
+  numberCandidates?: number;
 }
 
 /** Axial radius-2 hexagon → 19 cells, ordered by row (r) then column (q). */
@@ -363,6 +377,8 @@ function ringOf(cell: HexCell): number {
 function placeNumbers(
   hexIds: number[],
   rng: () => number,
+  avoidReds: boolean,
+  avoidDuplicates: boolean,
 ): Map<number, number> | null {
   const assigned = new Map<number, number>();
   // Remaining tokens indexed by value (2..12); never undefined.
@@ -382,11 +398,11 @@ function placeNumbers(
         continue;
       }
 
-      if (other === n) {
+      if (avoidDuplicates && other === n) {
         return false;
       }
 
-      if (isRedNumber(n) && isRedNumber(other)) {
+      if (avoidReds && isRedNumber(n) && isRedNumber(other)) {
         return false;
       }
     }
@@ -458,7 +474,11 @@ function expectedCombos(resource: CatanResource): number {
  * production spreads across the intersections; boards outside the tolerance
  * score worse, the closest to it least so.
  */
-function numberBalance(hexes: BoardHex[], tolerance: number): number {
+function numberBalance(
+  hexes: BoardHex[],
+  tolerance: number,
+  balanceIntersections: boolean,
+): number {
   const pips = hexes.map(h => (h.number === null ? 0 : pipCount(h.number)));
 
   const sums = HEX_VERTICES.map(([a, b, c]) => pips[a] + pips[b] + pips[c]);
@@ -491,14 +511,46 @@ function numberBalance(hexes: BoardHex[], tolerance: number): number {
     }
   }
 
-  return outOfRange > 0 ? 1000 + outOfRange : vertexVar;
+  if (outOfRange > 0) {
+    return 1000 + outOfRange;
+  }
+
+  // In tolerance: rank by even intersection production, or treat all as equal
+  // (0) when that balancing is turned off — leaving more variety.
+  return balanceIntersections ? vertexVar : 0;
 }
 
-/** Number of balanced candidates evaluated per generation (best is kept). */
+/** Default number of number placements sampled per generation. */
 const CANDIDATES = 40;
 
-/** Terrain layouts sampled per generation; the least-clustered valid one wins. */
+/** Default number of terrain layouts sampled per generation. */
 const TERRAIN_CANDIDATES = 60;
+
+/** Rejection budget for keeping 2:1 ports off their own resource. */
+const PORT_ATTEMPTS = 100;
+
+/**
+ * True when a 2:1 resource port sits on a coastal tile of its own resource
+ * (`portTypes[i]` is the type at slot `i`). Generic 3:1 ports are exempt.
+ */
+function portOnOwnResource(
+  portTypes: CatanPortType[],
+  terrainByHex: CatanTerrain[],
+): boolean {
+  for (let i = 0; i < PORT_SLOTS.length; i++) {
+    const type = portTypes[i];
+
+    if (type === "generic") {
+      continue;
+    }
+
+    if (TERRAIN_RESOURCE[terrainByHex[PORT_SLOTS[i].hexId]] === type) {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 /**
  * True when three mutually-adjacent hexes share the same resource — a
@@ -603,6 +655,13 @@ export function generateCatanBoard(
   const outerOk = options?.desertOuterRing ?? false;
   const ignore = options?.ignoreConstraints ?? false;
   const tolerance = options?.balanceTolerance ?? DEFAULT_TOLERANCE;
+  const avoidReds = options?.avoidAdjacentReds ?? true;
+  const avoidDuplicates = options?.avoidAdjacentDuplicates ?? true;
+  const avoidClusters = options?.avoidResourceClusters ?? true;
+  const balanceInter = options?.balanceIntersections ?? true;
+  const avoidPortRes = options?.avoidPortOnResource ?? false;
+  const terrainN = options?.terrainCandidates ?? TERRAIN_CANDIDATES;
+  const numberN = options?.numberCandidates ?? CANDIDATES;
   // A random 32-bit seed when none is given. Uses Web Crypto (not
   // `Math.random`) purely to keep static analysis happy — a board layout has no
   // security relevance either way.
@@ -622,19 +681,20 @@ export function generateCatanBoard(
   });
   const desertId = desertHexes[Math.floor(rng() * desertHexes.length)].id;
 
-  // Terrain: no mono-triangle of resources, and among many valid layouts keep
-  // the least clustered (fewest 3+ blobs of a resource). Ignoring drops both.
+  // Terrain: always reject a mono-triangle (unless ignoring). When avoiding
+  // clusters, also keep the least-blobby of many layouts; otherwise take the
+  // first triangle-free one.
   let terrainByHex: CatanTerrain[];
 
   if (ignore) {
     terrainByHex = layTerrain(desertId, rng);
-  } else {
+  } else if (avoidClusters) {
     let best = layTerrain(desertId, rng);
     let bestCost = hasMonoTriangle(best)
       ? Number.POSITIVE_INFINITY
       : clusterPenalty(best);
 
-    for (let i = 1; i < TERRAIN_CANDIDATES; i++) {
+    for (let i = 1; i < terrainN; i++) {
       const cand = layTerrain(desertId, rng);
 
       if (hasMonoTriangle(cand)) {
@@ -650,6 +710,14 @@ export function generateCatanBoard(
     }
 
     terrainByHex = best;
+  } else {
+    let laid = layTerrain(desertId, rng);
+
+    for (let i = 0; i < terrainN && hasMonoTriangle(laid); i++) {
+      laid = layTerrain(desertId, rng);
+    }
+
+    terrainByHex = laid;
   }
 
   const hexes: BoardHex[] = HEX_CELLS.map(cell => ({
@@ -671,8 +739,13 @@ export function generateCatanBoard(
     let candidate: Map<number, number> | null = null;
     let bestScore = Number.POSITIVE_INFINITY;
 
-    for (let i = 0; i < CANDIDATES; i++) {
-      const placement = placeNumbers(numberedIds, rng);
+    for (let i = 0; i < numberN; i++) {
+      const placement = placeNumbers(
+        numberedIds,
+        rng,
+        avoidReds,
+        avoidDuplicates,
+      );
 
       /* c8 ignore next 3 -- defensive: this constraint set is always solvable */
       if (placement === null) {
@@ -683,7 +756,7 @@ export function generateCatanBoard(
         ...h,
         number: placement.get(h.id) ?? null,
       }));
-      const score = numberBalance(scored, tolerance);
+      const score = numberBalance(scored, tolerance, balanceInter);
 
       if (score < bestScore) {
         bestScore = score;
@@ -693,7 +766,8 @@ export function generateCatanBoard(
 
     /* c8 ignore next 3 -- unreachable: a valid placement always exists */
     if (candidate === null) {
-      candidate = placeNumbers(numberedIds, rng) ?? new Map();
+      candidate =
+        placeNumbers(numberedIds, rng, avoidReds, avoidDuplicates) ?? new Map();
     }
 
     best = candidate;
@@ -703,7 +777,18 @@ export function generateCatanBoard(
     h.number = best.get(h.id) ?? null;
   }
 
-  const portTypes = shuffle(PORT_TYPES, rng);
+  let portTypes = shuffle(PORT_TYPES, rng);
+
+  if (avoidPortRes && !ignore) {
+    for (
+      let i = 0;
+      i < PORT_ATTEMPTS && portOnOwnResource(portTypes, terrainByHex);
+      i++
+    ) {
+      portTypes = shuffle(PORT_TYPES, rng);
+    }
+  }
+
   const ports: BoardPort[] = PORT_SLOTS.map((slot, i) => ({
     ...slot,
     type: portTypes[i],

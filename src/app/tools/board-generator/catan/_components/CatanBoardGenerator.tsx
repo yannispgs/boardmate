@@ -25,6 +25,13 @@ interface Options {
   ignore: boolean;
   /** Allowed deviation from each resource's balanced share, in percent. */
   tolerancePct: number;
+  avoidReds: boolean;
+  avoidDuplicates: boolean;
+  avoidClusters: boolean;
+  balanceInter: boolean;
+  avoidPortRes: boolean;
+  terrainN: number;
+  numberN: number;
 }
 
 const DEFAULTS: Options = {
@@ -32,14 +39,44 @@ const DEFAULTS: Options = {
   desertOuter: false,
   ignore: false,
   tolerancePct: 25,
+  avoidReds: true,
+  avoidDuplicates: true,
+  avoidClusters: true,
+  balanceInter: true,
+  avoidPortRes: false,
+  terrainN: 60,
+  numberN: 40,
 };
+
+/** A labelled checkbox, to keep the settings panel readable. */
+function Check({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center gap-2 text-sm">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={e => onChange(e.target.checked)}
+        className="h-4 w-4 shrink-0 accent-indigo-600"
+      />
+      {label}
+    </label>
+  );
+}
 
 /**
  * Interactive Catan board generator: a board, a "Nouveau plateau" button, the
  * board's structure, a legend, the generator settings (behind a button, reset
- * every visit) and a recap of the placement rules. The first render is
- * deterministic (so server and client markup match), then a fresh random board
- * is drawn on mount.
+ * every visit) and a recap of the placement rules that tracks those settings.
+ * The first render is deterministic (so server and client markup match), then a
+ * fresh random board is drawn on mount.
  */
 export function CatanBoardGenerator() {
   const [opts, setOpts] = useState<Options>(DEFAULTS);
@@ -59,6 +96,13 @@ export function CatanBoardGenerator() {
         desertOuterRing: next.desertOuter,
         ignoreConstraints: next.ignore,
         balanceTolerance: next.tolerancePct / 100,
+        avoidAdjacentReds: next.avoidReds,
+        avoidAdjacentDuplicates: next.avoidDuplicates,
+        avoidResourceClusters: next.avoidClusters,
+        balanceIntersections: next.balanceInter,
+        avoidPortOnResource: next.avoidPortRes,
+        terrainCandidates: next.terrainN,
+        numberCandidates: next.numberN,
       }),
     );
   }
@@ -72,6 +116,9 @@ export function CatanBoardGenerator() {
         : opts.desertOuter
           ? "au centre ou sur la couronne extérieure"
           : "au centre";
+
+  const numField =
+    "w-20 rounded-lg border border-black/15 bg-white px-2 py-1 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900";
 
   return (
     <div className="flex flex-col items-center gap-6">
@@ -125,28 +172,51 @@ export function CatanBoardGenerator() {
 
           <fieldset
             disabled={opts.ignore}
-            className="flex flex-col gap-3 disabled:opacity-50"
+            className="flex flex-col gap-4 disabled:opacity-50"
           >
             <div className="flex flex-col gap-1.5">
-              <legend className="text-sm">Permettre un désert sur :</legend>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={opts.desertInner}
-                  onChange={e => regen({ desertInner: e.target.checked })}
-                  className="h-4 w-4 accent-indigo-600"
-                />
-                la couronne intérieure
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={opts.desertOuter}
-                  onChange={e => regen({ desertOuter: e.target.checked })}
-                  className="h-4 w-4 accent-indigo-600"
-                />
-                la couronne extérieure
-              </label>
+              <span className="text-sm font-medium">
+                Permettre un désert sur :
+              </span>
+              <Check
+                label="la couronne intérieure"
+                checked={opts.desertInner}
+                onChange={v => regen({ desertInner: v })}
+              />
+              <Check
+                label="la couronne extérieure"
+                checked={opts.desertOuter}
+                onChange={v => regen({ desertOuter: v })}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium">Contraintes</span>
+              <Check
+                label="Pas de 6/8 adjacents"
+                checked={opts.avoidReds}
+                onChange={v => regen({ avoidReds: v })}
+              />
+              <Check
+                label="Pas de nombres identiques adjacents"
+                checked={opts.avoidDuplicates}
+                onChange={v => regen({ avoidDuplicates: v })}
+              />
+              <Check
+                label="Éviter les paquets de ressources identiques"
+                checked={opts.avoidClusters}
+                onChange={v => regen({ avoidClusters: v })}
+              />
+              <Check
+                label="Équilibrer les intersections"
+                checked={opts.balanceInter}
+                onChange={v => regen({ balanceInter: v })}
+              />
+              <Check
+                label="Pas de port 2:1 sur sa ressource"
+                checked={opts.avoidPortRes}
+                onChange={v => regen({ avoidPortRes: v })}
+              />
             </div>
 
             <label className="flex flex-col gap-1 text-sm">
@@ -162,10 +232,47 @@ export function CatanBoardGenerator() {
                 className="accent-indigo-600"
               />
               <span className="text-[11px] text-zinc-400">
-                De chaque ressource par rapport à sa part équilibrée. 0 % =
-                parts strictement égales ; plus haut = plus de variété.
+                De chaque ressource par rapport à sa part attendue (∝ à son
+                nombre de tuiles). 0 % = parts strictement égales ; plus haut =
+                plus de variété.
               </span>
             </label>
+
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium">
+                Candidats évalués (qualité ↔ variété)
+              </span>
+              <label className="flex items-center justify-between gap-2 text-sm">
+                Terrains
+                <input
+                  type="number"
+                  min={1}
+                  max={300}
+                  value={opts.terrainN}
+                  onChange={e =>
+                    regen({
+                      terrainN: Math.max(1, Number(e.target.value) || 1),
+                    })
+                  }
+                  aria-label="Nombre de candidats terrain"
+                  className={numField}
+                />
+              </label>
+              <label className="flex items-center justify-between gap-2 text-sm">
+                Nombres
+                <input
+                  type="number"
+                  min={1}
+                  max={300}
+                  value={opts.numberN}
+                  onChange={e =>
+                    regen({ numberN: Math.max(1, Number(e.target.value) || 1) })
+                  }
+                  aria-label="Nombre de candidats nombres"
+                  className={numField}
+                />
+              </label>
+            </div>
           </fieldset>
 
           <label className="mt-1 flex items-center gap-2 border-t border-black/10 pt-3 text-sm dark:border-white/10">
@@ -173,9 +280,9 @@ export function CatanBoardGenerator() {
               type="checkbox"
               checked={opts.ignore}
               onChange={e => regen({ ignore: e.target.checked })}
-              className="h-4 w-4 accent-indigo-600"
+              className="h-4 w-4 shrink-0 accent-indigo-600"
             />
-            Ignorer les contraintes de placement
+            Ignorer toutes les contraintes de placement
           </label>
         </section>
       ) : (
@@ -201,21 +308,34 @@ export function CatanBoardGenerator() {
           <ul className="flex list-disc flex-col gap-1 pl-4 text-zinc-600 dark:text-zinc-300">
             <li>Le désert est placé {desertZone}.</li>
             <li>
-              Jamais de triangle de même ressource, et les regroupements de 3
-              tuiles identiques ou plus sont évités (ressources réparties).
+              Jamais de triangle de trois tuiles de même ressource
+              {opts.avoidClusters
+                ? ", et les regroupements de 3 tuiles identiques ou plus sont évités"
+                : " (les paquets plus grands restent permis)"}
+              .
             </li>
-            <li>
-              Les nombres rouges{" "}
-              <span className="font-semibold text-red-600">6</span> et{" "}
-              <span className="font-semibold text-red-600">8</span> (les plus
-              fréquents) ne sont jamais adjacents.
-            </li>
-            <li>Deux nombres identiques ne sont jamais adjacents.</li>
+            {opts.avoidReds ? (
+              <li>
+                Les nombres rouges{" "}
+                <span className="font-semibold text-red-600">6</span> et{" "}
+                <span className="font-semibold text-red-600">8</span> ne sont
+                jamais adjacents.
+              </li>
+            ) : null}
+            {opts.avoidDuplicates ? (
+              <li>Deux nombres identiques ne sont jamais adjacents.</li>
+            ) : null}
             <li>
               {opts.tolerancePct === 0
-                ? "Production strictement équilibrée : chaque ressource a exactement sa part attendue."
-                : `Production équilibrée : chaque ressource reste à ±${opts.tolerancePct} % de sa part attendue — de quoi garder de la variété.`}
+                ? "Production strictement équilibrée : chaque ressource a exactement sa part attendue"
+                : `Production équilibrée : chaque ressource reste à ±${opts.tolerancePct} % de sa part attendue`}
+              {opts.balanceInter
+                ? ", et la production est étalée entre les intersections."
+                : "."}
             </li>
+            {opts.avoidPortRes ? (
+              <li>Aucun port 2:1 sur une tuile de sa propre ressource.</li>
+            ) : null}
             <li>9 ports : 4 génériques (3:1) + un port 2:1 par ressource.</li>
           </ul>
         )}

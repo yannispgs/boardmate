@@ -253,7 +253,11 @@ describe("generateCatanBoard", () => {
   });
 
   it("ignores every constraint when asked (still the right pieces)", () => {
-    const board = generateCatanBoard(3, { ignoreConstraints: true });
+    // avoidPortOnResource is set too, to prove it's skipped while ignoring.
+    const board = generateCatanBoard(3, {
+      ignoreConstraints: true,
+      avoidPortOnResource: true,
+    });
 
     expect(board.hexes).toHaveLength(19);
     expect(board.hexes.filter(h => h.terrain === "desert")).toHaveLength(1);
@@ -340,5 +344,100 @@ describe("generateCatanBoard", () => {
     const tight = generateCatanBoard(1, { balanceTolerance: 0 });
 
     expect(tight.hexes).toHaveLength(19);
+  });
+});
+
+describe("generator options", () => {
+  it("can allow adjacent reds and duplicates when those rules are off", () => {
+    let redsAdjacent = false;
+    let dupAdjacent = false;
+
+    for (let seed = 0; seed < 60; seed++) {
+      const board = generateCatanBoard(seed, {
+        avoidAdjacentReds: false,
+        avoidAdjacentDuplicates: false,
+      });
+      const numberOf = new Map(board.hexes.map(h => [h.id, h.number]));
+
+      for (const h of board.hexes) {
+        if (h.number === null) {
+          continue;
+        }
+
+        for (const nb of HEX_NEIGHBOURS[h.id]) {
+          const other = numberOf.get(nb);
+
+          if (other === null || other === undefined) {
+            continue;
+          }
+
+          if (other === h.number) {
+            dupAdjacent = true;
+          }
+          if (isRedNumber(h.number) && isRedNumber(other)) {
+            redsAdjacent = true;
+          }
+        }
+      }
+    }
+
+    expect(dupAdjacent).toBe(true);
+    expect(redsAdjacent).toBe(true);
+  });
+
+  it("still yields a board with the intersection balancing off", () => {
+    const board = generateCatanBoard(3, { balanceIntersections: false });
+
+    expect(board.hexes.filter(h => h.number !== null)).toHaveLength(18);
+  });
+
+  it("allows resource blobs (but never a triangle) when clusters aren't penalised", () => {
+    let sawBlob = false;
+
+    for (let seed = 0; seed < 40; seed++) {
+      const byId: CatanTerrain[] = [];
+
+      for (const h of generateCatanBoard(seed, {
+        avoidResourceClusters: false,
+      }).hexes) {
+        byId[h.id] = h.terrain;
+      }
+
+      expect(hasMonoTriangle(byId)).toBe(false);
+
+      if (clusterPenalty(byId) > 0) {
+        sawBlob = true;
+      }
+    }
+
+    expect(sawBlob).toBe(true);
+  });
+
+  it("keeps a 2:1 port off a tile of its own resource when asked", () => {
+    for (let seed = 0; seed < 40; seed++) {
+      const board = generateCatanBoard(seed, { avoidPortOnResource: true });
+      const terrainById: CatanTerrain[] = [];
+
+      for (const h of board.hexes) {
+        terrainById[h.id] = h.terrain;
+      }
+
+      for (const port of board.ports) {
+        if (port.type === "generic") {
+          continue;
+        }
+
+        expect(TERRAIN_RESOURCE[terrainById[port.hexId]]).not.toBe(port.type);
+      }
+    }
+  });
+
+  it("respects custom candidate counts", () => {
+    const board = generateCatanBoard(1, {
+      terrainCandidates: 5,
+      numberCandidates: 5,
+    });
+
+    expect(board.hexes).toHaveLength(19);
   });
 });
