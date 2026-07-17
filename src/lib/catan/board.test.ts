@@ -318,7 +318,7 @@ describe("generateCatanBoard", () => {
     expect(by("ore")).toBe(0);
   });
 
-  it("keeps each resource within the balance tolerance (±25% default)", () => {
+  it("keeps each resource within the balance tolerance (±20% default)", () => {
     const expected = (tiles: number) => (tiles * 58) / 18;
 
     for (let seed = 0; seed < 40; seed++) {
@@ -328,8 +328,8 @@ describe("generateCatanBoard", () => {
         const tiles = ["wood", "wool", "grain"].includes(resource) ? 4 : 3;
         const e = expected(tiles);
 
-        expect(combos).toBeGreaterThanOrEqual(e * 0.75 - 1e-9);
-        expect(combos).toBeLessThanOrEqual(e * 1.25 + 1e-9);
+        expect(combos).toBeGreaterThanOrEqual(e * 0.8 - 1e-9);
+        expect(combos).toBeLessThanOrEqual(e * 1.2 + 1e-9);
       }
     }
   });

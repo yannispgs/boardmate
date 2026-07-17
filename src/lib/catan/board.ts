@@ -223,7 +223,7 @@ export interface BoardOptions {
   ignoreConstraints?: boolean;
   /**
    * How far each resource's total dice combinations may stray from its balanced
-   * share, as a fraction (default `0.25` = ±25%). The balanced share is
+   * share, as a fraction (default `0.2` = ±20%). The balanced share is
    * proportional to a resource's tile count, so a 3-tile resource (brick, ore)
    * expects 25% fewer combinations than a 4-tile one (wood, wool, grain).
    */
@@ -486,17 +486,20 @@ function placeNumbers(
 /** The 4-tile resources; the other two (brick, ore) have 3 tiles. */
 const MAJOR_RESOURCES: CatanResource[] = ["wood", "wool", "grain"];
 
-/** Default allowed deviation from a resource's balanced share (±25%). */
-const DEFAULT_TOLERANCE = 0.25;
+/** Default allowed deviation from a resource's balanced share (±20%). */
+const DEFAULT_TOLERANCE = 0.2;
 
 /** Total pips across the 18 tokens (58) — split among the resources. */
 const TOTAL_PIPS = NUMBER_TOKENS.reduce((sum, n) => sum + pipCount(n), 0);
 
+/** Tiles a resource owns (4 for wood/wool/grain, 3 for brick/ore). */
+function tileCount(resource: CatanResource): number {
+  return MAJOR_RESOURCES.includes(resource) ? 4 : 3;
+}
+
 /** A resource's balanced combinations, proportional to its tile count. */
 function expectedCombos(resource: CatanResource): number {
-  const tiles = MAJOR_RESOURCES.includes(resource) ? 4 : 3;
-
-  return (tiles * TOTAL_PIPS) / NUMBER_TOKENS.length;
+  return (tileCount(resource) * TOTAL_PIPS) / NUMBER_TOKENS.length;
 }
 
 /**

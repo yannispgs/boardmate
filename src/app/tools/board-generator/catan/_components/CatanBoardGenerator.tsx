@@ -38,7 +38,7 @@ const DEFAULTS: Options = {
   desertInner: false,
   desertOuter: false,
   ignore: false,
-  tolerancePct: 25,
+  tolerancePct: 20,
   avoidReds: true,
   avoidDuplicates: true,
   avoidClusters: true,
