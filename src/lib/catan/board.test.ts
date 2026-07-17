@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  adjacentSamePairs,
   axialToPixel,
   type CatanTerrain,
   clusterPenalty,
@@ -11,6 +12,7 @@ import {
   isRedNumber,
   NUMBER_TOKENS,
   PORT_SLOTS,
+  PORT_TOUCHED,
   pipCount,
   resourceCombinations,
   TERRAIN_RESOURCE,
@@ -413,7 +415,12 @@ describe("generator options", () => {
     expect(sawBlob).toBe(true);
   });
 
-  it("keeps a 2:1 port off a tile of its own resource when asked", () => {
+  it("keeps a 2:1 port away from any tile of its own resource when asked", () => {
+    // A slot's touched tiles = the coast tile it sits on + its access-corner
+    // neighbours; sanity-check the geometry first.
+    expect(PORT_TOUCHED).toHaveLength(9);
+    expect(PORT_TOUCHED.every(t => t.length >= 1)).toBe(true);
+
     for (let seed = 0; seed < 40; seed++) {
       const board = generateCatanBoard(seed, { avoidPortOnResource: true });
       const terrainById: CatanTerrain[] = [];
@@ -422,14 +429,40 @@ describe("generator options", () => {
         terrainById[h.id] = h.terrain;
       }
 
-      for (const port of board.ports) {
+      board.ports.forEach((port, i) => {
         if (port.type === "generic") {
-          continue;
+          return;
         }
 
-        expect(TERRAIN_RESOURCE[terrainById[port.hexId]]).not.toBe(port.type);
-      }
+        for (const hexId of PORT_TOUCHED[i]) {
+          expect(TERRAIN_RESOURCE[terrainById[hexId]]).not.toBe(port.type);
+        }
+      });
     }
+  });
+
+  it("keeps adjacent same-resource pairs low (the ≥4 malus)", () => {
+    let total = 0;
+
+    for (let seed = 0; seed < 60; seed++) {
+      const byId: CatanTerrain[] = [];
+
+      for (const h of generateCatanBoard(seed).hexes) {
+        byId[h.id] = h.terrain;
+      }
+
+      // The malus targets ≤ 3; best-effort tolerates the odd 4, never more.
+      expect(adjacentSamePairs(byId)).toBeLessThanOrEqual(4);
+      total += adjacentSamePairs(byId);
+    }
+
+    // On average clearly below the ~4 of an unpenalised board.
+    expect(total / 60).toBeLessThan(3.2);
+
+    // An all-one-resource board is nothing but same-resource edges.
+    expect(adjacentSamePairs(HEX_CELLS.map(() => "forest"))).toBeGreaterThan(
+      20,
+    );
   });
 
   it("respects custom candidate counts", () => {

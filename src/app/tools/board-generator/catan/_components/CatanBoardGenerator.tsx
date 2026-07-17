@@ -213,7 +213,7 @@ export function CatanBoardGenerator() {
                 onChange={v => regen({ balanceInter: v })}
               />
               <Check
-                label="Pas de port 2:1 sur sa ressource"
+                label="Pas de port 2:1 adjacent à sa ressource"
                 checked={opts.avoidPortRes}
                 onChange={v => regen({ avoidPortRes: v })}
               />
@@ -310,8 +310,8 @@ export function CatanBoardGenerator() {
             <li>
               Jamais de triangle de trois tuiles de même ressource
               {opts.avoidClusters
-                ? ", et les regroupements de 3 tuiles identiques ou plus sont évités"
-                : " (les paquets plus grands restent permis)"}
+                ? ", et les terrains identiques sont peu regroupés (pas de gros paquet, au plus ~3 paires adjacentes)"
+                : " (les paquets et paires de terrains identiques restent permis)"}
               .
             </li>
             {opts.avoidReds ? (
@@ -334,7 +334,9 @@ export function CatanBoardGenerator() {
                 : "."}
             </li>
             {opts.avoidPortRes ? (
-              <li>Aucun port 2:1 sur une tuile de sa propre ressource.</li>
+              <li>
+                Aucun port 2:1 adjacent à une tuile de sa propre ressource.
+              </li>
             ) : null}
             <li>9 ports : 4 génériques (3:1) + un port 2:1 par ressource.</li>
           </ul>

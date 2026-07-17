@@ -158,6 +158,39 @@ export interface PortSlot {
 /** The 9 fixed harbour edges, spaced around the coast. */
 export const PORT_SLOTS: PortSlot[] = buildPortSlots(HEX_CELLS, HEX_NEIGHBOURS);
 
+/**
+ * For each harbour slot, the on-board tiles its two access points touch — the
+ * coastal tile it hugs plus the tile at each shared corner (the neighbours of
+ * the coastal hex on either side of the port edge). Used to keep a 2:1 port off
+ * *any* tile of its own resource, not just the one it sits on.
+ */
+export const PORT_TOUCHED: number[][] = buildPortTouched();
+
+function buildPortTouched(): number[][] {
+  const idAt = (q: number, r: number): number | undefined =>
+    HEX_CELLS.find(c => c.q === q && c.r === r)?.id;
+
+  return PORT_SLOTS.map(slot => {
+    const cell = HEX_CELLS[slot.hexId];
+    const dir = DIRECTIONS.findIndex(
+      ([x, y]) => x === slot.dq && y === slot.dr,
+    );
+    const touched = [slot.hexId];
+
+    // The two edges flanking the port edge (dir ± 1) share its access corners.
+    for (const step of [1, 5]) {
+      const [sdq, sdr] = DIRECTIONS[(dir + step) % 6];
+      const nid = idAt(cell.q + sdq, cell.r + sdr);
+
+      if (nid !== undefined) {
+        touched.push(nid);
+      }
+    }
+
+    return touched;
+  });
+}
+
 export interface BoardHex {
   id: number;
   q: number;
@@ -530,10 +563,11 @@ const TERRAIN_CANDIDATES = 60;
 const PORT_ATTEMPTS = 100;
 
 /**
- * True when a 2:1 resource port sits on a coastal tile of its own resource
- * (`portTypes[i]` is the type at slot `i`). Generic 3:1 ports are exempt.
+ * True when a 2:1 resource port is adjacent to a tile of its own resource — i.e.
+ * one of the tiles its access points touch ({@link PORT_TOUCHED}) produces that
+ * resource. Generic 3:1 ports are exempt.
  */
-function portOnOwnResource(
+function portTouchesOwnResource(
   portTypes: CatanPortType[],
   terrainByHex: CatanTerrain[],
 ): boolean {
@@ -544,8 +578,10 @@ function portOnOwnResource(
       continue;
     }
 
-    if (TERRAIN_RESOURCE[terrainByHex[PORT_SLOTS[i].hexId]] === type) {
-      return true;
+    for (const hexId of PORT_TOUCHED[i]) {
+      if (TERRAIN_RESOURCE[terrainByHex[hexId]] === type) {
+        return true;
+      }
     }
   }
 
@@ -610,6 +646,37 @@ export function clusterPenalty(terrainByHex: CatanTerrain[]): number {
   }
 
   return penalty;
+}
+
+/** Number of edges between two adjacent tiles of the same resource. */
+export function adjacentSamePairs(terrainByHex: CatanTerrain[]): number {
+  let count = 0;
+
+  for (let a = 0; a < HEX_NEIGHBOURS.length; a++) {
+    for (const b of HEX_NEIGHBOURS[a]) {
+      if (b > a && terrainByHex[a] === terrainByHex[b]) {
+        count += 1;
+      }
+    }
+  }
+
+  return count;
+}
+
+/** Free adjacent same-resource pairs before the malus kicks in. */
+const FREE_ADJACENT_PAIRS = 3;
+
+/**
+ * How undesirable a terrain layout is: its 3+ resource blobs
+ * ({@link clusterPenalty}) plus a malus for each adjacent same-resource pair
+ * beyond {@link FREE_ADJACENT_PAIRS} (so up to 3 pairs are free, but boards with
+ * 4+ are pushed down). Lower is better.
+ */
+function terrainCost(terrainByHex: CatanTerrain[]): number {
+  return (
+    clusterPenalty(terrainByHex) +
+    Math.max(0, adjacentSamePairs(terrainByHex) - FREE_ADJACENT_PAIRS)
+  );
 }
 
 /** Desert on `desertId`, the 18 resources shuffled over the other hexes. */
@@ -692,7 +759,7 @@ export function generateCatanBoard(
     let best = layTerrain(desertId, rng);
     let bestCost = hasMonoTriangle(best)
       ? Number.POSITIVE_INFINITY
-      : clusterPenalty(best);
+      : terrainCost(best);
 
     for (let i = 1; i < terrainN; i++) {
       const cand = layTerrain(desertId, rng);
@@ -701,7 +768,7 @@ export function generateCatanBoard(
         continue;
       }
 
-      const cost = clusterPenalty(cand);
+      const cost = terrainCost(cand);
 
       if (cost < bestCost) {
         bestCost = cost;
@@ -782,7 +849,7 @@ export function generateCatanBoard(
   if (avoidPortRes && !ignore) {
     for (
       let i = 0;
-      i < PORT_ATTEMPTS && portOnOwnResource(portTypes, terrainByHex);
+      i < PORT_ATTEMPTS && portTouchesOwnResource(portTypes, terrainByHex);
       i++
     ) {
       portTypes = shuffle(PORT_TYPES, rng);
