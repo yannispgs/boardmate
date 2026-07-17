@@ -193,22 +193,20 @@ export function CatanBoardSvg({ board }: { board: CatanBoard }) {
             cx={anchor.x}
             cy={anchor.y}
             r={PORT_R}
-            fill="#fdf6e3"
-            stroke="#a16207"
-          />
-          <circle
-            cx={anchor.x}
-            cy={anchor.y - 3.5}
-            r={3}
             fill={PORT_COLOR[port.type]}
+            stroke="#00000055"
+            strokeWidth={1}
           />
           <text
             x={anchor.x}
-            y={anchor.y + 6}
+            y={anchor.y + 2.6}
             textAnchor="middle"
-            fontSize={7}
+            fontSize={8}
             fontWeight="700"
-            fill="#3f3f46"
+            fill="#ffffff"
+            stroke="#00000099"
+            strokeWidth={0.7}
+            paintOrder="stroke"
           >
             {port.type === "generic" ? "3:1" : "2:1"}
           </text>
