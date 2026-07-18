@@ -16,7 +16,8 @@ const GENERATORS: {
     name: "Catan",
     emoji: "🎲",
     href: "/tools/board-generator/catan",
-    description: "Jeu de base (3–4 joueurs) — plateau aléatoire équilibré.",
+    description:
+      "Jeu de base, 3–4 ou 5–6 joueurs — plateau aléatoire équilibré.",
   },
 ];
 
