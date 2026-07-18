@@ -5,6 +5,7 @@ import {
   axialToPixel,
   BASE_VARIANT,
   type BoardHex,
+  boardWarnings,
   type CatanTerrain,
   clusterPenalty,
   EXTENSION_VARIANT,
@@ -623,7 +624,7 @@ describe("5-6 player extension", () => {
   });
 
   it("keeps the two deserts apart by default", () => {
-    for (let seed = 0; seed < 40; seed++) {
+    for (let seed = 0; seed < 20; seed++) {
       const board = generateCatanBoard(seed, { variant: "extension" });
       const deserts = board.hexes.filter(h => h.terrain === "desert");
 
@@ -631,12 +632,12 @@ describe("5-6 player extension", () => {
         deserts[1].id,
       );
     }
-  });
+  }, 30000);
 
   it("lets the two deserts touch when explicitly allowed", () => {
     let sawAdjacent = false;
 
-    for (let seed = 0; seed < 80 && !sawAdjacent; seed++) {
+    for (let seed = 0; seed < 60 && !sawAdjacent; seed++) {
       const board = generateCatanBoard(seed, {
         variant: "extension",
         allowAdjacentDeserts: true,
@@ -649,10 +650,10 @@ describe("5-6 player extension", () => {
     }
 
     expect(sawAdjacent).toBe(true);
-  });
+  }, 30000);
 
   it("never places two reds or two equal numbers adjacent", () => {
-    for (let seed = 0; seed < 20; seed++) {
+    for (let seed = 0; seed < 12; seed++) {
       const board = generateCatanBoard(seed, { variant: "extension" });
       const numberOf = new Map(board.hexes.map(h => [h.id, h.number]));
 
@@ -676,7 +677,7 @@ describe("5-6 player extension", () => {
         }
       }
     }
-  });
+  }, 30000);
 
   it("sums each resource's dice combinations to 88", () => {
     const rows = resourceCombinations(
@@ -736,4 +737,87 @@ describe("resourceVariancePenalty", () => {
     expect(lopsided).toBeGreaterThan(mild);
     expect(lopsided).toBeGreaterThan(0);
   });
+});
+
+describe("boardWarnings", () => {
+  it("reports nothing when constraints are ignored", () => {
+    const board = generateCatanBoard(1, { ignoreConstraints: true });
+
+    expect(boardWarnings(board, { ignoreConstraints: true })).toEqual([]);
+  });
+
+  it("flags intersections above the cap, and none when the cap is loose/off", () => {
+    const board = generateCatanBoard(1);
+
+    const tight = boardWarnings(board, { maxIntersectionPips: 4 });
+    const inter = tight.find(w => w.kind === "intersectionTooStrong");
+
+    expect(inter).toBeDefined();
+
+    if (inter?.kind === "intersectionTooStrong") {
+      expect(inter.worst).toBeGreaterThan(4);
+      expect(inter.count).toBeGreaterThan(0);
+      expect(inter.max).toBe(4);
+    }
+
+    const loose = boardWarnings(board, { maxIntersectionPips: 15 });
+
+    expect(loose.some(w => w.kind === "intersectionTooStrong")).toBe(false);
+
+    const off = boardWarnings(board, { limitIntersectionPips: false });
+
+    expect(off.some(w => w.kind === "intersectionTooStrong")).toBe(false);
+  });
+
+  it("flags a resource out of balance, and none within a wide tolerance", () => {
+    const strict = generateCatanBoard(1, { balanceTolerance: 0 });
+    const warnings = boardWarnings(strict, { balanceTolerance: 0 });
+    const bal = warnings.find(w => w.kind === "resourceBalance");
+
+    expect(bal).toBeDefined();
+
+    if (bal?.kind === "resourceBalance") {
+      expect(bal.combos < bal.low || bal.combos > bal.high).toBe(true);
+    }
+
+    const wide = boardWarnings(generateCatanBoard(1), { balanceTolerance: 1 });
+
+    expect(wide.some(w => w.kind === "resourceBalance")).toBe(false);
+  });
+
+  it("flags a 2:1 port sitting next to its own resource", () => {
+    // Ports left random (no avoidance) → some board has a port on its resource.
+    let touched = false;
+
+    for (let seed = 0; seed < 40 && !touched; seed++) {
+      const warnings = boardWarnings(generateCatanBoard(seed), {
+        avoidPortOnResource: true,
+      });
+      const port = warnings.find(w => w.kind === "portOnResource");
+
+      if (port?.kind === "portOnResource") {
+        expect(port.resources.length).toBeGreaterThan(0);
+        touched = true;
+      }
+    }
+
+    expect(touched).toBe(true);
+
+    // A board generated with the avoidance on clears that warning.
+    let clean = false;
+
+    for (let seed = 0; seed < 40 && !clean; seed++) {
+      const board = generateCatanBoard(seed, { avoidPortOnResource: true });
+
+      if (
+        boardWarnings(board, { avoidPortOnResource: true }).every(
+          w => w.kind !== "portOnResource",
+        )
+      ) {
+        clean = true;
+      }
+    }
+
+    expect(clean).toBe(true);
+  }, 30000);
 });

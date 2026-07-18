@@ -818,7 +818,7 @@ function numberBalance(
 }
 
 /** Default number of number placements sampled per generation. */
-const CANDIDATES = 40;
+const CANDIDATES = 75;
 
 /** Default number of terrain layouts sampled per generation. */
 const TERRAIN_CANDIDATES = 60;
@@ -1219,4 +1219,105 @@ export function generateCatanBoard(
   }));
 
   return { variant: variant.id, hexes, ports, seed: actualSeed };
+}
+
+/**
+ * A placement rule the generator aimed for but could not fully satisfy on a
+ * board — the residue of its best-effort search. Only the checkable, best-effort
+ * rules can appear: the resource balance can drift, an intersection can stay
+ * over the cap, or a 2:1 port can end up next to its resource. The hard rules
+ * (no adjacent reds/duplicates, no mono-triangle) are guaranteed by
+ * construction and never reported.
+ */
+export type BoardWarning =
+  | {
+      kind: "resourceBalance";
+      resource: CatanResource;
+      combos: number;
+      low: number;
+      high: number;
+    }
+  | { kind: "intersectionTooStrong"; worst: number; max: number; count: number }
+  | { kind: "portOnResource"; resources: CatanResource[] };
+
+/**
+ * Audits a board against the constraints that were active when it was made
+ * (pass the same {@link BoardOptions}), returning the ones it failed to meet.
+ * Empty when the board honours every active rule — or when constraints were
+ * ignored entirely. Lets the UI flag an imperfect best-effort board.
+ */
+export function boardWarnings(
+  board: CatanBoard,
+  options?: BoardOptions,
+): BoardWarning[] {
+  if (options?.ignoreConstraints) {
+    return [];
+  }
+
+  const variant = variantOf(board.variant);
+  const tolerance = options?.balanceTolerance ?? DEFAULT_TOLERANCE;
+  const limitPips = options?.limitIntersectionPips ?? true;
+  const maxPips = options?.maxIntersectionPips ?? DEFAULT_MAX_PIPS;
+  const avoidPortRes = options?.avoidPortOnResource ?? false;
+
+  const warnings: BoardWarning[] = [];
+
+  for (const { resource, combos } of resourceCombinations(board.hexes)) {
+    const expected = expectedCombos(variant, resource);
+    const low = expected * (1 - tolerance);
+    const high = expected * (1 + tolerance);
+
+    if (combos < low || combos > high) {
+      warnings.push({ kind: "resourceBalance", resource, combos, low, high });
+    }
+  }
+
+  if (limitPips) {
+    const pips = board.hexes.map(h =>
+      h.number === null ? 0 : pipCount(h.number),
+    );
+    let worst = 0;
+    let count = 0;
+
+    for (const [a, b, c] of variant.vertices) {
+      const sum = pips[a] + pips[b] + pips[c];
+
+      if (sum > maxPips) {
+        count += 1;
+        worst = Math.max(worst, sum);
+      }
+    }
+
+    if (count > 0) {
+      warnings.push({
+        kind: "intersectionTooStrong",
+        worst,
+        max: maxPips,
+        count,
+      });
+    }
+  }
+
+  if (avoidPortRes) {
+    const terrainByHex = variant.cells.map(c => board.hexes[c.id].terrain);
+    const resources = new Set<CatanResource>();
+
+    board.ports.forEach((port, i) => {
+      if (port.type === "generic") {
+        return;
+      }
+
+      for (const hexId of variant.portTouched[i]) {
+        if (TERRAIN_RESOURCE[terrainByHex[hexId]] === port.type) {
+          resources.add(port.type);
+        }
+      }
+    });
+
+    if (resources.size > 0) {
+      warnings.push({ kind: "portOnResource", resources: [...resources] });
+    }
+  }
+
+  return warnings;
 }

@@ -9,6 +9,9 @@ import {
 
 const SIZE = 42; // hex circumradius in px
 
+/** Long axis of the board: down the screen, or across it. */
+export type BoardOrientation = "vertical" | "horizontal";
+
 const TERRAIN: Record<CatanTerrain, { fill: string; stroke: string }> = {
   forest: { fill: "#2e7d46", stroke: "#1f5a31" },
   pasture: { fill: "#7cb342", stroke: "#5c8a2f" },
@@ -27,13 +30,15 @@ const PORT_COLOR: Record<CatanPortType, string> = {
   ore: "#8a929c",
 };
 
+type Point = { x: number; y: number };
+
 /** The six corners of a pointy-top hexagon centred at (cx, cy). */
-function hexCorners(cx: number, cy: number): Array<[number, number]> {
-  const pts: Array<[number, number]> = [];
+function hexCorners(cx: number, cy: number): Point[] {
+  const pts: Point[] = [];
 
   for (let i = 0; i < 6; i++) {
     const a = ((60 * i - 90) * Math.PI) / 180;
-    pts.push([cx + SIZE * Math.cos(a), cy + SIZE * Math.sin(a)]);
+    pts.push({ x: cx + SIZE * Math.cos(a), y: cy + SIZE * Math.sin(a) });
   }
 
   return pts;
@@ -56,21 +61,38 @@ function Pips({ cx, cy, n }: { cx: number; cy: number; n: number }) {
   );
 }
 
-/**
- * Renders a generated Catan board as an SVG: coloured terrain hexes with their
- * number tokens (6 and 8 in red, with probability pips), the robber on the
- * desert, and the nine harbours on the coast (2:1 resource ports coloured, 3:1
- * generic ports grey). Purely presentational.
- */
 const PORT_R = 11; // harbour marker radius
 
-export function CatanBoardSvg({ board }: { board: CatanBoard }) {
-  const centres = board.hexes.map(h => axialToPixel(h.q, h.r, SIZE));
+/**
+ * Renders a generated Catan board as an SVG: coloured terrain hexes with their
+ * number tokens (6 and 8 in red, with probability pips), the robber on each
+ * desert, and the harbours on the coast (2:1 resource ports coloured, 3:1
+ * generic ports grey). Purely presentational.
+ *
+ * `orientation` rotates the whole board 90° ("horizontal" lays its long axis
+ * across the screen) while keeping the number tokens and port labels upright —
+ * the geometry is rotated, the glyphs are not.
+ */
+export function CatanBoardSvg({
+  board,
+  orientation = "vertical",
+}: {
+  board: CatanBoard;
+  orientation?: BoardOrientation;
+}) {
+  // Rotate every drawn coordinate 90° for the horizontal layout; number/port
+  // labels are anchored at rotated points but drawn upright, so they stay
+  // readable either way.
+  const tf = (p: Point): Point =>
+    orientation === "horizontal" ? { x: p.y, y: -p.x } : p;
+
+  const rawCentres = board.hexes.map(h => axialToPixel(h.q, h.r, SIZE));
+  const centres = rawCentres.map(tf);
 
   // Harbours: anchor pushed off the coast into the sea, with two dock lines
-  // back to the edge's corners.
+  // back to the edge's corners. Computed in raw space, then rotated.
   const ports = board.ports.map(port => {
-    const c = centres[port.hexId];
+    const c = rawCentres[port.hexId];
     const o = axialToPixel(
       board.hexes[port.hexId].q + port.dq,
       board.hexes[port.hexId].r + port.dr,
@@ -80,15 +102,15 @@ export function CatanBoardSvg({ board }: { board: CatanBoard }) {
     const nx = mid.x - c.x;
     const ny = mid.y - c.y;
     const len = Math.hypot(nx, ny);
-    const anchor = {
+    const anchor = tf({
       x: mid.x + (nx / len) * 13,
       y: mid.y + (ny / len) * 13,
-    };
+    });
     const ends = hexCorners(c.x, c.y)
-      .map(p => ({ p, d: (p[0] - mid.x) ** 2 + (p[1] - mid.y) ** 2 }))
+      .map(p => ({ p, d: (p.x - mid.x) ** 2 + (p.y - mid.y) ** 2 }))
       .sort((a, b) => a.d - b.d)
       .slice(0, 2)
-      .map(e => e.p);
+      .map(e => tf(e.p));
 
     return { port, anchor, ends };
   });
@@ -106,9 +128,13 @@ export function CatanBoardSvg({ board }: { board: CatanBoard }) {
     maxY = Math.max(maxY, y);
   };
 
-  for (const c of centres) {
-    for (const [x, y] of hexCorners(c.x, c.y)) {
-      stretch(x, y);
+  const corners = board.hexes.map(h =>
+    hexCorners(rawCentres[h.id].x, rawCentres[h.id].y).map(tf),
+  );
+
+  for (const hexCorner of corners) {
+    for (const p of hexCorner) {
+      stretch(p.x, p.y);
     }
   }
   for (const p of ports) {
@@ -133,9 +159,7 @@ export function CatanBoardSvg({ board }: { board: CatanBoard }) {
     >
       {board.hexes.map(h => {
         const c = centres[h.id];
-        const points = hexCorners(c.x, c.y)
-          .map(p => `${p[0]},${p[1]}`)
-          .join(" ");
+        const points = corners[h.id].map(p => `${p.x},${p.y}`).join(" ");
         const t = TERRAIN[h.terrain];
 
         return (
@@ -180,11 +204,11 @@ export function CatanBoardSvg({ board }: { board: CatanBoard }) {
         <g key={`${port.hexId}-${port.dq}-${port.dr}`}>
           {ends.map(e => (
             <line
-              key={`${e[0]},${e[1]}`}
+              key={`${e.x},${e.y}`}
               x1={anchor.x}
               y1={anchor.y}
-              x2={e[0]}
-              y2={e[1]}
+              x2={e.x}
+              y2={e.y}
               stroke="#a16207"
               strokeWidth={1.5}
             />

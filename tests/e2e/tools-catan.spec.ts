@@ -80,10 +80,33 @@ test("switches to the 5-6 player board", async ({ page }) => {
   await expect(page.getByText(/11 ports/)).toBeVisible();
   await expect(page.getByText(/2 déserts sont placés/)).toBeVisible();
 
+  // The 5-6 board can be flipped between horizontal (default) and vertical.
+  await expect(
+    page.getByRole("button", { name: /Afficher verticalement/ }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: /Afficher verticalement/ }).click();
+  await expect(board).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Afficher horizontalement/ }),
+  ).toBeVisible();
+
   // The extension exposes the adjacent-deserts option instead of the rings.
   await page.getByRole("button", { name: /Configurer les paramètres/ }).click();
   await expect(page.getByLabel("la couronne extérieure")).toHaveCount(0);
   await page.getByLabel("Autoriser les deux déserts adjacents").check();
   await expect(board).toBeVisible();
   await expect(page.getByText(/éventuellement adjacents/)).toBeVisible();
+
+  // Forcing an unreachable cap surfaces the ⚠️ warning affordance.
+  await page.getByLabel("Pips maximum par intersection").fill("5");
+  await expect(board).toBeVisible();
+
+  const warn = page.getByRole("button", {
+    name: "Voir les règles de placement non respectées",
+  });
+
+  await expect(warn).toBeVisible();
+  await warn.click();
+  await expect(page.getByText(/Règles non garanties/)).toBeVisible();
+  await expect(page.getByText(/plafond de 5 pastilles/)).toBeVisible();
 });

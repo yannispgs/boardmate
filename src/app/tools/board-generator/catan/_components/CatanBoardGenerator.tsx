@@ -3,12 +3,45 @@
 import { useEffect, useState } from "react";
 
 import {
+  type BoardOptions,
+  type BoardWarning,
+  boardWarnings,
   type CatanBoard,
+  type CatanResource,
   type CatanVariantId,
   generateCatanBoard,
 } from "@/lib/catan/board";
 import { BoardStructure } from "./BoardStructure";
-import { CatanBoardSvg } from "./CatanBoardSvg";
+import { type BoardOrientation, CatanBoardSvg } from "./CatanBoardSvg";
+
+const RESOURCE_LABEL: Record<CatanResource, string> = {
+  wood: "bois",
+  brick: "argile",
+  wool: "laine",
+  grain: "blé",
+  ore: "minerai",
+};
+
+/** A single unmet placement rule, phrased for the player. */
+function warningText(w: BoardWarning): string {
+  switch (w.kind) {
+    case "intersectionTooStrong": {
+      const plural = w.count > 1;
+
+      return `${w.count} intersection${plural ? "s" : ""} dépasse${
+        plural ? "nt" : ""
+      } le plafond de ${w.max} pastilles (jusqu'à ${w.worst}).`;
+    }
+    case "resourceBalance": {
+      return `La production de ${RESOURCE_LABEL[w.resource]} sort de l'équilibre visé (${w.combos} combinaisons pour une cible de ${Math.round(w.low)} à ${Math.round(w.high)}).`;
+    }
+    default: {
+      return `Un port 2:1 est adjacent à une tuile de sa ressource (${w.resources
+        .map(r => RESOURCE_LABEL[r])
+        .join(", ")}).`;
+    }
+  }
+}
 
 const LEGEND: { label: string; resource: string; color: string }[] = [
   { label: "Forêt", resource: "bois", color: "#2e7d46" },
@@ -65,8 +98,30 @@ const DEFAULTS: Options = {
   maxInterPips: 12,
   avoidPortRes: false,
   terrainN: 60,
-  numberN: 40,
+  numberN: 75,
 };
+
+/** Maps the session settings to the generator's option shape. */
+function toBoardOptions(o: Options): BoardOptions {
+  return {
+    variant: o.variant,
+    desertInnerRing: o.desertInner,
+    desertOuterRing: o.desertOuter,
+    allowAdjacentDeserts: o.allowAdjacentDeserts,
+    ignoreConstraints: o.ignore,
+    balanceTolerance: o.tolerancePct / 100,
+    avoidAdjacentReds: o.avoidReds,
+    avoidAdjacentDuplicates: o.avoidDuplicates,
+    avoidResourceClusters: o.avoidClusters,
+    balanceIntersections: o.balanceInter,
+    penalizeResourceVariance: o.penalizeVariance,
+    limitIntersectionPips: o.limitInterPips,
+    maxIntersectionPips: o.maxInterPips,
+    avoidPortOnResource: o.avoidPortRes,
+    terrainCandidates: o.terrainN,
+    numberCandidates: o.numberN,
+  };
+}
 
 /** A labelled checkbox, to keep the settings panel readable. */
 function Check({
@@ -101,6 +156,9 @@ function Check({
 export function CatanBoardGenerator() {
   const [opts, setOpts] = useState<Options>(DEFAULTS);
   const [showConfig, setShowConfig] = useState(false);
+  const [showWarnings, setShowWarnings] = useState(false);
+  const [orientation, setOrientation] =
+    useState<BoardOrientation>("horizontal");
   const [board, setBoard] = useState<CatanBoard>(() => generateCatanBoard(1));
 
   useEffect(() => {
@@ -110,29 +168,11 @@ export function CatanBoardGenerator() {
   function regen(patch: Partial<Options> = {}) {
     const next = { ...opts, ...patch };
     setOpts(next);
-    setBoard(
-      generateCatanBoard(undefined, {
-        variant: next.variant,
-        desertInnerRing: next.desertInner,
-        desertOuterRing: next.desertOuter,
-        allowAdjacentDeserts: next.allowAdjacentDeserts,
-        ignoreConstraints: next.ignore,
-        balanceTolerance: next.tolerancePct / 100,
-        avoidAdjacentReds: next.avoidReds,
-        avoidAdjacentDuplicates: next.avoidDuplicates,
-        avoidResourceClusters: next.avoidClusters,
-        balanceIntersections: next.balanceInter,
-        penalizeResourceVariance: next.penalizeVariance,
-        limitIntersectionPips: next.limitInterPips,
-        maxIntersectionPips: next.maxInterPips,
-        avoidPortOnResource: next.avoidPortRes,
-        terrainCandidates: next.terrainN,
-        numberCandidates: next.numberN,
-      }),
-    );
+    setBoard(generateCatanBoard(undefined, toBoardOptions(next)));
   }
 
   const isExtension = opts.variant === "extension";
+  const warnings = boardWarnings(board, toBoardOptions(opts));
 
   // Where the desert may land, per the current settings (for the recap below).
   const desertZone =
@@ -176,15 +216,75 @@ export function CatanBoardGenerator() {
         })}
       </div>
 
-      <CatanBoardSvg board={board} />
+      <div className="relative w-full max-w-md">
+        <CatanBoardSvg
+          board={board}
+          orientation={isExtension ? orientation : "vertical"}
+        />
 
-      <button
-        type="button"
-        onClick={() => regen()}
-        className="rounded-lg bg-indigo-600 px-5 py-2.5 font-medium text-white transition hover:bg-indigo-500"
-      >
-        🎲 Nouveau plateau
-      </button>
+        {warnings.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => setShowWarnings(v => !v)}
+            aria-label="Voir les règles de placement non respectées"
+            className="absolute right-0 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-lg shadow ring-1 ring-amber-400 transition hover:bg-amber-200 dark:bg-amber-950 dark:ring-amber-600"
+          >
+            ⚠️
+          </button>
+        ) : null}
+      </div>
+
+      {warnings.length > 0 && showWarnings ? (
+        <section
+          className={`${sectionClass} border-amber-400/60 bg-amber-50 text-sm dark:bg-amber-950/40`}
+        >
+          <h2 className="font-semibold">
+            ⚠️ Règles non garanties sur ce plateau
+          </h2>
+          <p className="text-xs text-zinc-600 dark:text-zinc-300">
+            Le générateur fait au mieux : ce plateau respecte les contraintes
+            strictes, mais pas les règles souples ci-dessous. Retire un nouveau
+            plateau pour retenter.
+          </p>
+          <ul className="flex list-disc flex-col gap-1 pl-4 text-zinc-700 dark:text-zinc-200">
+            {warnings.map(w => (
+              <li
+                key={
+                  w.kind === "resourceBalance" ? `bal-${w.resource}` : w.kind
+                }
+              >
+                {warningText(w)}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        <button
+          type="button"
+          onClick={() => regen()}
+          className="rounded-lg bg-indigo-600 px-5 py-2.5 font-medium text-white transition hover:bg-indigo-500"
+        >
+          🎲 Nouveau plateau
+        </button>
+
+        {isExtension ? (
+          <button
+            type="button"
+            onClick={() =>
+              setOrientation(o =>
+                o === "horizontal" ? "vertical" : "horizontal",
+              )
+            }
+            className="rounded-lg border border-black/15 px-4 py-2.5 text-sm font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+          >
+            {orientation === "horizontal"
+              ? "↕ Afficher verticalement"
+              : "↔ Afficher horizontalement"}
+          </button>
+        ) : null}
+      </div>
 
       <BoardStructure board={board} />
 
