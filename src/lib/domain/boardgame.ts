@@ -120,6 +120,12 @@ export interface Boardgame {
   /** Dice for in-game roll tracking (Catan), or `null` when not tracked. */
   dice: DiceSpec | null;
   /**
+   * Whether the stats should break results down by turn order — first / middle
+   * / last to play — for games where playing order matters (Catan). Off by
+   * default.
+   */
+  trackSeatStats: boolean;
+  /**
    * When false, the boardgame is hidden from selection lists but kept in the
    * database. Deactivate (instead of delete) once it has games, to preserve
    * history.
@@ -151,6 +157,8 @@ export interface NewBoardgame {
   roundLimit?: number | null;
   /** Dice for in-game roll tracking, or `null`. */
   dice?: DiceSpec | null;
+  /** Break the stats down by turn order (first / middle / last). */
+  trackSeatStats?: boolean;
 }
 
 export type BoardgameUpdate = Partial<NewBoardgame>;

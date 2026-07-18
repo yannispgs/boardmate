@@ -71,6 +71,7 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
     expect(bg.turnMode).toBe("sequential"); // DB default
     expect(bg.tags).toEqual([]); // DB default
     expect(bg.isActive).toBe(true); // DB default
+    expect(bg.trackSeatStats).toBe(false); // DB default
     expect(bg.hasGames).toBe(false); // no games yet
     expect(bg.logoUrl).toBeNull();
     expect(typeof bg.createdAt).toBe("string");
@@ -88,6 +89,7 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
       avgDurationMin: 115,
       tags: ["stratégie", "4x"],
       turnMode: "simultaneous",
+      trackSeatStats: true,
     });
     createdIds.push(created.id);
 
@@ -97,6 +99,7 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
     expect(fetched?.avgDurationMin).toBe(115);
     expect(fetched?.tags).toEqual(["stratégie", "4x"]);
     expect(fetched?.turnMode).toBe("simultaneous");
+    expect(fetched?.trackSeatStats).toBe(true);
 
     const all = await repo().list();
     expect(all.some(b => b.id === created.id)).toBe(true);

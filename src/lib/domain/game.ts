@@ -167,6 +167,7 @@ export interface GameStatsRecord {
   players: Array<{
     playerId: PlayerId;
     name: string;
+    seatOrder: number;
     isWinner: boolean;
     score: number | null;
   }>;

@@ -106,6 +106,7 @@ type StatsRow = {
   boardgame: { name: string; dice: unknown } | null;
   game_players: Array<{
     player_id: string;
+    seat_order: number;
     is_winner: boolean;
     score: number | null;
     player: { name: string } | null;
@@ -132,6 +133,7 @@ function toStatsRecord(row: StatsRow): GameStatsRecord {
       playerId: gp.player_id as PlayerId,
       /* c8 ignore next -- `?? "?"` guards a player row that can't be missing (FK) */
       name: gp.player?.name ?? "?",
+      seatOrder: gp.seat_order,
       isWinner: gp.is_winner,
       score: gp.score,
     })),
@@ -213,7 +215,7 @@ export function createGameRepository(
       const { data, error } = await games()
         .select(
           "id, boardgame_id, ended_at, boardgame:boardgames(name, dice), " +
-            "game_players(player_id, is_winner, score, player:players(name)), " +
+            "game_players(player_id, seat_order, is_winner, score, player:players(name)), " +
             "game_turns(player_id, round, duration_s, pause_duration_s, overtime_s), " +
             "dice_rolls(value, created_at)",
         )

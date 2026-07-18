@@ -40,6 +40,7 @@ export function toBoardgame(row: BoardgameRow): Boardgame {
     scoring: (row.scoring as ScoringSpec | null) ?? null,
     roundLimit: row.round_limit,
     dice: (row.dice as Boardgame["dice"]) ?? null,
+    trackSeatStats: row.track_seat_stats,
     isActive: row.is_active,
     // Denormalized column kept up to date by a DB trigger on games.
     hasGames: row.has_games,
@@ -92,6 +93,9 @@ function toRow(input: NewBoardgame | BoardgameUpdate): BoardgameWrite {
   }
   if (input.dice !== undefined) {
     row.dice = input.dice as unknown as Json;
+  }
+  if (input.trackSeatStats !== undefined) {
+    row.track_seat_stats = input.trackSeatStats;
   }
   return row;
 }

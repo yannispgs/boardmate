@@ -6,11 +6,15 @@ import { StatTile } from "@/components/StatTile";
 import type { BoardgameId, GameStatsRecord, PlayerId } from "@/lib/domain";
 import { formatDuration } from "@/lib/game/format-time";
 import { computeGlobalStats, filterRecords } from "@/lib/game/global-stats";
+import { winnerDirection } from "@/lib/game/scoring";
+import { computeSeatStats } from "@/lib/game/seat-stats";
+import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { DateWindow } from "./DateWindow";
 import { GamePicker } from "./GamePicker";
 import { GamePlayerTable } from "./GamePlayerTable";
 import { MultiSelectField } from "./MultiSelectField";
 import { ScoreDistribution } from "./ScoreDistribution";
+import { SeatStats } from "./SeatStats";
 import { StatsDiceDistribution } from "./StatsDiceDistribution";
 
 /** Distinct boardgames present in the records, sorted by name. */
@@ -103,6 +107,21 @@ export function GamesTab({ records }: { records: GameStatsRecord[] }) {
     null,
   );
 
+  // Turn-order breakdown, for games that opt into it (Catan): win rate and
+  // average placement for the first / intermediate / last player to play.
+  const { boardgames } = useBoardgames();
+  const boardgame = boardgames.find(b => b.id === active) ?? null;
+  const seatStats = useMemo(
+    () =>
+      computeSeatStats(
+        filterRecords(records, filters),
+        boardgame?.scoring
+          ? winnerDirection(boardgame.scoring.winCondition)
+          : "highest",
+      ),
+    [records, filters, boardgame],
+  );
+
   return (
     <div className="flex flex-col gap-6">
       <GamePicker options={games} selected={active} onSelect={setSelected} />
@@ -168,6 +187,8 @@ export function GamesTab({ records }: { records: GameStatsRecord[] }) {
               <ScoreDistribution scores={scores} />
             </div>
           ) : null}
+
+          {boardgame?.trackSeatStats ? <SeatStats stats={seatStats} /> : null}
 
           {dice.spec && dice.rolls.length > 0 ? (
             <div className="flex flex-col gap-3">

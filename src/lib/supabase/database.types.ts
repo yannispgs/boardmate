@@ -79,6 +79,7 @@ export type Database = {
           round_limit: number | null
           scoring: Json | null
           tags: string[]
+          track_seat_stats: boolean
           turn_mode: string
         }
         Insert: {
@@ -98,6 +99,7 @@ export type Database = {
           round_limit?: number | null
           scoring?: Json | null
           tags?: string[]
+          track_seat_stats?: boolean
           turn_mode?: string
         }
         Update: {
@@ -117,6 +119,7 @@ export type Database = {
           round_limit?: number | null
           scoring?: Json | null
           tags?: string[]
+          track_seat_stats?: boolean
           turn_mode?: string
         }
         Relationships: []
