@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 
-import { type CatanBoard, generateCatanBoard } from "@/lib/catan/board";
+import {
+  type CatanBoard,
+  type CatanVariantId,
+  generateCatanBoard,
+} from "@/lib/catan/board";
 import { BoardStructure } from "./BoardStructure";
 import { CatanBoardSvg } from "./CatanBoardSvg";
 
@@ -18,10 +22,18 @@ const LEGEND: { label: string; resource: string; color: string }[] = [
 const sectionClass =
   "flex w-full max-w-md flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10";
 
+/** Board sizes offered by the selector. */
+const VARIANTS: { id: CatanVariantId; label: string; hint: string }[] = [
+  { id: "base", label: "3-4 joueurs", hint: "19 tuiles" },
+  { id: "extension", label: "5-6 joueurs", hint: "30 tuiles" },
+];
+
 /** Generator settings — session-only (they reset to these on every visit). */
 interface Options {
+  variant: CatanVariantId;
   desertInner: boolean;
   desertOuter: boolean;
+  allowAdjacentDeserts: boolean;
   ignore: boolean;
   /** Allowed deviation from each resource's balanced share, in percent. */
   tolerancePct: number;
@@ -29,20 +41,28 @@ interface Options {
   avoidDuplicates: boolean;
   avoidClusters: boolean;
   balanceInter: boolean;
+  penalizeVariance: boolean;
+  limitInterPips: boolean;
+  maxInterPips: number;
   avoidPortRes: boolean;
   terrainN: number;
   numberN: number;
 }
 
 const DEFAULTS: Options = {
+  variant: "base",
   desertInner: false,
   desertOuter: false,
+  allowAdjacentDeserts: false,
   ignore: false,
   tolerancePct: 20,
   avoidReds: true,
   avoidDuplicates: true,
   avoidClusters: true,
   balanceInter: true,
+  penalizeVariance: true,
+  limitInterPips: true,
+  maxInterPips: 12,
   avoidPortRes: false,
   terrainN: 60,
   numberN: 40,
@@ -72,11 +92,11 @@ function Check({
 }
 
 /**
- * Interactive Catan board generator: a board, a "Nouveau plateau" button, the
- * board's structure, a legend, the generator settings (behind a button, reset
- * every visit) and a recap of the placement rules that tracks those settings.
- * The first render is deterministic (so server and client markup match), then a
- * fresh random board is drawn on mount.
+ * Interactive Catan board generator: a board-size selector, a board, a "Nouveau
+ * plateau" button, the board's structure, a legend, the generator settings
+ * (behind a button, reset every visit) and a recap of the placement rules that
+ * tracks those settings. The first render is deterministic (so server and client
+ * markup match), then a fresh random board is drawn on mount.
  */
 export function CatanBoardGenerator() {
   const [opts, setOpts] = useState<Options>(DEFAULTS);
@@ -92,20 +112,27 @@ export function CatanBoardGenerator() {
     setOpts(next);
     setBoard(
       generateCatanBoard(undefined, {
+        variant: next.variant,
         desertInnerRing: next.desertInner,
         desertOuterRing: next.desertOuter,
+        allowAdjacentDeserts: next.allowAdjacentDeserts,
         ignoreConstraints: next.ignore,
         balanceTolerance: next.tolerancePct / 100,
         avoidAdjacentReds: next.avoidReds,
         avoidAdjacentDuplicates: next.avoidDuplicates,
         avoidResourceClusters: next.avoidClusters,
         balanceIntersections: next.balanceInter,
+        penalizeResourceVariance: next.penalizeVariance,
+        limitIntersectionPips: next.limitInterPips,
+        maxIntersectionPips: next.maxInterPips,
         avoidPortOnResource: next.avoidPortRes,
         terrainCandidates: next.terrainN,
         numberCandidates: next.numberN,
       }),
     );
   }
+
+  const isExtension = opts.variant === "extension";
 
   // Where the desert may land, per the current settings (for the recap below).
   const desertZone =
@@ -122,6 +149,33 @@ export function CatanBoardGenerator() {
 
   return (
     <div className="flex flex-col items-center gap-6">
+      <div className="flex rounded-lg border border-black/10 p-1 dark:border-white/10">
+        {VARIANTS.map(v => {
+          const active = opts.variant === v.id;
+
+          return (
+            <button
+              key={v.id}
+              type="button"
+              onClick={() => regen({ variant: v.id })}
+              aria-pressed={active}
+              className={`flex flex-col items-center rounded-md px-4 py-1.5 text-sm font-medium transition ${
+                active
+                  ? "bg-indigo-600 text-white"
+                  : "text-zinc-600 hover:bg-black/5 dark:text-zinc-300 dark:hover:bg-white/5"
+              }`}
+            >
+              {v.label}
+              <span
+                className={`text-[11px] ${active ? "text-white/80" : "text-zinc-400"}`}
+              >
+                {v.hint}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       <CatanBoardSvg board={board} />
 
       <button
@@ -174,21 +228,32 @@ export function CatanBoardGenerator() {
             disabled={opts.ignore}
             className="flex flex-col gap-4 disabled:opacity-50"
           >
-            <div className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium">
-                Permettre un désert sur :
-              </span>
-              <Check
-                label="la couronne intérieure"
-                checked={opts.desertInner}
-                onChange={v => regen({ desertInner: v })}
-              />
-              <Check
-                label="la couronne extérieure"
-                checked={opts.desertOuter}
-                onChange={v => regen({ desertOuter: v })}
-              />
-            </div>
+            {isExtension ? (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-sm font-medium">Déserts</span>
+                <Check
+                  label="Autoriser les deux déserts adjacents"
+                  checked={opts.allowAdjacentDeserts}
+                  onChange={v => regen({ allowAdjacentDeserts: v })}
+                />
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-sm font-medium">
+                  Permettre un désert sur :
+                </span>
+                <Check
+                  label="la couronne intérieure"
+                  checked={opts.desertInner}
+                  onChange={v => regen({ desertInner: v })}
+                />
+                <Check
+                  label="la couronne extérieure"
+                  checked={opts.desertOuter}
+                  onChange={v => regen({ desertOuter: v })}
+                />
+              </div>
+            )}
 
             <div className="flex flex-col gap-1.5">
               <span className="text-sm font-medium">Contraintes</span>
@@ -211,6 +276,11 @@ export function CatanBoardGenerator() {
                 label="Équilibrer les intersections"
                 checked={opts.balanceInter}
                 onChange={v => regen({ balanceInter: v })}
+              />
+              <Check
+                label="Éviter les ressources trop concentrées"
+                checked={opts.penalizeVariance}
+                onChange={v => regen({ penalizeVariance: v })}
               />
               <Check
                 label="Pas de port 2:1 adjacent à sa ressource"
@@ -237,6 +307,36 @@ export function CatanBoardGenerator() {
                 plus de variété.
               </span>
             </label>
+
+            <div className="flex flex-col gap-2">
+              <Check
+                label="Limiter la force d'une intersection"
+                checked={opts.limitInterPips}
+                onChange={v => regen({ limitInterPips: v })}
+              />
+              {opts.limitInterPips ? (
+                <label className="flex items-center gap-1.5 pl-6 text-sm">
+                  Maximum
+                  <input
+                    type="number"
+                    min={3}
+                    max={15}
+                    value={opts.maxInterPips}
+                    onChange={e =>
+                      regen({ maxInterPips: Number(e.target.value) || 0 })
+                    }
+                    aria-label="Pips maximum par intersection"
+                    className={numField}
+                  />
+                  pastilles
+                </label>
+              ) : null}
+              <span className="pl-6 text-[11px] text-zinc-400">
+                Somme des pastilles aux sommets où 3 tuiles se rejoignent : un
+                plafond évite les emplacements surpuissants en début de partie
+                (les intersections faibles, elles, ne gênent pas).
+              </span>
+            </div>
 
             <div className="flex flex-col gap-1.5">
               <span className="text-sm font-medium">
@@ -306,7 +406,17 @@ export function CatanBoardGenerator() {
           </p>
         ) : (
           <ul className="flex list-disc flex-col gap-1 pl-4 text-zinc-600 dark:text-zinc-300">
-            <li>Le désert est placé {desertZone}.</li>
+            {isExtension ? (
+              <li>
+                Les 2 déserts sont placés aléatoirement
+                {opts.allowAdjacentDeserts
+                  ? " (éventuellement adjacents)"
+                  : " (jamais adjacents)"}
+                .
+              </li>
+            ) : (
+              <li>Le désert est placé {desertZone}.</li>
+            )}
             <li>
               Jamais de triangle de trois tuiles de même ressource
               {opts.avoidClusters
@@ -333,12 +443,31 @@ export function CatanBoardGenerator() {
                 ? ", et la production est étalée entre les intersections."
                 : "."}
             </li>
+            {opts.penalizeVariance ? (
+              <li>
+                Aucune ressource n&apos;est trop concentrée sur une seule tuile
+                (production répartie sur ses tuiles).
+              </li>
+            ) : null}
+            {opts.limitInterPips ? (
+              <li>
+                Aucune intersection ne dépasse {opts.maxInterPips} pastilles —
+                pas d&apos;emplacement surpuissant en début de partie.
+              </li>
+            ) : null}
             {opts.avoidPortRes ? (
               <li>
                 Aucun port 2:1 adjacent à une tuile de sa propre ressource.
               </li>
             ) : null}
-            <li>9 ports : 4 génériques (3:1) + un port 2:1 par ressource.</li>
+            {isExtension ? (
+              <li>
+                11 ports : 5 génériques (3:1) + un port 2:1 par ressource (deux
+                pour la laine).
+              </li>
+            ) : (
+              <li>9 ports : 4 génériques (3:1) + un port 2:1 par ressource.</li>
+            )}
           </ul>
         )}
       </section>

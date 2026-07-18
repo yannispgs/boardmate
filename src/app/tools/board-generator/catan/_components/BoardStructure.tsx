@@ -22,13 +22,14 @@ export function BoardStructure({ board }: { board: CatanBoard }) {
     (a, b) => b.combos - a.combos,
   );
   const max = Math.max(1, ...rows.map(r => r.combos));
+  const total = rows.reduce((sum, r) => sum + r.combos, 0);
 
   return (
     <section className="flex w-full max-w-md flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10">
       <h2 className="text-sm font-semibold">Structure du plateau</h2>
       <p className="text-xs text-zinc-500 dark:text-zinc-400">
-        Combinaisons de dés par ressource (chances de production sur 36) — total
-        58.
+        Combinaisons de dés par ressource (chances de production sur 36) — total{" "}
+        {total}.
       </p>
       <ul className="flex flex-col gap-1.5">
         {rows.map(r => {

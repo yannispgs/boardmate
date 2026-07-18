@@ -3,8 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   adjacentSamePairs,
   axialToPixel,
+  BASE_VARIANT,
+  type BoardHex,
   type CatanTerrain,
   clusterPenalty,
+  EXTENSION_VARIANT,
   generateCatanBoard,
   HEX_CELLS,
   HEX_NEIGHBOURS,
@@ -15,7 +18,9 @@ import {
   PORT_TOUCHED,
   pipCount,
   resourceCombinations,
+  resourceVariancePenalty,
   TERRAIN_RESOURCE,
+  variantOf,
 } from "./board";
 
 describe("board geometry", () => {
@@ -472,5 +477,263 @@ describe("generator options", () => {
     });
 
     expect(board.hexes).toHaveLength(19);
+  });
+
+  it("can turn the per-resource concentration penalty off", () => {
+    const board = generateCatanBoard(4, { penalizeResourceVariance: false });
+
+    expect(board.hexes.filter(h => h.number !== null)).toHaveLength(18);
+  });
+
+  it("can turn the intersection cap off, and honour a custom maximum", () => {
+    const off = generateCatanBoard(4, { limitIntersectionPips: false });
+
+    expect(off.hexes.filter(h => h.number !== null)).toHaveLength(18);
+
+    // A very low cap penalises nearly every intersection — best-effort still
+    // returns a full board (and drives the over-max branch).
+    const tight = generateCatanBoard(4, { maxIntersectionPips: 5 });
+
+    expect(tight.hexes.filter(h => h.number !== null)).toHaveLength(18);
+  });
+});
+
+describe("variants", () => {
+  it("resolves a variant id to its layout", () => {
+    expect(variantOf("base")).toBe(BASE_VARIANT);
+    expect(variantOf("extension")).toBe(EXTENSION_VARIANT);
+  });
+
+  it("tags the generated board with its variant", () => {
+    expect(generateCatanBoard(1).variant).toBe("base");
+    expect(generateCatanBoard(1, { variant: "extension" }).variant).toBe(
+      "extension",
+    );
+  });
+
+  it("applies the terrain helpers to a given variant", () => {
+    const allForest = EXTENSION_VARIANT.cells.map(() => "forest" as const);
+
+    expect(hasMonoTriangle(allForest, EXTENSION_VARIANT)).toBe(true);
+    expect(clusterPenalty(allForest, EXTENSION_VARIANT)).toBe(28);
+    expect(adjacentSamePairs(allForest, EXTENSION_VARIANT)).toBeGreaterThan(30);
+  });
+});
+
+describe("5-6 player extension", () => {
+  it("is the 3-4-5-6-5-4-3 board of 30 cells, 11 harbours, 88 pips", () => {
+    expect(EXTENSION_VARIANT.cells).toHaveLength(30);
+
+    const perRow = new Map<number, number>();
+
+    for (const c of EXTENSION_VARIANT.cells) {
+      perRow.set(c.r, (perRow.get(c.r) ?? 0) + 1);
+    }
+
+    expect([...perRow.values()]).toEqual([3, 4, 5, 6, 5, 4, 3]);
+    expect(EXTENSION_VARIANT.portSlots).toHaveLength(11);
+    expect(EXTENSION_VARIANT.totalPips).toBe(88);
+  });
+
+  it("has symmetric adjacency and every cell connected", () => {
+    EXTENSION_VARIANT.neighbours.forEach((nbs, id) => {
+      for (const nb of nbs) {
+        expect(EXTENSION_VARIANT.neighbours[nb]).toContain(id);
+      }
+    });
+
+    const seen = new Set<number>([0]);
+    const queue = [0];
+
+    while (queue.length > 0) {
+      const h = queue.pop() as number;
+
+      for (const nb of EXTENSION_VARIANT.neighbours[h]) {
+        if (!seen.has(nb)) {
+          seen.add(nb);
+          queue.push(nb);
+        }
+      }
+    }
+
+    expect(seen.size).toBe(30);
+  });
+
+  it("puts every harbour slot on an off-board edge", () => {
+    for (const slot of EXTENSION_VARIANT.portSlots) {
+      const cell = EXTENSION_VARIANT.cells[slot.hexId];
+      const onBoard = EXTENSION_VARIANT.cells.some(
+        c => c.q === cell.q + slot.dq && c.r === cell.r + slot.dr,
+      );
+
+      expect(onBoard).toBe(false);
+    }
+  });
+
+  it("has the extension terrain, two number-less deserts, and 28 tokens", () => {
+    const board = generateCatanBoard(1, { variant: "extension" });
+
+    expect(board.hexes).toHaveLength(30);
+
+    const counts = new Map<CatanTerrain, number>();
+
+    for (const h of board.hexes) {
+      counts.set(h.terrain, (counts.get(h.terrain) ?? 0) + 1);
+    }
+
+    expect(counts.get("forest")).toBe(6);
+    expect(counts.get("pasture")).toBe(6);
+    expect(counts.get("fields")).toBe(6);
+    expect(counts.get("hills")).toBe(5);
+    expect(counts.get("mountains")).toBe(5);
+    expect(counts.get("desert")).toBe(2);
+
+    const deserts = board.hexes.filter(h => h.terrain === "desert");
+
+    expect(deserts).toHaveLength(2);
+    expect(deserts.every(d => d.number === null)).toBe(true);
+
+    const numbers = board.hexes
+      .filter(h => h.terrain !== "desert")
+      .map(h => h.number as number)
+      .sort((a, b) => a - b);
+
+    expect(numbers).toEqual(
+      [...EXTENSION_VARIANT.numberTokens].sort((a, b) => a - b),
+    );
+  });
+
+  it("deals 11 harbours (5 generic + one per resource, wool doubled)", () => {
+    const board = generateCatanBoard(7, { variant: "extension" });
+
+    expect(board.ports).toHaveLength(11);
+
+    const byType = new Map<string, number>();
+
+    for (const p of board.ports) {
+      byType.set(p.type, (byType.get(p.type) ?? 0) + 1);
+    }
+
+    expect(byType.get("generic")).toBe(5);
+    expect(byType.get("wool")).toBe(2);
+    expect(byType.get("wood")).toBe(1);
+    expect(byType.get("brick")).toBe(1);
+    expect(byType.get("grain")).toBe(1);
+    expect(byType.get("ore")).toBe(1);
+  });
+
+  it("keeps the two deserts apart by default", () => {
+    for (let seed = 0; seed < 40; seed++) {
+      const board = generateCatanBoard(seed, { variant: "extension" });
+      const deserts = board.hexes.filter(h => h.terrain === "desert");
+
+      expect(EXTENSION_VARIANT.neighbours[deserts[0].id]).not.toContain(
+        deserts[1].id,
+      );
+    }
+  });
+
+  it("lets the two deserts touch when explicitly allowed", () => {
+    let sawAdjacent = false;
+
+    for (let seed = 0; seed < 80 && !sawAdjacent; seed++) {
+      const board = generateCatanBoard(seed, {
+        variant: "extension",
+        allowAdjacentDeserts: true,
+      });
+      const deserts = board.hexes.filter(h => h.terrain === "desert");
+
+      if (EXTENSION_VARIANT.neighbours[deserts[0].id].includes(deserts[1].id)) {
+        sawAdjacent = true;
+      }
+    }
+
+    expect(sawAdjacent).toBe(true);
+  });
+
+  it("never places two reds or two equal numbers adjacent", () => {
+    for (let seed = 0; seed < 20; seed++) {
+      const board = generateCatanBoard(seed, { variant: "extension" });
+      const numberOf = new Map(board.hexes.map(h => [h.id, h.number]));
+
+      for (const h of board.hexes) {
+        if (h.number === null) {
+          continue;
+        }
+
+        for (const nb of EXTENSION_VARIANT.neighbours[h.id]) {
+          const other = numberOf.get(nb);
+
+          if (other === null || other === undefined) {
+            continue;
+          }
+
+          expect(other).not.toBe(h.number);
+
+          if (isRedNumber(h.number)) {
+            expect(isRedNumber(other)).toBe(false);
+          }
+        }
+      }
+    }
+  });
+
+  it("sums each resource's dice combinations to 88", () => {
+    const rows = resourceCombinations(
+      generateCatanBoard(1, { variant: "extension" }).hexes,
+    );
+
+    expect(rows.reduce((s, r) => s + r.combos, 0)).toBe(88);
+  });
+
+  it("supports a fully random extension board too", () => {
+    const board = generateCatanBoard(3, {
+      variant: "extension",
+      ignoreConstraints: true,
+    });
+
+    expect(board.hexes).toHaveLength(30);
+    expect(board.hexes.filter(h => h.terrain === "desert")).toHaveLength(2);
+    expect(board.ports).toHaveLength(11);
+  });
+});
+
+describe("resourceVariancePenalty", () => {
+  const hex = (terrain: CatanTerrain, number: number | null): BoardHex => ({
+    id: 0,
+    q: 0,
+    r: 0,
+    terrain,
+    number,
+  });
+
+  it("is zero when each resource's pips are evenly split", () => {
+    // Each resource sits on equal-pip tiles → no concentration.
+    const even = [
+      hex("forest", 6),
+      hex("forest", 8), // wood: pips 5, 5
+      hex("mountains", 5),
+      hex("mountains", 9), // ore: pips 4, 4
+      hex("desert", null), // skipped
+      hex("fields", null), // number-less → skipped
+    ];
+
+    expect(resourceVariancePenalty(even)).toBe(0);
+  });
+
+  it("rises with concentration (the 8-3-2 lopsided case costs more)", () => {
+    const mild = resourceVariancePenalty([
+      hex("mountains", 5),
+      hex("mountains", 6),
+      hex("mountains", 9),
+    ]);
+    const lopsided = resourceVariancePenalty([
+      hex("mountains", 8), // 5 pips
+      hex("mountains", 3), // 2 pips
+      hex("mountains", 2), // 1 pip
+    ]);
+
+    expect(lopsided).toBeGreaterThan(mild);
+    expect(lopsided).toBeGreaterThan(0);
   });
 });

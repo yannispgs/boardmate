@@ -63,3 +63,27 @@ test("generates and regenerates a Catan board", async ({ page }) => {
   await expect(board).toBeVisible();
   await expect(page.getByText(/totalement aléatoire/)).toBeVisible();
 });
+
+test("switches to the 5-6 player board", async ({ page }) => {
+  await page.goto("/tools/board-generator/catan");
+
+  const board = page.getByRole("img", { name: "Plateau de Catan généré" });
+
+  await expect(board).toBeVisible();
+  // Base board recap: 9 ports.
+  await expect(page.getByText(/9 ports/)).toBeVisible();
+
+  // The size selector switches to the larger extension board.
+  await page.getByRole("button", { name: "5-6 joueurs" }).click();
+  await expect(board).toBeVisible();
+  // The recap tracks the variant: 11 ports and two deserts.
+  await expect(page.getByText(/11 ports/)).toBeVisible();
+  await expect(page.getByText(/2 déserts sont placés/)).toBeVisible();
+
+  // The extension exposes the adjacent-deserts option instead of the rings.
+  await page.getByRole("button", { name: /Configurer les paramètres/ }).click();
+  await expect(page.getByLabel("la couronne extérieure")).toHaveCount(0);
+  await page.getByLabel("Autoriser les deux déserts adjacents").check();
+  await expect(board).toBeVisible();
+  await expect(page.getByText(/éventuellement adjacents/)).toBeVisible();
+});
