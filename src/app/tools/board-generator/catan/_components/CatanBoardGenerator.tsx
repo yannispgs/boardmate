@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
+import {
+  RectangleHorizontalIcon,
+  RectangleVerticalIcon,
+} from "@/components/icons";
 import {
   type BoardOptions,
   type BoardWarning,
@@ -277,11 +280,23 @@ export function CatanBoardGenerator() {
                 o === "horizontal" ? "vertical" : "horizontal",
               )
             }
-            className="rounded-lg border border-black/15 px-4 py-2.5 text-sm font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+            aria-label={
+              orientation === "horizontal"
+                ? "Afficher verticalement"
+                : "Afficher horizontalement"
+            }
+            title={
+              orientation === "horizontal"
+                ? "Afficher verticalement"
+                : "Afficher horizontalement"
+            }
+            className="flex h-11 w-11 items-center justify-center rounded-lg border border-black/15 transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
           >
-            {orientation === "horizontal"
-              ? "↕ Afficher verticalement"
-              : "↔ Afficher horizontalement"}
+            {orientation === "horizontal" ? (
+              <RectangleVerticalIcon className="h-5 w-5" />
+            ) : (
+              <RectangleHorizontalIcon className="h-5 w-5" />
+            )}
           </button>
         ) : null}
       </div>

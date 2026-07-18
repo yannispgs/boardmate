@@ -114,3 +114,21 @@ export function ChevronRightIcon(props: IconProps) {
     </Icon>
   );
 }
+
+/** A portrait (taller-than-wide) rectangle — the "vertical" layout. */
+export function RectangleVerticalIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect width="12" height="20" x="6" y="2" rx="2" />
+    </Icon>
+  );
+}
+
+/** A landscape (wider-than-tall) rectangle — the "horizontal" layout. */
+export function RectangleHorizontalIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect width="20" height="12" x="2" y="6" rx="2" />
+    </Icon>
+  );
+}
