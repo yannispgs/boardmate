@@ -13,6 +13,7 @@ import type {
   GameStatus,
   GameTurn,
   GameTurnId,
+  NewFinishedGame,
   NewGame,
   Player,
   PlayerId,
@@ -326,6 +327,41 @@ export function createGameRepository(
         // Seed live-scored games at the starting score so no player is ever left
         // unscored; final-scored / unscored games stay null (entered at the end).
         score: input.initialScore ?? null,
+      }));
+      const { error: gpError } = await supabase
+        .from("game_players")
+        .insert(rows);
+      if (gpError) {
+        throw new Error(`Ajout des joueurs: ${gpError.message}`);
+      }
+      return toGame(game);
+    },
+
+    async createFinished(input: NewFinishedGame) {
+      const { data: game, error } = await games()
+        .insert({
+          boardgame_id: input.boardgameId,
+          config_id: null,
+          config_values: null,
+          current_player_id: null,
+          round: 1,
+          turn: 1,
+          status: "ended",
+          ended_at: input.endedAt,
+        })
+        .select("*")
+        .single();
+      if (error) {
+        throw new Error(`Création de la partie terminée: ${error.message}`);
+      }
+
+      const rows = input.players.map(p => ({
+        game_id: game.id,
+        player_id: p.playerId,
+        seat_order: p.seatOrder,
+        is_winner: p.playerId === input.winnerId,
+        score: p.score === null ? null : Math.round(p.score),
+        score_breakdown: (p.breakdown ?? null) as Json,
       }));
       const { error: gpError } = await supabase
         .from("game_players")

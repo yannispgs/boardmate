@@ -23,6 +23,7 @@ import type {
   NewBoardgame,
   NewConfig,
   NewFeedback,
+  NewFinishedGame,
   NewGame,
   NewPlayer,
   Player,
@@ -127,6 +128,12 @@ export interface GameRepository {
   listStats(): Promise<GameStatsRecord[]>;
   getPopulated(id: GameId): Promise<PopulatedGame | null>;
   create(input: NewGame): Promise<Game>;
+  /**
+   * Records an already-played game directly as `ended`, with its participants,
+   * winner and final scores but no turn/dice log — so it still counts in the
+   * game and player statistics.
+   */
+  createFinished(input: NewFinishedGame): Promise<Game>;
   /**
    * Permanently deletes a game and all its rows (turns, scores, dice) — used to
    * abandon a game in progress. History deletion goes through this too, but the

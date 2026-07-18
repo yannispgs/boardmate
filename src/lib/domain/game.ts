@@ -200,3 +200,26 @@ export interface NewGame {
    */
   initialScore?: number | null;
 }
+
+/** One participant of an already-finished game being recorded after the fact. */
+export interface FinishedGameEntry {
+  playerId: PlayerId;
+  seatOrder: number;
+  /** Final score, or `null` for an unscored game. */
+  score: number | null;
+  /** Per-category breakdown for a category-scored game, else `null`. */
+  breakdown: Record<string, number> | null;
+}
+
+/**
+ * An already-played game entered retroactively so it counts in the stats. It is
+ * stored `ended` with its participants, winner and final scores, but no turn or
+ * dice log — there is no play history to reconstruct.
+ */
+export interface NewFinishedGame {
+  boardgameId: BoardgameId;
+  /** When the game ended (ISO 8601) — drives the stats date windows. */
+  endedAt: string;
+  winnerId: PlayerId;
+  players: FinishedGameEntry[];
+}

@@ -657,3 +657,113 @@ describe("games adapter — error mapping", () => {
     ).rejects.toThrow();
   });
 });
+
+describe("games adapter — recording a finished game", () => {
+  it("stores an already-finished game with scores, winner and end date", async () => {
+    const endedAt = "2026-02-10T12:00:00.000Z";
+    const game = await repo().createFinished({
+      boardgameId: CATAN_ID,
+      endedAt,
+      winnerId: playerIds[1],
+      players: [
+        { playerId: playerIds[0], seatOrder: 0, score: 8, breakdown: null },
+        {
+          playerId: playerIds[1],
+          seatOrder: 1,
+          score: 11,
+          breakdown: { a: 6, b: 5 },
+        },
+        { playerId: playerIds[2], seatOrder: 2, score: 7, breakdown: null },
+      ],
+    });
+    gameIds.push(game.id);
+
+    expect(game.status).toBe("ended");
+    expect(new Date(game.endedAt ?? "").toISOString()).toBe(endedAt);
+
+    // Never listed among ongoing games; shows under ended, and counts in stats.
+    expect((await repo().list()).some(g => g.id === game.id)).toBe(false);
+    expect(
+      (await repo().list({ status: "ended" })).some(g => g.id === game.id),
+    ).toBe(true);
+    expect((await repo().listStats()).some(r => r.gameId === game.id)).toBe(
+      true,
+    );
+
+    const populated = await repo().getPopulated(game.id);
+    const p0 = populated?.players.find(p => p.playerId === playerIds[0]);
+    const p1 = populated?.players.find(p => p.playerId === playerIds[1]);
+
+    expect(p1?.isWinner).toBe(true);
+    expect(p1?.score).toBe(11);
+    expect(p1?.scoreBreakdown).toEqual({ a: 6, b: 5 });
+    expect(p0?.isWinner).toBe(false);
+    expect(p0?.score).toBe(8);
+    expect(p0?.scoreBreakdown).toBeNull();
+  });
+
+  it("stores an unscored finished game (null scores, just a winner)", async () => {
+    const game = await repo().createFinished({
+      boardgameId: CATAN_ID,
+      endedAt: new Date().toISOString(),
+      winnerId: playerIds[0],
+      players: playerIds.map((id, i) => ({
+        playerId: id,
+        seatOrder: i,
+        score: null,
+        breakdown: null,
+      })),
+    });
+    gameIds.push(game.id);
+
+    const populated = await repo().getPopulated(game.id);
+    const winner = populated?.players.find(p => p.playerId === playerIds[0]);
+
+    expect(winner?.isWinner).toBe(true);
+    expect(winner?.score).toBeNull();
+  });
+
+  it("rejects a bad boardgame id, then an unknown player (FK violations)", async () => {
+    await expect(
+      repo().createFinished({
+        boardgameId: "not-a-uuid" as BoardgameId,
+        endedAt: new Date().toISOString(),
+        winnerId: playerIds[0],
+        players: [
+          {
+            playerId: playerIds[0],
+            seatOrder: 0,
+            score: null,
+            breakdown: null,
+          },
+        ],
+      }),
+    ).rejects.toThrow(/partie terminée/);
+
+    const admin = serviceClient();
+    const before = new Set(
+      ((await admin.from("games").select("id")).data ?? []).map(g => g.id),
+    );
+    const bad = crypto.randomUUID() as PlayerId;
+
+    await expect(
+      repo().createFinished({
+        boardgameId: CATAN_ID,
+        endedAt: new Date().toISOString(),
+        winnerId: playerIds[0],
+        players: [
+          { playerId: playerIds[0], seatOrder: 0, score: 1, breakdown: null },
+          { playerId: bad, seatOrder: 1, score: 2, breakdown: null },
+        ],
+      }),
+    ).rejects.toThrow(/Ajout des joueurs/);
+
+    // Track the orphan games row (inserted before game_players failed).
+    const after = (await admin.from("games").select("id")).data ?? [];
+    for (const g of after) {
+      if (!before.has(g.id)) {
+        gameIds.push(g.id as GameId);
+      }
+    }
+  });
+});
