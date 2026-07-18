@@ -115,20 +115,24 @@ export function ChevronRightIcon(props: IconProps) {
   );
 }
 
-/** A portrait (taller-than-wide) rectangle — the "vertical" layout. */
-export function RectangleVerticalIcon(props: IconProps) {
+/** A double-headed vertical arrow (↕) — the "vertical" layout. */
+export function MoveVerticalIcon(props: IconProps) {
   return (
     <Icon {...props}>
-      <rect width="12" height="20" x="6" y="2" rx="2" />
+      <path d="M12 2v20" />
+      <path d="m8 6 4-4 4 4" />
+      <path d="m8 18 4 4 4-4" />
     </Icon>
   );
 }
 
-/** A landscape (wider-than-tall) rectangle — the "horizontal" layout. */
-export function RectangleHorizontalIcon(props: IconProps) {
+/** A double-headed horizontal arrow (↔) — the "horizontal" layout. */
+export function MoveHorizontalIcon(props: IconProps) {
   return (
     <Icon {...props}>
-      <rect width="20" height="12" x="2" y="6" rx="2" />
+      <path d="M2 12h20" />
+      <path d="m6 8-4 4 4 4" />
+      <path d="m18 8 4 4-4 4" />
     </Icon>
   );
 }

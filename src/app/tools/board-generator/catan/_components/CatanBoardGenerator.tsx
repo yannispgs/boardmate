@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  RectangleHorizontalIcon,
-  RectangleVerticalIcon,
-} from "@/components/icons";
+import { MoveHorizontalIcon, MoveVerticalIcon } from "@/components/icons";
 import {
   type BoardOptions,
   type BoardWarning,
@@ -293,9 +290,9 @@ export function CatanBoardGenerator() {
             className="flex h-11 w-11 items-center justify-center rounded-lg border border-black/15 transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
           >
             {orientation === "horizontal" ? (
-              <RectangleVerticalIcon className="h-5 w-5" />
+              <MoveVerticalIcon className="h-5 w-5" />
             ) : (
-              <RectangleHorizontalIcon className="h-5 w-5" />
+              <MoveHorizontalIcon className="h-5 w-5" />
             )}
           </button>
         ) : null}
