@@ -34,7 +34,6 @@ export function SeatStats({ stats }: { stats: SeatStat[] }) {
               <th className="px-3 py-2 text-right font-medium">
                 Classement moy.
               </th>
-              <th className="px-3 py-2 text-right font-medium">Parties</th>
             </tr>
           </thead>
           <tbody>
@@ -52,7 +51,6 @@ export function SeatStats({ stats }: { stats: SeatStat[] }) {
                 <td className={cellClass}>
                   {s.avgPlacement === null ? "—" : s.avgPlacement.toFixed(1)}
                 </td>
-                <td className={cellClass}>{s.games}</td>
               </tr>
             ))}
           </tbody>
