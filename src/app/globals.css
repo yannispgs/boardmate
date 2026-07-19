@@ -54,6 +54,23 @@ body {
 }
 
 /*
+ * iOS Safari zooms the page in whenever a focused form control's text is
+ * smaller than 16px, and doesn't zoom back out afterwards. On touch devices we
+ * floor every text field at 16px so tapping one never triggers that zoom — this
+ * is the accessible fix, unlike locking the viewport with `maximum-scale`, which
+ * would stop users pinch-zooming anywhere. This rule is intentionally unlayered
+ * so it wins over Tailwind's `text-sm`/`text-xs` utilities (which live in the
+ * `utilities` cascade layer) on phones, while desktop keeps its designed sizes.
+ */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/*
  * Turn-overtime alarm: once the timer runs past zero, the ring and its readout
  * pulse smoothly between a deep red and a glaring, glowing red (a gradient
  * throb, not a hard blink). ease-in-out + alternate makes the transition fluid
