@@ -11,6 +11,7 @@ const TOOLS: {
   { name: "Joueurs", emoji: "👥", href: "/players" },
   { name: "Jeux", emoji: "🎲", href: "/boardgames" },
   { name: "Parties", emoji: "🃏", href: "/games" },
+  { name: "Roue de la chance", emoji: "🎡", href: "/tools/wheel" },
   { name: "Statistiques", emoji: "📊", href: "/stats" },
   {
     name: "Générer un plateau",
