@@ -67,6 +67,7 @@ test("searches existing players and offers to create off-app ones", async ({
     await page.goto("/tools/wheel");
 
     const input = page.getByPlaceholder(/Rechercher ou créer/);
+    const suggestions = page.getByTestId("wheel-suggestions");
 
     // Typing a substring that no player equals: "create" is offered first, and
     // the player whose name contains it is suggested (Groot is not).
@@ -74,19 +75,31 @@ test("searches existing players and offers to create off-app ones", async ({
     await expect(
       page.getByRole("button", { name: /Créer.*Yann/ }),
     ).toBeVisible();
-    await expect(page.getByRole("button", { name: names[0] })).toBeVisible();
-    await expect(page.getByRole("button", { name: names[1] })).toHaveCount(0);
+    await expect(
+      suggestions.getByRole("button", { name: names[0] }),
+    ).toBeVisible();
+    await expect(
+      suggestions.getByRole("button", { name: names[1] }),
+    ).toHaveCount(0);
 
-    // Pick the existing player → it becomes an entry (a chip).
-    await page.getByRole("button", { name: names[0] }).click();
+    // Clicking the player toggles it onto the wheel (a chip appears).
+    await suggestions.getByRole("button", { name: names[0] }).click();
     await expect(
       page.getByRole("button", { name: `Retirer ${names[0]}` }),
     ).toBeVisible();
 
+    // Clicking the same (now selected) player again removes it from the wheel.
+    await suggestions.getByRole("button", { name: names[0] }).click();
+    await expect(
+      page.getByRole("button", { name: `Retirer ${names[0]}` }),
+    ).toHaveCount(0);
+
     // Typing a player's exact name offers no "create" option.
     await input.fill(names[1]);
     await expect(page.getByRole("button", { name: /Créer/ })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: names[1] })).toBeVisible();
+    await expect(
+      suggestions.getByRole("button", { name: names[1] }),
+    ).toBeVisible();
   } finally {
     await admin.from("players").delete().in("name", names);
   }

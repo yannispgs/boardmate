@@ -10,9 +10,9 @@ import {
 import { usePlayers } from "@/lib/hooks/use-players";
 
 /**
- * A standalone wheel of fortune: build a list of entries — the active players in
- * one tap, plus any free-text names for people or things not in the app — then
- * spin to pick one at random. Nothing is saved; it never touches games or stats.
+ * A standalone wheel of fortune: search the active players to toggle them on the
+ * wheel, or create off-app entries from any typed name, then spin to pick one at
+ * random. Nothing is saved; it never touches games or stats.
  */
 export function WheelTool() {
   const { players } = usePlayers();
@@ -31,24 +31,23 @@ export function WheelTool() {
     setEntries(next);
   }
 
-  function addEntry(id: string, label: string) {
-    edit([...entries, { id, label }]);
+  function removeEntry(id: string) {
+    edit(entries.filter(e => e.id !== id));
+  }
+
+  /** Adds the typed name as an off-app entry, then clears the search. */
+  function createEntry(label: string) {
+    edit([...entries, { id: crypto.randomUUID(), label }]);
     setQuery("");
   }
 
-  function addActivePlayers() {
-    const present = new Set(entries.map(e => e.id));
-    const toAdd = players
-      .filter(p => p.isActive && !present.has(p.id))
-      .map(p => ({ id: p.id, label: p.name }));
-
-    if (toAdd.length > 0) {
-      edit([...entries, ...toAdd]);
+  /** Clicking a player toggles it on/off the wheel (keeps the search open). */
+  function togglePlayer(id: string, name: string) {
+    if (entries.some(e => e.id === id)) {
+      removeEntry(id);
+    } else {
+      edit([...entries, { id, label: name }]);
     }
-  }
-
-  function removeEntry(id: string) {
-    edit(entries.filter(e => e.id !== id));
   }
 
   const canSpin = entries.length >= 2 && !spinning;
@@ -60,17 +59,21 @@ export function WheelTool() {
   const ql = q.toLowerCase();
   const addedIds = new Set(entries.map(e => e.id));
   const active = players.filter(p => p.isActive);
-  const matches = active.filter(
-    p => !addedIds.has(p.id) && p.name.toLowerCase().includes(ql),
-  );
+  const matches = active.filter(p => p.name.toLowerCase().includes(ql));
   const showCreate =
     q.length > 0 && !active.some(p => p.name.toLowerCase() === ql);
 
   function pickFirst() {
     if (showCreate) {
-      addEntry(crypto.randomUUID(), q);
-    } else if (matches.length > 0) {
-      addEntry(matches[0].id, matches[0].name);
+      createEntry(q);
+
+      return;
+    }
+
+    const addable = matches.find(p => !addedIds.has(p.id));
+
+    if (addable) {
+      togglePlayer(addable.id, addable.name);
     }
   }
 
@@ -92,11 +95,14 @@ export function WheelTool() {
         />
 
         {q.length > 0 ? (
-          <div className="flex flex-col overflow-hidden rounded-lg border border-black/10 dark:border-white/10">
+          <div
+            data-testid="wheel-suggestions"
+            className="flex flex-col overflow-hidden rounded-lg border border-black/10 dark:border-white/10"
+          >
             {showCreate ? (
               <button
                 type="button"
-                onClick={() => addEntry(crypto.randomUUID(), q)}
+                onClick={() => createEntry(q)}
                 className="px-3 py-2 text-left text-sm transition hover:bg-black/5 dark:hover:bg-white/5"
               >
                 ➕ Créer « <span className="font-medium">{q}</span> »
@@ -105,16 +111,27 @@ export function WheelTool() {
             {showCreate && matches.length > 0 ? (
               <div className="border-black/10 border-t dark:border-white/10" />
             ) : null}
-            {matches.map(p => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => addEntry(p.id, p.name)}
-                className="px-3 py-2 text-left text-sm transition hover:bg-black/5 dark:hover:bg-white/5"
-              >
-                {p.name}
-              </button>
-            ))}
+            {matches.map(p => {
+              const selected = addedIds.has(p.id);
+
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => togglePlayer(p.id, p.name)}
+                  className="flex items-center justify-between gap-2 px-3 py-2 text-left text-sm transition hover:bg-black/5 dark:hover:bg-white/5"
+                >
+                  <span className={selected ? "font-medium" : undefined}>
+                    {p.name}
+                  </span>
+                  {selected ? (
+                    <span aria-hidden className="text-indigo-500">
+                      ✓
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
             {!showCreate && matches.length === 0 ? (
               <p className="px-3 py-2 text-sm text-zinc-500 dark:text-zinc-400">
                 Aucun joueur.
@@ -122,14 +139,6 @@ export function WheelTool() {
             ) : null}
           </div>
         ) : null}
-
-        <button
-          type="button"
-          onClick={addActivePlayers}
-          className="self-start rounded-lg border border-black/15 px-3 py-1.5 text-sm font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
-        >
-          + Ajouter les joueurs actifs
-        </button>
 
         {entries.length > 0 ? (
           <ul className="flex flex-wrap gap-2">
