@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { adminClient } from "./utils/supabase";
+
 /**
  * The standalone wheel of fortune reached from the home menu (full-suite only —
  * untagged). Reduced motion makes the spin settle instantly, so it's
@@ -21,12 +23,15 @@ test("spins the standalone wheel over custom entries", async ({ page }) => {
 
   await expect(spin).toBeDisabled();
 
-  const input = page.getByPlaceholder(/Ajouter une entrée/);
+  const input = page.getByPlaceholder(/Rechercher ou créer/);
   const names = ["Alpha", "Bravo", "Charlie"];
 
+  // No player matches the typed text → the search offers "Créer « … »" first.
   for (const name of names) {
     await input.fill(name);
-    await page.getByRole("button", { name: "Ajouter", exact: true }).click();
+    await page
+      .getByRole("button", { name: new RegExp(`Créer.*${name}`) })
+      .click();
   }
 
   await expect(spin).toBeEnabled();
@@ -46,4 +51,43 @@ test("spins the standalone wheel over custom entries", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Relancer" })).toBeVisible();
   await page.getByRole("button", { name: "Retirer Alpha" }).click();
   await expect(page.getByText(/🎉/)).toHaveCount(0);
+});
+
+test("searches existing players and offers to create off-app ones", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const names = [
+    `Yannou-${Date.now().toString(36)}`,
+    `Groot-${Date.now().toString(36)}`,
+  ];
+  await admin.from("players").insert(names.map(name => ({ name })));
+
+  try {
+    await page.goto("/tools/wheel");
+
+    const input = page.getByPlaceholder(/Rechercher ou créer/);
+
+    // Typing a substring that no player equals: "create" is offered first, and
+    // the player whose name contains it is suggested (Groot is not).
+    await input.fill("Yann");
+    await expect(
+      page.getByRole("button", { name: /Créer.*Yann/ }),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: names[0] })).toBeVisible();
+    await expect(page.getByRole("button", { name: names[1] })).toHaveCount(0);
+
+    // Pick the existing player → it becomes an entry (a chip).
+    await page.getByRole("button", { name: names[0] }).click();
+    await expect(
+      page.getByRole("button", { name: `Retirer ${names[0]}` }),
+    ).toBeVisible();
+
+    // Typing a player's exact name offers no "create" option.
+    await input.fill(names[1]);
+    await expect(page.getByRole("button", { name: /Créer/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: names[1] })).toBeVisible();
+  } finally {
+    await admin.from("players").delete().in("name", names);
+  }
 });

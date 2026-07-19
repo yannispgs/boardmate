@@ -17,7 +17,7 @@ import { usePlayers } from "@/lib/hooks/use-players";
 export function WheelTool() {
   const { players } = usePlayers();
   const [entries, setEntries] = useState<WheelSegment[]>([]);
-  const [draft, setDraft] = useState("");
+  const [query, setQuery] = useState("");
   const { rotation, spinning, settledIndex, spin, handleSettled, reset } =
     useWheelSpin(entries.length);
 
@@ -31,15 +31,9 @@ export function WheelTool() {
     setEntries(next);
   }
 
-  function addDraft() {
-    const label = draft.trim();
-
-    if (label.length === 0) {
-      return;
-    }
-
-    edit([...entries, { id: crypto.randomUUID(), label }]);
-    setDraft("");
+  function addEntry(id: string, label: string) {
+    edit([...entries, { id, label }]);
+    setQuery("");
   }
 
   function addActivePlayers() {
@@ -59,31 +53,75 @@ export function WheelTool() {
 
   const canSpin = entries.length >= 2 && !spinning;
 
+  // The search bar: existing (active, not-yet-added) players whose name contains
+  // the query, and — unless a player matches it exactly — a "create" option
+  // first, to add the typed name as an off-app entry.
+  const q = query.trim();
+  const ql = q.toLowerCase();
+  const addedIds = new Set(entries.map(e => e.id));
+  const active = players.filter(p => p.isActive);
+  const matches = active.filter(
+    p => !addedIds.has(p.id) && p.name.toLowerCase().includes(ql),
+  );
+  const showCreate =
+    q.length > 0 && !active.some(p => p.name.toLowerCase() === ql);
+
+  function pickFirst() {
+    if (showCreate) {
+      addEntry(crypto.randomUUID(), q);
+    } else if (matches.length > 0) {
+      addEntry(matches[0].id, matches[0].name);
+    }
+  }
+
   return (
     <div className="flex flex-col items-center gap-6">
       <div className="flex w-full max-w-md flex-col gap-3 rounded-xl border border-black/10 p-4 dark:border-white/10">
-        <div className="flex gap-2">
-          <input
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                addDraft();
-              }
-            }}
-            placeholder="Ajouter une entrée…"
-            maxLength={40}
-            className="flex-1 rounded-lg border border-black/15 bg-white px-3 py-2 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900"
-          />
-          <button
-            type="button"
-            onClick={addDraft}
-            className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
-          >
-            Ajouter
-          </button>
-        </div>
+        <input
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              pickFirst();
+            }
+          }}
+          placeholder="Rechercher ou créer un joueur…"
+          maxLength={40}
+          className="rounded-lg border border-black/15 bg-white px-3 py-2 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900"
+        />
+
+        {q.length > 0 ? (
+          <div className="flex flex-col overflow-hidden rounded-lg border border-black/10 dark:border-white/10">
+            {showCreate ? (
+              <button
+                type="button"
+                onClick={() => addEntry(crypto.randomUUID(), q)}
+                className="px-3 py-2 text-left text-sm transition hover:bg-black/5 dark:hover:bg-white/5"
+              >
+                ➕ Créer « <span className="font-medium">{q}</span> »
+              </button>
+            ) : null}
+            {showCreate && matches.length > 0 ? (
+              <div className="border-black/10 border-t dark:border-white/10" />
+            ) : null}
+            {matches.map(p => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => addEntry(p.id, p.name)}
+                className="px-3 py-2 text-left text-sm transition hover:bg-black/5 dark:hover:bg-white/5"
+              >
+                {p.name}
+              </button>
+            ))}
+            {!showCreate && matches.length === 0 ? (
+              <p className="px-3 py-2 text-sm text-zinc-500 dark:text-zinc-400">
+                Aucun joueur.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         <button
           type="button"
