@@ -18,6 +18,7 @@ export function WheelTool() {
   const { players } = usePlayers();
   const [entries, setEntries] = useState<WheelSegment[]>([]);
   const [query, setQuery] = useState("");
+  const [focused, setFocused] = useState(false);
   const { rotation, spinning, settledIndex, spin, handleSettled, reset } =
     useWheelSpin(entries.length);
 
@@ -52,16 +53,21 @@ export function WheelTool() {
 
   const canSpin = entries.length >= 2 && !spinning;
 
-  // The search bar: existing (active, not-yet-added) players whose name contains
-  // the query, and — unless a player matches it exactly — a "create" option
-  // first, to add the typed name as an off-app entry.
+  // The search bar: active players whose name contains the query, alphabetical
+  // (so an empty, focused search lists them all), plus — unless a player matches
+  // the query exactly — a "create" option first, to add the typed name as an
+  // off-app entry.
   const q = query.trim();
   const ql = q.toLowerCase();
   const addedIds = new Set(entries.map(e => e.id));
   const active = players.filter(p => p.isActive);
-  const matches = active.filter(p => p.name.toLowerCase().includes(ql));
+  const matches = active
+    .filter(p => p.name.toLowerCase().includes(ql))
+    .sort((a, b) => a.name.localeCompare(b.name));
   const showCreate =
     q.length > 0 && !active.some(p => p.name.toLowerCase() === ql);
+  // The list opens on focus (all players when empty) and while typing.
+  const showList = focused || q.length > 0;
 
   function pickFirst() {
     if (showCreate) {
@@ -80,65 +86,71 @@ export function WheelTool() {
   return (
     <div className="flex flex-col items-center gap-6">
       <div className="flex w-full max-w-md flex-col gap-3 rounded-xl border border-black/10 p-4 dark:border-white/10">
-        <input
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              pickFirst();
-            }
-          }}
-          placeholder="Rechercher ou créer un joueur…"
-          maxLength={40}
-          className="rounded-lg border border-black/15 bg-white px-3 py-2 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900"
-        />
+        <div className="relative">
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            onKeyDown={e => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                pickFirst();
+              }
+            }}
+            placeholder="Rechercher ou créer un joueur…"
+            maxLength={40}
+            className="w-full rounded-lg border border-black/15 bg-white px-3 py-2 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900"
+          />
 
-        {q.length > 0 ? (
-          <div
-            data-testid="wheel-suggestions"
-            className="flex flex-col overflow-hidden rounded-lg border border-black/10 dark:border-white/10"
-          >
-            {showCreate ? (
-              <button
-                type="button"
-                onClick={() => createEntry(q)}
-                className="px-3 py-2 text-left text-sm transition hover:bg-black/5 dark:hover:bg-white/5"
-              >
-                ➕ Créer « <span className="font-medium">{q}</span> »
-              </button>
-            ) : null}
-            {showCreate && matches.length > 0 ? (
-              <div className="border-black/10 border-t dark:border-white/10" />
-            ) : null}
-            {matches.map(p => {
-              const selected = addedIds.has(p.id);
-
-              return (
+          {showList ? (
+            <div
+              data-testid="wheel-suggestions"
+              className="absolute inset-x-0 top-full z-20 mt-1 flex max-h-64 flex-col overflow-y-auto rounded-lg border border-black/10 bg-white shadow-lg dark:border-white/10 dark:bg-zinc-900"
+            >
+              {showCreate ? (
                 <button
-                  key={p.id}
                   type="button"
-                  onClick={() => togglePlayer(p.id, p.name)}
-                  className="flex items-center justify-between gap-2 px-3 py-2 text-left text-sm transition hover:bg-black/5 dark:hover:bg-white/5"
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => createEntry(q)}
+                  className="px-3 py-2 text-left text-sm transition hover:bg-black/5 dark:hover:bg-white/5"
                 >
-                  <span className={selected ? "font-medium" : undefined}>
-                    {p.name}
-                  </span>
-                  {selected ? (
-                    <span aria-hidden className="text-indigo-500">
-                      ✓
-                    </span>
-                  ) : null}
+                  ➕ Créer « <span className="font-medium">{q}</span> »
                 </button>
-              );
-            })}
-            {!showCreate && matches.length === 0 ? (
-              <p className="px-3 py-2 text-sm text-zinc-500 dark:text-zinc-400">
-                Aucun joueur.
-              </p>
-            ) : null}
-          </div>
-        ) : null}
+              ) : null}
+              {showCreate && matches.length > 0 ? (
+                <div className="border-black/10 border-t dark:border-white/10" />
+              ) : null}
+              {matches.map(p => {
+                const selected = addedIds.has(p.id);
+
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={() => togglePlayer(p.id, p.name)}
+                    className="flex items-center justify-between gap-2 px-3 py-2 text-left text-sm transition hover:bg-black/5 dark:hover:bg-white/5"
+                  >
+                    <span className={selected ? "font-medium" : undefined}>
+                      {p.name}
+                    </span>
+                    {selected ? (
+                      <span aria-hidden className="text-indigo-500">
+                        ✓
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+              {!showCreate && matches.length === 0 ? (
+                <p className="px-3 py-2 text-sm text-zinc-500 dark:text-zinc-400">
+                  Aucun joueur.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
 
         {entries.length > 0 ? (
           <ul className="flex flex-wrap gap-2">

@@ -69,6 +69,15 @@ test("searches existing players and offers to create off-app ones", async ({
     const input = page.getByPlaceholder(/Rechercher ou créer/);
     const suggestions = page.getByTestId("wheel-suggestions");
 
+    // Focusing the empty field lists every active player (alphabetical).
+    await input.click();
+    await expect(
+      suggestions.getByRole("button", { name: names[0] }),
+    ).toBeVisible();
+    await expect(
+      suggestions.getByRole("button", { name: names[1] }),
+    ).toBeVisible();
+
     // Typing a substring that no player equals: "create" is offered first, and
     // the player whose name contains it is suggested (Groot is not).
     await input.fill("Yann");
