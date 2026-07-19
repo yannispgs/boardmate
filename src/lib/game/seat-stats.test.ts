@@ -43,7 +43,7 @@ describe("computeSeatStats", () => {
     expect(stats.map(s => s.bucket)).toEqual(["first", "middle", "last"]);
     expect(stats.every(s => s.games === 0)).toBe(true);
     expect(stats.every(s => s.winRate === null)).toBe(true);
-    expect(stats.every(s => s.avgPlacement === null)).toBe(true);
+    expect(stats.every(s => s.avgPosition === null)).toBe(true);
   });
 
   it("buckets by turn order (sorted by seat) and computes win rate", () => {
@@ -70,10 +70,11 @@ describe("computeSeatStats", () => {
     expect(map.last.winRate).toBe(0.5);
     expect(map.middle.winRate).toBe(0);
 
-    // Average placement: first played 1st then 2nd → 1.5; last 3rd then 1st → 2.
-    expect(map.first.avgPlacement).toBe(1.5);
-    expect(map.last.avgPlacement).toBe(2);
-    expect(map.middle.avgPlacement).toBe(2.5);
+    // Relative position (rank−1)/(n−1), n=3: first 1st(0) then 2nd(0.5) → 0.25;
+    // middle 2nd(0.5) then 3rd(1) → 0.75; last 3rd(1) then 1st(0) → 0.5.
+    expect(map.first.avgPosition).toBe(0.25);
+    expect(map.last.avgPosition).toBe(0.5);
+    expect(map.middle.avgPosition).toBe(0.75);
   });
 
   it("ranks lowest-wins games the other way and shares ranks on ties", () => {
@@ -93,10 +94,10 @@ describe("computeSeatStats", () => {
       map[s.bucket] = s;
     }
 
-    // Lowest wins: the two 3s share rank 1, the 9 is rank 3.
-    expect(map.first.avgPlacement).toBe(1);
-    expect(map.middle.avgPlacement).toBe(1);
-    expect(map.last.avgPlacement).toBe(3);
+    // Lowest wins: the two 3s share rank 1 (position 0), the 9 is rank 3 (1).
+    expect(map.first.avgPosition).toBe(0);
+    expect(map.middle.avgPosition).toBe(0);
+    expect(map.last.avgPosition).toBe(1);
   });
 
   it("counts win rate but skips placement when a score is missing", () => {
@@ -114,9 +115,18 @@ describe("computeSeatStats", () => {
     expect(map.first.winRate).toBe(1);
     expect(map.last.winRate).toBe(0);
     // No scores → no placement, and the empty middle bucket stays null.
-    expect(map.first.avgPlacement).toBeNull();
+    expect(map.first.avgPosition).toBeNull();
     expect(map.middle.winRate).toBeNull();
-    expect(map.middle.avgPlacement).toBeNull();
+    expect(map.middle.avgPosition).toBeNull();
+  });
+
+  it("maps a lone scored player to position 0 (best, avoids /0)", () => {
+    const map = byBucket([rec([{ seat: 0, winner: true, score: 5 }])]);
+
+    // Single player → only the "first" bucket, relative position 0.
+    expect(map.first.avgPosition).toBe(0);
+    expect(map.middle.avgPosition).toBeNull();
+    expect(map.last.avgPosition).toBeNull();
   });
 
   it("ignores a record with no players", () => {

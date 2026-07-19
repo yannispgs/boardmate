@@ -1,3 +1,4 @@
+import { InfoTip } from "@/components/InfoTip";
 import type { SeatBucket, SeatStat } from "@/lib/game/seat-stats";
 
 const LABEL: Record<SeatBucket, string> = {
@@ -10,8 +11,10 @@ const cellClass = "px-3 py-2 text-right tabular-nums";
 
 /**
  * Results broken down by turn order for games where playing first matters
- * (Catan): win rate and average final placement for the first, the intermediate
- * and the last player to play. Buckets with no game in scope are hidden.
+ * (Catan): win rate and average relative position for the first, the
+ * intermediate and the last player to play. The position is normalised per
+ * player count and weighted one-per-game (explained via an {@link InfoTip}).
+ * Buckets with no game in scope are hidden.
  */
 export function SeatStats({ stats }: { stats: SeatStat[] }) {
   const shown = stats.filter(s => s.games > 0);
@@ -32,7 +35,17 @@ export function SeatStats({ stats }: { stats: SeatStat[] }) {
               <th className="px-3 py-2 text-left font-medium">Position</th>
               <th className="px-3 py-2 text-right font-medium">Victoires</th>
               <th className="px-3 py-2 text-right font-medium">
-                Classement moy.
+                <span className="inline-flex items-center justify-end gap-1">
+                  Position moy.
+                  <InfoTip label="Détails sur la position moyenne">
+                    <strong>Position moyenne.</strong> 0&nbsp;% = a toujours
+                    fini premier, 100&nbsp;% = toujours dernier. Le classement
+                    est normalisé par nombre de joueurs (pour comparer des
+                    parties à 3 et à 6), puis chaque partie compte pour
+                    une&nbsp;: les joueurs intermédiaires d&apos;une même partie
+                    sont d&apos;abord moyennés ensemble.
+                  </InfoTip>
+                </span>
               </th>
             </tr>
           </thead>
@@ -49,7 +62,9 @@ export function SeatStats({ stats }: { stats: SeatStat[] }) {
                     : `${Math.round(s.winRate * 100)} %`}
                 </td>
                 <td className={cellClass}>
-                  {s.avgPlacement === null ? "—" : s.avgPlacement.toFixed(1)}
+                  {s.avgPosition === null
+                    ? "—"
+                    : `${Math.round(s.avgPosition * 100)} %`}
                 </td>
               </tr>
             ))}

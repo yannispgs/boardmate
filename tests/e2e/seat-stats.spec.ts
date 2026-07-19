@@ -62,6 +62,19 @@ test("shows the turn-order breakdown for Catan in the game stats", async ({
       page.getByRole("cell", { name: "Intermédiaire" }),
     ).toBeVisible();
     await expect(page.getByRole("cell", { name: "Dernier" })).toBeVisible();
+
+    // The normalised "Position moy." carries an info bubble: it opens on click
+    // and dismisses when clicking outside.
+    const bubble = page.getByTestId("info-bubble");
+
+    await expect(bubble).toBeHidden();
+    await page
+      .getByRole("button", { name: "Détails sur la position moyenne" })
+      .click();
+    await expect(bubble).toBeVisible();
+    await expect(bubble).toContainText("normalisé par nombre de joueurs");
+    await page.getByText("Selon l'ordre de jeu").click();
+    await expect(bubble).toBeHidden();
   } finally {
     for (const id of gameIds) {
       await admin.from("games").delete().eq("id", id);

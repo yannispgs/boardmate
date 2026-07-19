@@ -10,10 +10,14 @@ export interface SeatStat {
   /** Share of those instances that won (0–1), or null when there are none. */
   winRate: number | null;
   /**
-   * Mean final placement (1 = best), averaged over the games where every
-   * participant has a score — null when no such game exists.
+   * Mean relative position in [0, 1] — 0 = always finished best, 1 = always
+   * worst — normalised as `(rank − 1) / (n − 1)` so it is comparable across
+   * player counts, and averaged with **one weight per game** (the intermediate
+   * seats of a game are first averaged together, so a 6-player game does not
+   * outweigh a 3-player one). Counts only games where every participant has a
+   * score; null when no such game exists.
    */
-  avgPlacement: number | null;
+  avgPosition: number | null;
 }
 
 /** Which end of the score wins: highest (Catan) or lowest (golf-like). */
@@ -64,25 +68,40 @@ function bucketAt(idx: number, n: number): SeatBucket {
 interface Bucket {
   games: number;
   wins: number;
-  placeSum: number;
-  placeCount: number;
+  posSum: number;
+  posCount: number;
+}
+
+/**
+ * Rank (1 = best) as a relative position in [0, 1], independent of the player
+ * count: 0 for the winner, 1 for the last. A lone player maps to 0.
+ */
+function relativePosition(rank: number, n: number): number {
+  if (n <= 1) {
+    return 0;
+  }
+
+  return (rank - 1) / (n - 1);
 }
 
 /**
  * Aggregates finished games by turn order: for the first, the intermediate and
- * the last player to play, their win rate and average final placement across
- * the given games. `direction` ranks placement (Catan wins highest). Placement
- * is counted only for games where every participant has a score; the win rate
- * uses the recorded winner and so covers every game.
+ * the last player to play, their win rate and average relative position across
+ * the given games. `direction` ranks placement (Catan wins highest). Position
+ * is normalised to [0, 1] and averaged with one weight per game (a game's
+ * intermediate seats are averaged together first), counted only for games where
+ * every participant has a score; the win rate uses the recorded winner (per
+ * player-instance) and so covers every game.
  */
 export function computeSeatStats(
   records: GameStatsRecord[],
   direction: ScoreDirection,
 ): SeatStat[] {
+  const order: SeatBucket[] = ["first", "middle", "last"];
   const acc: Record<SeatBucket, Bucket> = {
-    first: { games: 0, wins: 0, placeSum: 0, placeCount: 0 },
-    middle: { games: 0, wins: 0, placeSum: 0, placeCount: 0 },
-    last: { games: 0, wins: 0, placeSum: 0, placeCount: 0 },
+    first: { games: 0, wins: 0, posSum: 0, posCount: 0 },
+    middle: { games: 0, wins: 0, posSum: 0, posCount: 0 },
+    last: { games: 0, wins: 0, posSum: 0, posCount: 0 },
   };
 
   for (const record of records) {
@@ -99,9 +118,15 @@ export function computeSeatStats(
       players.map(p => ({ playerId: p.playerId, score: p.score })),
       direction,
     );
+    const positions: Record<SeatBucket, number[]> = {
+      first: [],
+      middle: [],
+      last: [],
+    };
 
     players.forEach((p, idx) => {
-      const a = acc[bucketAt(idx, n)];
+      const bucket = bucketAt(idx, n);
+      const a = acc[bucket];
       a.games += 1;
 
       if (p.isWinner) {
@@ -109,13 +134,24 @@ export function computeSeatStats(
       }
 
       if (ranks) {
-        a.placeSum += ranks.get(p.playerId) as number;
-        a.placeCount += 1;
+        positions[bucket].push(
+          relativePosition(ranks.get(p.playerId) as number, n),
+        );
       }
     });
-  }
 
-  const order: SeatBucket[] = ["first", "middle", "last"];
+    // Fold each bucket's positions into a single per-game value, so every game
+    // weighs the same regardless of how many intermediate seats it has.
+    for (const bucket of order) {
+      const values = positions[bucket];
+
+      if (values.length > 0) {
+        const a = acc[bucket];
+        a.posSum += values.reduce((sum, v) => sum + v, 0) / values.length;
+        a.posCount += 1;
+      }
+    }
+  }
 
   return order.map(bucket => {
     const a = acc[bucket];
@@ -124,7 +160,7 @@ export function computeSeatStats(
       bucket,
       games: a.games,
       winRate: a.games > 0 ? a.wins / a.games : null,
-      avgPlacement: a.placeCount > 0 ? a.placeSum / a.placeCount : null,
+      avgPosition: a.posCount > 0 ? a.posSum / a.posCount : null,
     };
   });
 }
