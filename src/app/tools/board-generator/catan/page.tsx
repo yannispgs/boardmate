@@ -17,7 +17,7 @@ export default function CatanBoardPage() {
         >
           ← Générer un plateau
         </Link>
-        <h1 className="text-3xl font-semibold tracking-tight">Catan</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Catan - Base</h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
           Un plateau aléatoire et équilibré pour le jeu de base (3–4 joueurs),
           prêt à recopier sur la table.

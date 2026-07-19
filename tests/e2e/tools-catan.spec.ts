@@ -13,10 +13,12 @@ test("generates and regenerates a Catan board", async ({ page }) => {
     page.getByRole("heading", { name: "Générer un plateau" }),
   ).toBeVisible();
 
-  // The supported-games list → Catan.
-  await page.getByRole("link", { name: "Catan" }).click();
+  // The supported-games list → Catan - Base.
+  await page.getByRole("link", { name: "Catan - Base" }).click();
 
-  await expect(page.getByRole("heading", { name: "Catan" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Catan - Base" }),
+  ).toBeVisible();
 
   const board = page.getByRole("img", { name: "Plateau de Catan généré" });
 

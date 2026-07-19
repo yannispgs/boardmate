@@ -13,7 +13,7 @@ const GENERATORS: {
   description: string;
 }[] = [
   {
-    name: "Catan",
+    name: "Catan - Base",
     emoji: "🎲",
     href: "/tools/board-generator/catan",
     description:
