@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 
-import { nextRotation, pickWinnerIndex } from "@/lib/game/first-player-wheel";
+import {
+  randomStopRotation,
+  winningIndexAt,
+} from "@/lib/game/first-player-wheel";
 
 /** Segment fills, cycled across the entries (enough distinct hues for a table). */
 const SEGMENT_COLORS = [
@@ -65,10 +68,13 @@ export function useWheelSpin(count: number): WheelSpin {
       return;
     }
 
-    const index = pickWinnerIndex(count);
+    // Spin to a random stop angle; the winner is whoever's segment lands under
+    // the pointer there.
+    const stop = randomStopRotation(rotation);
+    const index = winningIndexAt(stop, count);
     setWinnerIndex(index);
     setSettledIndex(null);
-    setRotation(prev => nextRotation(prev, count, index));
+    setRotation(stop);
 
     const reduced =
       typeof window !== "undefined" &&

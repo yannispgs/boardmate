@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  nextRotation,
-  pickWinnerIndex,
   randomFraction,
+  randomStopRotation,
   rotateToFirst,
+  winningIndexAt,
 } from "./first-player-wheel";
 
 describe("randomFraction", () => {
@@ -18,27 +18,38 @@ describe("randomFraction", () => {
   });
 });
 
-describe("pickWinnerIndex", () => {
-  it("maps the fraction to a uniform index in [0, count)", () => {
-    expect(pickWinnerIndex(4, () => 0)).toBe(0);
-    expect(pickWinnerIndex(4, () => 0.49)).toBe(1);
-    expect(pickWinnerIndex(4, () => 0.5)).toBe(2);
-    expect(pickWinnerIndex(4, () => 0.99)).toBe(3);
+describe("winningIndexAt", () => {
+  it("finds the segment under the top pointer for a rotation", () => {
+    // 4 segments (90° each); the top point maps to local angle −rotation.
+    expect(winningIndexAt(0, 4)).toBe(0);
+    expect(winningIndexAt(-90, 4)).toBe(1);
+    expect(winningIndexAt(-180, 4)).toBe(2);
+    expect(winningIndexAt(-270, 4)).toBe(3);
   });
 
-  it("clamps a 1.0 fraction to the last index", () => {
-    expect(pickWinnerIndex(3, () => 1)).toBe(2);
+  it("normalises whole turns and large angles", () => {
+    expect(winningIndexAt(720, 4)).toBe(0); // 2 full turns → same as 0
+    expect(winningIndexAt(45, 4)).toBe(winningIndexAt(720 + 45, 4));
   });
 
   it("returns 0 for a non-positive count", () => {
-    expect(pickWinnerIndex(0)).toBe(0);
+    expect(winningIndexAt(123, 0)).toBe(0);
+  });
+});
+
+describe("randomStopRotation", () => {
+  it("stops a random angle past at least `turns` full turns", () => {
+    expect(randomStopRotation(0, 5, () => 0)).toBe(5 * 360);
+    expect(randomStopRotation(0, 5, () => 0.5)).toBe(5 * 360 + 180);
+    // Always forward from the current angle.
+    expect(randomStopRotation(1000, 2, () => 0)).toBe(1000 + 720);
   });
 
-  it("defaults to the crypto RNG when no rand is given", () => {
-    const i = pickWinnerIndex(5);
+  it("defaults to the crypto RNG and five turns", () => {
+    const r = randomStopRotation(0);
 
-    expect(i).toBeGreaterThanOrEqual(0);
-    expect(i).toBeLessThan(5);
+    expect(r).toBeGreaterThanOrEqual(5 * 360);
+    expect(r).toBeLessThan(6 * 360);
   });
 });
 
@@ -58,27 +69,5 @@ describe("rotateToFirst", () => {
     expect(rotateToFirst(items, 0)).toEqual(["a", "b"]);
     expect(rotateToFirst(items, -1)).toEqual(["a", "b"]);
     expect(rotateToFirst(items, 0)).not.toBe(items);
-  });
-});
-
-describe("nextRotation", () => {
-  it("lands the winning segment's centre under the top pointer", () => {
-    // 4 segments (90° each). Segment 0 centre = 45° → rotate 315° to the top.
-    expect(nextRotation(0, 4, 0, 0)).toBeCloseTo(315);
-    // Segment 1 centre = 135° → 225°.
-    expect(nextRotation(0, 4, 1, 0)).toBeCloseTo(225);
-  });
-
-  it("always spins forward past the current angle by whole turns", () => {
-    const r = nextRotation(1000, 4, 0, 5);
-
-    expect(r).toBeGreaterThan(1000);
-    // Congruent to the zero-turn target (315°) modulo 360.
-    expect(((r % 360) + 360) % 360).toBeCloseTo(315);
-  });
-
-  it("adds exactly the requested number of full turns", () => {
-    // From 0, segment 0, 5 turns → 5·360 + 315.
-    expect(nextRotation(0, 4, 0, 5)).toBeCloseTo(5 * 360 + 315);
   });
 });
