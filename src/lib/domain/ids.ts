@@ -13,3 +13,5 @@ export type ConfigId = Id<"config">;
 export type GameId = Id<"game">;
 export type GameTurnId = Id<"gameTurn">;
 export type FeedbackId = Id<"feedback">;
+export type ExtensionId = Id<"extension">;
+export type ExtensionScenarioId = Id<"extensionScenario">;

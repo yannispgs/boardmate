@@ -10,12 +10,20 @@ import type {
   Boardgame,
   Config,
   ConfigValues,
+  ExtensionId,
+  ExtensionScenarioId,
   Player,
   PlayerId,
 } from "@/lib/domain";
+import {
+  composeConfigFields,
+  scenarioTarget,
+  winTargetWithModifiers,
+} from "@/lib/game/extensions";
 import { initialScoreFor } from "@/lib/game/scoring";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useConfigs } from "@/lib/hooks/use-configs";
+import { useExtensions } from "@/lib/hooks/use-extensions";
 import { useGames } from "@/lib/hooks/use-games";
 import { usePlayers } from "@/lib/hooks/use-players";
 import { FirstPlayerWheel } from "./FirstPlayerWheel";
@@ -35,7 +43,11 @@ export function NewGameFunnel() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function launch(configValues: ConfigValues | null) {
+  async function launch(
+    configValues: ConfigValues | null,
+    extensionIds: ExtensionId[],
+    scenarioByExtension: Record<ExtensionId, ExtensionScenarioId>,
+  ) {
     if (!boardgame) {
       return;
     }
@@ -49,6 +61,8 @@ export function NewGameFunnel() {
         configValues,
         playerIds: players.map(p => p.id),
         initialScore: initialScoreFor(boardgame.scoring),
+        extensionIds,
+        scenarioByExtension,
       });
       router.push(`/games/${game.id}/play`);
     } catch {
@@ -334,26 +348,50 @@ function RecapStep({
   error: string | null;
   onBack: () => void;
   onReorderPlayers: (players: Player[]) => void;
-  onLaunch: (values: ConfigValues | null) => void;
+  onLaunch: (
+    values: ConfigValues | null,
+    extensionIds: ExtensionId[],
+    scenarioByExtension: Record<ExtensionId, ExtensionScenarioId>,
+  ) => void;
 }) {
   const { template, loading } = useConfigs(boardgame.id);
+  const extensions = useExtensions(boardgame.id);
   const { requestConfirm, confirmDialog } = useConfirm();
   const [values, setValues] = useState<ConfigValues | null>(null);
   const [invalid, setInvalid] = useState<string | null>(null);
   const [wheelOpen, setWheelOpen] = useState(false);
+  // Selected extensions and, per scenario-based one, the chosen scenario.
+  const [selectedExt, setSelectedExt] = useState<ExtensionId[]>([]);
+  const [scenarioByExt, setScenarioByExt] = useState<
+    Record<ExtensionId, ExtensionScenarioId>
+  >({});
   // Simultaneous games have no turn order → no numbered list, no first player.
   const simultaneous = boardgame.turnMode === "simultaneous";
 
-  // Prefill the form from the selected config over the template defaults, so
-  // every attribute shows a value that can be tweaked for this game only.
+  const active = extensions.filter(e => selectedExt.includes(e.id));
+  // Config fields composed with the active extensions (fields merged by key).
+  const composedFields = composeConfigFields(template?.fields ?? [], active);
+
+  // Prefill the form from the selected config over the (composed) template
+  // defaults, so every attribute shows a value tweakable for this game only.
+  // Re-seeds when the selected extensions change (their field defaults may
+  // differ, e.g. a raised win target).
   useEffect(() => {
     if (template) {
-      setValues({
-        ...buildDefaults(template.fields),
-        ...(config?.values ?? {}),
-      });
+      const fields = composeConfigFields(
+        template.fields,
+        extensions.filter(e => selectedExt.includes(e.id)),
+      );
+      setValues({ ...buildDefaults(fields), ...(config?.values ?? {}) });
     }
-  }, [template, config]);
+  }, [template, config, extensions, selectedExt]);
+
+  // A selected scenario imposes a fixed win target (read-only), raised by any
+  // active extension modifiers; it overrides the editable threshold field.
+  const lockedTarget = winTargetWithModifiers(
+    scenarioTarget(active, scenarioByExt),
+    active,
+  );
 
   const thresholdField =
     boardgame.scoring?.winCondition.type === "threshold"
@@ -361,29 +399,46 @@ function RecapStep({
       : null;
   const thresholdSpec =
     thresholdField != null
-      ? (template?.fields.find(f => f.key === thresholdField) ?? null)
+      ? (composedFields.find(f => f.key === thresholdField) ?? null)
       : null;
-  const editableFields = (template?.fields ?? []).filter(
-    f => f.key !== thresholdField,
-  );
+  const editableFields = composedFields.filter(f => f.key !== thresholdField);
+
+  function toggleExtension(id: ExtensionId) {
+    setSelectedExt(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id],
+    );
+  }
 
   function setField(key: string, value: unknown) {
     setValues(prev => ({ ...(prev ?? {}), [key]: value }));
   }
 
+  function confirmLaunch(snapshot: ConfigValues | null) {
+    requestConfirm({
+      message: "Tout est prêt ? La partie va démarrer.",
+      confirmLabel: "Lancer",
+      onConfirm: () => onLaunch(snapshot, selectedExt, scenarioByExt),
+    });
+  }
+
   function handleLaunch() {
-    // No template → nothing to snapshot; launch straight from the confirmation.
-    if (!template) {
-      requestConfirm({
-        message: "Tout est prêt ? La partie va démarrer.",
-        confirmLabel: "Lancer",
-        onConfirm: () => onLaunch(null),
-      });
+    // A scenario-based extension needs its scenario chosen.
+    if (active.some(e => e.hasScenarios && !scenarioByExt[e.id])) {
+      setInvalid(
+        "Choisis un scénario pour chaque extension qui en demande un.",
+      );
 
       return;
     }
 
-    const parsed = validateConfigValues(template.fields, values ?? {});
+    // No template → nothing to snapshot; launch straight from the confirmation.
+    if (!template) {
+      confirmLaunch(null);
+
+      return;
+    }
+
+    const parsed = validateConfigValues(composedFields, values ?? {});
     if (!parsed.success) {
       setInvalid("Vérifie les attributs de la partie avant de lancer.");
 
@@ -391,11 +446,7 @@ function RecapStep({
     }
 
     setInvalid(null);
-    requestConfirm({
-      message: "Tout est prêt ? La partie va démarrer.",
-      confirmLabel: "Lancer",
-      onConfirm: () => onLaunch(parsed.data),
-    });
+    confirmLaunch(parsed.data);
   }
 
   const targetValue =
@@ -450,6 +501,63 @@ function RecapStep({
             </div>
           ) : null}
 
+          {extensions.length > 0 ? (
+            <div className="flex flex-col gap-3 rounded-xl border border-black/10 p-4 dark:border-white/10">
+              <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                Extensions
+              </h3>
+              {extensions.map(e => {
+                const on = selectedExt.includes(e.id);
+
+                return (
+                  <div key={e.id} className="flex flex-col gap-2">
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        onChange={() => toggleExtension(e.id)}
+                        className="h-4 w-4 shrink-0 accent-indigo-600"
+                      />
+                      {e.name}
+                    </label>
+                    {on && e.hasScenarios ? (
+                      <div className="flex flex-col gap-1 pl-6">
+                        <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                          Scénario
+                        </span>
+                        {e.scenarios.map(s => (
+                          <label
+                            key={s.id}
+                            className="flex items-center gap-2 text-sm"
+                          >
+                            <input
+                              type="radio"
+                              name={`scenario-${e.id}`}
+                              checked={scenarioByExt[e.id] === s.id}
+                              onChange={() =>
+                                setScenarioByExt(prev => ({
+                                  ...prev,
+                                  [e.id]: s.id,
+                                }))
+                              }
+                              className="h-4 w-4 shrink-0 accent-indigo-600"
+                            />
+                            {s.name}
+                            {s.targetScore !== null ? (
+                              <span className="text-zinc-400">
+                                · 🎯 {s.targetScore}
+                              </span>
+                            ) : null}
+                          </label>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+
           {editableFields.length > 0 ? (
             <div className="flex flex-col gap-3">
               <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
@@ -466,7 +574,24 @@ function RecapStep({
             </div>
           ) : null}
 
-          {thresholdField != null && thresholdSpec ? (
+          {lockedTarget !== null ? (
+            <div className="flex flex-col gap-1 rounded-xl border border-indigo-500/40 bg-indigo-500/[0.06] p-4">
+              <span className="flex items-center gap-2 font-medium">
+                <span aria-hidden>🎯</span>
+                Score à atteindre pour gagner
+              </span>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                Imposé par le scénario
+                {active.some(e => e.targetModifier > 0)
+                  ? " (relevé par les extensions)"
+                  : ""}
+                .
+              </p>
+              <span className="mt-1 text-lg font-semibold tabular-nums">
+                {lockedTarget}
+              </span>
+            </div>
+          ) : thresholdField != null && thresholdSpec ? (
             <div className="flex flex-col gap-1 rounded-xl border border-indigo-500/40 bg-indigo-500/[0.06] p-4">
               <label
                 htmlFor="win-threshold"

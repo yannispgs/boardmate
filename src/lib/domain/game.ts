@@ -1,8 +1,11 @@
 import type { Boardgame, DiceSpec } from "./boardgame";
 import type { Config, ConfigValues } from "./config";
+import type { Extension } from "./extensions";
 import type {
   BoardgameId,
   ConfigId,
+  ExtensionId,
+  ExtensionScenarioId,
   GameId,
   GameTurnId,
   PlayerId,
@@ -145,6 +148,8 @@ export interface PopulatedGame extends Game {
   winThreshold: number | null;
   /** Per-round turn-time schedule, resolved from config / template defaults. */
   turnSchedule: TurnSchedule;
+  /** Active extensions on this game (empty when none), with their scenario. */
+  extensions: Array<Extension & { scenarioId: ExtensionScenarioId | null }>;
   players: Array<GamePlayer & { player: Player }>;
   currentPlayer: Player | null;
   turns: GameTurn[];
@@ -205,6 +210,10 @@ export interface NewGame {
    * games, entered at the end). See `initialScoreFor`.
    */
   initialScore?: number | null;
+  /** Active extensions for this game (empty when none). */
+  extensionIds?: ExtensionId[];
+  /** For a scenario-based extension, the chosen scenario. */
+  scenarioByExtension?: Record<ExtensionId, ExtensionScenarioId>;
 }
 
 /** One participant of an already-finished game being recorded after the fact. */
