@@ -114,3 +114,25 @@ export function ChevronRightIcon(props: IconProps) {
     </Icon>
   );
 }
+
+/** A double-headed vertical arrow (↕) — the "vertical" layout. */
+export function MoveVerticalIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 2v20" />
+      <path d="m8 6 4-4 4 4" />
+      <path d="m8 18 4 4 4-4" />
+    </Icon>
+  );
+}
+
+/** A double-headed horizontal arrow (↔) — the "horizontal" layout. */
+export function MoveHorizontalIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M2 12h20" />
+      <path d="m6 8-4 4 4 4" />
+      <path d="m18 8 4 4-4 4" />
+    </Icon>
+  );
+}
