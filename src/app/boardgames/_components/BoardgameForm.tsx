@@ -672,12 +672,12 @@ export function BoardgameForm({
                   Comptage
                   <InfoTip label="Quand les points sont comptés">
                     <p>
-                      <strong>En direct</strong> = on suit le score pendant la
-                      partie et la victoire se détecte automatiquement (Catan).
-                    </p>
-                    <p>
                       <strong>À la fin</strong> = on saisit les scores une fois
                       la partie terminée (Cascadia, Wingspan).
+                    </p>
+                    <p>
+                      <strong>En direct</strong> = on suit le score pendant la
+                      partie et la victoire se détecte automatiquement (Catan).
                     </p>
                   </InfoTip>
                 </span>
