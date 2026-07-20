@@ -72,7 +72,7 @@ test("shows the turn-order breakdown for Catan in the game stats", async ({
       .getByRole("button", { name: "Détails sur la position moyenne" })
       .click();
     await expect(bubble).toBeVisible();
-    await expect(bubble).toContainText("normalisé par nombre de joueurs");
+    await expect(bubble).toContainText("Indice de 0 à 100");
     await page.getByText("Selon l'ordre de jeu").click();
     await expect(bubble).toBeHidden();
   } finally {

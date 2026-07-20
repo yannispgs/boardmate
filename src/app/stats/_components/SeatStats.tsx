@@ -38,12 +38,13 @@ export function SeatStats({ stats }: { stats: SeatStat[] }) {
                 <span className="inline-flex items-center justify-end gap-1">
                   Position moy.
                   <InfoTip label="Détails sur la position moyenne">
-                    <strong>Position moyenne.</strong> 0&nbsp;% = a toujours
-                    fini premier, 100&nbsp;% = toujours dernier. Le classement
-                    est normalisé par nombre de joueurs (pour comparer des
-                    parties à 3 et à 6), puis chaque partie compte pour
-                    une&nbsp;: les joueurs intermédiaires d&apos;une même partie
-                    sont d&apos;abord moyennés ensemble.
+                    <strong>Position moyenne.</strong> Indice de 0 à 100 basé
+                    sur le classement final&nbsp;: 0 = a toujours fini premier,
+                    100 = toujours dernier. Normalisé par nombre de joueurs
+                    (pour comparer des parties à 3 et à 6) et pondéré par partie
+                    (les intermédiaires d&apos;une même partie sont moyennés
+                    ensemble). Différent du taux de victoire, qui compte le
+                    vainqueur désigné et non le rang au score.
                   </InfoTip>
                 </span>
               </th>
@@ -64,7 +65,7 @@ export function SeatStats({ stats }: { stats: SeatStat[] }) {
                 <td className={cellClass}>
                   {s.avgPosition === null
                     ? "—"
-                    : `${Math.round(s.avgPosition * 100)} %`}
+                    : String(Math.round(s.avgPosition * 100))}
                 </td>
               </tr>
             ))}
