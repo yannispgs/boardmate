@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-
+import { InfoTip } from "@/components/InfoTip";
 import { ChevronRightIcon, PencilIcon, UploadIcon } from "@/components/icons";
 import type {
   Boardgame,
@@ -557,6 +557,14 @@ export function BoardgameForm({
           onChange={e => setForm({ ...form, trackSeatStats: e.target.checked })}
         />
         Suivre les statistiques selon l&apos;ordre de jeu
+        <InfoTip label="À quoi sert le suivi selon l'ordre de jeu">
+          <p>
+            Active un tableau de stats{" "}
+            <strong>Premier / Intermédiaire / Dernier</strong>&nbsp;à jouer,
+            pour les jeux où l&apos;ordre de jeu influence l&apos;issue (Catan).
+          </p>
+          <p>Sans effet sur le déroulé d&apos;une partie.</p>
+        </InfoTip>
       </label>
 
       <fieldset className="flex flex-col gap-2 rounded-lg border border-black/10 p-3 dark:border-white/10">
@@ -660,7 +668,19 @@ export function BoardgameForm({
           <div className="flex flex-col gap-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="flex flex-col gap-1 text-xs text-zinc-500">
-                Comptage
+                <span className="flex items-center gap-1">
+                  Comptage
+                  <InfoTip label="Quand les points sont comptés">
+                    <p>
+                      <strong>À la fin</strong> = on saisit les scores une fois
+                      la partie terminée (Cascadia, Wingspan).
+                    </p>
+                    <p>
+                      <strong>En direct</strong> = on suit le score pendant la
+                      partie et la victoire se détecte automatiquement (Catan).
+                    </p>
+                  </InfoTip>
+                </span>
                 <select
                   value={form.scoreTiming}
                   onChange={e =>
@@ -715,7 +735,18 @@ export function BoardgameForm({
 
             {form.winKind === "threshold" ? (
               <label className="flex flex-col gap-1 text-xs text-zinc-500">
-                Champ de configuration de l&apos;objectif
+                <span className="flex items-center gap-1">
+                  Champ de configuration de l&apos;objectif
+                  <InfoTip label="À quoi sert le champ d'objectif">
+                    <p>
+                      Clé du champ de configuration qui fixe le nombre de points
+                      à atteindre pour gagner (par défaut&nbsp;: pointsToWin).
+                    </p>
+                    <p>
+                      Sa valeur est réglable par partie dans la configuration.
+                    </p>
+                  </InfoTip>
+                </span>
                 <input
                   value={form.thresholdField}
                   onChange={e =>
@@ -724,10 +755,6 @@ export function BoardgameForm({
                   placeholder="pointsToWin"
                   className={field}
                 />
-                <span className="text-[11px] text-zinc-400">
-                  Clé du champ de config fixant le nombre de points à atteindre
-                  (par défaut : pointsToWin).
-                </span>
               </label>
             ) : null}
 
@@ -740,6 +767,13 @@ export function BoardgameForm({
                 }
               />
               Les scores peuvent être négatifs
+              <InfoTip label="Scores négatifs">
+                <p>Autorise un score en dessous de 0.</p>
+                <p>
+                  Décoché (défaut), le contrôle&nbsp;−/+ et la saisie sont
+                  bloqués au plancher du jeu (Catan&nbsp;: 2).
+                </p>
+              </InfoTip>
             </label>
 
             {form.entry === "categories" ? (

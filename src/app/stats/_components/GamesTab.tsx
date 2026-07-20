@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 
+import { InfoTip } from "@/components/InfoTip";
 import { StatTile } from "@/components/StatTile";
 import type { BoardgameId, GameStatsRecord, PlayerId } from "@/lib/domain";
 import { formatDuration } from "@/lib/game/format-time";
@@ -16,6 +17,7 @@ import { MultiSelectField } from "./MultiSelectField";
 import { ScoreDistribution } from "./ScoreDistribution";
 import { SeatStats } from "./SeatStats";
 import { StatsDiceDistribution } from "./StatsDiceDistribution";
+import { TimeIndexInfo } from "./TimeIndexInfo";
 
 /** Distinct boardgames present in the records, sorted by name. */
 function gameOptions(records: GameStatsRecord[]) {
@@ -153,10 +155,36 @@ export function GamesTab({ records }: { records: GameStatsRecord[] }) {
               label="Temps de jeu moy."
               value={formatDuration(stats.avgActiveS)}
             />
-            <StatTile label="Tours moy." value={stats.avgRounds.toFixed(1)} />
+            <StatTile
+              label="Tours moy."
+              value={stats.avgRounds.toFixed(1)}
+              info={
+                <InfoTip label="Tours moyens">
+                  <p>
+                    Nombre moyen de <strong>tours de table</strong> par partie
+                    (un tour = tout le monde a joué une fois).
+                  </p>
+                  <p>
+                    À ne pas confondre avec « Tour moy. », qui est une durée.
+                  </p>
+                </InfoTip>
+              }
+            />
             <StatTile
               label="Tour moy."
               value={formatDuration(stats.avgTurnS)}
+              info={
+                <InfoTip label="Tour moyen">
+                  <p>
+                    <strong>Durée moyenne d&apos;un seul tour</strong> de
+                    joueur.
+                  </p>
+                  <p>
+                    À ne pas confondre avec « Tours moy. », qui compte les tours
+                    de table.
+                  </p>
+                </InfoTip>
+              }
             />
             {scored ? (
               <StatTile
@@ -200,13 +228,10 @@ export function GamesTab({ records }: { records: GameStatsRecord[] }) {
           ) : null}
 
           <div className="flex flex-col gap-3">
-            <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+            <h2 className="flex items-center gap-1 text-sm font-medium text-zinc-500 dark:text-zinc-400">
               Statistiques des joueurs sur ce jeu
+              <TimeIndexInfo />
             </h2>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              Part du temps : 100 = temps attendu ; en dessous = plus rapide,
-              au-dessus = plus lent.
-            </p>
             <GamePlayerTable players={stats.players} scored={scored} />
           </div>
         </>

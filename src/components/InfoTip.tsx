@@ -87,7 +87,10 @@ export function InfoTip({
               id={id}
               data-testid="info-bubble"
               style={{ position: "fixed", top: pos.top, right: pos.right }}
-              className="z-50 w-60 rounded-lg border border-black/10 bg-white p-2.5 text-left text-xs font-normal leading-relaxed text-zinc-600 shadow-xl dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-300"
+              // `leading-snug` keeps the lines of one sentence tight; `space-y`
+              // sets a slightly larger gap between separate elements (each a
+              // <p>), so distinct points read as distinct.
+              className="z-50 w-60 space-y-1.5 rounded-lg border border-black/10 bg-white p-2.5 text-left text-xs font-normal leading-snug text-zinc-600 shadow-xl dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-300"
             >
               {children}
             </div>,
