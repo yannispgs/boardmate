@@ -5,11 +5,46 @@ import type {
   FieldSpec,
   PlayerId,
   ScoreSheetItem,
+  ScoringSpec,
   WinCondition,
 } from "@/lib/domain";
 
 /** Which end of the score range wins. */
 export type ScoreDirection = "highest" | "lowest";
+
+/**
+ * The score each player should start a live-scored game at, so nobody is ever
+ * left unscored (Catan: 2). `null` when the game isn't live-scored — final
+ * scoring is entered at the end, not seeded.
+ */
+export function initialScoreFor(scoring: ScoringSpec | null): number | null {
+  if (scoring?.timing !== "live") {
+    return null;
+  }
+
+  return scoring.startScore ?? 0;
+}
+
+/**
+ * The lowest a live score may reach, or `null` when there is no floor
+ * (`allowNegative`). Defaults to `0` for positive-only games (Catan: `minScore`
+ * 2).
+ */
+export function scoreFloor(scoring: ScoringSpec | null): number | null {
+  if (!scoring || scoring.allowNegative) {
+    return null;
+  }
+
+  return scoring.minScore ?? 0;
+}
+
+/** Rounds a live score and clamps it to the game's floor (see {@link scoreFloor}). */
+export function clampScore(value: number, scoring: ScoringSpec | null): number {
+  const rounded = Math.round(value);
+  const floor = scoreFloor(scoring);
+
+  return floor !== null && rounded < floor ? floor : rounded;
+}
 
 /** True when a scoresheet item is a titled subsection (vs a standalone line). */
 export function isSubsection(item: ScoreSheetItem): item is CategorySubsection {

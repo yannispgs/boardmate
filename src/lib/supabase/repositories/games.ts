@@ -321,6 +321,9 @@ export function createGameRepository(
         player_id: playerId,
         seat_order: index,
         is_winner: false,
+        // Seed live-scored games at the starting score so no player is ever left
+        // unscored; final-scored / unscored games stay null (entered at the end).
+        score: input.initialScore ?? null,
       }));
       const { error: gpError } = await supabase
         .from("game_players")

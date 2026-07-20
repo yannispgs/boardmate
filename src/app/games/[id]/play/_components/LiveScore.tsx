@@ -14,13 +14,14 @@ const stepBtn =
  * total directly — a turn can bring several points at once, and typing the total
  * avoids the win firing early while you tap up to it. Setting a score is
  * absolute (`onSet(playerId, total)`). With `allowNegative` false the − is
- * disabled at 0.
+ * disabled at the floor `minScore` (Catan: 2).
  */
 export function LiveScore({
   players,
   scores,
   threshold,
   allowNegative,
+  minScore,
   onSet,
   disabled,
 }: {
@@ -28,6 +29,7 @@ export function LiveScore({
   scores: Record<string, number>;
   threshold: number | null;
   allowNegative: boolean;
+  minScore: number;
   onSet: (playerId: PlayerId, score: number) => void;
   disabled: boolean;
 }) {
@@ -45,9 +47,10 @@ export function LiveScore({
         <ScoreRow
           key={p.playerId}
           name={p.player.name}
-          score={scores[p.playerId] ?? 0}
+          score={scores[p.playerId] ?? minScore}
           threshold={threshold}
           allowNegative={allowNegative}
+          minScore={minScore}
           disabled={disabled}
           onSet={value => onSet(p.playerId, value)}
         />
@@ -61,6 +64,7 @@ function ScoreRow({
   score,
   threshold,
   allowNegative,
+  minScore,
   disabled,
   onSet,
 }: {
@@ -68,6 +72,7 @@ function ScoreRow({
   score: number;
   threshold: number | null;
   allowNegative: boolean;
+  minScore: number;
   disabled: boolean;
   onSet: (score: number) => void;
 }) {
@@ -80,12 +85,12 @@ function ScoreRow({
   }, [score]);
 
   const reached = threshold !== null && score >= threshold;
-  const minusDisabled = disabled || (!allowNegative && score <= 0);
+  const minusDisabled = disabled || (!allowNegative && score <= minScore);
 
   function commit() {
     const parsed = Number.parseInt(draft, 10);
     const value = Number.isFinite(parsed) ? parsed : score;
-    const clamped = !allowNegative && value < 0 ? 0 : value;
+    const clamped = !allowNegative && value < minScore ? minScore : value;
     setDraft(String(clamped));
 
     if (clamped !== score) {

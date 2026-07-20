@@ -75,10 +75,23 @@ export interface ScoringSpec {
   winCondition: WinCondition;
   /**
    * Whether a score can go below zero. Defaults to `false` (positive-only, e.g.
-   * Catan): the live −/+ control then floors at 0. Set `true` for games where a
-   * running total can be negative (some card games).
+   * Catan): the live −/+ control then floors at {@link minScore}. Set `true` for
+   * games where a running total can be negative (some card games).
    */
   allowNegative?: boolean;
+  /**
+   * The score every player starts a live game at (Catan: 2, so nobody is left
+   * unscored). Defaults to `0`. Ignored for `final` timing, where scores are
+   * entered at the end.
+   */
+  startScore?: number;
+  /**
+   * The lowest a score may reach (Catan: 2 — you can't drop below your starting
+   * settlements). Defaults to `0`. Overridden by {@link allowNegative}, which
+   * removes the floor entirely. May differ from {@link startScore} for a game
+   * that starts above its floor.
+   */
+  minScore?: number;
   /** The scoresheet, present when `entry` is `categories`. */
   sheet?: ScoreSheetItem[];
 }

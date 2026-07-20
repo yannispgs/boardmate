@@ -74,6 +74,26 @@ describe("games adapter — creation & population", () => {
     expect(game.endedAt).toBeNull();
     // No recap snapshot was passed → the column stays null.
     expect(game.configValues).toBeNull();
+
+    // No initialScore → every player's score stays null (final/unscored games).
+    const populated = await repo().getPopulated(game.id);
+
+    expect(populated?.players.map(p => p.score)).toEqual([null, null, null]);
+  });
+
+  it("seeds every player's score at initialScore for live-scored games", async () => {
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId,
+      playerIds,
+      initialScore: 2,
+    });
+    gameIds.push(game.id);
+
+    // Catan starts everyone at 2, so no player is ever left unscored.
+    const populated = await repo().getPopulated(game.id);
+
+    expect(populated?.players.map(p => p.score)).toEqual([2, 2, 2]);
   });
 
   it("snapshots recap-tweaked config values and resolves the threshold from them", async () => {

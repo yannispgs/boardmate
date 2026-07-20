@@ -105,14 +105,12 @@ test("tweaks the win target at the recap and it takes effect", async ({
     gameId = page.url().match(/games\/([0-9a-f-]+)\/play/)?.[1] ?? null;
 
     // Reaching the tweaked target (5, not Catan's default 10) ends the game.
+    // Type the total directly so the test doesn't depend on the starting score.
     await page.getByRole("button", { name: "Ouvrir les scores" }).click();
 
-    const plusP0 = page.getByRole("button", {
-      name: `Ajouter un point à ${players[0]}`,
-    });
-    for (let i = 0; i < 5; i++) {
-      await plusP0.click();
-    }
+    const scoreP0 = page.getByLabel(`Score de ${players[0]}`);
+    await scoreP0.fill("5");
+    await scoreP0.press("Enter");
 
     await page
       .getByRole("dialog")
