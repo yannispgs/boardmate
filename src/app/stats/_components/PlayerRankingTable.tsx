@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import type { PlayerId } from "@/lib/domain";
 import type { PlayerAggregate } from "@/lib/game/global-stats";
+import { TimeIndexInfo } from "./TimeIndexInfo";
 
 type SortKey = "winRate" | "games" | "timeIndex";
 
@@ -121,8 +122,9 @@ export function PlayerRankingTable({
           ))}
         </ul>
       </div>
-      <p className="text-xs text-zinc-500 dark:text-zinc-400">
-        Temps : part du temps normalisée, 100 = temps attendu.
+      <p className="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400">
+        Colonne « Temps »
+        <TimeIndexInfo />
       </p>
     </div>
   );

@@ -1,3 +1,4 @@
+import { InfoTip } from "@/components/InfoTip";
 import { timeShareColor } from "@/lib/game/colors";
 import { formatDuration } from "@/lib/game/format-time";
 import type { PlayerTimeStats } from "@/lib/game/stats";
@@ -74,8 +75,15 @@ export function PlayerStatCard({
             ) : null}
           </p>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] uppercase tracking-wide text-zinc-400">
+            <span className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-zinc-400">
               Rythme
+              <InfoTip label="Le rythme du joueur">
+                La barre s&apos;étend de son{" "}
+                <strong>tour le plus rapide</strong> à son{" "}
+                <strong>plus lent</strong>&nbsp;; le trait marque sa{" "}
+                <strong>durée moyenne</strong> par tour. Toutes les cartes
+                partagent la même échelle (le plus long tour de la partie).
+              </InfoTip>
             </span>
             <div className="relative h-1.5 flex-1 rounded-full bg-black/5 dark:bg-white/10">
               <div

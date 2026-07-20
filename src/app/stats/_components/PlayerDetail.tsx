@@ -1,5 +1,6 @@
 import { StatTile } from "@/components/StatTile";
 import type { GameBreakdown, PlayerAggregate } from "@/lib/game/global-stats";
+import { TimeIndexInfo } from "./TimeIndexInfo";
 
 /** The time index as a rounded number, or "—" when there's no time data. */
 function fmtIndex(index: number | null): string {
@@ -70,12 +71,12 @@ export function PlayerDetail({
         />
         <StatTile label="Parties" value={String(player.games)} />
         <StatTile label="Victoires" value={String(player.wins)} />
-        <StatTile label="Part du temps" value={fmtIndex(player.timeIndex)} />
+        <StatTile
+          label="Part du temps"
+          value={fmtIndex(player.timeIndex)}
+          info={<TimeIndexInfo />}
+        />
       </div>
-      <p className="-mt-4 text-xs text-zinc-500 dark:text-zinc-400">
-        Part du temps : 100 = temps attendu ; en dessous = plus rapide,
-        au-dessus = plus lent (normalisé par le nombre de joueurs).
-      </p>
 
       {player.bestGame && player.worstGame ? (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
