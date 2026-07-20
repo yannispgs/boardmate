@@ -192,4 +192,10 @@ export interface NewGame {
   configValues?: ConfigValues | null;
   /** Ordered: index = seat order / turn order. */
   playerIds: PlayerId[];
+  /**
+   * Score to seed every player at, for live-scored games (so none stays
+   * unscored). `null`/omitted leaves scores empty (final-scored or unscored
+   * games, entered at the end). See `initialScoreFor`.
+   */
+  initialScore?: number | null;
 }

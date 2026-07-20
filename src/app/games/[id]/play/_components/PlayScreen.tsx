@@ -11,6 +11,7 @@ import type {
 import { countdownColor } from "@/lib/game/colors";
 import { diceStats, diceValues } from "@/lib/game/dice";
 import {
+  clampScore,
   leaderByScore,
   type Ranked,
   rankByTotal,
@@ -260,8 +261,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
       return;
     }
 
-    const allowNegative = game.boardgame.scoring?.allowNegative ?? false;
-    const next = allowNegative ? Math.round(raw) : Math.max(0, Math.round(raw));
+    const next = clampScore(raw, game.boardgame.scoring);
 
     setScores(s => ({ ...(s ?? {}), [playerId]: next }));
     try {
@@ -510,6 +510,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
           scores={scores ?? {}}
           threshold={game.winThreshold}
           allowNegative={game.boardgame.scoring.allowNegative ?? false}
+          minScore={game.boardgame.scoring.minScore ?? 0}
           onSet={setPlayerScore}
           disabled={busy}
           open={scoreOpen}
@@ -584,7 +585,15 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
           )}
           onEnd={winnerId => {
             setEndOpen(false);
-            handleEnd(winnerId);
+            // Persist every player's live score, not just the winner's, so no
+            // one is left unscored in the finished game.
+            handleEnd(
+              winnerId,
+              game.players.map(p => ({
+                playerId: p.playerId,
+                score: scores[p.playerId] ?? 0,
+              })),
+            );
           }}
           onCancel={() => setEndOpen(false)}
           disabled={busy}

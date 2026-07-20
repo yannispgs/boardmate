@@ -13,6 +13,7 @@ import type {
   Player,
   PlayerId,
 } from "@/lib/domain";
+import { initialScoreFor } from "@/lib/game/scoring";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useConfigs } from "@/lib/hooks/use-configs";
 import { useGames } from "@/lib/hooks/use-games";
@@ -47,6 +48,7 @@ export function NewGameFunnel() {
         configId: config?.id ?? null,
         configValues,
         playerIds: players.map(p => p.id),
+        initialScore: initialScoreFor(boardgame.scoring),
       });
       router.push(`/games/${game.id}/play`);
     } catch {

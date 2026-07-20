@@ -28,17 +28,15 @@ test("plays a full game from the funnel to the winner", {
     await page.getByRole("button", { name: "Tour suivant →" }).click();
     await expect(currentTag).toContainText(players[1]);
 
-    // Catan is scored live: open the score sheet from the side button and score
-    // player 0 up to the target (Catan's default pointsToWin = 10, resolved from
-    // the config template). Reaching it closes the sheet and prompts to end.
+    // Catan is scored live and starts everyone at 2: open the score sheet and
+    // type player 0 straight to the target (default pointsToWin = 10) so the
+    // test doesn't depend on the starting score. Reaching it closes the sheet
+    // and prompts to end.
     await page.getByRole("button", { name: "Ouvrir les scores" }).click();
 
-    const plusP0 = page.getByRole("button", {
-      name: `Ajouter un point à ${players[0]}`,
-    });
-    for (let i = 0; i < 10; i++) {
-      await plusP0.click();
-    }
+    const scoreP0 = page.getByLabel(`Score de ${players[0]}`);
+    await scoreP0.fill("10");
+    await scoreP0.press("Enter");
 
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();

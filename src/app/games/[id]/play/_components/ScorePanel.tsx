@@ -17,6 +17,7 @@ export function ScorePanel({
   scores,
   threshold,
   allowNegative,
+  minScore,
   onSet,
   disabled,
   open,
@@ -26,6 +27,7 @@ export function ScorePanel({
   scores: Record<string, number>;
   threshold: number | null;
   allowNegative: boolean;
+  minScore: number;
   onSet: (playerId: PlayerId, score: number) => void;
   disabled: boolean;
   open: boolean;
@@ -87,6 +89,7 @@ export function ScorePanel({
             scores={scores}
             threshold={threshold}
             allowNegative={allowNegative}
+            minScore={minScore}
             onSet={onSet}
             disabled={disabled}
           />

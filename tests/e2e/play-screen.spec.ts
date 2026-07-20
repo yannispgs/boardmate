@@ -171,7 +171,7 @@ test("the turn timer grows each round per the schedule", async ({ page }) => {
   }
 });
 
-test("live scores float at zero and persist across the score sheet", async ({
+test("live scores start at 2, floor there, and persist across the score sheet", async ({
   page,
 }) => {
   const players = await seedPlayers(CATAN_MIN_PLAYERS);
@@ -191,17 +191,20 @@ test("live scores float at zero and persist across the score sheet", async ({
       name: `Ajouter un point à ${players[0]}`,
     });
 
-    // Catan is positive-only: at 0 the − is disabled; a + enables it.
+    // Catan starts everyone at 2 and can't drop below (min 2): the − is disabled
+    // at the floor, + raises it, and − returns to 2 then disables again.
     await expect(minus).toBeDisabled();
     await plus.click();
-    await plus.click();
     await expect(minus).toBeEnabled();
+    await minus.click();
+    await expect(minus).toBeDisabled();
 
-    // Closing keeps the running total — the side button shows 2 / objective 10.
+    // Raise to 3 and close — the running total is kept (side button 3 / obj 10).
+    await plus.click();
     await page.getByRole("button", { name: "Fermer", exact: true }).click();
-    await expect(openScores).toContainText("2/10");
+    await expect(openScores).toContainText("3/10");
 
-    // Reopening shows the kept total (− still enabled, not reset to 0).
+    // Reopening shows the kept total (− still enabled, not reset).
     await openScores.click();
     await expect(minus).toBeEnabled();
   } finally {
@@ -265,6 +268,17 @@ test("ends when the target is exceeded, defaulting to the top scorer", async ({
 
     await expect(page.getByText(`Bravo ${players[0]}`)).toBeVisible();
     await expect(page.getByText("avec 12 points")).toBeVisible();
+
+    // Every player is scored at end, not just the winner (others keep their
+    // starting 2) — no null score is left behind.
+    const admin = adminClient();
+    const { data: gps } = await admin
+      .from("game_players")
+      .select("score")
+      .eq("game_id", gameId);
+
+    expect(gps?.length).toBe(CATAN_MIN_PLAYERS);
+    expect(gps?.every(r => r.score !== null)).toBe(true);
   } finally {
     const admin = adminClient();
     if (gameId) {

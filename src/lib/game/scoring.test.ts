@@ -1,21 +1,76 @@
 import { describe, expect, it } from "vitest";
 
-import type { FieldSpec, PlayerId, ScoreSheetItem } from "@/lib/domain";
+import type {
+  FieldSpec,
+  PlayerId,
+  ScoreSheetItem,
+  ScoringSpec,
+} from "@/lib/domain";
 
 import {
   categoryTotal,
+  clampScore,
+  initialScoreFor,
   isSubsection,
   leaderByScore,
   rankBonusFor,
   rankByTotal,
   reachedThreshold,
   scoreCategories,
+  scoreFloor,
   sheetCategories,
   winnerDirection,
   winThresholdFrom,
 } from "./scoring";
 
 const p = (n: string) => n as PlayerId;
+
+const scoring = (over: Partial<ScoringSpec>): ScoringSpec => ({
+  timing: "live",
+  entry: "total",
+  winCondition: { type: "highest" },
+  ...over,
+});
+
+describe("initialScoreFor", () => {
+  it("seeds live games at startScore (default 0)", () => {
+    expect(initialScoreFor(scoring({ startScore: 2 }))).toBe(2);
+    expect(initialScoreFor(scoring({}))).toBe(0);
+  });
+
+  it("returns null for final scoring or no scoring", () => {
+    expect(initialScoreFor(scoring({ timing: "final", startScore: 2 }))).toBe(
+      null,
+    );
+    expect(initialScoreFor(null)).toBe(null);
+  });
+});
+
+describe("scoreFloor", () => {
+  it("is minScore for positive-only games (default 0)", () => {
+    expect(scoreFloor(scoring({ minScore: 2 }))).toBe(2);
+    expect(scoreFloor(scoring({}))).toBe(0);
+  });
+
+  it("is null when negatives are allowed or there is no scoring", () => {
+    expect(scoreFloor(scoring({ allowNegative: true, minScore: 2 }))).toBe(
+      null,
+    );
+    expect(scoreFloor(null)).toBe(null);
+  });
+});
+
+describe("clampScore", () => {
+  it("rounds and clamps to the floor", () => {
+    expect(clampScore(1, scoring({ minScore: 2 }))).toBe(2);
+    expect(clampScore(5.4, scoring({ minScore: 2 }))).toBe(5);
+    expect(clampScore(-3, scoring({}))).toBe(0);
+  });
+
+  it("leaves values through when negatives are allowed", () => {
+    expect(clampScore(-3, scoring({ allowNegative: true }))).toBe(-3);
+  });
+});
 
 describe("winnerDirection", () => {
   it("maps each win condition to a direction (threshold races to the top)", () => {
