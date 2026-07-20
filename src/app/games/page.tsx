@@ -22,12 +22,6 @@ export default function GamesPage() {
           Les parties en cours. L&apos;historique des parties terminées arrivera
           avec les statistiques.
         </p>
-        <Link
-          href="/games/finished"
-          className="mt-1 self-start rounded-lg border border-black/15 px-3 py-1.5 text-sm font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
-        >
-          ＋ Ajouter une partie terminée
-        </Link>
       </header>
 
       <GamesList />
