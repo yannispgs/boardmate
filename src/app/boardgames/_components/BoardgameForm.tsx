@@ -34,6 +34,8 @@ interface FormState {
   // Sequential turns, or everyone-plays-at-once (Splito).
   turnMode: TurnMode;
   kind: BoardgameKind;
+  // Break the stats down by turn order (first / middle / last to play).
+  trackSeatStats: boolean;
   // Dice tracking (e.g. Catan's 2×d6): when on, `diceCount` × d`diceSides`.
   diceTracked: boolean;
   diceCount: string;
@@ -59,6 +61,7 @@ const EMPTY: FormState = {
   tags: "",
   turnMode: "sequential",
   kind: "competitive",
+  trackSeatStats: false,
   diceTracked: false,
   diceCount: "",
   diceSides: "",
@@ -84,6 +87,7 @@ function fromBoardgame(b: Boardgame): FormState {
     tags: b.tags.join(", "),
     turnMode: b.turnMode,
     kind: b.kind,
+    trackSeatStats: b.trackSeatStats,
     diceTracked: b.dice !== null,
     diceCount: b.dice?.count?.toString() ?? "",
     diceSides: b.dice?.sides?.toString() ?? "",
@@ -179,6 +183,7 @@ function toInput(
       .filter(Boolean),
     turnMode: form.turnMode,
     kind: form.kind,
+    trackSeatStats: form.trackSeatStats,
     dice: form.diceTracked
       ? {
           count: toNum(form.diceCount) ?? 2,
@@ -543,6 +548,15 @@ export function BoardgameForm({
           <option value="cooperative">Coopératif</option>
           <option value="hybrid">Hybride</option>
         </select>
+      </label>
+
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={form.trackSeatStats}
+          onChange={e => setForm({ ...form, trackSeatStats: e.target.checked })}
+        />
+        Suivre les statistiques selon l&apos;ordre de jeu
       </label>
 
       <fieldset className="flex flex-col gap-2 rounded-lg border border-black/10 p-3 dark:border-white/10">
