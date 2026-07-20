@@ -102,8 +102,17 @@ otherwise. **Updated on every remark from the project owner.**
 - Work on feature branches; the default branch is `main`.
 - **Always ship through a Pull Request.** Never push/merge straight to `main`.
   The owner reviews and merges every PR himself (review + ownership).
-- **PR description** must recap the change: features added, bugs fixed,
-  configuration/tooling updates, migrations, and anything notable to review.
+- **PR description** must recap the change from the **user's point of view**,
+  grouped by view (see the review below); no test/validation section.
+- **CI/CD flag (first line).** When a PR touches **CI/CD configuration or CI
+  tooling configuration**, start the description with a short flag so the owner
+  reviews the file diff himself (he otherwise trusts the conventions + Sonar and
+  does **not** read application code). This covers changes to
+  `.github/workflows/**`, `.github/actions/**`, `biome.json`, `tsconfig*`,
+  `package.json` scripts/deps, `vitest*.config.ts`, `playwright.config.ts`,
+  release-please, Sonar/Codecov config, etc. It does **not** cover merely adding
+  or editing tests (`tests/**`, `*.test.ts`) — those are source code and need no
+  flag.
 - **Tooling / dependency swaps go in their own `chore/` branch + PR** (e.g.
   changing the linter/formatter), kept separate from feature work, with a
   `chore` commit type.
@@ -305,3 +314,7 @@ separate so the fast one never needs a database:
   close/merge — **two runs per PR** instead of one per commit, and trivially
   reproducible by hand in the Vercel dashboard. Owner's call (matches a pattern
   he runs elsewhere; fewer runs, easier manual fallback).
+- _2026-07-20_ — **CI/CD flag at the top of PR descriptions** (§8): a PR that
+  touches CI/CD or CI-tooling **configuration** must flag it on the first line
+  so the owner reviews the diff; source-only PRs (incl. test changes) need no
+  flag — he trusts the conventions + SonarCloud. Owner's call.
