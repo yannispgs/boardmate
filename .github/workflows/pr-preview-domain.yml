@@ -20,10 +20,13 @@ on:
   pull_request:
     types: [opened, reopened, closed]
 
-# One run per PR; a close supersedes an in-flight create and vice versa.
+# Serialise all domain ops for a PR: a close (detach) queues behind an
+# in-flight open (attach) instead of cancelling it — the attach fully creates
+# the domain, then the detach fully deletes it. Never cancel, so a fast
+# open-then-close can't leave a half-created, orphaned domain behind.
 concurrency:
   group: pr-domain-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
