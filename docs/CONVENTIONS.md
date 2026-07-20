@@ -104,15 +104,16 @@ otherwise. **Updated on every remark from the project owner.**
   The owner reviews and merges every PR himself (review + ownership).
 - **PR description** must recap the change from the **user's point of view**,
   grouped by view (see the review below); no test/validation section.
-- **CI/CD flag (first line).** When a PR touches **CI/CD configuration or CI
-  tooling configuration**, start the description with a short flag so the owner
-  reviews the file diff himself (he otherwise trusts the conventions + Sonar and
-  does **not** read application code). This covers changes to
+- **CI/CD flag (first line) + `configuration` label.** When a PR touches
+  **CI/CD configuration or CI tooling configuration**, start the description with
+  a short flag **and add the `configuration` label** to the PR, so the owner
+  knows to review the file diff himself (he otherwise trusts the conventions +
+  Sonar and does **not** read application code). This covers changes to
   `.github/workflows/**`, `.github/actions/**`, `biome.json`, `tsconfig*`,
   `package.json` scripts/deps, `vitest*.config.ts`, `playwright.config.ts`,
   release-please, Sonar/Codecov config, etc. It does **not** cover merely adding
-  or editing tests (`tests/**`, `*.test.ts`) — those are source code and need no
-  flag.
+  or editing tests (`tests/**`, `*.test.ts`) — those are source code and need
+  neither the flag nor the label.
 - **Tooling / dependency swaps go in their own `chore/` branch + PR** (e.g.
   changing the linter/formatter), kept separate from feature work, with a
   `chore` commit type.
@@ -314,7 +315,8 @@ separate so the fast one never needs a database:
   close/merge — **two runs per PR** instead of one per commit, and trivially
   reproducible by hand in the Vercel dashboard. Owner's call (matches a pattern
   he runs elsewhere; fewer runs, easier manual fallback).
-- _2026-07-20_ — **CI/CD flag at the top of PR descriptions** (§8): a PR that
-  touches CI/CD or CI-tooling **configuration** must flag it on the first line
-  so the owner reviews the diff; source-only PRs (incl. test changes) need no
-  flag — he trusts the conventions + SonarCloud. Owner's call.
+- _2026-07-20_ — **CI/CD flag at the top of PR descriptions + `configuration`
+  label** (§8): a PR that touches CI/CD or CI-tooling **configuration** must flag
+  it on the first line **and carry the `configuration` label** so the owner
+  reviews the diff; source-only PRs (incl. test changes) need neither — he trusts
+  the conventions + SonarCloud. Owner's call.
