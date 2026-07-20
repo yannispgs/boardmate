@@ -150,10 +150,18 @@ otherwise. **Updated on every remark from the project owner.**
   deploy per PR, production on `main`).
 - **Per-PR preview URL**: every PR is reachable at a stable, predictable
   **`https://pr-<number>.board-mate.app`** (our own domain). A workflow
-  (`.github/workflows/pr-preview-alias.yml`) waits for Vercel's preview build
-  and aliases it to that name, so reviewers never hunt for a random hash URL.
-  Needs the `VERCEL_API_TOKEN` repo secret. Previews run against the **dev**
-  Supabase backend (Preview env); production (`main`) uses the prod backend.
+  (`.github/workflows/pr-preview-domain.yml`) attaches, when the PR **opens**, a
+  Vercel domain **linked to the PR's Git branch** (`gitBranch`); Vercel then
+  serves that branch's latest READY deployment on the domain automatically for
+  every later push — **no run per commit**. The domain is **deleted when the PR
+  closes/merges**, so it's **two runs per PR** total (attach + detach). Keyed on
+  the unique PR number → names never collide; a renamed branch just means a new
+  PR. Same effect is reproducible by hand (GitHub down / no token): add
+  `pr-<n>.board-mate.app` in the Vercel project's Domains with Git Branch = the
+  PR branch, and remove it after. Needs the `VERCEL_API_TOKEN` repo secret and
+  the `VERCEL_TEAM_ID` / `VERCEL_PROJECT_ID` / `PREVIEW_BASE_DOMAIN` repo
+  variables. Previews run against the **dev** Supabase backend (Preview env);
+  production (`main`) uses the prod backend.
 - **Shared preview session**: set `NEXT_PUBLIC_COOKIE_DOMAIN=.board-mate.app`
   on the Vercel **Preview** environment (only) so the Supabase auth cookie is
   scoped to the parent domain — one login is then shared across every
@@ -291,3 +299,9 @@ separate so the fast one never needs a database:
 - _2026-07-12_ — Release tags are plain `vX.Y.Z` with no component prefix
   (§10): set `include-component-in-tag: false` (kept `include-v-in-tag: true`),
   so v1 tags as `v1.0.0` instead of `boardmate-v1.0.0`. Owner's call.
+- _2026-07-20_ — Per-PR preview URL now uses a **branch-linked Vercel domain**
+  instead of per-commit aliasing (§10): `pr-preview-domain.yml` attaches
+  `pr-<n>.board-mate.app` (with `gitBranch`) on PR open and deletes it on
+  close/merge — **two runs per PR** instead of one per commit, and trivially
+  reproducible by hand in the Vercel dashboard. Owner's call (matches a pattern
+  he runs elsewhere; fewer runs, easier manual fallback).

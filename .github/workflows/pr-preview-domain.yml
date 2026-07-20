@@ -1,0 +1,135 @@
+name: PR preview domain
+
+# Gives every PR a stable, predictable preview URL on our own domain:
+#   https://pr-<number>.board-mate.app
+#
+# Instead of re-aliasing the latest deployment on every commit (one run per
+# push), we attach a Vercel domain *linked to the PR's Git branch* once, when
+# the PR opens. Vercel then automatically serves the latest READY deployment of
+# that branch on the domain for every later push — with no further runs. The
+# domain is removed when the PR closes or merges. Net: two runs per PR.
+#
+# The domain is keyed on the (unique) PR number, so names never collide; a
+# renamed branch means a new PR, so we never need to re-point an existing one.
+#
+# Doing this by hand (GitHub down / no token) is just as simple: in the Vercel
+# project's Domains, add `pr-<n>.board-mate.app` with Git Branch = the PR branch
+# (and delete it afterwards).
+
+on:
+  pull_request:
+    types: [opened, reopened, closed]
+
+# Serialise all domain ops for a PR: a close (detach) queues behind an
+# in-flight open (attach) instead of cancelling it — the attach fully creates
+# the domain, then the detach fully deletes it. Never cancel, so a fast
+# open-then-close can't leave a half-created, orphaned domain behind.
+concurrency:
+  group: pr-domain-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  attach:
+    name: Attach pr-<n>.board-mate.app to the PR branch
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-24.04
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
+      VERCEL_TEAM: ${{ vars.VERCEL_TEAM_ID }}
+      VERCEL_PROJECT: ${{ vars.VERCEL_PROJECT_ID }}
+      PREVIEW_DOMAIN: ${{ vars.PREVIEW_BASE_DOMAIN }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      HEAD_REF: ${{ github.event.pull_request.head.ref }}
+    steps:
+      - name: Create (or update) the branch-linked preview domain
+        run: |
+          set -euo pipefail
+          if [ -z "${VERCEL_TEAM}" ] || [ -z "${VERCEL_PROJECT}" ] || [ -z "${PREVIEW_DOMAIN}" ]; then
+            echo "::error::missing repo variable (VERCEL_TEAM_ID / VERCEL_PROJECT_ID / PREVIEW_BASE_DOMAIN)"
+            exit 1
+          fi
+          domain="pr-${PR_NUMBER}.${PREVIEW_DOMAIN}"
+          auth="Authorization: Bearer ${VERCEL_TOKEN}"
+          payload=$(jq -n --arg n "$domain" --arg b "$HEAD_REF" '{name:$n, gitBranch:$b}')
+
+          # Create the domain linked to the PR branch. Vercel serves the branch's
+          # latest READY deployment on it automatically from here on.
+          code=$(curl -sS -o /tmp/create.json -w '%{http_code}' -X POST \
+            "https://api.vercel.com/v10/projects/${VERCEL_PROJECT}/domains?teamId=${VERCEL_TEAM}" \
+            -H "$auth" -H "Content-Type: application/json" -d "$payload")
+
+          case "$code" in
+            200|201)
+              echo "Created ${domain} → branch ${HEAD_REF}"
+              ;;
+            409)
+              # Already present (e.g. a reopened PR): make sure it points at this
+              # branch.
+              echo "${domain} already exists — re-pointing to ${HEAD_REF}"
+              curl -sS -X PATCH \
+                "https://api.vercel.com/v9/projects/${VERCEL_PROJECT}/domains/${domain}?teamId=${VERCEL_TEAM}" \
+                -H "$auth" -H "Content-Type: application/json" \
+                -d "$(jq -n --arg b "$HEAD_REF" '{gitBranch:$b}')" > /dev/null
+              ;;
+            *)
+              echo "::error::unexpected ${code} creating ${domain}"
+              cat /tmp/create.json
+              exit 1
+              ;;
+          esac
+
+      - name: Verify the domain is attached to the branch
+        run: |
+          set -euo pipefail
+          domain="pr-${PR_NUMBER}.${PREVIEW_DOMAIN}"
+
+          # Confirm the domain now resolves to the PR branch (serving follows once
+          # the branch's build reaches READY — the in-progress build picks it up).
+          info=$(curl -sS -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            "https://api.vercel.com/v9/projects/${VERCEL_PROJECT}/domains/${domain}?teamId=${VERCEL_TEAM}")
+          echo "$info" | jq '{name, gitBranch, verified}'
+
+          linked=$(echo "$info" | jq -r '.gitBranch // empty')
+          if [ "$linked" != "${HEAD_REF}" ]; then
+            echo "::warning::${domain} is not linked to ${HEAD_REF} (got '${linked:-none}')"
+            exit 0
+          fi
+          echo "Preview will serve at https://${domain}"
+
+  detach:
+    name: Remove pr-<n>.board-mate.app
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-24.04
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
+      VERCEL_TEAM: ${{ vars.VERCEL_TEAM_ID }}
+      VERCEL_PROJECT: ${{ vars.VERCEL_PROJECT_ID }}
+      PREVIEW_DOMAIN: ${{ vars.PREVIEW_BASE_DOMAIN }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - name: Delete the branch-linked preview domain
+        run: |
+          set -euo pipefail
+          if [ -z "${VERCEL_TEAM}" ] || [ -z "${VERCEL_PROJECT}" ] || [ -z "${PREVIEW_DOMAIN}" ]; then
+            echo "::error::missing repo variable (VERCEL_TEAM_ID / VERCEL_PROJECT_ID / PREVIEW_BASE_DOMAIN)"
+            exit 1
+          fi
+          domain="pr-${PR_NUMBER}.${PREVIEW_DOMAIN}"
+
+          # Cleanup is best-effort: a missing domain (404) is already the desired
+          # state, so it is not an error.
+          code=$(curl -sS -o /tmp/delete.json -w '%{http_code}' -X DELETE \
+            "https://api.vercel.com/v9/projects/${VERCEL_PROJECT}/domains/${domain}?teamId=${VERCEL_TEAM}" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}")
+
+          case "$code" in
+            200) echo "Removed ${domain}" ;;
+            404) echo "${domain} already absent — nothing to do" ;;
+            *)
+              echo "::warning::unexpected ${code} deleting ${domain}"
+              cat /tmp/delete.json
+              ;;
+          esac
