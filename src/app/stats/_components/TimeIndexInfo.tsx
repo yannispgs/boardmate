@@ -8,11 +8,15 @@ import { InfoTip } from "@/components/InfoTip";
 export function TimeIndexInfo() {
   return (
     <InfoTip label="À propos de cet indice">
-      <strong>Part du temps.</strong> Indice normalisé par nombre de
-      joueurs&nbsp;: <strong>100 = la part attendue</strong> (une répartition
-      égale du temps de la table). En dessous de 100 = plus rapide que la
-      moyenne, au-dessus = plus lent. Normalisé pour comparer des parties à 3 et
-      à 6 joueurs.
+      <p>
+        <strong>Part du temps.</strong> Indice normalisé par nombre de
+        joueurs&nbsp;: <strong>100 = la part attendue</strong> (une répartition
+        égale du temps de la table).
+      </p>
+      <p>
+        En dessous de 100 = plus rapide que la moyenne, au-dessus = plus lent.
+        Normalisé pour comparer des parties à 3 et à 6 joueurs.
+      </p>
     </InfoTip>
   );
 }

@@ -558,10 +558,12 @@ export function BoardgameForm({
         />
         Suivre les statistiques selon l&apos;ordre de jeu
         <InfoTip label="À quoi sert le suivi selon l'ordre de jeu">
-          Active un tableau de stats{" "}
-          <strong>Premier / Intermédiaire / Dernier</strong> à jouer, pour les
-          jeux où l&apos;ordre de jeu influence l&apos;issue (Catan). Sans effet
-          sur le déroulé d&apos;une partie.
+          <p>
+            Active un tableau de stats{" "}
+            <strong>Premier / Intermédiaire / Dernier</strong> à jouer, pour les
+            jeux où l&apos;ordre de jeu influence l&apos;issue (Catan).
+          </p>
+          <p>Sans effet sur le déroulé d&apos;une partie.</p>
         </InfoTip>
       </label>
 
@@ -669,10 +671,14 @@ export function BoardgameForm({
                 <span className="flex items-center gap-1">
                   Comptage
                   <InfoTip label="Quand les points sont comptés">
-                    <strong>En direct</strong> = on suit le score pendant la
-                    partie et la victoire se détecte automatiquement (Catan).
-                    <strong> À la fin</strong> = on saisit les scores une fois
-                    la partie terminée (Cascadia, Wingspan).
+                    <p>
+                      <strong>En direct</strong> = on suit le score pendant la
+                      partie et la victoire se détecte automatiquement (Catan).
+                    </p>
+                    <p>
+                      <strong>À la fin</strong> = on saisit les scores une fois
+                      la partie terminée (Cascadia, Wingspan).
+                    </p>
                   </InfoTip>
                 </span>
                 <select
@@ -732,9 +738,13 @@ export function BoardgameForm({
                 <span className="flex items-center gap-1">
                   Champ de configuration de l&apos;objectif
                   <InfoTip label="À quoi sert le champ d'objectif">
-                    Clé du champ de configuration qui fixe le nombre de points à
-                    atteindre pour gagner (par défaut&nbsp;: pointsToWin). Sa
-                    valeur est réglable par partie dans la configuration.
+                    <p>
+                      Clé du champ de configuration qui fixe le nombre de points
+                      à atteindre pour gagner (par défaut&nbsp;: pointsToWin).
+                    </p>
+                    <p>
+                      Sa valeur est réglable par partie dans la configuration.
+                    </p>
                   </InfoTip>
                 </span>
                 <input
@@ -758,9 +768,11 @@ export function BoardgameForm({
               />
               Les scores peuvent être négatifs
               <InfoTip label="Scores négatifs">
-                Autorise un score en dessous de 0. Décoché (défaut), le
-                contrôle&nbsp;−/+ et la saisie sont bloqués au plancher du jeu
-                (Catan&nbsp;: 2).
+                <p>Autorise un score en dessous de 0.</p>
+                <p>
+                  Décoché (défaut), le contrôle&nbsp;−/+ et la saisie sont
+                  bloqués au plancher du jeu (Catan&nbsp;: 2).
+                </p>
               </InfoTip>
             </label>
 

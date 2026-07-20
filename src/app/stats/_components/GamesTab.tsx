@@ -160,9 +160,13 @@ export function GamesTab({ records }: { records: GameStatsRecord[] }) {
               value={stats.avgRounds.toFixed(1)}
               info={
                 <InfoTip label="Tours moyens">
-                  Nombre moyen de <strong>tours de table</strong> par partie (un
-                  tour = tout le monde a joué une fois). À ne pas confondre avec
-                  « Tour moy. », qui est une durée.
+                  <p>
+                    Nombre moyen de <strong>tours de table</strong> par partie
+                    (un tour = tout le monde a joué une fois).
+                  </p>
+                  <p>
+                    À ne pas confondre avec « Tour moy. », qui est une durée.
+                  </p>
                 </InfoTip>
               }
             />
@@ -171,9 +175,14 @@ export function GamesTab({ records }: { records: GameStatsRecord[] }) {
               value={formatDuration(stats.avgTurnS)}
               info={
                 <InfoTip label="Tour moyen">
-                  <strong>Durée moyenne d&apos;un seul tour</strong> de joueur.
-                  À ne pas confondre avec « Tours moy. », qui compte les tours
-                  de table.
+                  <p>
+                    <strong>Durée moyenne d&apos;un seul tour</strong> de
+                    joueur.
+                  </p>
+                  <p>
+                    À ne pas confondre avec « Tours moy. », qui compte les tours
+                    de table.
+                  </p>
                 </InfoTip>
               }
             />

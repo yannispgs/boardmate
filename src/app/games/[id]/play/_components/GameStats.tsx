@@ -62,9 +62,11 @@ export function GameStats({ game }: { game: PopulatedGame }) {
       value: String(stats.rounds),
       info: (
         <InfoTip label="Tours">
-          Nombre de <strong>tours de table</strong> joués (un tour = chaque
-          joueur a joué une fois). Différent de « Tour moyen », qui est une
-          durée.
+          <p>
+            Nombre de <strong>tours de table</strong> joués (un tour = chaque
+            joueur a joué une fois).
+          </p>
+          <p>Différent de « Tour moyen », qui est une durée.</p>
         </InfoTip>
       ),
     },
@@ -73,8 +75,11 @@ export function GameStats({ game }: { game: PopulatedGame }) {
       value: formatDuration(stats.avgRoundS),
       info: (
         <InfoTip label="Tour moyen">
-          <strong>Durée moyenne d&apos;un tour de table</strong> (tous les
-          joueurs). Différent de « Tours », qui en compte le nombre.
+          <p>
+            <strong>Durée moyenne d&apos;un tour de table</strong> (tous les
+            joueurs).
+          </p>
+          <p>Différent de « Tours », qui en compte le nombre.</p>
         </InfoTip>
       ),
     },
