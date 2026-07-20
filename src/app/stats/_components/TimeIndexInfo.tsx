@@ -9,7 +9,7 @@ export function TimeIndexInfo() {
   return (
     <InfoTip label="À propos de cet indice">
       <p>
-        <strong>Part du temps.</strong> Indice normalisé par nombre de
+        <strong>Part du temps.</strong>&nbsp;Indice normalisé par nombre de
         joueurs&nbsp;: <strong>100 = la part attendue</strong> (une répartition
         égale du temps de la table).
       </p>

@@ -38,13 +38,13 @@ export function SeatStats({ stats }: { stats: SeatStat[] }) {
                 <span className="inline-flex items-center justify-end gap-1">
                   Position moy.
                   <InfoTip label="Détails sur la position moyenne">
-                    <strong>Position moyenne.</strong> Indice de 0 à 100 basé
-                    sur le classement final&nbsp;: 0 = a toujours fini premier,
-                    100 = toujours dernier. Normalisé par nombre de joueurs
-                    (pour comparer des parties à 3 et à 6) et pondéré par partie
-                    (les intermédiaires d&apos;une même partie sont moyennés
-                    ensemble). Différent du taux de victoire, qui compte le
-                    vainqueur désigné et non le rang au score.
+                    <strong>Position moyenne.</strong>&nbsp;Indice de 0 à 100
+                    basé sur le classement final&nbsp;: 0 = a toujours fini
+                    premier, 100 = toujours dernier. Normalisé par nombre de
+                    joueurs (pour comparer des parties à 3 et à 6) et pondéré
+                    par partie (les intermédiaires d&apos;une même partie sont
+                    moyennés ensemble). Différent du taux de victoire, qui
+                    compte le vainqueur désigné et non le rang au score.
                   </InfoTip>
                 </span>
               </th>

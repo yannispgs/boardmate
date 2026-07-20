@@ -560,8 +560,8 @@ export function BoardgameForm({
         <InfoTip label="À quoi sert le suivi selon l'ordre de jeu">
           <p>
             Active un tableau de stats{" "}
-            <strong>Premier / Intermédiaire / Dernier</strong> à jouer, pour les
-            jeux où l&apos;ordre de jeu influence l&apos;issue (Catan).
+            <strong>Premier / Intermédiaire / Dernier</strong>&nbsp;à jouer,
+            pour les jeux où l&apos;ordre de jeu influence l&apos;issue (Catan).
           </p>
           <p>Sans effet sur le déroulé d&apos;une partie.</p>
         </InfoTip>
