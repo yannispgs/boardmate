@@ -78,6 +78,85 @@ test("records a finished game with final scores and a winner", async ({
   }
 });
 
+test("fills a category game's per-category detail after the fact", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const names = await seedPlayers(2);
+  const { data: seeded } = await admin
+    .from("players")
+    .select("id, name")
+    .in("name", names);
+  const ids = (seeded ?? []).map(p => p.id);
+  const { data: cascadia } = await admin
+    .from("boardgames")
+    .select("id")
+    .eq("name", "Cascadia")
+    .single();
+  // An ended Cascadia game recorded with totals only (no breakdown).
+  const { data: game } = await admin
+    .from("games")
+    .insert({
+      boardgame_id: cascadia?.id,
+      status: "ended",
+      round: 1,
+      turn: 1,
+      ended_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+  const gameId = game?.id as string;
+  await admin.from("game_players").insert([
+    {
+      game_id: gameId,
+      player_id: ids[0],
+      seat_order: 0,
+      is_winner: true,
+      score: 90,
+    },
+    {
+      game_id: gameId,
+      player_id: ids[1],
+      seat_order: 1,
+      is_winner: false,
+      score: 80,
+    },
+  ]);
+
+  try {
+    await page.goto(`/games/${gameId}/play`);
+
+    // The stats screen offers to add the missing per-category detail.
+    await page
+      .getByRole("button", { name: "Ajouter le détail des points" })
+      .click();
+
+    // Fill every category cell, then save.
+    const cells = page.getByRole("spinbutton");
+    const count = await cells.count();
+    for (let i = 0; i < count; i++) {
+      await cells.nth(i).fill("2");
+    }
+    await page
+      .getByRole("button", { name: "Enregistrer", exact: true })
+      .click();
+
+    // Once saved, the game has a breakdown → the whole fill form (its grid
+    // cells) disappears after the reload.
+    await expect(page.getByRole("spinbutton")).toHaveCount(0);
+
+    const { data: gps } = await admin
+      .from("game_players")
+      .select("score_breakdown")
+      .eq("game_id", gameId);
+
+    expect((gps ?? []).every(r => r.score_breakdown !== null)).toBe(true);
+  } finally {
+    await admin.from("games").delete().eq("id", gameId);
+    await admin.from("players").delete().in("name", names);
+  }
+});
+
 test("a category game can be recorded with just a total (detail optional)", async ({
   page,
 }) => {

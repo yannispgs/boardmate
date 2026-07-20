@@ -385,7 +385,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   }
 
   if (game.status === "ended") {
-    return <EndedGame game={game} />;
+    return <EndedGame game={game} onReload={load} />;
   }
 
   const remainingS = durationS - timer.elapsedS;

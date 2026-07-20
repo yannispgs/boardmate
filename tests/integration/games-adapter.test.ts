@@ -96,6 +96,33 @@ describe("games adapter — creation & population", () => {
     expect(populated?.players.map(p => p.score)).toEqual([2, 2, 2]);
   });
 
+  it("setBreakdown records per-category detail and re-derives the winner", async () => {
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId,
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    // First ended with player 0 as the winner…
+    await repo().end(game.id, playerIds[0]);
+    // …then the category detail is filled, making player 1 the top total.
+    await repo().setBreakdown(game.id, playerIds[1], [
+      { playerId: playerIds[0], score: 8, breakdown: { a: 3, b: 5 } },
+      { playerId: playerIds[1], score: 12, breakdown: { a: 7, b: 5 } },
+      { playerId: playerIds[2], score: 4, breakdown: { a: 1, b: 3 } },
+    ]);
+
+    const populated = await repo().getPopulated(game.id);
+    const byId = new Map(populated?.players.map(p => [p.playerId, p]));
+
+    // The previous winner is reset; the recomputed one is set.
+    expect(byId.get(playerIds[0])?.isWinner).toBe(false);
+    expect(byId.get(playerIds[1])?.isWinner).toBe(true);
+    expect(byId.get(playerIds[1])?.score).toBe(12);
+    expect(byId.get(playerIds[0])?.scoreBreakdown).toEqual({ a: 3, b: 5 });
+  });
+
   it("snapshots recap-tweaked config values and resolves the threshold from them", async () => {
     // The launch recap can tweak the score-to-reach for one game only, with no
     // source config: the snapshot (8) overrides the template default (10).

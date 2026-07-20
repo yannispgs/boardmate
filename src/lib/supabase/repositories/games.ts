@@ -535,6 +535,43 @@ export function createGameRepository(
       }
     },
 
+    async setBreakdown(id: GameId, winnerId: PlayerId, scores) {
+      for (const { playerId, score, breakdown } of scores) {
+        const { error } = await supabase
+          .from("game_players")
+          .update({
+            score: Math.round(score),
+            score_breakdown: breakdown as Json,
+          })
+          .eq("game_id", id)
+          .eq("player_id", playerId);
+        /* c8 ignore next 3 -- defensive guard: update errors surface via e2e */
+        if (error) {
+          throw new Error(`Enregistrement du détail: ${error.message}`);
+        }
+      }
+
+      // The re-derived totals may change who won → reset every flag, then set.
+      const { error: resetError } = await supabase
+        .from("game_players")
+        .update({ is_winner: false })
+        .eq("game_id", id);
+      /* c8 ignore next 3 -- defensive guard: update errors surface via e2e */
+      if (resetError) {
+        throw new Error(`Réinitialisation du gagnant: ${resetError.message}`);
+      }
+
+      const { error: winnerError } = await supabase
+        .from("game_players")
+        .update({ is_winner: true })
+        .eq("game_id", id)
+        .eq("player_id", winnerId);
+      /* c8 ignore next 3 -- defensive guard: update errors surface via e2e */
+      if (winnerError) {
+        throw new Error(`Enregistrement du gagnant: ${winnerError.message}`);
+      }
+    },
+
     async endCoop(id: GameId, won: boolean) {
       const { error } = await games()
         .update({ status: "ended", ended_at: new Date().toISOString() })

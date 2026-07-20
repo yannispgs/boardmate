@@ -189,6 +189,21 @@ export interface GameRepository {
    * winner). Scored coop games will refine this later.
    */
   endCoop(id: GameId, won: boolean): Promise<void>;
+  /**
+   * Retroactively records the per-category `breakdown` (and the re-derived
+   * total + winner) for an already-ended category game that was logged with
+   * only a total. Every player's `is_winner` is reset, then the recomputed
+   * winner is set.
+   */
+  setBreakdown(
+    id: GameId,
+    winnerId: PlayerId,
+    scores: Array<{
+      playerId: PlayerId;
+      score: number;
+      breakdown: Record<string, number>;
+    }>,
+  ): Promise<void>;
   subscribe(onChange: () => void): Unsubscribe;
 }
 
