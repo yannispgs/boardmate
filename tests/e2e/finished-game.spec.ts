@@ -77,3 +77,63 @@ test("records a finished game with final scores and a winner", async ({
     await admin.from("players").delete().in("name", names);
   }
 });
+
+test("a category game can be recorded with just a total (detail optional)", async ({
+  page,
+}) => {
+  const names = await seedPlayers(2);
+  const admin = adminClient();
+  const { data: seeded } = await admin
+    .from("players")
+    .select("id, name")
+    .in("name", names);
+  const ids = (seeded ?? []).map(p => p.id);
+  let gameId: string | undefined;
+
+  try {
+    await page.goto("/games");
+    await page
+      .getByRole("link", { name: "Ajouter une partie terminée" })
+      .click();
+
+    await page.getByRole("button", { name: "Cascadia", exact: true }).click();
+    for (const name of names) {
+      await page.getByRole("button", { name, exact: true }).click();
+    }
+
+    // A category game offers the total/detail toggle. "Détail" reveals the
+    // inline grid; "Score total" (the default) records just a total.
+    await page.getByText("Détail par catégorie").click();
+    await expect(
+      page.getByRole("spinbutton", { name: `Ours — ${names[0]}` }),
+    ).toBeVisible();
+
+    await page.getByText("Score total", { exact: true }).click();
+    await page.getByRole("spinbutton", { name: names[0] }).fill("92");
+    await page.getByRole("spinbutton", { name: names[1] }).fill("77");
+    await page.getByRole("button", { name: "Enregistrer la partie" }).click();
+
+    await expect(page).toHaveURL(/\/games$/);
+
+    const { data: gps } = await admin
+      .from("game_players")
+      .select("game_id, score, is_winner, score_breakdown, player_id")
+      .in("player_id", ids);
+    const rows = gps ?? [];
+
+    expect(rows.length).toBe(2);
+    gameId = rows[0]?.game_id as string;
+
+    const winner = rows.find(r => r.player_id === ids[0]);
+
+    expect(winner?.is_winner).toBe(true);
+    expect(winner?.score).toBe(92);
+    // Total-only entry stores no per-category breakdown.
+    expect(winner?.score_breakdown).toBeNull();
+  } finally {
+    if (gameId) {
+      await admin.from("games").delete().eq("id", gameId);
+    }
+    await admin.from("players").delete().in("name", names);
+  }
+});
