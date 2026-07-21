@@ -1,5 +1,7 @@
 import { StatTile } from "@/components/StatTile";
+import type { Boardgame, GameStatsRecord } from "@/lib/domain";
 import type { GameBreakdown, PlayerAggregate } from "@/lib/game/global-stats";
+import { CategoryCharts } from "./CategoryCharts";
 import { TimeIndexInfo } from "./TimeIndexInfo";
 
 /** The time index as a rounded number, or "—" when there's no time data. */
@@ -45,11 +47,31 @@ function GameRow({ game }: { game: GameBreakdown }) {
  */
 export function PlayerDetail({
   player,
+  records,
+  boardgames,
   onBack,
 }: {
   player: PlayerAggregate;
+  records: GameStatsRecord[];
+  boardgames: Boardgame[];
   onBack: () => void;
 }) {
+  // Category games (Cascadia) the player has played → their point-distribution
+  // chart, built from this player's records for that game.
+  const categoryCharts = boardgames
+    .filter(b => b.scoring?.entry === "categories" && b.scoring.sheet)
+    .map(b => ({
+      id: b.id,
+      name: b.name,
+      sheet: b.scoring?.sheet ?? [],
+      games: records.filter(
+        r =>
+          r.boardgameId === b.id &&
+          r.players.some(p => p.playerId === player.playerId),
+      ),
+    }))
+    .filter(c => c.games.length > 0);
+
   return (
     <div className="flex flex-col gap-6">
       <button
@@ -113,6 +135,19 @@ export function PlayerDetail({
           ))}
         </ul>
       </div>
+
+      {categoryCharts.map(c => (
+        <div key={c.id} className="flex flex-col gap-3">
+          <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+            Répartition des points — {c.name}
+          </h3>
+          <CategoryCharts
+            sheet={c.sheet}
+            records={c.games}
+            playerId={player.playerId}
+          />
+        </div>
+      ))}
     </div>
   );
 }

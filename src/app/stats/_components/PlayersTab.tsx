@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { StatTile } from "@/components/StatTile";
 import type { GameStatsRecord, PlayerId } from "@/lib/domain";
 import { computeGlobalStats } from "@/lib/game/global-stats";
+import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { MultiSelectField } from "./MultiSelectField";
 import { PlayerDetail } from "./PlayerDetail";
 import { PlayerRankingTable } from "./PlayerRankingTable";
@@ -33,6 +34,7 @@ function playerOptions(records: GameStatsRecord[]) {
 export function PlayersTab({ records }: { records: GameStatsRecord[] }) {
   const [presentIds, setPresentIds] = useState<string[]>([]);
   const [detailId, setDetailId] = useState<PlayerId | null>(null);
+  const { boardgames } = useBoardgames();
 
   const options = useMemo(() => playerOptions(records), [records]);
 
@@ -46,7 +48,14 @@ export function PlayersTab({ records }: { records: GameStatsRecord[] }) {
     : null;
 
   if (detail) {
-    return <PlayerDetail player={detail} onBack={() => setDetailId(null)} />;
+    return (
+      <PlayerDetail
+        player={detail}
+        records={records}
+        boardgames={boardgames}
+        onBack={() => setDetailId(null)}
+      />
+    );
   }
 
   return (

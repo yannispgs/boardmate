@@ -10,6 +10,7 @@ import { computeGlobalStats, filterRecords } from "@/lib/game/global-stats";
 import { winnerDirection } from "@/lib/game/scoring";
 import { computeSeatStats } from "@/lib/game/seat-stats";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
+import { CategoryCharts } from "./CategoryCharts";
 import { DateWindow } from "./DateWindow";
 import { GamePicker } from "./GamePicker";
 import { GamePlayerTable } from "./GamePlayerTable";
@@ -113,6 +114,15 @@ export function GamesTab({ records }: { records: GameStatsRecord[] }) {
   // average placement for the first / intermediate / last player to play.
   const { boardgames } = useBoardgames();
   const boardgame = boardgames.find(b => b.id === active) ?? null;
+  // Category games (Cascadia): the point-distribution charts.
+  const categorySheet =
+    boardgame?.scoring?.entry === "categories"
+      ? (boardgame.scoring.sheet ?? null)
+      : null;
+  const categoryRecords = useMemo(
+    () => filterRecords(records, filters),
+    [records, filters],
+  );
   const seatStats = useMemo(
     () =>
       computeSeatStats(
@@ -217,6 +227,27 @@ export function GamesTab({ records }: { records: GameStatsRecord[] }) {
           ) : null}
 
           {boardgame?.trackSeatStats ? <SeatStats stats={seatStats} /> : null}
+
+          {categorySheet ? (
+            <div className="flex flex-col gap-3">
+              <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                Répartition des points
+              </h2>
+              <CategoryCharts
+                sheet={categorySheet}
+                records={categoryRecords}
+                comparePlayers={
+                  presentIds.length >= 1 && presentIds.length <= 5
+                    ? presentIds.map(id => ({
+                        id: id as PlayerId,
+                        name:
+                          presenceOptions.find(o => o.id === id)?.name ?? "?",
+                      }))
+                    : undefined
+                }
+              />
+            </div>
+          ) : null}
 
           {dice.spec && dice.rolls.length > 0 ? (
             <div className="flex flex-col gap-3">

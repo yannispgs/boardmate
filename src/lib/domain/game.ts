@@ -170,6 +170,12 @@ export interface GameStatsRecord {
     seatOrder: number;
     isWinner: boolean;
     score: number | null;
+    /**
+     * Per-category points for category-scored games. Always set by the adapter
+     * (null for non-category / total-only games); optional so lightweight test
+     * fixtures can omit it (treated the same as null).
+     */
+    scoreBreakdown?: Record<string, number> | null;
   }>;
   turns: Array<{
     playerId: PlayerId;
