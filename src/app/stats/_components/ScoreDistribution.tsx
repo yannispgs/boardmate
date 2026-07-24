@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import {
   dotPlot,
+  meanOffset,
   type ScoreHistogram,
   scoreHistogram,
 } from "@/lib/game/score-distribution";
@@ -12,33 +13,58 @@ import { ScoreDotPlot } from "./ScoreDotPlot";
 const TRACK = 96; // px for the tallest bar
 const STUB = 4; // min height so empty buckets stay visible
 
-/** Histogram bars: one per bucket, height ∝ how many scores fell in it. */
+/**
+ * Histogram bars: one per bucket, height ∝ how many scores fell in it, with a
+ * dashed vertical marker at the mean score (labelled with its value).
+ */
 function HistogramBars({ histogram }: { histogram: ScoreHistogram }) {
   const maxCount = Math.max(1, ...histogram.bins.map(b => b.count));
+  const meanLeft = meanOffset(histogram) * 100;
 
   return (
-    <div className="flex items-end justify-between gap-1">
-      {histogram.bins.map(bin => {
-        const height = STUB + (bin.count / maxCount) * (TRACK - STUB);
+    <div className="flex flex-col gap-1">
+      <div className="relative flex items-end justify-between gap-1">
+        {histogram.bins.map(bin => {
+          const height = STUB + (bin.count / maxCount) * (TRACK - STUB);
 
-        return (
-          <div
+          return (
+            <div
+              key={bin.start}
+              className="flex flex-1 flex-col items-center justify-end gap-1"
+            >
+              <span className="text-[10px] text-zinc-400 tabular-nums leading-none">
+                {bin.count || ""}
+              </span>
+              <span
+                className="w-full rounded-t bg-indigo-500"
+                style={{ height }}
+              />
+            </div>
+          );
+        })}
+
+        {/* Mean marker: a dashed line through the bars with the value on top. */}
+        <div
+          className="pointer-events-none absolute inset-y-0 flex flex-col items-center"
+          style={{ left: `${meanLeft}%`, transform: "translateX(-50%)" }}
+        >
+          <span className="rounded bg-rose-500 px-1 text-[10px] font-semibold leading-tight text-white tabular-nums dark:bg-rose-400 dark:text-zinc-900">
+            {histogram.mean.toFixed(0)}
+          </span>
+          <span className="w-0 flex-1 border-l border-dashed border-rose-500 dark:border-rose-400" />
+        </div>
+      </div>
+
+      <div className="flex justify-between gap-1">
+        {histogram.bins.map(bin => (
+          <span
             key={bin.start}
-            className="flex flex-1 flex-col items-center justify-end gap-1"
+            className="flex-1 text-center text-[10px] font-medium text-zinc-500 tabular-nums dark:text-zinc-400"
           >
-            <span className="text-[10px] text-zinc-400 tabular-nums leading-none">
-              {bin.count || ""}
-            </span>
-            <span
-              className="w-full rounded-t bg-indigo-500"
-              style={{ height }}
-            />
-            <span className="text-[10px] font-medium text-zinc-500 tabular-nums dark:text-zinc-400">
-              {bin.start}
-            </span>
-          </div>
-        );
-      })}
+            {bin.start}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
