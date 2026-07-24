@@ -207,7 +207,7 @@ export function rankFinalScores(
   for (let i = 0; i < sorted.length; i++) {
     const prev = ranked[i - 1];
     // Same score as the player above → share their rank, else 1-based position.
-    const rank = prev && prev.total === sorted[i].score ? prev.rank : i + 1;
+    const rank = prev?.total === sorted[i].score ? prev.rank : i + 1;
 
     ranked.push({ playerId: sorted[i].playerId, total: sorted[i].score, rank });
   }

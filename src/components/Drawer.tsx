@@ -50,9 +50,11 @@ export function Drawer({
 
   return createPortal(
     <div className={`fixed inset-0 z-50 ${open ? "" : "pointer-events-none"}`}>
-      <div
+      <button
+        type="button"
+        aria-label="Fermer"
         onClick={onClose}
-        className={`absolute inset-0 bg-black/50 transition-opacity duration-300 ${
+        className={`absolute inset-0 cursor-default bg-black/50 transition-opacity duration-300 ${
           open ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       />
