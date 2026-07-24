@@ -369,12 +369,60 @@ describe("computeGlobalStats", () => {
     const s = computeGlobalStats([empty]);
     const alice = s.players.find(p => p.name === "Alice");
 
+    expect(s.gameCount).toBe(1);
     expect(s.avgTurnS).toBe(0);
     expect(s.avgScore).toBeNull();
+    // No played game → the time / round means have no basis (not NaN).
+    expect(s.avgActiveS).toBe(0);
+    expect(s.avgRounds).toBe(0);
     expect(alice?.avgTurnS).toBe(0);
+    expect(alice?.avgOvertimeS).toBe(0);
+    expect(alice?.avgPauseS).toBe(0);
     // No recorded time → the index has no basis.
     expect(alice?.timeIndex).toBeNull();
     expect(alice?.avgScore).toBeNull();
     expect(alice?.winRate).toBe(100);
+  });
+
+  it("a recorded-after-the-fact game (no turns) doesn't dilute time means", () => {
+    // A finished game added by hand has no turn log; it counts for wins/scores
+    // but must not drag down the time / round averages.
+    const recorded: GameStatsRecord = {
+      gameId: "g4" as GameStatsRecord["gameId"],
+      boardgameId: CATAN,
+      boardgameName: "Catan",
+      dice: null,
+      endedAt: "2026-07-03T10:00:00Z",
+      players: [
+        {
+          playerId: ALICE,
+          name: "Alice",
+          seatOrder: 0,
+          isWinner: false,
+          score: 7,
+        },
+        {
+          playerId: BOB,
+          name: "Bob",
+          seatOrder: 1,
+          isWinner: true,
+          score: 12,
+        },
+      ],
+      turns: [],
+      diceRolls: [],
+    };
+    const s = computeGlobalStats([game1, recorded]);
+
+    // Both games count for the tally…
+    expect(s.gameCount).toBe(2);
+    // …but only game1 is timed: 160s / 1 played game, not / 2.
+    expect(s.avgActiveS).toBe(160);
+    expect(s.avgRounds).toBe(2);
+
+    const alice = s.players.find(p => p.name === "Alice");
+    // Alice's overtime (5s in game1) is averaged over her 1 played game, not 2.
+    expect(alice?.games).toBe(2);
+    expect(alice?.avgOvertimeS).toBe(5);
   });
 });

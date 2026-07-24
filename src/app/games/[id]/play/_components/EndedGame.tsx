@@ -5,6 +5,7 @@ import { useRef } from "react";
 
 import type { PopulatedGame } from "@/lib/domain";
 
+import { CategoryBreakdownFill } from "./CategoryBreakdownFill";
 import { GameStats } from "./GameStats";
 
 /**
@@ -12,7 +13,18 @@ import { GameStats } from "./GameStats";
  * statistics panel below. A button scrolls the stats into view so the reward
  * (who won) stays front and centre while the numbers are one tap away.
  */
-export function EndedGame({ game }: { game: PopulatedGame }) {
+export function EndedGame({
+  game,
+  onReload,
+}: {
+  game: PopulatedGame;
+  onReload: () => void;
+}) {
+  // A category game logged with only a total can be completed with its
+  // per-category detail here (e.g. a game added after the fact).
+  const canFillBreakdown =
+    game.boardgame.scoring?.entry === "categories" &&
+    game.players.every(p => p.scoreBreakdown === null);
   const statsRef = useRef<HTMLDivElement>(null);
   const winnerEntry = game.players.find(p => p.isWinner) ?? null;
   const winner = winnerEntry?.player ?? null;
@@ -79,7 +91,10 @@ export function EndedGame({ game }: { game: PopulatedGame }) {
         </div>
       </div>
 
-      <div ref={statsRef} className="scroll-mt-6">
+      <div ref={statsRef} className="flex flex-col gap-6 scroll-mt-6">
+        {canFillBreakdown ? (
+          <CategoryBreakdownFill game={game} onSaved={onReload} />
+        ) : null}
         <GameStats game={game} />
       </div>
     </div>

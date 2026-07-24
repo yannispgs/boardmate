@@ -23,6 +23,7 @@ import type {
   NewBoardgame,
   NewConfig,
   NewFeedback,
+  NewFinishedGame,
   NewGame,
   NewPlayer,
   Player,
@@ -128,6 +129,12 @@ export interface GameRepository {
   getPopulated(id: GameId): Promise<PopulatedGame | null>;
   create(input: NewGame): Promise<Game>;
   /**
+   * Records an already-played game directly as `ended`, with its participants,
+   * winner and final scores but no turn/dice log — so it still counts in the
+   * game and player statistics.
+   */
+  createFinished(input: NewFinishedGame): Promise<Game>;
+  /**
    * Permanently deletes a game and all its rows (turns, scores, dice) — used to
    * abandon a game in progress. History deletion goes through this too, but the
    * UI only offers it for ongoing games.
@@ -182,6 +189,21 @@ export interface GameRepository {
    * winner). Scored coop games will refine this later.
    */
   endCoop(id: GameId, won: boolean): Promise<void>;
+  /**
+   * Retroactively records the per-category `breakdown` (and the re-derived
+   * total + winner) for an already-ended category game that was logged with
+   * only a total. Every player's `is_winner` is reset, then the recomputed
+   * winner is set.
+   */
+  setBreakdown(
+    id: GameId,
+    winnerId: PlayerId,
+    scores: Array<{
+      playerId: PlayerId;
+      score: number;
+      breakdown: Record<string, number>;
+    }>,
+  ): Promise<void>;
   subscribe(onChange: () => void): Unsubscribe;
 }
 

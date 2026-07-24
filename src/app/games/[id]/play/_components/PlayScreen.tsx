@@ -24,7 +24,7 @@ import { turnDurationForRound } from "@/lib/game/turn-schedule";
 import { useTurnTimer } from "@/lib/hooks/use-turn-timer";
 import { useWakeLock } from "@/lib/hooks/use-wake-lock";
 import { getGameRepository } from "@/lib/repositories";
-import { CategoryScoreEntry } from "./CategoryScoreEntry";
+import { CategoryScoreEntry } from "../../../_components/CategoryScoreEntry";
 import { DiceBar } from "./DiceBar";
 import { EndedGame } from "./EndedGame";
 import { FinalScoreTable } from "./FinalScoreTable";
@@ -385,7 +385,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   }
 
   if (game.status === "ended") {
-    return <EndedGame game={game} />;
+    return <EndedGame game={game} onReload={load} />;
   }
 
   const remainingS = durationS - timer.elapsedS;

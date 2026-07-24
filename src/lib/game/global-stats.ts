@@ -57,9 +57,9 @@ export interface PlayerAggregate {
    * groups. Null when no game had recorded time.
    */
   timeIndex: number | null;
-  /** Mean overtime seconds per game. */
+  /** Mean overtime seconds per PLAYED game (games with a turn log). */
   avgOvertimeS: number;
-  /** Mean paused seconds per game. */
+  /** Mean paused seconds per PLAYED game (games with a turn log). */
   avgPauseS: number;
   /** Their record on each boardgame, most-played first. */
   byGame: GameBreakdown[];
@@ -75,9 +75,9 @@ export interface GlobalStats {
   gameCount: number;
   /** Total active time across the filtered games. */
   totalActiveS: number;
-  /** Mean active time per game. */
+  /** Mean active time per PLAYED game (games with a turn log). */
   avgActiveS: number;
-  /** Mean number of rounds per game. */
+  /** Mean number of rounds per PLAYED game (games with a turn log). */
   avgRounds: number;
   /** Mean active seconds of a single turn, across all turns. */
   avgTurnS: number;
@@ -223,6 +223,10 @@ export function computeGlobalStats(
   const totalActiveS = games.reduce((sum, g) => sum + activeTotal(g), 0);
   const totalTurns = games.reduce((sum, g) => sum + g.turns.length, 0);
   const totalRounds = games.reduce((sum, g) => sum + roundsOf(g), 0);
+  // Time / round means average over games that were actually PLAYED (they carry
+  // a turn log). A game recorded after the fact has no turns, so it must not
+  // dilute those figures — it still counts for wins / scores (via `gameCount`).
+  const timedGames = games.filter(g => g.turns.length > 0).length;
 
   const acc = new Map<PlayerId, PlayerAcc>();
 
@@ -309,8 +313,10 @@ export function computeGlobalStats(
       avgScore: a.scoredGames > 0 ? a.scoreSum / a.scoredGames : null,
       avgTurnS: a.turnCount > 0 ? a.turnS / a.turnCount : 0,
       timeIndex: a.indexGames > 0 ? a.indexSum / a.indexGames : null,
-      avgOvertimeS: a.overtimeS / a.games,
-      avgPauseS: a.pauseS / a.games,
+      // Per PLAYED game (`indexGames`), not every game — a recorded-after-the-
+      // fact game has no turns and would otherwise drag these averages down.
+      avgOvertimeS: a.indexGames > 0 ? a.overtimeS / a.indexGames : 0,
+      avgPauseS: a.indexGames > 0 ? a.pauseS / a.indexGames : 0,
       byGame,
       ...extremes(byGame),
     };
@@ -337,8 +343,8 @@ export function computeGlobalStats(
   return {
     gameCount,
     totalActiveS,
-    avgActiveS: gameCount > 0 ? totalActiveS / gameCount : 0,
-    avgRounds: gameCount > 0 ? totalRounds / gameCount : 0,
+    avgActiveS: timedGames > 0 ? totalActiveS / timedGames : 0,
+    avgRounds: timedGames > 0 ? totalRounds / timedGames : 0,
     avgTurnS: totalTurns > 0 ? totalActiveS / totalTurns : 0,
     avgScore: scoredCount > 0 ? scoreSum / scoredCount : null,
     players,

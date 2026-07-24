@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import type { Game, GameId, GameListItem, NewGame } from "@/lib/domain";
+import type {
+  Game,
+  GameId,
+  GameListItem,
+  NewFinishedGame,
+  NewGame,
+} from "@/lib/domain";
 import { getGameRepository } from "@/lib/repositories";
 
 interface UseGames {
@@ -13,6 +19,8 @@ interface UseGames {
   loading: boolean;
   error: string | null;
   createGame: (input: NewGame) => Promise<Game>;
+  /** Records an already-finished game (counts in stats, no play history). */
+  createFinished: (input: NewFinishedGame) => Promise<Game>;
   /** Abandons a game — permanently deletes it and its rows. */
   removeGame: (id: GameId) => Promise<void>;
 }
@@ -61,6 +69,15 @@ export function useGames(): UseGames {
     [repo, refresh],
   );
 
+  const createFinished = useCallback(
+    async (input: NewFinishedGame) => {
+      const game = await repo.createFinished(input);
+      await refresh();
+      return game;
+    },
+    [repo, refresh],
+  );
+
   const removeGame = useCallback(
     async (id: GameId) => {
       await repo.remove(id);
@@ -69,5 +86,13 @@ export function useGames(): UseGames {
     [repo, refresh],
   );
 
-  return { games, endedGames, loading, error, createGame, removeGame };
+  return {
+    games,
+    endedGames,
+    loading,
+    error,
+    createGame,
+    createFinished,
+    removeGame,
+  };
 }

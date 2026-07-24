@@ -69,12 +69,20 @@ export function GamesList() {
       </div>
 
       <StickyActionBar>
-        <Link
-          href="/games/new"
-          className="self-start rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
-        >
-          + Nouvelle partie
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/games/new"
+            className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
+          >
+            + Nouvelle partie
+          </Link>
+          <Link
+            href="/games/finished"
+            className="rounded-lg border border-black/15 px-3 py-2 text-sm font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+          >
+            ＋ Ajouter une partie terminée
+          </Link>
+        </div>
       </StickyActionBar>
 
       {confirmDialog}
