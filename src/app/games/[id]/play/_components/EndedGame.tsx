@@ -6,7 +6,6 @@ import { useRef, useState } from "react";
 import { Drawer } from "@/components/Drawer";
 import type { PopulatedGame } from "@/lib/domain";
 
-import { CategoryBreakdownFill } from "./CategoryBreakdownFill";
 import { EndScorePanel } from "./EndScorePanel";
 import { GameStats } from "./GameStats";
 
@@ -24,11 +23,6 @@ export function EndedGame({
   game: PopulatedGame;
   onReload: () => void;
 }) {
-  // A category game logged with only a total can be completed with its
-  // per-category detail here (e.g. a game added after the fact).
-  const canFillBreakdown =
-    game.boardgame.scoring?.entry === "categories" &&
-    game.players.every(p => p.scoreBreakdown === null);
   const statsRef = useRef<HTMLDivElement>(null);
   const [scoreOpen, setScoreOpen] = useState(false);
   const winnerEntry = game.players.find(p => p.isWinner) ?? null;
@@ -99,10 +93,7 @@ export function EndedGame({
         </div>
       </div>
 
-      <div ref={statsRef} className="flex flex-col gap-6 scroll-mt-6">
-        {canFillBreakdown ? (
-          <CategoryBreakdownFill game={game} onSaved={onReload} />
-        ) : null}
+      <div ref={statsRef} className="scroll-mt-6">
         <GameStats game={game} />
       </div>
 
@@ -127,7 +118,11 @@ export function EndedGame({
             onClose={() => setScoreOpen(false)}
             label="Score final"
           >
-            <EndScorePanel game={game} onClose={() => setScoreOpen(false)} />
+            <EndScorePanel
+              game={game}
+              onClose={() => setScoreOpen(false)}
+              onReload={onReload}
+            />
           </Drawer>
         </>
       ) : null}

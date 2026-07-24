@@ -4,20 +4,25 @@ import { useState } from "react";
 
 import type { PlayerId, PopulatedGame } from "@/lib/domain";
 import { finalStandings, winnerDirection } from "@/lib/game/scoring";
+import { CategoryBreakdownFill } from "./CategoryBreakdownFill";
 import { FinalScoreTable } from "./FinalScoreTable";
 
 /**
  * The finished game's final score, shown in the right slide-over. Players are
  * listed best-first with their score (honouring the game's win direction). For
  * a category game whose per-category detail was recorded, a toggle expands the
- * full scoresheet under the ranking — the base total stays the headline.
+ * full scoresheet under the ranking — the base total stays the headline. A
+ * category game recorded with only totals offers, instead, to add that detail
+ * here.
  */
 export function EndScorePanel({
   game,
   onClose,
+  onReload,
 }: {
   game: PopulatedGame;
   onClose: () => void;
+  onReload: () => void;
 }) {
   const scoring = game.boardgame.scoring;
   const sheet =
@@ -55,6 +60,10 @@ export function EndScorePanel({
   }
   const hasDetail =
     sheet !== null && game.players.every(p => p.scoreBreakdown !== null);
+  // A category game logged with only totals can be completed with its
+  // per-category detail from here (e.g. a game added after the fact).
+  const canFill =
+    sheet !== null && game.players.every(p => p.scoreBreakdown === null);
 
   const [showDetail, setShowDetail] = useState(false);
 
@@ -116,6 +125,10 @@ export function EndScorePanel({
             />
           ) : null}
         </div>
+      ) : null}
+
+      {canFill ? (
+        <CategoryBreakdownFill game={game} onSaved={onReload} />
       ) : null}
     </div>
   );
