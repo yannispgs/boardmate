@@ -92,10 +92,7 @@ test("charts the Cascadia point distribution in the stats", async ({
 
     // Joueurs tab → a player's detail carries the same chart.
     await page.getByRole("button", { name: "Joueurs", exact: true }).click();
-    await page
-      .getByRole("button", { name: names[0] })
-      .first()
-      .click();
+    await page.getByRole("button", { name: names[0] }).first().click();
     await expect(page.getByRole("button", { name: "Globale" })).toBeVisible();
   } finally {
     if (gameId) {

@@ -149,7 +149,7 @@ export function CategoryCharts({
   records: GameStatsRecord[];
   /** Restrict the aggregate to one player (the player detail view). */
   playerId?: PlayerId;
-  /** Show a bar per player instead of the donut (the games tab, ≤5 players). */
+  /** Show a bar per player instead of the donut (any players filtered in). */
   comparePlayers?: Array<{ id: PlayerId; name: string }>;
 }) {
   const sub = firstSubsection(sheet);

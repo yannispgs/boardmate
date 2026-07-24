@@ -237,7 +237,7 @@ export function GamesTab({ records }: { records: GameStatsRecord[] }) {
                 sheet={categorySheet}
                 records={categoryRecords}
                 comparePlayers={
-                  presentIds.length >= 1 && presentIds.length <= 5
+                  presentIds.length >= 1
                     ? presentIds.map(id => ({
                         id: id as PlayerId,
                         name:
