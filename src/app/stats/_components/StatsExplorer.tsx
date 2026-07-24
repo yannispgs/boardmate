@@ -2,35 +2,12 @@
 
 import { useState } from "react";
 
+import { TabButton, tabBarClass } from "@/components/TabButton";
 import { useGameStats } from "@/lib/hooks/use-game-stats";
 import { GamesTab } from "./GamesTab";
 import { PlayersTab } from "./PlayersTab";
 
 type Tab = "joueurs" | "jeux";
-
-function TabButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition ${
-        active
-          ? "bg-white text-indigo-700 shadow-sm dark:bg-zinc-700 dark:text-indigo-300"
-          : "text-zinc-500 dark:text-zinc-400"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
 
 /**
  * The statistics view: two tabs — "Joueurs" (default, per-player averages
@@ -64,7 +41,7 @@ export function StatsExplorer() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex gap-1 rounded-xl border border-black/10 bg-black/[0.03] p-1 dark:border-white/10 dark:bg-white/[0.03]">
+      <div className={tabBarClass}>
         <TabButton active={tab === "joueurs"} onClick={() => setTab("joueurs")}>
           Joueurs
         </TabButton>

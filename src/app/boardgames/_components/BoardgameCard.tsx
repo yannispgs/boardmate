@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   EyeIcon,
   EyeOffIcon,
+  PuzzleIcon,
   SlidersIcon,
   TrashIcon,
 } from "@/components/icons";
@@ -31,9 +32,10 @@ function formatMeta(b: Boardgame): string {
 }
 
 /**
- * A single boardgame row: logo, name + meta, and the configs / edit /
- * deactivate / delete actions. Whether it's an active or deactivated game is
- * just the `dimmed` + `actionLabel` inputs.
+ * A single boardgame row: logo, name + meta, and the extensions / configs /
+ * edit / deactivate / delete actions. Whether it's an active or deactivated
+ * game is just the `dimmed` + `actionLabel` inputs; the extensions shortcut
+ * only shows for a game that actually has some.
  */
 export function BoardgameCard({
   boardgame: b,
@@ -41,12 +43,14 @@ export function BoardgameCard({
   onDelete,
   actionLabel,
   dimmed = false,
+  hasExtensions = false,
 }: {
   boardgame: Boardgame;
   onToggle: (b: Boardgame) => void;
   onDelete: (b: Boardgame) => void;
   actionLabel: string;
   dimmed?: boolean;
+  hasExtensions?: boolean;
 }) {
   return (
     <li
@@ -73,6 +77,16 @@ export function BoardgameCard({
         <span className="truncate font-medium">{b.name}</span>
         <span className="text-xs text-zinc-500">{formatMeta(b)}</span>
       </div>
+      {hasExtensions ? (
+        <Link
+          href={`/boardgames/${b.id}/extensions`}
+          aria-label={`Extensions de ${b.name}`}
+          title="Extensions"
+          className={iconButtonClass}
+        >
+          <PuzzleIcon />
+        </Link>
+      ) : null}
       <Link
         href={`/boardgames/${b.id}/edit`}
         aria-label={`Réglages de ${b.name}`}

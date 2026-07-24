@@ -7,12 +7,14 @@ import { StickyActionBar } from "@/components/StickyActionBar";
 import { useConfirm } from "@/components/use-confirm";
 import type { Boardgame } from "@/lib/domain";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
+import { useExtendedBaseGames } from "@/lib/hooks/use-extension-base-games";
 import { BoardgameInUseError } from "@/lib/repositories/errors";
 import { BoardgameCardList } from "./BoardgameCardList";
 
 export function BoardgamesManager() {
   const { boardgames, loading, error, setActive, removeBoardgame } =
     useBoardgames();
+  const extendedIds = useExtendedBaseGames();
 
   const active = boardgames.filter(b => b.isActive);
   const inactive = boardgames.filter(b => !b.isActive);
@@ -106,6 +108,7 @@ export function BoardgamesManager() {
               onToggle={b => handleToggle(b, false)}
               actionLabel="Désactiver"
               onDelete={handleDelete}
+              extendedIds={extendedIds}
             />
             {inactive.length > 0 ? (
               <BoardgameCardList
@@ -114,6 +117,7 @@ export function BoardgamesManager() {
                 onToggle={b => handleToggle(b, true)}
                 actionLabel="Réactiver"
                 onDelete={handleDelete}
+                extendedIds={extendedIds}
                 dimmed
                 collapsible
               />
