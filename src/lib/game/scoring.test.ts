@@ -14,6 +14,7 @@ import {
   initialScoreFor,
   isSubsection,
   leaderByScore,
+  optionTargetModifier,
   rankBonusFor,
   rankByTotal,
   rankFinalScores,
@@ -171,6 +172,63 @@ describe("winThresholdFrom", () => {
 
   it("is null when neither config nor template supplies a number", () => {
     expect(winThresholdFrom(threshold, null, [])).toBeNull();
+  });
+});
+
+describe("optionTargetModifier", () => {
+  const fields: FieldSpec[] = [
+    { key: "longestRoad", label: "Route", type: "boolean", default: true },
+    {
+      key: "harborMaster",
+      label: "Maître du port",
+      type: "boolean",
+      default: false,
+      targetModifier: 1,
+    },
+    {
+      key: "citiesKnights",
+      label: "Villes & Chevaliers",
+      type: "boolean",
+      default: true,
+      targetModifier: 3,
+    },
+    { key: "pointsToWin", label: "Points", type: "integer", default: 10 },
+  ];
+
+  it("adds the modifier of every option switched on", () => {
+    expect(
+      optionTargetModifier(
+        { harborMaster: true, citiesKnights: true, longestRoad: true },
+        fields,
+      ),
+    ).toBe(4);
+  });
+
+  it("ignores options switched off and options without a modifier", () => {
+    expect(
+      optionTargetModifier(
+        { harborMaster: false, citiesKnights: false, longestRoad: true },
+        fields,
+      ),
+    ).toBe(0);
+  });
+
+  it("falls back to each option's default when the game stored no value", () => {
+    expect(optionTargetModifier(null, fields)).toBe(3);
+    expect(optionTargetModifier({ harborMaster: true }, fields)).toBe(4);
+  });
+
+  it("never lets an option shorten the game", () => {
+    expect(
+      optionTargetModifier({ shorter: true }, [
+        {
+          key: "shorter",
+          label: "Plus court",
+          type: "boolean",
+          targetModifier: -5,
+        },
+      ]),
+    ).toBe(0);
   });
 });
 

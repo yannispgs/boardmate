@@ -589,6 +589,33 @@ describe("games adapter — listing & ending", () => {
     await admin.from("configs").delete().eq("id", cfgId);
   });
 
+  it("raises the threshold by an option's modifier (Maître du port)", async () => {
+    const admin = serviceClient();
+    const { data: cfg } = await admin
+      .from("configs")
+      .insert({
+        boardgame_id: CATAN_ID,
+        name: `port-${Date.now()}`,
+        values: { pointsToWin: 10, harborMaster: true },
+      })
+      .select("id")
+      .single();
+    const cfgId = cfg?.id as string;
+
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId: cfgId as ConfigId,
+      playerIds,
+    });
+
+    const populated = await repo().getPopulated(game.id);
+
+    expect(populated?.winThreshold).toBe(11); // 10 + 1 for the harbour master
+
+    await admin.from("games").delete().eq("id", game.id);
+    await admin.from("configs").delete().eq("id", cfgId);
+  });
+
   it("resolves no threshold for a non-scored boardgame", async () => {
     const admin = serviceClient();
     const { data: bg } = await admin

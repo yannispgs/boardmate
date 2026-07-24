@@ -321,3 +321,30 @@ export function winThresholdFrom(
 
   return typeof fallback === "number" ? fallback : null;
 }
+
+/**
+ * What the game's *options* add to the score to reach: every boolean config
+ * field that is switched on contributes its `targetModifier` (Catan's « Maître
+ * du port » = +1). Falls back to each field's default when the game didn't
+ * store a value. Only positive modifiers count.
+ */
+export function optionTargetModifier(
+  configValues: ConfigValues | null | undefined,
+  templateFields: FieldSpec[],
+): number {
+  let bonus = 0;
+
+  for (const field of templateFields) {
+    if (field.type !== "boolean" || field.targetModifier === undefined) {
+      continue;
+    }
+
+    const value = configValues?.[field.key] ?? field.default;
+
+    if (value === true) {
+      bonus += Math.max(0, field.targetModifier);
+    }
+  }
+
+  return bonus;
+}

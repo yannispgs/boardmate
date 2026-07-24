@@ -26,7 +26,7 @@ import {
   scenarioTarget,
   winTargetWithModifiers,
 } from "@/lib/game/extensions";
-import { winThresholdFrom } from "@/lib/game/scoring";
+import { optionTargetModifier, winThresholdFrom } from "@/lib/game/scoring";
 import { advanceTurn as nextTurnState } from "@/lib/game/turn";
 import { turnScheduleFrom } from "@/lib/game/turn-schedule";
 import type { GameRepository, Unsubscribe } from "@/lib/repositories/types";
@@ -291,7 +291,8 @@ export function createGameRepository(
       const effectiveValues =
         (row.config_values as ConfigValues | null) ?? config?.values ?? null;
       // The win target: a selected scenario imposes its base (over the config),
-      // then active extensions' modifiers raise it (never lower).
+      // then the options switched on and the active extensions' modifiers raise
+      // it (never lower).
       const scenarioBy = Object.fromEntries(
         extensions.flatMap(e =>
           e.scenarioId ? [[e.id, e.scenarioId] as const] : [],
@@ -306,7 +307,11 @@ export function createGameRepository(
               templateFields,
             )
           : null);
-      const winThreshold = winTargetWithModifiers(baseTarget, extensions);
+      const optionBonus = optionTargetModifier(effectiveValues, templateFields);
+      const winThreshold = winTargetWithModifiers(
+        baseTarget === null ? null : baseTarget + optionBonus,
+        extensions,
+      );
       const turnSchedule = turnScheduleFrom(effectiveValues, templateFields);
 
       const scoreEvents = [...row.score_events]

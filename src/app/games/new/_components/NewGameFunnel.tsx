@@ -8,6 +8,7 @@ import { useConfirm } from "@/components/use-confirm";
 import { buildDefaults, validateConfigValues } from "@/lib/config/validation";
 import type {
   Boardgame,
+  BooleanFieldSpec,
   Config,
   ConfigValues,
   ExtensionId,
@@ -20,7 +21,7 @@ import {
   scenarioTarget,
   winTargetWithModifiers,
 } from "@/lib/game/extensions";
-import { initialScoreFor } from "@/lib/game/scoring";
+import { initialScoreFor, optionTargetModifier } from "@/lib/game/scoring";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useConfigs } from "@/lib/hooks/use-configs";
 import { useExtensions } from "@/lib/hooks/use-extensions";
@@ -386,10 +387,16 @@ function RecapStep({
     }
   }, [template, config, extensions, selectedExt]);
 
-  // A selected scenario imposes a fixed win target (read-only), raised by any
-  // active extension modifiers; it overrides the editable threshold field.
+  // Options switched on can raise the target (Catan's « Maître du port » = +1);
+  // the threshold input holds the base, so the bonus is spelled out separately.
+  const optionBonus = optionTargetModifier(values, composedFields);
+
+  // A selected scenario imposes a fixed win target (read-only), raised by the
+  // options and any active extension modifiers; it overrides the editable
+  // threshold field.
+  const scenarioBase = scenarioTarget(active, scenarioByExt);
   const lockedTarget = winTargetWithModifiers(
-    scenarioTarget(active, scenarioByExt),
+    scenarioBase === null ? null : scenarioBase + optionBonus,
     active,
   );
 
@@ -453,6 +460,13 @@ function RecapStep({
     thresholdField != null && typeof values?.[thresholdField] === "number"
       ? (values[thresholdField] as number)
       : "";
+
+  const boostedOptions = composedFields.filter(
+    (f): f is BooleanFieldSpec =>
+      f.type === "boolean" &&
+      (f.targetModifier ?? 0) > 0 &&
+      values?.[f.key] === true,
+  );
 
   return (
     <Step title="4 · Vérifie et lance la partie" onBack={onBack}>
@@ -582,8 +596,8 @@ function RecapStep({
               </span>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
                 Imposé par le scénario
-                {active.some(e => e.targetModifier > 0)
-                  ? " (relevé par les extensions)"
+                {active.some(e => e.targetModifier > 0) || optionBonus > 0
+                  ? " (relevé par les options et extensions actives)"
                   : ""}
                 .
               </p>
@@ -620,6 +634,16 @@ function RecapStep({
                 }
                 className="mt-1 w-28 rounded-lg border border-black/15 bg-white px-3 py-2 text-lg font-semibold tabular-nums outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900"
               />
+              {optionBonus > 0 && typeof targetValue === "number" ? (
+                <p className="text-xs font-medium text-indigo-700 dark:text-indigo-300">
+                  {boostedOptions
+                    .map(f => `+${f.targetModifier} ${f.label}`)
+                    .join(" · ")}
+                  {" → "}
+                  <strong>{targetValue + optionBonus}</strong>&nbsp;points à
+                  atteindre
+                </p>
+              ) : null}
             </div>
           ) : null}
 
