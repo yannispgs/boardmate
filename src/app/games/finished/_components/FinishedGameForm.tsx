@@ -108,6 +108,35 @@ export function FinishedGameForm() {
 
   const effectiveWinner = winnerId ?? suggestedWinner;
 
+  // The winner is only worth asking about on a TIE for the best score: then the
+  // user says who takes it. Otherwise it's simply the top scorer — no picker.
+  // An unscored game has no score, so its winner is always picked (everyone).
+  const winnerCandidates: Player[] = (() => {
+    if (scoring === null) {
+      return selected;
+    }
+
+    if (!scoresComplete) {
+      return [];
+    }
+
+    const direction = sheet ? "highest" : winnerDirection(scoring.winCondition);
+    const withScore = selected.map(p => ({
+      p,
+      score: scoreOf(p.id) as number,
+    }));
+    const best = withScore.reduce(
+      (b, x) =>
+        direction === "highest" ? Math.max(b, x.score) : Math.min(b, x.score),
+      withScore[0]?.score ?? 0,
+    );
+
+    return withScore.filter(x => x.score === best).map(x => x.p);
+  })();
+
+  const needsWinnerChoice =
+    scoring === null ? selected.length >= 1 : winnerCandidates.length > 1;
+
   function chooseBoardgame(b: Boardgame) {
     setBoardgame(b);
     setTotals({});
@@ -325,21 +354,36 @@ export function FinishedGameForm() {
             </div>
           ) : null}
 
-          {scoresComplete ? (
+          {needsWinnerChoice ? (
             <div className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium">Vainqueur</span>
-              {selected.map(p => (
-                <label key={p.id} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="radio"
-                    name="winner"
-                    checked={effectiveWinner === p.id}
-                    onChange={() => setWinnerId(p.id)}
-                    className="h-4 w-4 accent-indigo-600"
-                  />
-                  {p.name}
-                </label>
-              ))}
+              <span className="text-sm font-medium">
+                Vainqueur
+                {scoring !== null ? (
+                  <span className="font-normal text-zinc-500 dark:text-zinc-400">
+                    {" "}
+                    · égalité au score
+                  </span>
+                ) : null}
+              </span>
+              {winnerCandidates.map(p => {
+                const isWinner = effectiveWinner === p.id;
+
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setWinnerId(p.id)}
+                    className={`flex items-center justify-between rounded-lg border px-4 py-2.5 text-sm font-medium transition ${
+                      isWinner
+                        ? "border-indigo-500 bg-indigo-600 text-white"
+                        : "border-black/15 hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+                    }`}
+                  >
+                    {p.name}
+                    {isWinner ? <span aria-hidden>🏆</span> : null}
+                  </button>
+                );
+              })}
             </div>
           ) : null}
         </section>

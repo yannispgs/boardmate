@@ -39,10 +39,8 @@ test("records a finished game with final scores and a winner", async ({
     await page.getByRole("spinbutton", { name: names[0] }).fill("10");
     await page.getByRole("spinbutton", { name: names[1] }).fill("8");
 
-    // The winner is suggested (highest score); confirm it's the first player.
-    const firstWinner = page.getByRole("radio", { name: names[0] });
-
-    await expect(firstWinner).toBeChecked();
+    // No tie → the winner is unambiguous (top scorer), so no picker is shown.
+    await expect(page.getByText("Vainqueur")).toBeHidden();
 
     await page.getByRole("button", { name: "Enregistrer la partie" }).click();
 
@@ -70,6 +68,62 @@ test("records a finished game with final scores and a winner", async ({
     expect((winnerRow?.games as unknown as { status: string })?.status).toBe(
       "ended",
     );
+  } finally {
+    if (gameId) {
+      await admin.from("games").delete().eq("id", gameId);
+    }
+    await admin.from("players").delete().in("name", names);
+  }
+});
+
+test("asks for the winner only on a tie, among the tied players", async ({
+  page,
+}) => {
+  const names = await seedPlayers(3);
+  const admin = adminClient();
+  const { data: seeded } = await admin
+    .from("players")
+    .select("id, name")
+    .in("name", names);
+  const ids = (seeded ?? []).map(p => p.id);
+  let gameId: string | undefined;
+
+  try {
+    await page.goto("/games");
+    await page
+      .getByRole("link", { name: "Ajouter une partie terminée" })
+      .click();
+    await page.getByRole("button", { name: CATAN_NAME, exact: true }).click();
+    for (const name of names) {
+      await page.getByRole("button", { name, exact: true }).click();
+    }
+
+    // Two players tie at the top; the third is lower.
+    await page.getByRole("spinbutton", { name: names[0] }).fill("10");
+    await page.getByRole("spinbutton", { name: names[1] }).fill("10");
+    await page.getByRole("spinbutton", { name: names[2] }).fill("5");
+
+    // The tie surfaces the picker; only the two tied players are candidates
+    // (the third, not tied for the lead, has no winner card).
+    await expect(page.getByText("Vainqueur")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: names[2], exact: true }),
+    ).toHaveCount(0);
+
+    // Override the default (first tied) → the second tied player wins.
+    await page.getByRole("button", { name: names[1], exact: true }).click();
+    await page.getByRole("button", { name: "Enregistrer la partie" }).click();
+    await expect(page).toHaveURL(/\/games$/);
+
+    const { data: gps } = await admin
+      .from("game_players")
+      .select("is_winner, player_id, game_id")
+      .in("player_id", ids);
+    const rows = gps ?? [];
+    gameId = rows[0]?.game_id as string;
+
+    expect(rows.find(r => r.player_id === ids[1])?.is_winner).toBe(true);
+    expect(rows.find(r => r.player_id === ids[0])?.is_winner).toBe(false);
   } finally {
     if (gameId) {
       await admin.from("games").delete().eq("id", gameId);
