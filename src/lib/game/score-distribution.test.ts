@@ -96,7 +96,7 @@ describe("meanOffset", () => {
 
   it("clamps a mean outside the binned range to [0, 1]", () => {
     const base = scoreHistogram([0, 10, 20], 3) as ScoreHistogram;
-    const axisEnd = base.bins[base.bins.length - 1].end;
+    const axisEnd = base.bins.at(-1)?.end ?? 0;
 
     expect(meanOffset({ ...base, mean: base.bins[0].start - 100 })).toBe(0);
     expect(meanOffset({ ...base, mean: axisEnd + 100 })).toBe(1);

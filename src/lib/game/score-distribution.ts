@@ -93,7 +93,9 @@ export function meanOffset(histogram: ScoreHistogram): number {
   }
 
   const axisStart = histogram.bins[0].start;
-  const axisEnd = histogram.bins[histogram.bins.length - 1].end;
+  // Bins tile uniformly, so the axis ends `bins·step` past the first start —
+  // no need to read the last bin.
+  const axisEnd = axisStart + histogram.bins.length * histogram.step;
   const fraction = (histogram.mean - axisStart) / (axisEnd - axisStart);
 
   return Math.min(1, Math.max(0, fraction));
