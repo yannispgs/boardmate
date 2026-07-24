@@ -83,6 +83,11 @@ test("shows the final score in a right slide-over, with category detail", async 
     ).toBeVisible();
     await expect(panel.getByText("32").first()).toBeVisible();
 
+    // Both scored 32, but a competitive game has a single winner: only the
+    // recorded winner is 1st (🏆), the co-leader is 2nd — no shared rank 1.
+    await expect(panel.getByText("🏆")).toHaveCount(1);
+    await expect(panel.getByText("2", { exact: true })).toBeVisible();
+
     // The category detail is hidden until expanded, then reveals the scoresheet.
     await expect(panel.getByText("Feuille de scores")).toBeHidden();
     await panel

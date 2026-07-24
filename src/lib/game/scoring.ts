@@ -215,6 +215,34 @@ export function rankFinalScores(
   return ranked;
 }
 
+/**
+ * Final standings for the finished-game score panel. A competitive game has a
+ * single recorded winner (ties are already broken at game end), so that winner
+ * takes rank 1 alone and everyone else is ranked by score below them — a
+ * co-leader on the same score is 2nd, not a shared 1st. Ties from 2nd place down
+ * still share a rank. Falls back to plain {@link rankFinalScores} when there is
+ * not exactly one winner (cooperative games: the whole table wins or loses).
+ */
+export function finalStandings(
+  entries: Array<{ playerId: PlayerId; score: number; isWinner: boolean }>,
+  direction: ScoreDirection,
+): Ranked[] {
+  const winners = entries.filter(e => e.isWinner);
+
+  if (winners.length !== 1) {
+    return rankFinalScores(entries, direction);
+  }
+
+  const winner = winners[0];
+  // Rank the others among themselves, then shift below the lone winner.
+  const rest = rankFinalScores(
+    entries.filter(e => e.playerId !== winner.playerId),
+    direction,
+  ).map(r => ({ ...r, rank: r.rank + 1 }));
+
+  return [{ playerId: winner.playerId, total: winner.score, rank: 1 }, ...rest];
+}
+
 /** The direction a win condition ranks by (a threshold is a race to the top). */
 export function winnerDirection(condition: WinCondition): ScoreDirection {
   return condition.type === "lowest" ? "lowest" : "highest";

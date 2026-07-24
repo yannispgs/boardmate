@@ -3,12 +3,7 @@
 import { useState } from "react";
 
 import type { PlayerId, PopulatedGame } from "@/lib/domain";
-import {
-  rankByTotal,
-  rankFinalScores,
-  scoreCategories,
-  winnerDirection,
-} from "@/lib/game/scoring";
+import { finalStandings, winnerDirection } from "@/lib/game/scoring";
 import { FinalScoreTable } from "./FinalScoreTable";
 
 /**
@@ -33,11 +28,17 @@ export function EndScorePanel({
     id: p.playerId,
     name: p.player.name,
     score: p.score ?? 0,
+    isWinner: p.isWinner,
   }));
-  const ids = players.map(p => p.id);
 
-  const ranking = rankFinalScores(
-    players.map(p => ({ playerId: p.id, score: p.score })),
+  // A competitive game keeps a single rank 1 (the recorded winner); co-leaders
+  // on the same score are 2nd. Shared ranks resume from 2nd place down.
+  const ranking = finalStandings(
+    players.map(p => ({
+      playerId: p.id,
+      score: p.score,
+      isWinner: p.isWinner,
+    })),
     direction,
   );
   const rankOf = (id: PlayerId) => ranking.find(r => r.playerId === id);
@@ -56,15 +57,6 @@ export function EndScorePanel({
     sheet !== null && game.players.every(p => p.scoreBreakdown !== null);
 
   const [showDetail, setShowDetail] = useState(false);
-
-  const detailRanking = hasDetail
-    ? rankByTotal(
-        ids.map(id => ({
-          playerId: id,
-          total: scoreCategories(sheet, values, ids)[id]?.total ?? 0,
-        })),
-      )
-    : [];
 
   return (
     <div className="flex flex-col gap-5 p-5">
@@ -120,7 +112,7 @@ export function EndScorePanel({
               sheet={sheet}
               players={players.map(p => ({ id: p.id, name: p.name }))}
               values={values}
-              ranking={detailRanking}
+              ranking={ranking}
             />
           ) : null}
         </div>
