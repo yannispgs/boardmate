@@ -189,6 +189,32 @@ export function rankByTotal(
   return ranked;
 }
 
+/**
+ * Ranks players by their final score in the given direction (highest- or
+ * lowest-wins), ties sharing a rank (1,2,2,4). Input order breaks ties for a
+ * stable output. Unlike {@link rankByTotal} (category totals, always highest),
+ * this honours a game's win direction — the finished-game score panel uses it.
+ */
+export function rankFinalScores(
+  entries: Array<{ playerId: PlayerId; score: number }>,
+  direction: ScoreDirection,
+): Ranked[] {
+  const sorted = [...entries].sort((a, b) =>
+    direction === "highest" ? b.score - a.score : a.score - b.score,
+  );
+  const ranked: Ranked[] = [];
+
+  for (let i = 0; i < sorted.length; i++) {
+    const prev = ranked[i - 1];
+    // Same score as the player above → share their rank, else 1-based position.
+    const rank = prev && prev.total === sorted[i].score ? prev.rank : i + 1;
+
+    ranked.push({ playerId: sorted[i].playerId, total: sorted[i].score, rank });
+  }
+
+  return ranked;
+}
+
 /** The direction a win condition ranks by (a threshold is a race to the top). */
 export function winnerDirection(condition: WinCondition): ScoreDirection {
   return condition.type === "lowest" ? "lowest" : "highest";

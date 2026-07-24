@@ -15,6 +15,7 @@ import {
   leaderByScore,
   rankBonusFor,
   rankByTotal,
+  rankFinalScores,
   reachedThreshold,
   scoreCategories,
   scoreFloor,
@@ -222,6 +223,48 @@ describe("rankByTotal", () => {
 
   it("returns an empty ranking for no players", () => {
     expect(rankByTotal([])).toEqual([]);
+  });
+});
+
+describe("rankFinalScores", () => {
+  it("ranks highest first when the game wins on the highest score", () => {
+    const ranked = rankFinalScores(
+      [
+        { playerId: p("a"), score: 20 },
+        { playerId: p("b"), score: 30 },
+        { playerId: p("c"), score: 20 },
+        { playerId: p("d"), score: 10 },
+      ],
+      "highest",
+    );
+
+    expect(ranked.map(r => [r.playerId, r.total, r.rank])).toEqual([
+      ["b", 30, 1],
+      ["a", 20, 2], // input order breaks the tie
+      ["c", 20, 2],
+      ["d", 10, 4],
+    ]);
+  });
+
+  it("ranks lowest first when the game wins on the lowest score", () => {
+    const ranked = rankFinalScores(
+      [
+        { playerId: p("a"), score: 20 },
+        { playerId: p("b"), score: 5 },
+        { playerId: p("c"), score: 12 },
+      ],
+      "lowest",
+    );
+
+    expect(ranked.map(r => [r.playerId, r.rank])).toEqual([
+      ["b", 1],
+      ["c", 2],
+      ["a", 3],
+    ]);
+  });
+
+  it("returns an empty ranking for no players", () => {
+    expect(rankFinalScores([], "highest")).toEqual([]);
   });
 });
 

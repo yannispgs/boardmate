@@ -7,8 +7,9 @@ import { isSubsection, type Ranked, scoreCategories } from "@/lib/game/scoring";
 
 /**
  * The filled scoresheet after the reveal: every category per player, grouped as
- * on the box's paper sheet, with the totals and final rank. "Retour aux parties"
- * leaves for the games list.
+ * on the box's paper sheet, with the totals and final rank. When `onDone` is
+ * given a "Retour aux parties" button leaves for the games list; omit it to
+ * embed the bare table (e.g. inside the finished-game score panel).
  */
 export function FinalScoreTable({
   sheet,
@@ -21,7 +22,7 @@ export function FinalScoreTable({
   players: { id: PlayerId; name: string }[];
   values: Record<string, Record<string, number>>;
   ranking: Ranked[];
-  onDone: () => void;
+  onDone?: () => void;
 }) {
   const rankOf = (id: PlayerId) => ranking.find(r => r.playerId === id);
   const cell = "px-2 py-1 text-right tabular-nums";
@@ -128,13 +129,15 @@ export function FinalScoreTable({
         </table>
       </div>
 
-      <button
-        type="button"
-        onClick={onDone}
-        className="rounded-lg bg-indigo-600 px-6 py-3 font-semibold text-white transition hover:bg-indigo-500"
-      >
-        Retour aux parties
-      </button>
+      {onDone ? (
+        <button
+          type="button"
+          onClick={onDone}
+          className="rounded-lg bg-indigo-600 px-6 py-3 font-semibold text-white transition hover:bg-indigo-500"
+        >
+          Retour aux parties
+        </button>
+      ) : null}
     </section>
   );
 }
