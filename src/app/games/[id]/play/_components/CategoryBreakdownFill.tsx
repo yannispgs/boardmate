@@ -45,17 +45,27 @@ export function CategoryBreakdownFill({
   const remaining = gridRemaining(players, sheet, raw);
   const complete = remaining === 0;
 
+  const ids = players.map(p => p.id);
+  const values = gridValues(players, sheet, raw);
+  const scored = scoreCategories(sheet, values, ids);
+  // The total already recorded when the game was added — the categories must
+  // reconstruct it. Null means no total was recorded (no constraint).
+  const recordedOf = (id: PlayerId): number | null =>
+    game.players.find(p => p.playerId === id)?.score ?? null;
+  const totalsMatch = players.every(p => {
+    const target = recordedOf(p.id);
+
+    return target === null || (scored[p.id]?.total ?? 0) === target;
+  });
+
   async function save() {
-    if (!sheet || !complete) {
+    if (!sheet || !complete || !totalsMatch) {
       return;
     }
 
     setBusy(true);
     setError(null);
 
-    const values = gridValues(players, sheet, raw);
-    const ids = players.map(p => p.id);
-    const scored = scoreCategories(sheet, values, ids);
     const winnerId =
       rankByTotal(
         ids.map(id => ({ playerId: id, total: scored[id]?.total ?? 0 })),
@@ -72,7 +82,7 @@ export function CategoryBreakdownFill({
         game.id,
         winnerId,
         ids.map(id => ({
-          playerId: id as PlayerId,
+          playerId: id,
           score: scored[id]?.total ?? 0,
           breakdown: values[id] ?? {},
         })),
@@ -108,13 +118,47 @@ export function CategoryBreakdownFill({
           setRaw(r => ({ ...r, [pid]: { ...(r[pid] ?? {}), [key]: text } }))
         }
       />
+
+      <ul className="flex flex-col gap-1 border-black/10 border-t pt-2 text-sm dark:border-white/10">
+        {players.map(p => {
+          const computed = scored[p.id]?.total ?? 0;
+          const target = recordedOf(p.id);
+          const bad = complete && target !== null && computed !== target;
+
+          return (
+            <li key={p.id} className="flex items-center justify-between gap-2">
+              <span>{p.name}</span>
+              <span
+                className={`tabular-nums ${
+                  bad ? "font-medium text-red-600 dark:text-red-400" : ""
+                }`}
+              >
+                {computed} pts
+                {bad ? (
+                  <span className="font-normal">
+                    {" "}
+                    · attendu&nbsp;: {target}
+                  </span>
+                ) : null}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+
+      {complete && !totalsMatch ? (
+        <p className="text-xs text-red-600 dark:text-red-400">
+          Le total des catégories doit égaler le score enregistré à l&apos;ajout
+          de la partie.
+        </p>
+      ) : null}
       {error ? (
         <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
       ) : null}
       <div className="flex items-center gap-2">
         <button
           type="button"
-          disabled={busy || !complete}
+          disabled={busy || !complete || !totalsMatch}
           onClick={save}
           className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
         >

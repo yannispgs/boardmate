@@ -160,20 +160,22 @@ test("fills a category game's per-category detail after the fact", async ({
     .select("id")
     .single();
   const gameId = game?.id as string;
+  // Each recorded 32 pts = an all-"2" sheet (11 cats × 2 = 22, + 2 per biome
+  // line's tied placement × 5 = 10).
   await admin.from("game_players").insert([
     {
       game_id: gameId,
       player_id: ids[0],
       seat_order: 0,
       is_winner: true,
-      score: 90,
+      score: 32,
     },
     {
       game_id: gameId,
       player_id: ids[1],
       seat_order: 1,
       is_winner: false,
-      score: 80,
+      score: 32,
     },
   ]);
 
@@ -185,15 +187,25 @@ test("fills a category game's per-category detail after the fact", async ({
       .getByRole("button", { name: "Ajouter le détail des points" })
       .click();
 
-    // Fill every category cell, then save.
     const cells = page.getByRole("spinbutton");
     const count = await cells.count();
+    const save = page.getByRole("button", { name: "Enregistrer", exact: true });
+    const mismatch = page.getByText(/Le total des catégories doit égaler/);
+
+    // All 3s → totals (43) don't match the recorded 32 → saving is blocked.
+    for (let i = 0; i < count; i++) {
+      await cells.nth(i).fill("3");
+    }
+    await expect(mismatch).toBeVisible();
+    await expect(save).toBeDisabled();
+
+    // Correct to 2s → totals (32) match → the total shows and saving is allowed.
     for (let i = 0; i < count; i++) {
       await cells.nth(i).fill("2");
     }
-    await page
-      .getByRole("button", { name: "Enregistrer", exact: true })
-      .click();
+    await expect(page.getByText("32 pts").first()).toBeVisible();
+    await expect(mismatch).toBeHidden();
+    await save.click();
 
     // Once saved, the game has a breakdown → the whole fill form (its grid
     // cells) disappears after the reload.
