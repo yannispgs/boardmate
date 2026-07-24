@@ -4,25 +4,11 @@ import { useMemo, useState } from "react";
 
 import { StatTile } from "@/components/StatTile";
 import type { GameStatsRecord, PlayerId } from "@/lib/domain";
-import { computeGlobalStats } from "@/lib/game/global-stats";
+import { computeGlobalStats, coPlayerOptions } from "@/lib/game/global-stats";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { MultiSelectField } from "./MultiSelectField";
 import { PlayerDetail } from "./PlayerDetail";
 import { PlayerRankingTable } from "./PlayerRankingTable";
-
-/** Every player that appears in the records, sorted by name — filter options. */
-function playerOptions(records: GameStatsRecord[]) {
-  const map = new Map<string, string>();
-  for (const r of records) {
-    for (const p of r.players) {
-      map.set(p.playerId, p.name);
-    }
-  }
-
-  return [...map.entries()]
-    .map(([id, name]) => ({ id, name }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-}
 
 /**
  * "Joueurs" tab: a ranking of every player's individual stats. The filter is a
@@ -36,7 +22,12 @@ export function PlayersTab({ records }: { records: GameStatsRecord[] }) {
   const [detailId, setDetailId] = useState<PlayerId | null>(null);
   const { boardgames } = useBoardgames();
 
-  const options = useMemo(() => playerOptions(records), [records]);
+  // Narrow the options to players who share a game with everyone already
+  // picked, so the presence filter never selects an empty set of games.
+  const options = useMemo(
+    () => coPlayerOptions(records, presentIds),
+    [records, presentIds],
+  );
 
   const stats = useMemo(
     () => computeGlobalStats(records, { playerIds: presentIds as PlayerId[] }),

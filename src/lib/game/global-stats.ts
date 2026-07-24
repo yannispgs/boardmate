@@ -213,6 +213,34 @@ export function filterRecords(
   });
 }
 
+/**
+ * The players offered in a presence filter given a partial selection: every
+ * player who shares at least one game with all currently-selected players — so
+ * narrowing the filter can never produce an empty set. Sorted by name. An empty
+ * selection offers everyone; the selected players are always included (they
+ * co-occur with themselves). Pass records already scoped to a boardgame to
+ * restrict co-play to that game.
+ */
+export function coPlayerOptions(
+  records: GameStatsRecord[],
+  selectedIds: string[],
+): Array<{ id: string; name: string }> {
+  const shared = filterRecords(records, {
+    playerIds: selectedIds as PlayerId[],
+  });
+  const names = new Map<string, string>();
+
+  for (const g of shared) {
+    for (const p of g.players) {
+      names.set(p.playerId, p.name);
+    }
+  }
+
+  return [...names.entries()]
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 /** Filters the games, then averages overall + per-player figures over them. */
 export function computeGlobalStats(
   records: GameStatsRecord[],

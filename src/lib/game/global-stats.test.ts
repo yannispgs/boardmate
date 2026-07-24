@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { BoardgameId, GameStatsRecord, PlayerId } from "@/lib/domain";
-import { computeGlobalStats } from "./global-stats";
+import { computeGlobalStats, coPlayerOptions } from "./global-stats";
 
 const CATAN = "bg-catan" as BoardgameId;
 const WINGSPAN = "bg-wingspan" as BoardgameId;
@@ -424,5 +424,69 @@ describe("computeGlobalStats", () => {
     // Alice's overtime (5s in game1) is averaged over her 1 played game, not 2.
     expect(alice?.games).toBe(2);
     expect(alice?.avgOvertimeS).toBe(5);
+  });
+});
+
+describe("coPlayerOptions", () => {
+  const DAN = "p-dan" as PlayerId;
+
+  function rec(
+    id: string,
+    players: Array<[PlayerId, string]>,
+  ): GameStatsRecord {
+    return {
+      gameId: id as GameStatsRecord["gameId"],
+      boardgameId: CATAN,
+      boardgameName: "Catan",
+      dice: null,
+      endedAt: "2026-07-01T10:00:00Z",
+      players: players.map(([playerId, name]) => ({
+        playerId,
+        name,
+        seatOrder: 0,
+        isWinner: false,
+        score: null,
+      })),
+      turns: [],
+      diceRolls: [],
+    };
+  }
+
+  // Alice+Bob together; Alice+Chloé together; Bob+Dan together (Dan never with
+  // Alice, Chloé never with Bob).
+  const records = [
+    rec("ab", [
+      [ALICE, "Alice"],
+      [BOB, "Bob"],
+    ]),
+    rec("ac", [
+      [ALICE, "Alice"],
+      [CHLOE, "Chloé"],
+    ]),
+    rec("bd", [
+      [BOB, "Bob"],
+      [DAN, "Dan"],
+    ]),
+  ];
+
+  const names = (ids: string[]) =>
+    coPlayerOptions(records, ids).map(o => o.name);
+
+  it("offers every player, sorted by name, with no selection", () => {
+    expect(names([])).toEqual(["Alice", "Bob", "Chloé", "Dan"]);
+  });
+
+  it("keeps only players who share a game with the selected one", () => {
+    // Games with Alice: ab, ac → Alice, Bob, Chloé (Dan never played with her).
+    expect(names([ALICE])).toEqual(["Alice", "Bob", "Chloé"]);
+  });
+
+  it("intersects across several selected players", () => {
+    // Games with both Alice and Bob: only ab → Alice, Bob.
+    expect(names([ALICE, BOB])).toEqual(["Alice", "Bob"]);
+  });
+
+  it("always includes the selected players themselves", () => {
+    expect(names([DAN])).toEqual(["Bob", "Dan"]);
   });
 });

@@ -6,7 +6,11 @@ import { InfoTip } from "@/components/InfoTip";
 import { StatTile } from "@/components/StatTile";
 import type { BoardgameId, GameStatsRecord, PlayerId } from "@/lib/domain";
 import { formatDuration } from "@/lib/game/format-time";
-import { computeGlobalStats, filterRecords } from "@/lib/game/global-stats";
+import {
+  computeGlobalStats,
+  coPlayerOptions,
+  filterRecords,
+} from "@/lib/game/global-stats";
 import { winnerDirection } from "@/lib/game/scoring";
 import { computeSeatStats } from "@/lib/game/seat-stats";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
@@ -32,20 +36,6 @@ function gameOptions(records: GameStatsRecord[]) {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** Distinct players who appear in the given records, sorted by name. */
-function playerOptions(records: GameStatsRecord[]) {
-  const map = new Map<string, string>();
-  for (const r of records) {
-    for (const p of r.players) {
-      map.set(p.playerId, p.name);
-    }
-  }
-
-  return [...map.entries()]
-    .map(([id, name]) => ({ id, name }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-}
-
 /**
  * "Jeux" tab: pick a game, then see its aggregated stats over the selected
  * parties. The set of parties can be narrowed by present players and by an end
@@ -64,10 +54,15 @@ export function GamesTab({ records }: { records: GameStatsRecord[] }) {
     ? selected
     : (games[0]?.id ?? "");
 
-  // Players who have played the selected game — the presence-filter options.
+  // Presence-filter options: players of the selected game, narrowed to those
+  // who share a game with everyone already picked (so it never goes empty).
   const presenceOptions = useMemo(
-    () => playerOptions(records.filter(r => r.boardgameId === active)),
-    [records, active],
+    () =>
+      coPlayerOptions(
+        records.filter(r => r.boardgameId === active),
+        presentIds,
+      ),
+    [records, active, presentIds],
   );
 
   const filters = useMemo(
