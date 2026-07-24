@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { dotPlot, scoreHistogram } from "./score-distribution";
+import {
+  dotPlot,
+  meanOffset,
+  type ScoreHistogram,
+  scoreHistogram,
+} from "./score-distribution";
 
 /** Sum of the bin counts must always equal the number of scores. */
 function totalCount(scores: number[], maxBins?: number) {
@@ -70,6 +75,31 @@ describe("scoreHistogram", () => {
 
     expect(h?.step).toBe(50);
     expect(totalCount([0, 20, 60, 100], 4)).toBe(4);
+  });
+});
+
+describe("meanOffset", () => {
+  it("places the mean as a fraction of the binned range", () => {
+    // Scores 0..40 → 5 bins of 10, axis [0, 50), mean 20 → 20/50 = 0.4.
+    const h = scoreHistogram([0, 10, 20, 30, 40], 5) as ScoreHistogram;
+
+    expect(h.mean).toBe(20);
+    expect(meanOffset(h)).toBeCloseTo(0.4, 5);
+  });
+
+  it("centres the marker when every score is identical (one bin)", () => {
+    const h = scoreHistogram([7, 7, 7]) as ScoreHistogram;
+
+    expect(h.bins).toHaveLength(1);
+    expect(meanOffset(h)).toBe(0.5);
+  });
+
+  it("clamps a mean outside the binned range to [0, 1]", () => {
+    const base = scoreHistogram([0, 10, 20], 3) as ScoreHistogram;
+    const axisEnd = base.bins[base.bins.length - 1].end;
+
+    expect(meanOffset({ ...base, mean: base.bins[0].start - 100 })).toBe(0);
+    expect(meanOffset({ ...base, mean: axisEnd + 100 })).toBe(1);
   });
 });
 

@@ -81,6 +81,24 @@ export function scoreHistogram(
   return { bins, step, count: scores.length, min, max, mean };
 }
 
+/**
+ * Where the mean sits along the histogram's value axis, as a 0–1 fraction of
+ * the binned range `[first bin start, last bin end]` — for placing a vertical
+ * mean marker over the bars. A single bin (every score identical) has no spread,
+ * so the marker is centred (`0.5`). Clamped to `[0, 1]`.
+ */
+export function meanOffset(histogram: ScoreHistogram): number {
+  if (histogram.bins.length <= 1) {
+    return 0.5;
+  }
+
+  const axisStart = histogram.bins[0].start;
+  const axisEnd = histogram.bins[histogram.bins.length - 1].end;
+  const fraction = (histogram.mean - axisStart) / (axisEnd - axisStart);
+
+  return Math.min(1, Math.max(0, fraction));
+}
+
 /** One dot in a dot plot: its column (by value) and stack position. */
 export interface DotPlotPoint {
   /** Column index, 0..columns-1, mapped from the score's value. */
