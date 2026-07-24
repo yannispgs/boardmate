@@ -189,6 +189,60 @@ export function rankByTotal(
   return ranked;
 }
 
+/**
+ * Ranks players by their final score in the given direction (highest- or
+ * lowest-wins), ties sharing a rank (1,2,2,4). Input order breaks ties for a
+ * stable output. Unlike {@link rankByTotal} (category totals, always highest),
+ * this honours a game's win direction — the finished-game score panel uses it.
+ */
+export function rankFinalScores(
+  entries: Array<{ playerId: PlayerId; score: number }>,
+  direction: ScoreDirection,
+): Ranked[] {
+  const sorted = [...entries].sort((a, b) =>
+    direction === "highest" ? b.score - a.score : a.score - b.score,
+  );
+  const ranked: Ranked[] = [];
+
+  for (let i = 0; i < sorted.length; i++) {
+    const prev = ranked[i - 1];
+    // Same score as the player above → share their rank, else 1-based position.
+    const rank = prev?.total === sorted[i].score ? prev.rank : i + 1;
+
+    ranked.push({ playerId: sorted[i].playerId, total: sorted[i].score, rank });
+  }
+
+  return ranked;
+}
+
+/**
+ * Final standings for the finished-game score panel. A competitive game has a
+ * single recorded winner (ties are already broken at game end), so that winner
+ * takes rank 1 alone and everyone else is ranked by score below them — a
+ * co-leader on the same score is 2nd, not a shared 1st. Ties from 2nd place down
+ * still share a rank. Falls back to plain {@link rankFinalScores} when there is
+ * not exactly one winner (cooperative games: the whole table wins or loses).
+ */
+export function finalStandings(
+  entries: Array<{ playerId: PlayerId; score: number; isWinner: boolean }>,
+  direction: ScoreDirection,
+): Ranked[] {
+  const winners = entries.filter(e => e.isWinner);
+
+  if (winners.length !== 1) {
+    return rankFinalScores(entries, direction);
+  }
+
+  const winner = winners[0];
+  // Rank the others among themselves, then shift below the lone winner.
+  const rest = rankFinalScores(
+    entries.filter(e => e.playerId !== winner.playerId),
+    direction,
+  ).map(r => ({ ...r, rank: r.rank + 1 }));
+
+  return [{ playerId: winner.playerId, total: winner.score, rank: 1 }, ...rest];
+}
+
 /** The direction a win condition ranks by (a threshold is a race to the top). */
 export function winnerDirection(condition: WinCondition): ScoreDirection {
   return condition.type === "lowest" ? "lowest" : "highest";

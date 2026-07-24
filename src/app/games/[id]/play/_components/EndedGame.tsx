@@ -1,17 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
+import { Drawer } from "@/components/Drawer";
 import type { PopulatedGame } from "@/lib/domain";
 
-import { CategoryBreakdownFill } from "./CategoryBreakdownFill";
+import { EndScorePanel } from "./EndScorePanel";
 import { GameStats } from "./GameStats";
 
 /**
  * The finished-game screen: a winner banner filling the view, then the
  * statistics panel below. A button scrolls the stats into view so the reward
- * (who won) stays front and centre while the numbers are one tap away.
+ * (who won) stays front and centre while the numbers are one tap away. A
+ * right-edge tab slides in the final score (with the per-category detail for
+ * category games), keeping the stats at the bottom and the score on the side.
  */
 export function EndedGame({
   game,
@@ -20,12 +23,8 @@ export function EndedGame({
   game: PopulatedGame;
   onReload: () => void;
 }) {
-  // A category game logged with only a total can be completed with its
-  // per-category detail here (e.g. a game added after the fact).
-  const canFillBreakdown =
-    game.boardgame.scoring?.entry === "categories" &&
-    game.players.every(p => p.scoreBreakdown === null);
   const statsRef = useRef<HTMLDivElement>(null);
+  const [scoreOpen, setScoreOpen] = useState(false);
   const winnerEntry = game.players.find(p => p.isWinner) ?? null;
   const winner = winnerEntry?.player ?? null;
   const winnerScore = winnerEntry?.score ?? null;
@@ -34,6 +33,9 @@ export function EndedGame({
   // together (every player `isWinner`, or none).
   const coop = game.boardgame.kind === "cooperative";
   const coopWon = game.players.some(p => p.isWinner);
+
+  // The score slide-over only makes sense once someone actually has a score.
+  const hasScore = game.players.some(p => p.score !== null);
 
   const seeStats = () => {
     statsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -91,12 +93,39 @@ export function EndedGame({
         </div>
       </div>
 
-      <div ref={statsRef} className="flex flex-col gap-6 scroll-mt-6">
-        {canFillBreakdown ? (
-          <CategoryBreakdownFill game={game} onSaved={onReload} />
-        ) : null}
+      <div ref={statsRef} className="scroll-mt-6">
         <GameStats game={game} />
       </div>
+
+      {hasScore ? (
+        <>
+          <button
+            type="button"
+            onClick={() => setScoreOpen(true)}
+            aria-label="Voir le score final"
+            className="fixed right-0 top-1/2 z-30 flex -translate-y-1/2 flex-col items-center gap-1 rounded-l-xl bg-indigo-600 px-2 py-3 text-white shadow-lg transition hover:bg-indigo-500"
+          >
+            <span aria-hidden className="text-lg">
+              🏆
+            </span>
+            <span className="text-xs font-medium [writing-mode:vertical-rl]">
+              Score
+            </span>
+          </button>
+
+          <Drawer
+            open={scoreOpen}
+            onClose={() => setScoreOpen(false)}
+            label="Score final"
+          >
+            <EndScorePanel
+              game={game}
+              onClose={() => setScoreOpen(false)}
+              onReload={onReload}
+            />
+          </Drawer>
+        </>
+      ) : null}
     </div>
   );
 }

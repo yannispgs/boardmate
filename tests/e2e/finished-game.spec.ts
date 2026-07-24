@@ -182,15 +182,20 @@ test("fills a category game's per-category detail after the fact", async ({
   try {
     await page.goto(`/games/${gameId}/play`);
 
-    // The stats screen offers to add the missing per-category detail.
-    await page
+    // The final-score slide-over offers to add the missing per-category detail.
+    await page.getByRole("button", { name: "Voir le score final" }).click();
+    const panel = page.getByRole("dialog", { name: "Score final" });
+    await panel
       .getByRole("button", { name: "Ajouter le détail des points" })
       .click();
 
-    const cells = page.getByRole("spinbutton");
+    const cells = panel.getByRole("spinbutton");
     const count = await cells.count();
-    const save = page.getByRole("button", { name: "Enregistrer", exact: true });
-    const mismatch = page.getByText(/Le total des catégories doit égaler/);
+    const save = panel.getByRole("button", {
+      name: "Enregistrer",
+      exact: true,
+    });
+    const mismatch = panel.getByText(/Le total des catégories doit égaler/);
 
     // All 3s → totals (43) don't match the recorded 32 → saving is blocked.
     for (let i = 0; i < count; i++) {
@@ -203,7 +208,7 @@ test("fills a category game's per-category detail after the fact", async ({
     for (let i = 0; i < count; i++) {
       await cells.nth(i).fill("2");
     }
-    await expect(page.getByText("32 pts").first()).toBeVisible();
+    await expect(panel.getByText("32 pts").first()).toBeVisible();
     await expect(mismatch).toBeHidden();
     await save.click();
 
