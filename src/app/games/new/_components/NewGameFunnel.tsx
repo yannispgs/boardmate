@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { ConfigField } from "@/components/ConfigField";
+import { StickyActionBar } from "@/components/StickyActionBar";
 import { useConfirm } from "@/components/use-confirm";
 import { buildDefaults, validateConfigValues } from "@/lib/config/validation";
 import type {
@@ -28,9 +29,8 @@ import { useExtensions } from "@/lib/hooks/use-extensions";
 import { useGames } from "@/lib/hooks/use-games";
 import { usePlayers } from "@/lib/hooks/use-players";
 import { FirstPlayerWheel } from "./FirstPlayerWheel";
-
-const tileClass =
-  "rounded-xl border border-black/10 bg-white px-4 py-3 text-left transition hover:border-indigo-400 dark:border-white/10 dark:bg-zinc-900";
+import { PlayerPickCardList } from "./PlayerPickCardList";
+import { tileClass } from "./tile-class";
 
 export function NewGameFunnel() {
   const router = useRouter();
@@ -152,18 +152,25 @@ export function NewGameFunnel() {
   return null;
 }
 
+/**
+ * One screen of the funnel: a fixed heading, a body that scrolls on its own,
+ * and — when the step gives one — a footer pinned to the bottom of the screen,
+ * so a long list never pushes the step's action out of reach.
+ */
 function Step({
   title,
   children,
   onBack,
+  footer,
 }: {
   title: string;
   children: React.ReactNode;
   onBack?: () => void;
+  footer?: React.ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+    <section className="flex min-h-0 flex-1 flex-col gap-4">
+      <div className="flex shrink-0 items-center justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
           {title}
         </h2>
@@ -177,7 +184,12 @@ function Step({
           </button>
         ) : null}
       </div>
-      {children}
+
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pb-6">
+        {children}
+      </div>
+
+      {footer ? <StickyActionBar>{footer}</StickyActionBar> : null}
     </section>
   );
 }
@@ -256,14 +268,13 @@ function PlayersStep({
   const tooMany = maxPlayers != null && selected.length > maxPlayers;
   const canContinue = selected.length >= 1 && !tooFew && !tooMany;
 
-  function confirm() {
-    // Keep the click order → seat / turn order.
-    const ordered = selected
-      .map(id => active.find(p => p.id === id))
-      .filter((p): p is Player => p != null);
-
-    onConfirm(ordered);
-  }
+  // The click order is the seat / turn order.
+  const picked = selected
+    .map(id => active.find(p => p.id === id))
+    .filter((p): p is Player => p != null);
+  // Picked players sit at the top of the list, first seat first, so the order
+  // being built is read at a glance rather than hunted for among the others.
+  const listed = [...picked, ...active.filter(p => !selected.includes(p.id))];
 
   return (
     <Step
@@ -273,6 +284,30 @@ function PlayersStep({
           : "3 · Choisis les joueurs (dans l’ordre de jeu)"
       }
       onBack={onBack}
+      footer={
+        <>
+          <p className="text-xs text-zinc-500">
+            {selected.length} sélectionné{selected.length > 1 ? "s" : ""}
+            {minPlayers != null || maxPlayers != null
+              ? ` · recommandé ${minPlayers ?? "?"}–${maxPlayers ?? "?"}`
+              : ""}
+          </p>
+          {tooMany ? (
+            <p className="text-sm text-amber-600 dark:text-amber-400">
+              Ce jeu se joue à {maxPlayers} joueurs max.
+            </p>
+          ) : null}
+
+          <button
+            type="button"
+            disabled={!canContinue}
+            onClick={() => onConfirm(picked)}
+            className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
+          >
+            Continuer →
+          </button>
+        </>
+      }
     >
       {loading ? (
         <p className="text-sm text-zinc-500">Chargement…</p>
@@ -281,53 +316,13 @@ function PlayersStep({
           Aucun joueur actif. Ajoute-en dans « Joueurs ».
         </p>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {active.map(p => {
-            const order = selected.indexOf(p.id);
-            const picked = order !== -1;
-
-            return (
-              <li key={p.id}>
-                <button
-                  type="button"
-                  onClick={() => toggle(p.id)}
-                  className={`${tileClass} flex w-full items-center justify-between ${
-                    picked ? "border-indigo-500 ring-1 ring-indigo-500" : ""
-                  }`}
-                >
-                  <span>{p.name}</span>
-                  {picked ? (
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-semibold text-white">
-                      {simultaneous ? "✓" : order + 1}
-                    </span>
-                  ) : null}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+        <PlayerPickCardList
+          players={listed}
+          selected={selected}
+          simultaneous={simultaneous}
+          onToggle={toggle}
+        />
       )}
-
-      <p className="text-xs text-zinc-500">
-        {selected.length} sélectionné{selected.length > 1 ? "s" : ""}
-        {minPlayers != null || maxPlayers != null
-          ? ` · recommandé ${minPlayers ?? "?"}–${maxPlayers ?? "?"}`
-          : ""}
-      </p>
-      {tooMany ? (
-        <p className="text-sm text-amber-600 dark:text-amber-400">
-          Ce jeu se joue à {maxPlayers} joueurs max.
-        </p>
-      ) : null}
-
-      <button
-        type="button"
-        disabled={!canContinue}
-        onClick={confirm}
-        className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
-      >
-        Continuer →
-      </button>
     </Step>
   );
 }
