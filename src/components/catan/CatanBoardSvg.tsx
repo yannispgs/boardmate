@@ -6,6 +6,11 @@ import {
   isRedNumber,
   pipCount,
 } from "@/lib/catan/board";
+import {
+  hexCorners as cornersOf,
+  type HexPoint,
+  polygonPoints,
+} from "@/lib/catan/hex-geometry";
 
 const SIZE = 42; // hex circumradius in px
 
@@ -41,18 +46,11 @@ const PORT_COLOR: Record<CatanPortType, string> = {
   ore: "#8a929c",
 };
 
-type Point = { x: number; y: number };
+type Point = HexPoint;
 
-/** The six corners of a pointy-top hexagon centred at (cx, cy). */
+/** The six corners of a board-sized hexagon centred at (cx, cy). */
 function hexCorners(cx: number, cy: number): Point[] {
-  const pts: Point[] = [];
-
-  for (let i = 0; i < 6; i++) {
-    const a = ((60 * i - 90) * Math.PI) / 180;
-    pts.push({ x: cx + SIZE * Math.cos(a), y: cy + SIZE * Math.sin(a) });
-  }
-
-  return pts;
+  return cornersOf(cx, cy, SIZE);
 }
 
 /** Small probability dots under a number token (5 = most likely). */
@@ -178,7 +176,7 @@ export function CatanBoardSvg({
       {board.sea.map((s, i) => (
         <polygon
           key={s.id}
-          points={seaCorners[i].map(p => `${p.x},${p.y}`).join(" ")}
+          points={polygonPoints(seaCorners[i])}
           fill={SEA_STYLE.fill}
           stroke={SEA_STYLE.stroke}
           strokeWidth={2}
@@ -188,7 +186,7 @@ export function CatanBoardSvg({
 
       {board.hexes.map(h => {
         const c = centres[h.id];
-        const points = corners[h.id].map(p => `${p.x},${p.y}`).join(" ");
+        const points = polygonPoints(corners[h.id]);
         const t = h.hidden ? HIDDEN_STYLE : TERRAIN_STYLE[h.terrain];
 
         return (

@@ -27,6 +27,7 @@ import {
   setZoneIslands,
   togglePortSlot,
   tokenCounts,
+  zoneOfPortSlot,
 } from "./scenario-draft";
 import { BOARD_ROWS, type ScenarioSpec } from "./scenario-spec";
 
@@ -360,6 +361,16 @@ describe("harbours", () => {
     expect(zone(togglePortSlot(spec, 0, 0, slot)).ports?.types).toEqual([
       "wood",
     ]);
+  });
+
+  it("names the zone a pinned harbour belongs to", () => {
+    const spec = togglePortSlot(addZone(painted(), 0), 0, 1, slot);
+
+    expect(zoneOfPortSlot(spec.boards[0], slot)).toBe(1);
+  });
+
+  it("names no zone for an edge nothing is pinned on", () => {
+    expect(zoneOfPortSlot(painted().boards[0], slot)).toBeNull();
   });
 });
 

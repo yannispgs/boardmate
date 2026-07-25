@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BoardStructure } from "@/components/catan/BoardStructure";
 import { BoardWarnings, WarningsBadge } from "@/components/catan/BoardWarnings";
@@ -112,13 +113,22 @@ export function MarinsBoardGenerator() {
         <BoardWarnings warnings={warnings} className={sectionClass} />
       ) : null}
 
-      <button
-        type="button"
-        onClick={() => regen(scenario.key, players)}
-        className="rounded-lg bg-indigo-600 px-5 py-2.5 font-medium text-white transition hover:bg-indigo-500"
-      >
-        🎲 Nouveau plateau
-      </button>
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        <button
+          type="button"
+          onClick={() => regen(scenario.key, players)}
+          className="rounded-lg bg-indigo-600 px-5 py-2.5 font-medium text-white transition hover:bg-indigo-500"
+        >
+          🎲 Nouveau plateau
+        </button>
+
+        <Link
+          href="/tools/board-generator/catan-marins/scenarios"
+          className="rounded-lg border border-black/10 px-5 py-2.5 font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+        >
+          ✏️ Créer un scénario
+        </Link>
+      </div>
 
       <BoardStructure board={board} />
 

@@ -1,16 +1,7 @@
 import { type CatanTerrain, TERRAIN_RESOURCE } from "@/lib/catan/board";
 import { RESOURCE_LABEL } from "@/lib/catan/warnings";
 import { SEA_STYLE, TERRAIN_STYLE } from "./CatanBoardSvg";
-
-const TERRAIN_NAME: Record<CatanTerrain, string> = {
-  forest: "Forêt",
-  pasture: "Prairie",
-  fields: "Champs",
-  hills: "Collines",
-  mountains: "Montagnes",
-  gold: "Rivière d'or",
-  desert: "Désert",
-};
+import { TERRAIN_NAME } from "./terrain-labels";
 
 /** What a tile pays: its resource, or what it does instead of producing one. */
 function terrainHint(terrain: CatanTerrain): string {

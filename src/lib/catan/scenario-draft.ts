@@ -366,6 +366,26 @@ export function setZoneIslands(
   });
 }
 
+/** Whether two harbours sit on the same edge of the same space. */
+function samePort(a: SpecPort, b: SpecPort): boolean {
+  return a.q === b.q && a.r === b.r && a.dq === b.dq && a.dr === b.dr;
+}
+
+/**
+ * The zone that pins a given harbour, if any. A click on the map unpins the
+ * harbour it lands on whichever zone holds it — not the one being edited.
+ */
+export function zoneOfPortSlot(
+  board: ScenarioBoardSpec,
+  port: SpecPort,
+): number | null {
+  const index = board.zones.findIndex(zone =>
+    (zone.ports?.slots ?? []).some(slot => samePort(slot, port)),
+  );
+
+  return index === -1 ? null : index;
+}
+
 /** Pins a harbour on an edge, or unpins the one already there. */
 export function togglePortSlot(
   spec: ScenarioSpec,
@@ -375,10 +395,8 @@ export function togglePortSlot(
 ): ScenarioSpec {
   return withZone(spec, board, zone, z => {
     const slots = z.ports?.slots ?? [];
-    const same = (s: SpecPort) =>
-      s.q === port.q && s.r === port.r && s.dq === port.dq && s.dr === port.dr;
-    const kept = slots.some(same)
-      ? slots.filter(s => !same(s))
+    const kept = slots.some(slot => samePort(slot, port))
+      ? slots.filter(slot => !samePort(slot, port))
       : [...slots, port];
 
     return { ...z, ports: { types: z.ports?.types ?? [], slots: kept } };
