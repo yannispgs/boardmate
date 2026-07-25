@@ -505,11 +505,20 @@ describe("variants", () => {
     expect(variantOf("extension")).toBe(EXTENSION_VARIANT);
   });
 
+  it("has no fixed layout for a Marins board", () => {
+    expect(() => variantOf("marins")).toThrow(/variantSpec/);
+  });
+
   it("tags the generated board with its variant", () => {
     expect(generateCatanBoard(1).variant).toBe("base");
     expect(generateCatanBoard(1, { variant: "extension" }).variant).toBe(
       "extension",
     );
+  });
+
+  it("leaves the sea empty on the base boards", () => {
+    expect(generateCatanBoard(1).sea).toEqual([]);
+    expect(generateCatanBoard(1, { variant: "extension" }).sea).toEqual([]);
   });
 
   it("applies the terrain helpers to a given variant", () => {

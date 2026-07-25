@@ -41,11 +41,16 @@ describe("extensions adapter", () => {
     expect(marins?.scenarios.map(s => s.name)).toEqual([
       "À la découverte de nouveaux rivages",
       "Les quatre îles",
+      "Le Nouveau Monde",
     ]);
 
     const four = marins?.scenarios.find(s => s.boardKey === "four-islands");
 
     expect(four?.targetScore).toBe(13);
+
+    const newWorld = marins?.scenarios.find(s => s.boardKey === "new-world");
+
+    expect(newWorld?.targetScore).toBe(12);
   });
 
   it("returns no extensions for a base game that has none", async () => {

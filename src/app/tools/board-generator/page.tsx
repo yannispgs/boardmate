@@ -19,6 +19,12 @@ const GENERATORS: {
     description:
       "Jeu de base, 3–4 ou 5–6 joueurs — plateau aléatoire équilibré.",
   },
+  {
+    name: "Catan - Marins",
+    emoji: "⛵",
+    href: "/tools/board-generator/catan-marins",
+    description: "Extension Marins — îles, mers et ports par scénario.",
+  },
 ];
 
 export default function BoardGeneratorPage() {
