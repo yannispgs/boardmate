@@ -1,13 +1,17 @@
 "use client";
 
-import { sectionHeadingClass } from "@/components/ui";
+import Link from "next/link";
+import { PlusIcon } from "@/components/icons";
+import { iconButtonClass, sectionHeadingClass } from "@/components/ui";
 import type { Extension } from "@/lib/domain";
 import { extensionEffects } from "@/lib/game/extensions";
+import { scenarioEditorHref } from "@/lib/game/scenario-editor";
 import { ScenarioCardList } from "./ScenarioCardList";
 
 /** One extension: what it changes, then its scenarios. */
 export function ExtensionPanel({ extension }: { extension: Extension }) {
   const effects = extensionEffects(extension);
+  const editorHref = scenarioEditorHref(extension.key);
 
   return (
     <div className="flex flex-col gap-6">
@@ -39,9 +43,20 @@ export function ExtensionPanel({ extension }: { extension: Extension }) {
 
       {extension.hasScenarios ? (
         <section className="flex flex-col gap-3">
-          <h3 className={sectionHeadingClass}>
-            Scénarios · {extension.scenarios.length}
-          </h3>
+          <div className="flex items-center gap-2">
+            <h3 className={sectionHeadingClass}>
+              Scénarios · {extension.scenarios.length}
+            </h3>
+            {editorHref === null ? null : (
+              <Link
+                href={editorHref}
+                title="Créer un scénario"
+                className={iconButtonClass}
+              >
+                <PlusIcon />
+              </Link>
+            )}
+          </div>
           <ScenarioCardList scenarios={extension.scenarios} />
         </section>
       ) : null}

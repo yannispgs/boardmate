@@ -10,6 +10,8 @@ import {
   SegmentedPicker,
 } from "@/components/catan/SegmentedPicker";
 import { TerrainLegend } from "@/components/catan/TerrainLegend";
+import { PlusIcon } from "@/components/icons";
+import { iconButtonClass } from "@/components/ui";
 import { boardWarnings, type CatanTerrain } from "@/lib/catan/board";
 import {
   generateMarinsBoard,
@@ -21,6 +23,7 @@ import {
   playerGroupLabel,
 } from "@/lib/catan/marins";
 import { boardTotals } from "@/lib/catan/scenario-spec";
+import { MARINS_SCENARIOS_HREF } from "@/lib/game/scenario-editor";
 
 /** Legend order — the terrains a scenario doesn't ship are filtered out. */
 const TERRAIN_ORDER: CatanTerrain[] = [
@@ -81,6 +84,15 @@ export function MarinsBoardGenerator() {
         onChange={key =>
           regen(key, marinsPlayerGroups(marinsScenario(key).spec)[0][0])
         }
+        action={
+          <Link
+            href={MARINS_SCENARIOS_HREF}
+            title="Créer un scénario"
+            className={iconButtonClass}
+          >
+            <PlusIcon />
+          </Link>
+        }
       />
 
       {groups.length > 1 ? (
@@ -113,22 +125,13 @@ export function MarinsBoardGenerator() {
         <BoardWarnings warnings={warnings} className={sectionClass} />
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-center gap-3">
-        <button
-          type="button"
-          onClick={() => regen(scenario.key, players)}
-          className="rounded-lg bg-indigo-600 px-5 py-2.5 font-medium text-white transition hover:bg-indigo-500"
-        >
-          🎲 Nouveau plateau
-        </button>
-
-        <Link
-          href="/tools/board-generator/catan-marins/scenarios"
-          className="rounded-lg border border-black/10 px-5 py-2.5 font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
-        >
-          ✏️ Créer un scénario
-        </Link>
-      </div>
+      <button
+        type="button"
+        onClick={() => regen(scenario.key, players)}
+        className="rounded-lg bg-indigo-600 px-5 py-2.5 font-medium text-white transition hover:bg-indigo-500"
+      >
+        🎲 Nouveau plateau
+      </button>
 
       <BoardStructure board={board} />
 
