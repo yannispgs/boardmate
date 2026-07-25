@@ -14,7 +14,10 @@ export function ScenarioCardList({
   }
 
   return (
-    <ul className="flex flex-col gap-2">
+    // Three scenarios tall, then it scrolls: an extension can ship a dozen of
+    // them, and what the extension changes has to stay visible above the fold.
+    // The fourth card peeks out just enough to say there is more below.
+    <ul className="flex max-h-56 flex-col gap-2 overflow-y-auto">
       {scenarios.map(s => (
         <ScenarioCard key={s.id} scenario={s} />
       ))}
