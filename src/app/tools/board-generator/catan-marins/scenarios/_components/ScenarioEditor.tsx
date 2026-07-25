@@ -10,14 +10,13 @@ import { playerGroupLabel } from "@/lib/catan/marins";
 import {
   addBoard,
   addZone,
-  canvasLength,
   duplicateBoard,
   eraseCell,
-  MAX_LENGTH,
-  MIN_LENGTH,
+  narrowestWidth,
   paintCell,
   removeBoard,
   setBoardPlayers,
+  setBoardWidth,
   setScenarioName,
   setStaticTile,
   setTargetScore,
@@ -25,6 +24,9 @@ import {
   zoneOfPortSlot,
 } from "@/lib/catan/scenario-draft";
 import {
+  boardWidth,
+  MAX_WIDTH,
+  MIN_WIDTH,
   type ScenarioSpec,
   type SpecCell,
   type SpecPort,
@@ -110,7 +112,6 @@ export function ScenarioEditor({
   const [staticTerrain, setStaticTerrain] = useState<SpecTerrain>("sea");
   const [staticNumber, setStaticNumber] = useState<number | "">("");
   const [selected, setSelected] = useState<SpecCell | null>(null);
-  const [wanted, setWanted] = useState(0);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -121,8 +122,9 @@ export function ScenarioEditor({
   const zone = Math.min(zoneIndex, board.zones.length - 1);
   const issues = validateScenarioSpec(spec);
   const labels = spec.boards.map(b => boardLabel(b.players));
-  // Never narrower than what is already painted, so nothing can hide off-canvas.
-  const length = Math.max(wanted, canvasLength(board));
+  const width = boardWidth(board);
+  // Never narrower than what is already painted, so nothing can hide off-map.
+  const floor = narrowestWidth(board);
   const taken = new Set(spec.boards.flatMap(b => b.players));
   const free = PLAYER_COUNTS.filter(count => !taken.has(count));
 
@@ -162,7 +164,6 @@ export function ScenarioEditor({
     setBoardIndex(index);
     setZoneIndex(0);
     setSelected(null);
-    setWanted(0);
   }
 
   function togglePlayers(count: number) {
@@ -414,7 +415,7 @@ export function ScenarioEditor({
           <div className="rounded-xl border border-black/10 p-3 dark:border-white/10">
             <ScenarioCanvas
               board={board}
-              length={length}
+              width={width}
               activeZone={zone}
               tool={tool}
               selected={selected}
@@ -423,29 +424,35 @@ export function ScenarioEditor({
             />
           </div>
 
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
             <span className="text-zinc-500 dark:text-zinc-400">
-              Longueur du plateau
+              Largeur du plateau
             </span>
             <button
               type="button"
-              onClick={() => setWanted(Math.max(MIN_LENGTH, length - 1))}
-              disabled={length <= MIN_LENGTH}
+              onClick={() => change(setBoardWidth(spec, boardIndex, width - 1))}
+              disabled={width <= floor}
               className={`${chipClass(false)} disabled:opacity-30`}
             >
               −
             </button>
             <span className="w-6 text-center tabular-nums font-semibold">
-              {length}
+              {width}
             </span>
             <button
               type="button"
-              onClick={() => setWanted(Math.min(MAX_LENGTH, length + 1))}
-              disabled={length >= MAX_LENGTH}
+              onClick={() => change(setBoardWidth(spec, boardIndex, width + 1))}
+              disabled={width >= MAX_WIDTH}
               className={`${chipClass(false)} disabled:opacity-30`}
             >
               +
             </button>
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">
+              {width} tuiles sur les rangées du bord, {width + 3} au milieu
+              {width <= floor && width > MIN_WIDTH
+                ? " · réduire découperait une zone peinte"
+                : ""}
+            </span>
           </div>
 
           <section className="flex flex-col gap-2">

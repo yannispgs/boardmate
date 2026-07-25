@@ -4,19 +4,18 @@ import {
   addBoard,
   addZone,
   canvasGrid,
-  canvasLength,
   cellOwner,
   duplicateBoard,
   emptyScenario,
   eraseCell,
-  MAX_LENGTH,
-  MIN_LENGTH,
+  narrowestWidth,
   paintCell,
   portTypeCounts,
   removeBoard,
   removeZone,
   renameZone,
   setBoardPlayers,
+  setBoardWidth,
   setPortTypeCount,
   setScenarioName,
   setStaticTile,
@@ -29,7 +28,14 @@ import {
   tokenCounts,
   zoneOfPortSlot,
 } from "./scenario-draft";
-import { BOARD_ROWS, type ScenarioSpec } from "./scenario-spec";
+import {
+  BOARD_ROWS,
+  boardWidth,
+  DEFAULT_WIDTH,
+  MAX_WIDTH,
+  MIN_WIDTH,
+  type ScenarioSpec,
+} from "./scenario-spec";
 
 /** A scenario with two spaces painted into its only zone. */
 function painted(): ScenarioSpec {
@@ -47,45 +53,81 @@ function zone(spec: ScenarioSpec, index = 0) {
 }
 
 describe("canvasGrid", () => {
-  it("covers the seven rows, each as long as asked", () => {
+  it("swells N, N+1, N+2, N+3 then back down, over seven rows", () => {
     const cells = canvasGrid(5);
+    const lengths = Array.from(
+      { length: BOARD_ROWS },
+      (_, r) => cells.filter(c => c.r === r).length,
+    );
 
-    expect(cells).toHaveLength(BOARD_ROWS * 5);
-    expect(new Set(cells.map(c => c.r)).size).toBe(BOARD_ROWS);
+    expect(lengths).toEqual([5, 6, 7, 8, 7, 6, 5]);
+    expect(cells).toHaveLength(44);
   });
 
-  it("shifts each pair of rows half a space, so the frame stays square", () => {
+  it("pulls each row left so the outline stays centred", () => {
     const cells = canvasGrid(3);
     const firstOf = (r: number) => cells.find(c => c.r === r)?.q;
 
     expect(firstOf(0)).toBe(0);
-    expect(firstOf(1)).toBe(0);
-    expect(firstOf(2)).toBe(-1);
+    expect(firstOf(1)).toBe(-1);
+    expect(firstOf(3)).toBe(-3);
     expect(firstOf(6)).toBe(-3);
   });
 });
 
-describe("canvasLength", () => {
-  it("is the smallest canvas on a board with nothing painted", () => {
-    expect(canvasLength(emptyScenario().boards[0])).toBe(MIN_LENGTH);
+describe("narrowestWidth", () => {
+  it("is the smallest board on one with nothing painted", () => {
+    expect(narrowestWidth(emptyScenario().boards[0])).toBe(MIN_WIDTH);
   });
 
   it("grows to hold the space painted furthest out", () => {
     const wide = paintCell(emptyScenario(), 0, 0, { q: 6, r: 2 });
 
-    expect(canvasLength(wide.boards[0])).toBe(8);
+    expect(narrowestWidth(wide.boards[0])).toBe(7);
   });
 
   it("counts a static tile like any other space", () => {
     const spec = setStaticTile(emptyScenario(), 0, { q: 7, r: 0 }, "mountains");
 
-    expect(canvasLength(spec.boards[0])).toBe(8);
+    expect(narrowestWidth(spec.boards[0])).toBe(8);
   });
 
-  it("never grows past the widest canvas the editor draws", () => {
+  it("ignores a space that fell outside the seven rows", () => {
+    const stray = paintCell(emptyScenario(), 0, 0, { q: 9, r: 9 });
+
+    expect(narrowestWidth(stray.boards[0])).toBe(MIN_WIDTH);
+  });
+
+  it("never grows past the widest board the editor draws", () => {
     const huge = paintCell(emptyScenario(), 0, 0, { q: 99, r: 0 });
 
-    expect(canvasLength(huge.boards[0])).toBe(MAX_LENGTH);
+    expect(narrowestWidth(huge.boards[0])).toBe(MAX_WIDTH);
+  });
+});
+
+describe("setBoardWidth", () => {
+  it("starts a board at the width the editor opens on", () => {
+    expect(boardWidth(emptyScenario().boards[0])).toBe(DEFAULT_WIDTH);
+  });
+
+  it("widens and narrows the board", () => {
+    const spec = setBoardWidth(emptyScenario(), 0, 8);
+
+    expect(boardWidth(spec.boards[0])).toBe(8);
+    expect(boardWidth(setBoardWidth(spec, 0, 4).boards[0])).toBe(4);
+  });
+
+  it("stays within the widths the editor draws", () => {
+    const spec = emptyScenario();
+
+    expect(boardWidth(setBoardWidth(spec, 0, 99).boards[0])).toBe(MAX_WIDTH);
+    expect(boardWidth(setBoardWidth(spec, 0, 0).boards[0])).toBe(MIN_WIDTH);
+  });
+
+  it("refuses to narrow past what is already painted", () => {
+    const painted = paintCell(emptyScenario(), 0, 0, { q: 6, r: 2 });
+
+    expect(boardWidth(setBoardWidth(painted, 0, MIN_WIDTH).boards[0])).toBe(7);
   });
 });
 

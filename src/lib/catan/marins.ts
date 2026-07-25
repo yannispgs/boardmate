@@ -43,6 +43,7 @@ import {
 } from "./board";
 import {
   bagLandCounts,
+  boardOutline,
   boardTotals,
   cellKey,
   type ScenarioBoardSpec,
@@ -63,39 +64,36 @@ export interface MarinsScenario {
 }
 
 /**
- * "Le Nouveau Monde" — 23 land tiles (no desert), 19 sea tiles, 9 harbours,
- * 12 points to win, over a 42-space canvas of 6-7-8-8-7-6.
+ * "Le Nouveau Monde" — 23 land tiles (no desert), 9 harbours, 12 points to win,
+ * over the standard Marins outline five spaces wide (44 spaces).
  *
  * ⚠️ The scenario has **no printed map**: the players lay the frame out
- * themselves and everything is drawn, so the outline below is **ours** and the
- * UI says so. Only the tile and harbour counts are the published ones; the token
- * bag is trimmed to exactly one per producing tile, since a bag has to hold as
- * many tokens as tiles that carry one.
+ * themselves and everything is drawn, so the width below is **ours** and the UI
+ * says so — the sea simply fills whatever the land leaves. Only the land and
+ * harbour counts are the published ones; the token bag is trimmed to exactly one
+ * per producing tile, since a bag has to hold as many tokens as tiles that carry
+ * one.
  */
+const NEW_WORLD_WIDTH = 5;
+
 const NEW_WORLD: ScenarioSpec = {
   name: "Le Nouveau Monde",
   targetScore: 12,
   boards: [
     {
       players: [3, 4],
+      width: NEW_WORLD_WIDTH,
       zones: [
         {
           name: "Archipel",
-          cells: canvasCells([
-            [0, -1, 4],
-            [1, -2, 4],
-            [2, -3, 4],
-            [3, -4, 3],
-            [4, -4, 2],
-            [5, -4, 1],
-          ]),
+          cells: boardOutline(NEW_WORLD_WIDTH),
           terrainCounts: {
             fields: 5,
             forest: 5,
             pasture: 5,
             hills: 4,
             mountains: 4,
-            sea: 19,
+            sea: 21,
           },
           numberTokens: [
             2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 8, 8, 9, 9, 9, 10, 10, 10, 11,

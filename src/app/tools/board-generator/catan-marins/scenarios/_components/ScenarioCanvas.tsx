@@ -69,14 +69,15 @@ function cellFill(
 }
 
 /**
- * The paintable map of one board: seven rows of `length` spaces, coloured by
- * whatever holds them. Clicking — or dragging across — a space applies the
- * current tool. In `port` mode a click selects a space instead, and the six
- * edges around it become the harbour slots to pin or unpin.
+ * The paintable map of one board: the fixed Marins outline at the board's
+ * width, coloured by whatever holds them. Clicking — or dragging across — a
+ * space applies the current tool. In `port` mode a click selects a space
+ * instead, and the six edges around it become the harbour slots to pin or
+ * unpin.
  */
 export function ScenarioCanvas({
   board,
-  length,
+  width,
   activeZone,
   tool,
   selected,
@@ -84,7 +85,7 @@ export function ScenarioCanvas({
   onPort,
 }: {
   board: ScenarioBoardSpec;
-  length: number;
+  width: number;
   activeZone: number;
   tool: CanvasTool;
   /** The space whose harbour edges are on show, in `port` mode. */
@@ -106,7 +107,7 @@ export function ScenarioCanvas({
     };
   }, []);
 
-  const cells = canvasGrid(length);
+  const cells = canvasGrid(width);
   const centres = new Map(
     cells.map(cell => [cellKey(cell), axialToPixel(cell.q, cell.r, SIZE)]),
   );

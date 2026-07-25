@@ -161,7 +161,7 @@ describe("validateScenarioSpec", () => {
     ).toEqual(["empty-zone", "token-count"]);
   });
 
-  it("flags a space outside the seven rows", () => {
+  it("flags a space outside the board's outline", () => {
     expect(
       kinds(
         spec({
@@ -176,7 +176,18 @@ describe("validateScenarioSpec", () => {
           ],
         }),
       ),
-    ).toEqual(["row-out-of-range", "row-out-of-range"]);
+    ).toEqual(["off-board", "off-board"]);
+  });
+
+  it("lets a wider board hold a space a narrower one cannot", () => {
+    const cells = [
+      { q: 6, r: 0 },
+      { q: 1, r: 0 },
+      { q: 2, r: 0 },
+    ];
+
+    expect(kinds(spec({ zones: [zone({ cells })] }))).toEqual(["off-board"]);
+    expect(kinds(spec({ width: 7, zones: [zone({ cells })] }))).toEqual([]);
   });
 
   it("flags a space claimed twice, whatever claims it", () => {
@@ -363,7 +374,7 @@ describe("specIssueText", () => {
     { kind: "no-players", board: 0 },
     { kind: "duplicate-players", board: 0, players: 4 },
     { kind: "empty-zone", ...shared },
-    { kind: "row-out-of-range", board: 0, cell },
+    { kind: "off-board", board: 0, cell },
     { kind: "overlap", board: 0, cell },
     { kind: "tile-count", ...shared, tiles: 2, cells: 3 },
     { kind: "token-count", ...shared, tokens: 1, needed: 2 },

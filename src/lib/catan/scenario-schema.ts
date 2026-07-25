@@ -14,7 +14,7 @@
 
 import { z } from "zod";
 
-import type { ScenarioSpec } from "./scenario-spec";
+import { MAX_WIDTH, MIN_WIDTH, type ScenarioSpec } from "./scenario-spec";
 
 /** Ceilings on a stored spec — a guard against absurd input, not a game rule. */
 const MAX_NAME = 80;
@@ -81,6 +81,7 @@ const staticSchema = z.object({
 
 const boardSchema = z.object({
   players: z.array(z.number().int()).max(MAX_BOARDS),
+  width: z.number().int().min(MIN_WIDTH).max(MAX_WIDTH).optional(),
   zones: z.array(zoneSchema).max(MAX_ZONES),
   statics: z.array(staticSchema).max(MAX_CELLS).optional(),
 });

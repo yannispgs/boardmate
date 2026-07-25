@@ -2,8 +2,10 @@
  * The **authored** description of a Catan - Marins scenario — what the scenario
  * editor produces and the generator draws from.
  *
- * A scenario board is a canvas seven rows deep (the rulebook's map frames all
- * share that thickness; only their length changes) on which the author paints:
+ * A scenario board is always the same shape: seven rows holding `N`, `N+1`,
+ * `N+2`, `N+3`, `N+2`, `N+1`, `N` spaces, centred on one another. Only `N`
+ * changes from one scenario or player count to the next. The author never
+ * draws that outline, only paints inside it:
  *
  *  - **zones** — a set of spaces plus the bag that fills them. One notion covers
  *    the three the rulebook uses: a bag of nothing but `sea` freezes a stretch of
@@ -21,13 +23,89 @@
 
 import type { CatanPortType, CatanTerrain } from "./board";
 
-/** Every scenario board is seven rows deep; only its length changes. */
+/** Every scenario board is seven rows deep; only its width changes. */
 export const BOARD_ROWS = 7;
+
+/** Spaces each row holds beyond the board's width, top row first. */
+const ROW_BULGE = [0, 1, 2, 3, 2, 1, 0];
+
+/**
+ * How narrow and how wide a map gets: the base Catan board at one end, the
+ * largest Marins map and a little room at the other.
+ */
+export const MIN_WIDTH = 3;
+export const MAX_WIDTH = 10;
+
+/** The width a board is drawn at when it does not say. */
+export const DEFAULT_WIDTH = 6;
 
 /** A space on the canvas, in axial coordinates (`r` = row, `q` = column). */
 export interface SpecCell {
   q: number;
   r: number;
+}
+
+/** The width a board is drawn at. */
+export function boardWidth(board: ScenarioBoardSpec): number {
+  return board.width ?? DEFAULT_WIDTH;
+}
+
+/** Where row `r` starts and how many spaces it holds, on a board `width` wide. */
+export function rowSpan(
+  width: number,
+  r: number,
+): { start: number; count: number } {
+  // Each row is pushed half a space left of the one above by the hex grid
+  // itself, and the bulging rows need half of their extra spaces back on the
+  // left to stay centred. Subtracted rather than negated: `-0` would travel
+  // into the stored spec. `r + ROW_BULGE[r]` is always even, so this is whole.
+  const start = 0 - (r + ROW_BULGE[r]) / 2;
+
+  return { start, count: width + ROW_BULGE[r] };
+}
+
+/** Every space of a board `width` wide, row by row. */
+export function boardOutline(width: number): SpecCell[] {
+  const cells: SpecCell[] = [];
+
+  for (let r = 0; r < BOARD_ROWS; r++) {
+    const { start, count } = rowSpan(width, r);
+
+    for (let q = start; q < start + count; q++) {
+      cells.push({ q, r });
+    }
+  }
+
+  return cells;
+}
+
+/** Whether a space falls on a board `width` wide. */
+export function isInsideBoard(width: number, cell: SpecCell): boolean {
+  if (cell.r < 0 || cell.r >= BOARD_ROWS) {
+    return false;
+  }
+
+  const { start, count } = rowSpan(width, cell.r);
+
+  return cell.q >= start && cell.q < start + count;
+}
+
+/** The narrowest board that still holds everything painted on this one. */
+export function minimumWidth(cells: SpecCell[]): number {
+  let width = MIN_WIDTH;
+
+  for (const cell of cells) {
+    if (cell.r < 0 || cell.r >= BOARD_ROWS) {
+      continue;
+    }
+
+    const { start } = rowSpan(0, cell.r);
+
+    // How wide row `r` must be for `q` to fall in it, undoing the bulge.
+    width = Math.max(width, cell.q - start + 1 - ROW_BULGE[cell.r]);
+  }
+
+  return Math.min(width, MAX_WIDTH);
 }
 
 /** What a space can hold: a land tile, or open sea. */
@@ -88,6 +166,12 @@ export interface StaticTile {
 export interface ScenarioBoardSpec {
   /** The exact player counts this map is used at (the rulebook groups them). */
   players: number[];
+  /**
+   * `N`, the width of the map's narrowest rows — the only thing that changes
+   * from one map to the next. Absent on a board authored before the outline
+   * was fixed, which reads as {@link DEFAULT_WIDTH}.
+   */
+  width?: number;
   zones: ScenarioZone[];
   statics?: StaticTile[];
 }
@@ -195,7 +279,7 @@ export type SpecIssue =
   | { kind: "no-players"; board: number }
   | { kind: "duplicate-players"; board: number; players: number }
   | { kind: "empty-zone"; board: number; zone: number; name: string }
-  | { kind: "row-out-of-range"; board: number; cell: SpecCell }
+  | { kind: "off-board"; board: number; cell: SpecCell }
   | { kind: "overlap"; board: number; cell: SpecCell }
   | {
       kind: "tile-count";
@@ -253,9 +337,11 @@ function boardIssues(board: ScenarioBoardSpec, index: number): SpecIssue[] {
     issues.push({ kind: "no-players", board: index });
   }
 
+  const width = boardWidth(board);
+
   const claim = (cell: SpecCell): void => {
-    if (cell.r < 0 || cell.r >= BOARD_ROWS) {
-      issues.push({ kind: "row-out-of-range", board: index, cell });
+    if (!isInsideBoard(width, cell)) {
+      issues.push({ kind: "off-board", board: index, cell });
     }
 
     if (claimed.has(cellKey(cell))) {
@@ -428,8 +514,8 @@ export function specIssueText(issue: SpecIssue): string {
       return `${issue.players} joueurs sont déjà servis par un autre plateau.`;
     case "empty-zone":
       return `La zone « ${issue.name} » ne contient aucune case.`;
-    case "row-out-of-range":
-      return `La case ${cellKey(issue.cell)} sort des ${BOARD_ROWS} rangées du plateau.`;
+    case "off-board":
+      return `La case ${cellKey(issue.cell)} sort du plateau : réduis la zone ou élargis le plateau.`;
     case "overlap":
       return `La case ${cellKey(issue.cell)} est occupée deux fois.`;
     case "tile-count":

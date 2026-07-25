@@ -65,13 +65,13 @@ describe("scenario catalogue", () => {
     expect(MARINS_SCENARIOS).toContain(scenario);
   });
 
-  it("ships 23 land tiles, 9 harbours and a 42-space canvas for Le Nouveau Monde", () => {
+  it("ships 23 land tiles, 9 harbours and a 44-space map for Le Nouveau Monde", () => {
     const totals = boardTotals(NEW_WORLD_BOARD);
 
     expect(totals.land).toBe(23);
-    expect(totals.sea).toBe(19);
+    expect(totals.sea).toBe(21);
     expect(totals.ports).toBe(9);
-    expect(NEW_WORLD_BOARD.zones[0].cells).toHaveLength(42);
+    expect(NEW_WORLD_BOARD.zones[0].cells).toHaveLength(44);
     expect(totals.numberTokens.length).toBeGreaterThanOrEqual(totals.land);
   });
 
@@ -238,7 +238,7 @@ describe("generateMarinsBoard", () => {
     expect(players).toBe(3);
     expect(board.variant).toBe("marins");
     expect(board.hexes).toHaveLength(23);
-    expect(board.sea).toHaveLength(19);
+    expect(board.sea).toHaveLength(21);
     expect(board.ports).toHaveLength(9);
     expect(variant.cells).toHaveLength(23);
   });
@@ -268,7 +268,7 @@ describe("generateMarinsBoard", () => {
     const { board } = generateMarinsBoard("new-world", 3, 5);
     const spaces = new Set([...board.hexes, ...board.sea].map(cellKey));
 
-    expect(spaces.size).toBe(42);
+    expect(spaces.size).toBe(44);
   });
 
   it("honours the placement rules the base generator enforces", () => {

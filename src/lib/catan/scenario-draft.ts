@@ -14,8 +14,12 @@
 
 import type { CatanPortType } from "./board";
 import {
-  BOARD_ROWS,
+  boardOutline,
   cellKey,
+  DEFAULT_WIDTH,
+  MAX_WIDTH,
+  MIN_WIDTH,
+  minimumWidth,
   type ScenarioBoardSpec,
   type ScenarioSpec,
   type ScenarioZone,
@@ -25,42 +29,35 @@ import {
   type StaticTile,
 } from "./scenario-spec";
 
-/** How wide a canvas can be, in spaces — the rulebook's longest map and then some. */
-export const MIN_LENGTH = 4;
-export const MAX_LENGTH = 14;
-
 /** The tokens a bag may hold, in the order the editor lists them. */
 export const TOKEN_VALUES = [2, 3, 4, 5, 6, 8, 9, 10, 11, 12];
 
-/**
- * The spaces of a canvas `length` wide: seven rows, each shifted half a space
- * to keep the frame square on screen rather than sheared into a rhombus.
- */
-export function canvasGrid(length: number): SpecCell[] {
-  const cells: SpecCell[] = [];
-
-  for (let r = 0; r < BOARD_ROWS; r++) {
-    // Subtracted rather than negated: `-Math.floor(0)` is -0, which would then
-    // travel into the stored spec.
-    const start = 0 - Math.floor(r / 2);
-
-    for (let q = start; q < start + length; q++) {
-      cells.push({ q, r });
-    }
-  }
-
-  return cells;
+/** The spaces of a board `width` wide — the canvas is exactly the map. */
+export function canvasGrid(width: number): SpecCell[] {
+  return boardOutline(width);
 }
 
-/** How wide the canvas must be to show everything a board has painted on it. */
-export function canvasLength(board: ScenarioBoardSpec): number {
-  let length = MIN_LENGTH;
+/**
+ * The narrowest the author may take this board without pushing painted spaces
+ * off the map. Narrowing to that and no further is what keeps a stray click
+ * from silently deleting an island.
+ */
+export function narrowestWidth(board: ScenarioBoardSpec): number {
+  return minimumWidth(boardCells(board));
+}
 
-  for (const cell of boardCells(board)) {
-    length = Math.max(length, cell.q + Math.floor(cell.r / 2) + 1);
-  }
+/** Sets a board's width, refusing to cut off anything already painted. */
+export function setBoardWidth(
+  spec: ScenarioSpec,
+  index: number,
+  width: number,
+): ScenarioSpec {
+  const clamped = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, width));
 
-  return Math.min(length, MAX_LENGTH);
+  return withBoard(spec, index, board => ({
+    ...board,
+    width: Math.max(clamped, narrowestWidth(board)),
+  }));
 }
 
 /** Every space a board has claimed, zones and static tiles alike. */
@@ -100,7 +97,7 @@ export function emptyZone(name: string): ScenarioZone {
 
 /** A board with one empty zone, used at the given player counts. */
 export function emptyBoard(players: number[]): ScenarioBoardSpec {
-  return { players, zones: [emptyZone("Zone 1")] };
+  return { players, width: DEFAULT_WIDTH, zones: [emptyZone("Zone 1")] };
 }
 
 /** A blank scenario: one board for three players, nothing painted. */
