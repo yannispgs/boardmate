@@ -104,7 +104,7 @@ export function createExtensionRepository(
         .select("*, extension_scenarios(*)")
         .eq("key", key)
         .maybeSingle();
-
+      /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */
       if (error) {
         throw new Error(`Lecture de l'extension: ${error.message}`);
       }
