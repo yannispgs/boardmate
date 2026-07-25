@@ -186,7 +186,11 @@ function Step({
         ) : null}
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pb-6">
+      {/* Scrolling on one axis clips the other too, which would shave the ring
+          off a selected card at the left, right and top edges. The padding
+          gives the ring room and the negative margin puts the content back
+          where it was, flush with the page's column. */}
+      <div className="-mx-1 -mt-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 pt-1 pb-6">
         {children}
       </div>
 
