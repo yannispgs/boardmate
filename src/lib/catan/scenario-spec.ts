@@ -30,8 +30,10 @@ export const BOARD_ROWS = 7;
 const ROW_BULGE = [0, 1, 2, 3, 2, 1, 0];
 
 /**
- * How narrow and how wide a map gets: the base Catan board at one end, the
- * largest Marins map and a little room at the other.
+ * How narrow and how wide a map gets. The smallest published maps — the three
+ * player ones — sit at 4; the floor is one below that so a two-player variant,
+ * should one turn up, has somewhere to go. The ceiling is the largest Marins
+ * map with a little room to spare.
  */
 export const MIN_WIDTH = 3;
 export const MAX_WIDTH = 10;
