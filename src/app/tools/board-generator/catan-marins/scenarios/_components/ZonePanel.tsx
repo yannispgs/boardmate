@@ -185,11 +185,15 @@ export function ZonePanel({
         title="Jetons"
         hint="Un jeton par tuile qui en porte un : ni la mer ni le désert n'en reçoivent."
       >
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+        {/* Laid out across, not down: ten tokens as ten labelled lines ate the
+            panel. Five per row keeps them readable in a 320px aside and reads
+            2, 3, 4… straight through. */}
+        <div className="grid grid-cols-5 gap-x-2 gap-y-3">
           {TOKEN_VALUES.map(token => (
             <CountStepper
               key={token}
               label={String(token)}
+              layout="stack"
               value={tokens.get(token) ?? 0}
               onChange={count =>
                 onChange(setTokenCount(spec, board, zone, token, count))
