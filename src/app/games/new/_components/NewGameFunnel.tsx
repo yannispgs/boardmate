@@ -31,6 +31,7 @@ import { usePlayers } from "@/lib/hooks/use-players";
 import { FirstPlayerWheel } from "./FirstPlayerWheel";
 import { PlayerPickCardList } from "./PlayerPickCardList";
 import { tileClass } from "./tile-class";
+import { WinTargetBar } from "./WinTargetBar";
 
 export function NewGameFunnel() {
   const router = useRouter();
@@ -415,6 +416,13 @@ function RecapStep({
     setValues(prev => ({ ...(prev ?? {}), [key]: value }));
   }
 
+  /** Only reachable from the editable target bar, which needs the field. */
+  function setTarget(value: number | undefined) {
+    if (thresholdField != null) {
+      setField(thresholdField, value);
+    }
+  }
+
   function confirmLaunch(snapshot: ConfigValues | null) {
     requestConfirm({
       message: "Tout est prêt ? La partie va démarrer.",
@@ -463,8 +471,79 @@ function RecapStep({
       values?.[f.key] === true,
   );
 
+  // The bar shows the target the options actually add up to; the field itself
+  // only holds the base, so the sum is spelled out rather than silently applied.
+  const bonus =
+    optionBonus > 0 && typeof targetValue === "number"
+      ? {
+          label: boostedOptions
+            .map(f => `+${f.targetModifier} ${f.label}`)
+            .join(" · "),
+          total: targetValue + optionBonus,
+        }
+      : null;
+  const showTarget = lockedTarget !== null || thresholdSpec !== null;
+
   return (
-    <Step title="4 · Vérifie et lance la partie" onBack={onBack}>
+    <Step
+      title="4 · Vérifie et lance la partie"
+      onBack={onBack}
+      footer={
+        loading ? null : (
+          <>
+            {showTarget ? (
+              <WinTargetBar
+                locked={lockedTarget}
+                note={`Imposé par le scénario${
+                  active.some(e => e.targetModifier > 0) || optionBonus > 0
+                    ? " (relevé par les options et extensions actives)"
+                    : ""
+                }.`}
+                value={targetValue}
+                min={
+                  thresholdSpec && "min" in thresholdSpec
+                    ? thresholdSpec.min
+                    : undefined
+                }
+                max={
+                  thresholdSpec && "max" in thresholdSpec
+                    ? thresholdSpec.max
+                    : undefined
+                }
+                bonus={bonus}
+                onChange={setTarget}
+              />
+            ) : null}
+
+            {invalid ? (
+              <p
+                role="alert"
+                className="text-sm text-red-600 dark:text-red-400"
+              >
+                {invalid}
+              </p>
+            ) : null}
+            {error ? (
+              <p
+                role="alert"
+                className="text-sm text-red-600 dark:text-red-400"
+              >
+                {error}
+              </p>
+            ) : null}
+
+            <button
+              type="button"
+              disabled={creating}
+              onClick={handleLaunch}
+              className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
+            >
+              {creating ? "Création…" : "Lancer la partie"}
+            </button>
+          </>
+        )
+      }
+    >
       {loading ? (
         <p className="text-sm text-zinc-500">Chargement…</p>
       ) : (
@@ -583,84 +662,6 @@ function RecapStep({
             </div>
           ) : null}
 
-          {lockedTarget !== null ? (
-            <div className="flex flex-col gap-1 rounded-xl border border-indigo-500/40 bg-indigo-500/[0.06] p-4">
-              <span className="flex items-center gap-2 font-medium">
-                <span aria-hidden>🎯</span>
-                Score à atteindre pour gagner
-              </span>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Imposé par le scénario
-                {active.some(e => e.targetModifier > 0) || optionBonus > 0
-                  ? " (relevé par les options et extensions actives)"
-                  : ""}
-                .
-              </p>
-              <span className="mt-1 text-lg font-semibold tabular-nums">
-                {lockedTarget}
-              </span>
-            </div>
-          ) : thresholdField != null && thresholdSpec ? (
-            <div className="flex flex-col gap-1 rounded-xl border border-indigo-500/40 bg-indigo-500/[0.06] p-4">
-              <label
-                htmlFor="win-threshold"
-                className="flex items-center gap-2 font-medium"
-              >
-                <span aria-hidden>🎯</span>
-                Score à atteindre pour gagner
-              </label>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Indicatif — ajuste-le selon votre partie (extensions,
-                scénario…).
-              </p>
-              <input
-                id="win-threshold"
-                type="number"
-                inputMode="numeric"
-                step={1}
-                min={"min" in thresholdSpec ? thresholdSpec.min : undefined}
-                max={"max" in thresholdSpec ? thresholdSpec.max : undefined}
-                value={targetValue}
-                onChange={e =>
-                  setField(
-                    thresholdField,
-                    e.target.value === "" ? undefined : Number(e.target.value),
-                  )
-                }
-                className="mt-1 w-28 rounded-lg border border-black/15 bg-white px-3 py-2 text-lg font-semibold tabular-nums outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900"
-              />
-              {optionBonus > 0 && typeof targetValue === "number" ? (
-                <p className="text-xs font-medium text-indigo-700 dark:text-indigo-300">
-                  {boostedOptions
-                    .map(f => `+${f.targetModifier} ${f.label}`)
-                    .join(" · ")}
-                  {" → "}
-                  <strong>{targetValue + optionBonus}</strong>&nbsp;points à
-                  atteindre
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-
-          {invalid ? (
-            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-              {invalid}
-            </p>
-          ) : null}
-          {error ? (
-            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-              {error}
-            </p>
-          ) : null}
-
-          <button
-            type="button"
-            disabled={creating}
-            onClick={handleLaunch}
-            className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
-          >
-            {creating ? "Création…" : "Lancer la partie"}
-          </button>
           {confirmDialog}
           {wheelOpen ? (
             <FirstPlayerWheel
