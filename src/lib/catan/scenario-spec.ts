@@ -42,11 +42,13 @@ export interface SpecPort extends SpecCell {
   dr: number;
 }
 
-/** A bag of harbours: where they may sit, and which ones are in the box. */
+/** A bag of harbours: where they sit, and which ones are in the box. */
 export interface SpecPortBag {
   /**
-   * The edges they sit on. Pinned by the author on a zone whose land is fixed;
-   * left empty elsewhere, and then drawn along whatever coast the game rolls.
+   * The edges they sit on — the author's call, never the players'. A harbour
+   * needs a coast, so pinning one **forces its space to be land**, even in a
+   * zone that otherwise draws its sea. Left empty only on a scenario with no
+   * printed map, where the harbours follow whatever coast the game rolls.
    */
   slots?: SpecPort[];
   types: CatanPortType[];
@@ -221,7 +223,14 @@ export type SpecIssue =
       types: number;
       slots: number;
     }
-  | { kind: "port-on-random"; board: number; zone: number; name: string }
+  | {
+      kind: "port-over-land";
+      board: number;
+      zone: number;
+      name: string;
+      spaces: number;
+      land: number;
+    }
   | {
       kind: "port-off-zone";
       board: number;
@@ -327,7 +336,11 @@ function boardIssues(board: ScenarioBoardSpec, index: number): SpecIssue[] {
   return issues;
 }
 
-/** The harbour bag of a zone: enough slots, and pinned only where land is sure. */
+/**
+ * The harbour bag of a zone: one slot per harbour, all of them inside the zone,
+ * and never more coast pinned than the zone has land to give — a pinned harbour
+ * forces its space to be land, so it competes with the zone's sea.
+ */
 function portIssues(
   zone: ScenarioZone,
   shared: { board: number; zone: number; name: string },
@@ -349,16 +362,26 @@ function portIssues(
     });
   }
 
-  if ((zone.terrainCounts.sea ?? 0) > 0) {
-    issues.push({ kind: "port-on-random", ...shared });
-  }
-
   const own = new Set(zone.cells.map(cellKey));
+  const hosts = new Set<string>();
 
   for (const slot of slots) {
+    hosts.add(cellKey(slot));
+
     if (!own.has(cellKey(slot))) {
       issues.push({ kind: "port-off-zone", ...shared, cell: slot });
     }
+  }
+
+  const land = zone.cells.length - (zone.terrainCounts.sea ?? 0);
+
+  if (hosts.size > land) {
+    issues.push({
+      kind: "port-over-land",
+      ...shared,
+      spaces: hosts.size,
+      land,
+    });
   }
 
   return issues;
@@ -419,8 +442,8 @@ export function specIssueText(issue: SpecIssue): string {
       return `La case ${cellKey(issue.cell)} ne peut pas porter de jeton : ni la mer ni le désert n'en reçoivent.`;
     case "port-count":
       return `La zone « ${issue.name} » épingle ${issue.slots} emplacements de port pour ${issue.types} ports.`;
-    case "port-on-random":
-      return `La zone « ${issue.name} » tire sa mer au sort : ses ports ne peuvent pas être épinglés.`;
+    case "port-over-land":
+      return `La zone « ${issue.name} » épingle des ports sur ${issue.spaces} cases alors qu'elle ne compte que ${issue.land} tuiles de terre.`;
     default:
       return `Le port épinglé en ${cellKey(issue.cell)} n'est pas dans la zone « ${issue.name} ».`;
   }

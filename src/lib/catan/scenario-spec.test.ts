@@ -266,9 +266,11 @@ describe("validateScenarioSpec", () => {
     ).toEqual(["port-count"]);
   });
 
-  it("flags harbours pinned on a zone whose sea is drawn", () => {
+  it("accepts a harbour pinned on a zone whose sea is drawn", () => {
+    // The scenario always fixes where a harbour sits; pinning one simply makes
+    // that space land whatever the draw.
     expect(
-      kinds(
+      validateScenarioSpec(
         spec({
           zones: [
             zone({
@@ -282,7 +284,51 @@ describe("validateScenarioSpec", () => {
           ],
         }),
       ),
-    ).toEqual(["port-on-random"]);
+    ).toEqual([]);
+  });
+
+  it("flags more coast pinned than the zone has land to give", () => {
+    expect(
+      kinds(
+        spec({
+          zones: [
+            zone({
+              terrainCounts: { forest: 1, sea: 2 },
+              numberTokens: [4],
+              ports: {
+                slots: [
+                  { q: 0, r: 0, dq: 0, dr: -1 },
+                  { q: 1, r: 0, dq: 0, dr: -1 },
+                ],
+                types: ["wood", "ore"],
+              },
+            }),
+          ],
+        }),
+      ),
+    ).toEqual(["port-over-land"]);
+  });
+
+  it("counts two harbours on one space as one space of coast", () => {
+    expect(
+      validateScenarioSpec(
+        spec({
+          zones: [
+            zone({
+              terrainCounts: { forest: 1, sea: 2 },
+              numberTokens: [4],
+              ports: {
+                slots: [
+                  { q: 0, r: 0, dq: 0, dr: -1 },
+                  { q: 0, r: 0, dq: 1, dr: -1 },
+                ],
+                types: ["wood", "ore"],
+              },
+            }),
+          ],
+        }),
+      ),
+    ).toEqual([]);
   });
 
   it("flags a harbour pinned on a space the zone doesn't hold", () => {
@@ -324,7 +370,7 @@ describe("specIssueText", () => {
     { kind: "bad-token", board: 0, where: "Île", token: 7 },
     { kind: "static-token", board: 0, cell },
     { kind: "port-count", ...shared, types: 1, slots: 2 },
-    { kind: "port-on-random", ...shared },
+    { kind: "port-over-land", ...shared, spaces: 2, land: 1 },
     { kind: "port-off-zone", ...shared, cell },
   ];
 

@@ -399,6 +399,43 @@ describe("generateSpecBoard", () => {
     expect(board.ports.map(p => p.type).sort()).toEqual(["generic", "wood"]);
   });
 
+  it("makes a pinned harbour's space land, even where the sea is drawn", () => {
+    const ports = {
+      slots: [
+        { q: 0, r: 0, dq: 0, dr: -1 },
+        { q: 5, r: 0, dq: 0, dr: 1 },
+      ],
+      types: ["wood", "ore"] as const,
+    };
+    const zone = {
+      name: "Large",
+      cells: strip(6),
+      terrainCounts: { forest: 2, pasture: 1, sea: 3 },
+      numberTokens: [4, 5, 6],
+      ports: { slots: ports.slots, types: [...ports.types] },
+    };
+
+    // Both draw modes: the plain shuffle, and grown islands.
+    for (const islands of [undefined, [1, 2] as const]) {
+      for (let seed = 0; seed < 8; seed++) {
+        const { board } = generateSpecBoard(
+          {
+            name: "Côte épinglée",
+            targetScore: 10,
+            boards: [{ players: [3], zones: [{ ...zone, islands }] }],
+          },
+          3,
+          seed,
+        );
+        const land = new Set(board.hexes.map(cellKey));
+
+        expect(land.has("0,0")).toBe(true);
+        expect(land.has("5,0")).toBe(true);
+        expect(board.hexes).toHaveLength(3);
+      }
+    }
+  });
+
   it("keeps each zone's harbour types inside that zone", () => {
     const spec: ScenarioSpec = {
       name: "Deux îles",

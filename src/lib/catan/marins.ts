@@ -247,6 +247,7 @@ export function growIslands(
   total: number,
   sizes: number[],
   rng: () => number,
+  seeded: number[] = [],
 ): number[] {
   const spaces = neighbours.map((_, id) => id);
   const owner = new Map<number, number>();
@@ -254,7 +255,17 @@ export function growIslands(
   const taken = (id: number): boolean => owner.has(id);
   const grown: number[] = [];
 
-  for (const _size of sizes) {
+  // Spaces the scenario pins as land (a harbour's coast) are laid before
+  // anything is drawn, as the first island — the rest grows around them.
+  if (seeded.length > 0) {
+    for (const id of seeded) {
+      owner.set(id, 0);
+    }
+
+    grown.push(seeded.length);
+  }
+
+  for (const _size of sizes.slice(grown.length)) {
     if (owner.size >= total) {
       break;
     }
@@ -359,7 +370,10 @@ export function pickPortSlots(
   return [...picked, ...spare.slice(0, count - picked.length)];
 }
 
-/** Which spaces of a zone end up as land, and which as sea. */
+/**
+ * Which spaces of a zone end up as land, and which as sea. A harbour pinned by
+ * the scenario needs a coast to sit on, so its space is land whatever the draw.
+ */
 function resolveZone(
   zone: ScenarioZone,
   rng: () => number,
@@ -371,11 +385,17 @@ function resolveZone(
   }
 
   const landCount = zone.cells.length - seaCount;
+  const pinned = new Set((zone.ports?.slots ?? []).map(cellKey));
 
   if (zone.islands === undefined) {
-    const drawn = shuffle(zone.cells, rng);
+    const held = zone.cells.filter(c => pinned.has(cellKey(c)));
+    const drawn = shuffle(
+      zone.cells.filter(c => !pinned.has(cellKey(c))),
+      rng,
+    );
+    const free = landCount - held.length;
 
-    return { land: drawn.slice(0, landCount), sea: drawn.slice(landCount) };
+    return { land: [...held, ...drawn.slice(0, free)], sea: drawn.slice(free) };
   }
 
   const spaces = withIds(zone.cells.map(c => ({ id: 0, q: c.q, r: c.r })));
@@ -387,6 +407,7 @@ function resolveZone(
       landCount,
       islandSizes(landCount, islands, rng),
       rng,
+      spaces.filter(c => pinned.has(cellKey(c))).map(c => c.id),
     ),
   );
 
