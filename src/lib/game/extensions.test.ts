@@ -21,6 +21,7 @@ function ext(
   return {
     id: partial.id as ExtensionId,
     baseGameId: "bg" as never,
+    key: partial.key ?? null,
     name: partial.name ?? partial.id,
     configFields: partial.configFields ?? [],
     scoringDelta: partial.scoringDelta ?? null,
@@ -186,6 +187,7 @@ describe("scenarioTarget", () => {
         name: "Four Islands",
         targetScore: 13,
         boardKey: "four-islands",
+        boardSpec: null,
         sortOrder: 0,
       },
       {
@@ -194,6 +196,7 @@ describe("scenarioTarget", () => {
         name: "No target",
         targetScore: null,
         boardKey: null,
+        boardSpec: null,
         sortOrder: 1,
       },
     ],

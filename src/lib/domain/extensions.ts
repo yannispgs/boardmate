@@ -1,3 +1,5 @@
+import type { ScenarioSpec } from "@/lib/catan/scenario-spec";
+
 import type { ScoreSheetItem } from "./boardgame";
 import type { FieldSpec } from "./config";
 import type { BoardgameId, ExtensionId, ExtensionScenarioId } from "./ids";
@@ -16,7 +18,28 @@ export interface ExtensionScenario {
   targetScore: number | null;
   /** Key the board generator reads to build this scenario's board. */
   boardKey: string | null;
+  /**
+   * The board the scenario is drawn from, when it was authored in the app
+   * rather than shipped in code. A scenario carries this or a `boardKey`.
+   */
+  boardSpec: ScenarioSpec | null;
   sortOrder: number;
+}
+
+/** A scenario the editor creates: everything but the id the database mints. */
+export interface NewExtensionScenario {
+  extensionId: ExtensionId;
+  name: string;
+  targetScore: number | null;
+  boardSpec: ScenarioSpec;
+  sortOrder: number;
+}
+
+/** What the editor may change on an existing scenario. */
+export interface ExtensionScenarioUpdate {
+  name: string;
+  targetScore: number | null;
+  boardSpec: ScenarioSpec;
 }
 
 /**
@@ -29,6 +52,12 @@ export interface ExtensionScenario {
 export interface Extension {
   id: ExtensionId;
   baseGameId: BoardgameId;
+  /**
+   * Stable handle for the extensions the code has to recognise by itself — the
+   * board generator draws `catan-marins` scenarios. Null on the rest, which are
+   * pure data the app never names.
+   */
+  key: string | null;
   name: string;
   configFields: FieldSpec[];
   scoringDelta: ScoringDelta | null;

@@ -14,6 +14,9 @@ import type {
   ConfigTemplate,
   ConfigValues,
   Extension,
+  ExtensionScenario,
+  ExtensionScenarioId,
+  ExtensionScenarioUpdate,
   Feedback,
   FieldSpec,
   Game,
@@ -23,6 +26,7 @@ import type {
   GameStatus,
   NewBoardgame,
   NewConfig,
+  NewExtensionScenario,
   NewFeedback,
   NewFinishedGame,
   NewGame,
@@ -219,6 +223,22 @@ export interface ExtensionRepository {
   listByBase(baseGameId: BoardgameId): Promise<Extension[]>;
   /** The ids of the base games that have at least one active extension. */
   listExtendedBaseGames(): Promise<BoardgameId[]>;
+  /**
+   * One extension by its stable key — how a screen built around a specific
+   * extension (the Marins board generator) finds it without knowing an id.
+   */
+  getByKey(key: string): Promise<Extension | null>;
+  /** Saves a scenario authored in the app (the Marins scenario editor). */
+  createScenario(input: NewExtensionScenario): Promise<ExtensionScenario>;
+  updateScenario(
+    id: ExtensionScenarioId,
+    patch: ExtensionScenarioUpdate,
+  ): Promise<ExtensionScenario>;
+  /**
+   * Permanently deletes an authored scenario. Only possible while no game has
+   * been played with it; rejects with `ScenarioInUseError` otherwise.
+   */
+  deleteScenario(id: ExtensionScenarioId): Promise<void>;
 }
 
 /** Aggregate of all repositories, resolved by the active adapter. */
