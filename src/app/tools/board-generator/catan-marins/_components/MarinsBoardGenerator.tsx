@@ -12,13 +12,14 @@ import { TerrainLegend } from "@/components/catan/TerrainLegend";
 import { boardWarnings, type CatanTerrain } from "@/lib/catan/board";
 import {
   generateMarinsBoard,
-  landTileCount,
   MARINS_SCENARIOS,
   type MarinsBoard,
   type MarinsScenarioKey,
   marinsPlayerGroups,
+  marinsScenario,
   playerGroupLabel,
 } from "@/lib/catan/marins";
+import { boardTotals } from "@/lib/catan/scenario-spec";
 
 /** Legend order — the terrains a scenario doesn't ship are filtered out. */
 const TERRAIN_ORDER: CatanTerrain[] = [
@@ -27,19 +28,20 @@ const TERRAIN_ORDER: CatanTerrain[] = [
   "fields",
   "hills",
   "mountains",
+  "gold",
   "desert",
 ];
 
 const SCENARIOS: SegmentedOption<MarinsScenarioKey>[] = MARINS_SCENARIOS.map(
   s => ({
     value: s.key,
-    label: s.name,
-    hint: `🎯 ${s.targetScore} points`,
+    label: s.spec.name,
+    hint: `🎯 ${s.spec.targetScore} points`,
   }),
 );
 
 const FIRST = MARINS_SCENARIOS[0];
-const DEFAULT_PLAYERS = marinsPlayerGroups(FIRST)[0][0];
+const DEFAULT_PLAYERS = marinsPlayerGroups(FIRST.spec)[0][0];
 
 const sectionClass =
   "flex w-full max-w-md flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10";
@@ -60,9 +62,9 @@ export function MarinsBoardGenerator() {
     setDrawn(generateMarinsBoard(FIRST.key, DEFAULT_PLAYERS));
   }, []);
 
-  const { scenario, players, board, variant } = drawn;
-  const composition = scenario.compositions[players];
-  const groups = marinsPlayerGroups(scenario);
+  const { scenario, players, spec, board, variant } = drawn;
+  const totals = boardTotals(spec);
+  const groups = marinsPlayerGroups(scenario.spec);
   const warnings = boardWarnings(board, { variantSpec: variant });
 
   function regen(key: MarinsScenarioKey, count: number) {
@@ -75,7 +77,9 @@ export function MarinsBoardGenerator() {
         label="Scénario"
         options={SCENARIOS}
         value={scenario.key}
-        onChange={key => regen(key, marinsPlayerGroups(scenario)[0][0])}
+        onChange={key =>
+          regen(key, marinsPlayerGroups(marinsScenario(key).spec)[0][0])
+        }
       />
 
       {groups.length > 1 ? (
@@ -90,9 +94,9 @@ export function MarinsBoardGenerator() {
         />
       ) : (
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          {playerGroupLabel(groups[0])} · {landTileCount(composition)} terres,{" "}
+          {playerGroupLabel(groups[0])} · {totals.land} terres,{" "}
           {board.sea.length} mers, {board.ports.length} ports · 🎯{" "}
-          {scenario.targetScore} points
+          {scenario.spec.targetScore} points
         </p>
       )}
 
@@ -119,7 +123,7 @@ export function MarinsBoardGenerator() {
       <BoardStructure board={board} />
 
       <TerrainLegend
-        terrains={TERRAIN_ORDER.filter(t => composition.terrainCounts[t] > 0)}
+        terrains={TERRAIN_ORDER.filter(t => totals.terrainCounts[t] > 0)}
         sea
       />
 
@@ -127,8 +131,8 @@ export function MarinsBoardGenerator() {
         <h2 className="font-semibold">Comment ce plateau est tiré</h2>
         <ul className="flex list-disc flex-col gap-1 pl-4 text-zinc-600 dark:text-zinc-300">
           <li>
-            Les {landTileCount(composition)} tuiles de terre forment des îles
-            séparées par la mer, posées à distance les unes des autres.
+            Les {totals.land} tuiles de terre forment des îles séparées par la
+            mer, posées à distance les unes des autres.
           </li>
           <li>
             Les {board.ports.length} ports se répartissent sur les côtes, au
@@ -141,7 +145,7 @@ export function MarinsBoardGenerator() {
           </li>
           <li>
             Le score à atteindre est fixé par le scénario :{" "}
-            <strong>{scenario.targetScore} points</strong>.
+            <strong>{scenario.spec.targetScore} points</strong>.
           </li>
         </ul>
         <p className="text-xs text-zinc-500 dark:text-zinc-400">

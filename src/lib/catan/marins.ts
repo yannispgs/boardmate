@@ -1,24 +1,26 @@
 /**
  * Board generation for **Catan - Marins** (Seafarers) scenarios.
  *
- * A Marins map is a *frame* of hex spaces filled with land and sea tiles: the
+ * A Marins map is a canvas of hex spaces filled with land and sea tiles: the
  * land forms islands, the sea surrounds them, and the harbours sit on the edge
  * between a sea space and a land tile (rulebook: "place it on an edge between a
  * sea hex and a land hex, the token lying on the sea hex, both of its corners
  * touching the land hex") — exactly the {@link PortSlot} the base generator
  * already models.
  *
- * Once the islands are drawn, the terrain and the number tokens are laid by the
- * **base generator** on the land tiles only: because the islands are separate
- * components, its adjacency rules (no two reds side by side, no duplicate
- * neighbours, resource balance) apply per island for free.
+ * What a scenario holds is **authored data**, not code: a {@link ScenarioSpec}
+ * paints zones (a set of spaces plus the bag that fills them) and static tiles
+ * onto the canvas, and this module turns one into a board. Drawing it goes:
  *
- * ⚠️ Scenarios come in two families. **Fully-random** ones ("Le Nouveau Monde")
- * have no printed map — the players build it — so we can generate them end to
- * end. **Fixed-skeleton** ones ("Les quatre îles", "À la découverte de nouveaux
- * rivages"…) have a printed island layout that must be transcribed from the
- * rulebook's map diagram; they are added here as data once that diagram is at
- * hand.
+ *  1. **resolve the map** — each zone hands out its sea, either as grown islands
+ *     when it asks for them or wherever the shuffle drops it; static tiles take
+ *     their fixed space;
+ *  2. **place the harbours** — pinned where the author pinned them, spread along
+ *     the drawn coast otherwise;
+ *  3. **fill the land** — the terrain and the number tokens are laid by the
+ *     **base generator**, one bag per zone: because the islands are separate
+ *     components, its adjacency rules (no two reds side by side, no duplicate
+ *     neighbours, resource balance) apply per island for free.
  *
  * Pure and deterministic given a `seed`.
  */
@@ -29,7 +31,6 @@ import {
   buildNeighbours,
   type CatanBoard,
   type CatanPortType,
-  type CatanTerrain,
   type CatanVariant,
   DIRECTIONS,
   generateCatanBoard,
@@ -37,92 +38,92 @@ import {
   mulberry32,
   type PortSlot,
   shuffle,
+  type TilePool,
   withIds,
 } from "./board";
+import {
+  bagLandCounts,
+  boardTotals,
+  cellKey,
+  type ScenarioBoardSpec,
+  type ScenarioSpec,
+  type ScenarioZone,
+  type SpecCell,
+  specIssueText,
+  validateScenarioSpec,
+} from "./scenario-spec";
 
-/** The scenarios this generator can draw. Keys match `extension_scenarios.board_key`. */
+/** The scenarios this generator ships with. Keys match `board_key`. */
 export type MarinsScenarioKey = "new-world";
 
-/** A row of the map frame: its `r`, and the `q` range of its spaces. */
-export type FrameRow = readonly [r: number, qStart: number, qEnd: number];
-
-/** What comes out of the box for one scenario at one exact player count. */
-export interface MarinsComposition {
-  /** Every space of the map outline — land and sea together. */
-  frame: FrameRow[];
-  terrainCounts: Record<CatanTerrain, number>;
-  numberTokens: number[];
-  portTypes: CatanPortType[];
-  /** How many islands the land is split into (inclusive range). */
-  islands: readonly [min: number, max: number];
-}
-
+/** A scenario the generator can draw, behind the key the app stores. */
 export interface MarinsScenario {
   key: MarinsScenarioKey;
-  name: string;
-  /** The scenario's fixed score to reach — independent of the player count. */
-  targetScore: number;
-  /** Composition per **exact** player count. */
-  compositions: Record<number, MarinsComposition>;
+  spec: ScenarioSpec;
 }
-
-/**
- * Our own 42-space outline for "Le Nouveau Monde": 6 rows of 6-7-8-8-7-6, the
- * 19 sea + 23 land tiles the scenario ships with. The scenario has no printed
- * map (the players lay the frame out themselves), so the shape is ours; the
- * tile and token counts are the published ones.
- */
-const NEW_WORLD_FRAME: FrameRow[] = [
-  [-2, -1, 4],
-  [-1, -2, 4],
-  [0, -3, 4],
-  [1, -4, 3],
-  [2, -4, 2],
-  [3, -4, 1],
-];
 
 /**
  * "Le Nouveau Monde" — 23 land tiles (no desert), 19 sea tiles, 9 harbours,
- * 12 points to win. The published token stack holds 24 tokens for 23 land
- * tiles, so one is left over, which is what the rulebook describes: shuffle the
- * stack, then place **one token per land tile**.
+ * 12 points to win, over a 42-space canvas of 6-7-8-8-7-6.
+ *
+ * ⚠️ The scenario has **no printed map**: the players lay the frame out
+ * themselves and everything is drawn, so the outline below is **ours** and the
+ * UI says so. Only the tile and harbour counts are the published ones; the token
+ * bag is trimmed to exactly one per producing tile, since a bag has to hold as
+ * many tokens as tiles that carry one.
  */
-const NEW_WORLD: MarinsComposition = {
-  frame: NEW_WORLD_FRAME,
-  terrainCounts: {
-    fields: 5,
-    forest: 5,
-    pasture: 5,
-    hills: 4,
-    mountains: 4,
-    desert: 0,
-  },
-  numberTokens: [
-    2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 8, 8, 9, 9, 9, 10, 10, 10, 11, 11, 11,
-    12,
+const NEW_WORLD: ScenarioSpec = {
+  name: "Le Nouveau Monde",
+  targetScore: 12,
+  boards: [
+    {
+      players: [3, 4],
+      zones: [
+        {
+          name: "Archipel",
+          cells: canvasCells([
+            [0, -1, 4],
+            [1, -2, 4],
+            [2, -3, 4],
+            [3, -4, 3],
+            [4, -4, 2],
+            [5, -4, 1],
+          ]),
+          terrainCounts: {
+            fields: 5,
+            forest: 5,
+            pasture: 5,
+            hills: 4,
+            mountains: 4,
+            sea: 19,
+          },
+          numberTokens: [
+            2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 8, 8, 9, 9, 9, 10, 10, 10, 11,
+            11, 12,
+          ],
+          islands: [3, 5],
+          ports: {
+            types: [
+              "generic",
+              "generic",
+              "generic",
+              "generic",
+              "wood",
+              "brick",
+              "wool",
+              "grain",
+              "ore",
+            ],
+          },
+        },
+      ],
+    },
   ],
-  portTypes: [
-    "generic",
-    "generic",
-    "generic",
-    "generic",
-    "wood",
-    "brick",
-    "wool",
-    "grain",
-    "ore",
-  ],
-  islands: [3, 5],
 };
 
-/** Every scenario the generator can draw, in menu order. */
+/** Every scenario the generator ships with, in menu order. */
 export const MARINS_SCENARIOS: MarinsScenario[] = [
-  {
-    key: "new-world",
-    name: "Le Nouveau Monde",
-    targetScore: 12,
-    compositions: { 3: NEW_WORLD, 4: NEW_WORLD },
-  },
+  { key: "new-world", spec: NEW_WORLD },
 ];
 
 /** The scenario behind a key. */
@@ -137,36 +138,25 @@ export function marinsScenario(key: MarinsScenarioKey): MarinsScenario {
   return found;
 }
 
-/** The exact player counts a scenario has a composition for, ascending. */
-export function marinsPlayerCounts(scenario: MarinsScenario): number[] {
-  return Object.keys(scenario.compositions)
-    .map(Number)
-    .sort((a, b) => a - b);
-}
+/** A row of a canvas outline: its `r`, and the `q` range of its spaces. */
+export type CanvasRow = readonly [r: number, qStart: number, qEnd: number];
 
-/**
- * The player counts a scenario supports, grouped by the composition they share
- * — a rulebook gives "3-4 joueurs" one map and "5-6 joueurs" another, so the
- * picker offers one choice per distinct board rather than one per count.
- */
-export function marinsPlayerGroups(scenario: MarinsScenario): number[][] {
-  const groups: number[][] = [];
+/** Expands an outline given row by row into the spaces it covers. */
+export function canvasCells(rows: readonly CanvasRow[]): SpecCell[] {
+  const cells: SpecCell[] = [];
 
-  for (const players of marinsPlayerCounts(scenario)) {
-    const previous = groups.at(-1);
-    const composition = scenario.compositions[players];
-
-    if (
-      previous !== undefined &&
-      scenario.compositions[previous[0]] === composition
-    ) {
-      previous.push(players);
-    } else {
-      groups.push([players]);
+  for (const [r, qStart, qEnd] of rows) {
+    for (let q = qStart; q <= qEnd; q++) {
+      cells.push({ q, r });
     }
   }
 
-  return groups;
+  return cells;
+}
+
+/** The player counts a scenario has a map for, grouped by shared map. */
+export function marinsPlayerGroups(spec: ScenarioSpec): number[][] {
+  return spec.boards.map(board => [...board.players].sort((a, b) => a - b));
 }
 
 /** `3-4 joueurs` / `5 joueurs` — a player group, labelled for the picker. */
@@ -178,25 +168,12 @@ export function playerGroupLabel(group: number[]): string {
     : `${group[0]} joueur${group[0] > 1 ? "s" : ""}`;
 }
 
-/** Land tiles in a composition — one per terrain tile in the box. */
-export function landTileCount(composition: MarinsComposition): number {
-  return Object.values(composition.terrainCounts).reduce(
-    (sum, n) => sum + n,
-    0,
-  );
-}
-
-/** The map outline as hex cells, ids assigned row by row. */
-export function frameCells(frame: FrameRow[]): HexCell[] {
-  const cells: HexCell[] = [];
-
-  for (const [r, qStart, qEnd] of frame) {
-    for (let q = qStart; q <= qEnd; q++) {
-      cells.push({ id: 0, q, r });
-    }
-  }
-
-  return withIds(cells);
+/** The map a scenario uses at an exact player count. */
+export function marinsBoardFor(
+  spec: ScenarioSpec,
+  players: number,
+): ScenarioBoardSpec | undefined {
+  return spec.boards.find(board => board.players.includes(players));
 }
 
 /** Smallest island the generator will lay down — a lone tile is no island. */
@@ -229,9 +206,9 @@ function pick(pool: number[], rng: () => number): number {
 }
 
 /**
- * Hops from every land space to each space of the frame — `Infinity` while no
+ * Hops from every land space to each space of the canvas — `Infinity` while no
  * land has been laid yet. Used to drop the next island as far from the others
- * as the frame allows.
+ * as the canvas allows.
  */
 function hopsToLand(neighbours: number[][], land: Set<number>): number[] {
   const hops = neighbours.map(() => Number.POSITIVE_INFINITY);
@@ -254,22 +231,23 @@ function hopsToLand(neighbours: number[][], land: Set<number>): number[] {
 }
 
 /**
- * Grows `total` land tiles inside a frame as separate islands of the given
+ * Grows `total` land tiles inside a zone as separate islands of the given
  * `sizes`. Every island is **seeded first**, each as far from the previous ones
- * as the frame allows, then they grow one tile at a time in turn onto
+ * as the space allows, then they grow one tile at a time in turn onto
  * neighbours that touch no other island — so islands stay apart and none is
  * boxed in by a greedier one. Whatever land is still in hand once every island
  * is full (or blocked) is laid along an existing coast, which may join two
  * islands: a map short of land would be worse than a merged one. Returns the
  * land space ids, ascending.
  *
- * `total` must not exceed the number of spaces in the frame.
+ * `total` must not exceed the number of spaces available.
  */
 export function growIslands(
   neighbours: number[][],
   total: number,
   sizes: number[],
   rng: () => number,
+  seeded: number[] = [],
 ): number[] {
   const spaces = neighbours.map((_, id) => id);
   const owner = new Map<number, number>();
@@ -277,7 +255,17 @@ export function growIslands(
   const taken = (id: number): boolean => owner.has(id);
   const grown: number[] = [];
 
-  for (const _size of sizes) {
+  // Spaces the scenario pins as land (a harbour's coast) are laid before
+  // anything is drawn, as the first island — the rest grows around them.
+  if (seeded.length > 0) {
+    for (const id of seeded) {
+      owner.set(id, 0);
+    }
+
+    grown.push(seeded.length);
+  }
+
+  for (const _size of sizes.slice(grown.length)) {
     if (owner.size >= total) {
       break;
     }
@@ -344,14 +332,15 @@ export function growIslands(
 }
 
 /**
- * Spreads `count` harbours over the coastline: every land tile edge that faces
- * a space without land is a candidate, and at most one harbour lands on a given
- * tile. Falls back to doubling up on a tile only when the coast has fewer tiles
- * than harbours.
+ * Spreads `count` harbours over the coastline of `cells`: every edge of theirs
+ * that faces a space without land is a candidate, and at most one harbour lands
+ * on a given tile. Falls back to doubling up on a tile only when the coast has
+ * fewer tiles than harbours. `land` holds every land space of the whole board,
+ * so a zone's coast is measured against its neighbours too.
  */
 export function pickPortSlots(
   cells: HexCell[],
-  neighbours: number[][],
+  land: Set<string>,
   count: number,
   rng: () => number,
 ): PortSlot[] {
@@ -359,11 +348,7 @@ export function pickPortSlots(
 
   for (const cell of cells) {
     for (const [dq, dr] of DIRECTIONS) {
-      const inland = neighbours[cell.id].some(
-        n => cells[n].q === cell.q + dq && cells[n].r === cell.r + dr,
-      );
-
-      if (!inland) {
+      if (!land.has(cellKey({ q: cell.q + dq, r: cell.r + dr }))) {
         candidates.push({ hexId: cell.id, dq, dr });
       }
     }
@@ -385,30 +370,195 @@ export function pickPortSlots(
   return [...picked, ...spare.slice(0, count - picked.length)];
 }
 
-/** A generated Marins board plus the one-off layout it was drawn on. */
-export interface MarinsBoard {
-  scenario: MarinsScenario;
+/**
+ * Which spaces of a zone end up as land, and which as sea. A harbour pinned by
+ * the scenario needs a coast to sit on, so its space is land whatever the draw.
+ */
+function resolveZone(
+  zone: ScenarioZone,
+  rng: () => number,
+): { land: SpecCell[]; sea: SpecCell[] } {
+  const seaCount = zone.terrainCounts.sea ?? 0;
+
+  if (seaCount === 0) {
+    return { land: zone.cells, sea: [] };
+  }
+
+  const landCount = zone.cells.length - seaCount;
+  const pinned = new Set((zone.ports?.slots ?? []).map(cellKey));
+
+  if (zone.islands === undefined) {
+    const held = zone.cells.filter(c => pinned.has(cellKey(c)));
+    const drawn = shuffle(
+      zone.cells.filter(c => !pinned.has(cellKey(c))),
+      rng,
+    );
+    const free = landCount - held.length;
+
+    return { land: [...held, ...drawn.slice(0, free)], sea: drawn.slice(free) };
+  }
+
+  const spaces = withIds(zone.cells.map(c => ({ id: 0, q: c.q, r: c.r })));
+  const [min, max] = zone.islands;
+  const islands = min + Math.floor(rng() * (max - min + 1));
+  const grown = new Set(
+    growIslands(
+      buildNeighbours(spaces),
+      landCount,
+      islandSizes(landCount, islands, rng),
+      rng,
+      spaces.filter(c => pinned.has(cellKey(c))).map(c => c.id),
+    ),
+  );
+
+  return {
+    land: spaces.filter(c => grown.has(c.id)).map(c => ({ q: c.q, r: c.r })),
+    sea: spaces.filter(c => !grown.has(c.id)).map(c => ({ q: c.q, r: c.r })),
+  };
+}
+
+/** The map once the draw has settled: where the land, the sea and the bags are. */
+interface ResolvedMap {
+  cells: HexCell[];
+  seaCells: HexCell[];
+  pools: TilePool[];
+  /** Zone index → the land cell ids it ended up with (empty for statics). */
+  zoneCells: number[][];
+}
+
+/** Runs the draw: every zone's sea, then the static tiles on their own spaces. */
+function resolveMap(board: ScenarioBoardSpec, rng: () => number): ResolvedMap {
+  const cells: HexCell[] = [];
+  const seaCells: HexCell[] = [];
+  const pools: TilePool[] = [];
+  const zoneCells: number[][] = [];
+
+  const addLand = (cell: SpecCell): number => {
+    cells.push({ id: cells.length, q: cell.q, r: cell.r });
+
+    return cells.length - 1;
+  };
+  const addSea = (cell: SpecCell): void => {
+    seaCells.push({ id: seaCells.length, q: cell.q, r: cell.r });
+  };
+
+  for (const zone of board.zones) {
+    const { land, sea } = resolveZone(zone, rng);
+    const ids = land.map(addLand);
+
+    zoneCells.push(ids);
+    sea.forEach(addSea);
+    pools.push({
+      cellIds: ids,
+      terrainCounts: bagLandCounts(zone.terrainCounts),
+      numberTokens: zone.numberTokens,
+      hidden: zone.hidden ?? false,
+    });
+  }
+
+  // A static tile is a bag of one: one space, one tile, at most one token — so
+  // it needs no special case downstream, it simply has nothing to shuffle.
+  for (const tile of board.statics ?? []) {
+    if (tile.terrain === "sea") {
+      addSea(tile.cell);
+      continue;
+    }
+
+    pools.push({
+      cellIds: [addLand(tile.cell)],
+      terrainCounts: bagLandCounts({ [tile.terrain]: 1 }),
+      numberTokens: tile.number === undefined ? [] : [tile.number],
+      hidden: false,
+    });
+  }
+
+  return { cells, seaCells, pools, zoneCells };
+}
+
+/** The harbours of every zone: pinned where authored, drawn on the coast else. */
+function resolvePorts(
+  board: ScenarioBoardSpec,
+  map: ResolvedMap,
+  rng: () => number,
+): { slots: PortSlot[]; types: CatanPortType[]; poolOf: number[] } {
+  const land = new Set(map.cells.map(cellKey));
+  const idAt = new Map(map.cells.map(cell => [cellKey(cell), cell.id]));
+  const slots: PortSlot[] = [];
+  const types: CatanPortType[] = [];
+  const poolOf: number[] = [];
+
+  board.zones.forEach((zone, z) => {
+    const bag = zone.ports;
+
+    if (bag === undefined) {
+      return;
+    }
+
+    const pinned = bag.slots ?? [];
+    const drawn =
+      pinned.length > 0
+        ? pinned.map(slot => ({
+            hexId: idAt.get(cellKey(slot)) as number,
+            dq: slot.dq,
+            dr: slot.dr,
+          }))
+        : pickPortSlots(
+            map.zoneCells[z].map(id => map.cells[id]),
+            land,
+            bag.types.length,
+            rng,
+          );
+
+    for (const slot of drawn) {
+      slots.push(slot);
+      poolOf.push(z);
+    }
+
+    types.push(...bag.types);
+  });
+
+  return { slots, types, poolOf };
+}
+
+/** A board drawn from an authored spec, plus the layout it was drawn on. */
+export interface SpecBoard {
   players: number;
+  /** The authored map this was drawn from. */
+  spec: ScenarioBoardSpec;
   board: CatanBoard;
   /** Pass this back to `boardWarnings` to audit the board. */
   variant: CatanVariant;
 }
 
+/** A generated board of one of the scenarios the generator ships with. */
+export interface MarinsBoard extends SpecBoard {
+  scenario: MarinsScenario;
+}
+
 /**
- * Draws a scenario's map for an exact player count: the islands first, then the
- * harbours along their coasts, then the terrain and number tokens through the
- * base generator. Deterministic for a given `seed`.
+ * Draws an authored scenario's map for an exact player count — the entry point
+ * the editor previews with and the one a scenario read back from the database
+ * goes through. Throws when the scenario does not add up
+ * ({@link validateScenarioSpec}) or has no map for that many players.
+ * Deterministic for a given `seed`.
  */
-export function generateMarinsBoard(
-  key: MarinsScenarioKey,
+export function generateSpecBoard(
+  scenario: ScenarioSpec,
   players: number,
   seed?: number,
   options?: BoardOptions,
-): MarinsBoard {
-  const scenario = marinsScenario(key);
-  const composition = scenario.compositions[players];
+): SpecBoard {
+  const issues = validateScenarioSpec(scenario);
 
-  if (composition === undefined) {
+  if (issues.length > 0) {
+    throw new Error(
+      `« ${scenario.name} » est incohérent : ${issues.map(specIssueText).join(" ")}`,
+    );
+  }
+
+  const spec = marinsBoardFor(scenario, players);
+
+  if (spec === undefined) {
     throw new Error(
       `« ${scenario.name} » n'a pas de plateau pour ${players} joueurs.`,
     );
@@ -419,43 +569,41 @@ export function generateMarinsBoard(
   const actualSeed = seed ?? crypto.getRandomValues(new Uint32Array(1))[0];
   const rng = mulberry32(actualSeed);
 
-  const frame = frameCells(composition.frame);
-  const [minIslands, maxIslands] = composition.islands;
-  const count = minIslands + Math.floor(rng() * (maxIslands - minIslands + 1));
-  const land = growIslands(
-    buildNeighbours(frame),
-    landTileCount(composition),
-    islandSizes(landTileCount(composition), count, rng),
-    rng,
-  );
-
-  const isLand = new Set(land);
-  const cells = withIds(
-    land.map(id => ({ id: 0, q: frame[id].q, r: frame[id].r })),
-  );
-  const seaCells = withIds(
-    frame.filter(c => !isLand.has(c.id)).map(c => ({ id: 0, q: c.q, r: c.r })),
-  );
+  const map = resolveMap(spec, rng);
+  const ports = resolvePorts(spec, map, rng);
+  const totals = boardTotals(spec);
 
   const variant = buildCatanVariant({
     id: "marins",
-    cells,
-    seaCells,
-    terrainCounts: composition.terrainCounts,
-    numberTokens: composition.numberTokens,
-    portTypes: composition.portTypes,
-    portSlots: pickPortSlots(
-      cells,
-      buildNeighbours(cells),
-      composition.portTypes.length,
-      rng,
-    ),
+    cells: map.cells,
+    seaCells: map.seaCells,
+    terrainCounts: totals.terrainCounts,
+    numberTokens: totals.numberTokens,
+    pools: map.pools,
+    portTypes: ports.types,
+    portSlots: ports.slots,
+    portPoolOf: ports.poolOf,
   });
 
   return {
-    scenario,
     players,
+    spec,
     variant,
     board: generateCatanBoard(actualSeed, { ...options, variantSpec: variant }),
+  };
+}
+
+/** Draws one of the built-in scenarios, behind the key the app stores. */
+export function generateMarinsBoard(
+  key: MarinsScenarioKey,
+  players: number,
+  seed?: number,
+  options?: BoardOptions,
+): MarinsBoard {
+  const scenario = marinsScenario(key);
+
+  return {
+    scenario,
+    ...generateSpecBoard(scenario.spec, players, seed, options),
   };
 }
