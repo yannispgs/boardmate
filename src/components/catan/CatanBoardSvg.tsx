@@ -22,11 +22,15 @@ export const TERRAIN_STYLE: Record<
   fields: { fill: "#e5b731", stroke: "#b98f1f" },
   hills: { fill: "#c1673b", stroke: "#9a4f2b" },
   mountains: { fill: "#8a929c", stroke: "#69707a" },
+  gold: { fill: "#f0c020", stroke: "#b8860b" },
   desert: { fill: "#e0cfa3", stroke: "#c3ac79" },
 };
 
 /** Marins sea tiles: plain water, no terrain and no number. */
 export const SEA_STYLE = { fill: "#2b6ca3", stroke: "#1d4f79" };
+
+/** The back of a tile laid face down — nothing of it is known yet. */
+export const HIDDEN_STYLE = { fill: "#4a5568", stroke: "#2d3748" };
 
 const PORT_COLOR: Record<CatanPortType, string> = {
   generic: "#94a3b8",
@@ -185,7 +189,7 @@ export function CatanBoardSvg({
       {board.hexes.map(h => {
         const c = centres[h.id];
         const points = corners[h.id].map(p => `${p.x},${p.y}`).join(" ");
-        const t = TERRAIN_STYLE[h.terrain];
+        const t = h.hidden ? HIDDEN_STYLE : TERRAIN_STYLE[h.terrain];
 
         return (
           <g key={h.id}>
@@ -196,7 +200,19 @@ export function CatanBoardSvg({
               strokeWidth={2}
               strokeLinejoin="round"
             />
-            {h.number === null ? (
+            {h.hidden ? (
+              <text
+                x={c.x}
+                y={c.y + 7}
+                textAnchor="middle"
+                fontSize={22}
+                fontWeight="700"
+                fill="#ffffff"
+                opacity={0.7}
+              >
+                ?
+              </text>
+            ) : h.number === null ? (
               <circle cx={c.x} cy={c.y} r={7} fill="#4b5563" opacity={0.85} />
             ) : (
               <>

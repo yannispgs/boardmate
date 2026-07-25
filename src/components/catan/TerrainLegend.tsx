@@ -8,8 +8,20 @@ const TERRAIN_NAME: Record<CatanTerrain, string> = {
   fields: "Champs",
   hills: "Collines",
   mountains: "Montagnes",
+  gold: "Rivière d'or",
   desert: "Désert",
 };
+
+/** What a tile pays: its resource, or what it does instead of producing one. */
+function terrainHint(terrain: CatanTerrain): string {
+  const resource = TERRAIN_RESOURCE[terrain];
+
+  if (resource !== null) {
+    return RESOURCE_LABEL[resource];
+  }
+
+  return terrain === "gold" ? "ressource au choix" : "voleur";
+}
 
 /**
  * What each tile colour means, for the terrains a board actually holds, plus
@@ -23,16 +35,12 @@ export function TerrainLegend({
   terrains: CatanTerrain[];
   sea?: boolean;
 }) {
-  const items = terrains.map(terrain => {
-    const resource = TERRAIN_RESOURCE[terrain];
-
-    return {
-      key: terrain as string,
-      label: TERRAIN_NAME[terrain],
-      hint: resource === null ? "voleur" : RESOURCE_LABEL[resource],
-      color: TERRAIN_STYLE[terrain].fill,
-    };
-  });
+  const items = terrains.map(terrain => ({
+    key: terrain as string,
+    label: TERRAIN_NAME[terrain],
+    hint: terrainHint(terrain),
+    color: TERRAIN_STYLE[terrain].fill,
+  }));
 
   if (sea) {
     items.push({

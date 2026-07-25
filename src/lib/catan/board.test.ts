@@ -310,6 +310,7 @@ describe("generateCatanBoard", () => {
       r: 0,
       terrain,
       number,
+      hidden: false,
     });
     const rows = resourceCombinations([
       hex("desert", null), // desert → no resource
@@ -715,6 +716,7 @@ describe("resourceVariancePenalty", () => {
     r: 0,
     terrain,
     number,
+    hidden: false,
   });
 
   it("is zero when each resource's pips are evenly split", () => {

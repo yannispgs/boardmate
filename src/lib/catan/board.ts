@@ -36,12 +36,18 @@
  * omits the seed for a fresh random board each tap.
  */
 
+/**
+ * A land tile. `gold` is the Seafarers gold river: it carries a number token
+ * like any other tile, but pays in a resource of the player's choice rather
+ * than a fixed one — so it produces no *specific* resource.
+ */
 export type CatanTerrain =
   | "forest"
   | "pasture"
   | "fields"
   | "hills"
   | "mountains"
+  | "gold"
   | "desert";
 
 export type CatanResource = "wood" | "wool" | "grain" | "brick" | "ore";
@@ -57,15 +63,21 @@ export type CatanPortType = "generic" | CatanResource;
  */
 export type CatanVariantId = "base" | "extension" | "marins";
 
-/** The resource a terrain produces (`null` for the desert). */
+/** The resource a terrain produces (`null` for the desert and the gold river). */
 export const TERRAIN_RESOURCE: Record<CatanTerrain, CatanResource | null> = {
   forest: "wood",
   pasture: "wool",
   fields: "grain",
   hills: "brick",
   mountains: "ore",
+  gold: null,
   desert: null,
 };
+
+/** A tile with no number token is a tile that never produces — the desert. */
+export function carriesNumber(terrain: CatanTerrain): boolean {
+  return terrain !== "desert";
+}
 
 /** Dots on a token = its probability out of 36 rolls; 6 and 8 are the "red" 5s. */
 export function pipCount(n: number): number {
@@ -141,6 +153,12 @@ export interface BoardHex {
   terrain: CatanTerrain;
   /** The number token (2–12, never 7); `null` on a desert. */
   number: number | null;
+  /**
+   * Laid face down at setup — the players only discover the terrain and the
+   * number when a ship reaches it (Seafarers' fog island). `false` everywhere
+   * on the base boards.
+   */
+  hidden: boolean;
 }
 
 export interface BoardPort extends PortSlot {
@@ -158,6 +176,22 @@ export interface CatanBoard {
    */
   sea: HexCell[];
   seed: number;
+}
+
+/**
+ * A bag of tiles and tokens drawn over a given set of land cells. The base
+ * boards have a single pool covering the whole board; a Marins scenario has one
+ * per authored zone, so the big island's tiles never wander onto a small one.
+ * The placement rules (no two reds side by side, no duplicate neighbours) still
+ * apply **across** pools — only the bags are separate.
+ */
+export interface TilePool {
+  /** The land cells this bag is dealt onto. */
+  cellIds: number[];
+  terrainCounts: Record<CatanTerrain, number>;
+  numberTokens: number[];
+  /** Lay these tiles face down (Seafarers' fog island). */
+  hidden: boolean;
 }
 
 /**
@@ -183,6 +217,14 @@ export interface CatanVariant {
   terrainCounts: Record<CatanTerrain, number>;
   numberTokens: number[];
   portTypes: CatanPortType[];
+  /** The bags the tiles and tokens are drawn from — at least one. */
+  pools: TilePool[];
+  /**
+   * For each harbour slot, the index of the bag its token comes from. A
+   * scenario buys its harbours zone by zone, so a small island's 2:1 port can
+   * never drift onto the mainland; the base boards have a single bag.
+   */
+  portPoolOf: number[];
   /** Summed pips across the number tokens (58 base, 88 extension). */
   totalPips: number;
   /** Tiles a resource owns on this board. */
@@ -477,6 +519,15 @@ export interface VariantContents {
    * evenly around the coastline; a Marins scenario picks its own.
    */
   portSlots?: PortSlot[];
+  /**
+   * How the box splits across the board. Omitted on the base boards, where the
+   * whole box is drawn over the whole board; a Marins scenario ships one bag
+   * per authored zone. Must partition {@link VariantContents.cells} and add up
+   * to `terrainCounts` / `numberTokens`.
+   */
+  pools?: TilePool[];
+  /** Which harbour bag each slot draws from. Defaults to a single bag. */
+  portPoolOf?: number[];
 }
 
 /** Derives a full {@link CatanVariant} from a board's raw box contents. */
@@ -500,6 +551,15 @@ export function buildCatanVariant(contents: VariantContents): CatanVariant {
     terrainCounts,
     numberTokens,
     portTypes,
+    pools: contents.pools ?? [
+      {
+        cellIds: cells.map(cell => cell.id),
+        terrainCounts,
+        numberTokens,
+        hidden: false,
+      },
+    ],
+    portPoolOf: contents.portPoolOf ?? portSlots.map(() => 0),
     totalPips,
     tileCount: resourceTileCount(terrainCounts),
   };
@@ -515,6 +575,7 @@ export const BASE_VARIANT: CatanVariant = buildCatanVariant({
     fields: 4,
     hills: 3,
     mountains: 3,
+    gold: 0,
     desert: 1,
   },
   numberTokens: [2, 3, 3, 4, 4, 5, 5, 6, 6, 8, 8, 9, 9, 10, 10, 11, 11, 12],
@@ -541,6 +602,7 @@ export const EXTENSION_VARIANT: CatanVariant = buildCatanVariant({
     fields: 6,
     hills: 5,
     mountains: 5,
+    gold: 0,
     desert: 2,
   },
   numberTokens: [
@@ -608,16 +670,18 @@ export function shuffle<T>(items: T[], rng: () => number): T[] {
   return out;
 }
 
-/** The non-desert terrain tiles of a variant (the deserts are placed apart). */
-function nonDesertTerrains(variant: CatanVariant): CatanTerrain[] {
+/** The non-desert terrain tiles of a bag (the deserts are placed apart). */
+function nonDesertTerrains(
+  terrainCounts: Record<CatanTerrain, number>,
+): CatanTerrain[] {
   const bag: CatanTerrain[] = [];
 
-  for (const terrain of Object.keys(variant.terrainCounts) as CatanTerrain[]) {
+  for (const terrain of Object.keys(terrainCounts) as CatanTerrain[]) {
     if (terrain === "desert") {
       continue;
     }
 
-    for (let i = 0; i < variant.terrainCounts[terrain]; i++) {
+    for (let i = 0; i < terrainCounts[terrain]; i++) {
       bag.push(terrain);
     }
   }
@@ -653,7 +717,8 @@ function placeNumbers(
   avoidDuplicates: boolean,
   variant: CatanVariant,
 ): Map<number, number> | null {
-  const distinct = [...new Set(variant.numberTokens)];
+  const poolOf = poolIndexByHex(variant);
+  const distinct = variant.pools.map(pool => [...new Set(pool.numberTokens)]);
 
   const fits = (
     assigned: Map<number, number>,
@@ -681,11 +746,15 @@ function placeNumbers(
 
   const attempt = (): Map<number, number> | null => {
     const assigned = new Map<number, number>();
-    const counts = new Array(13).fill(0);
+    const counts = variant.pools.map(pool => {
+      const left = new Array<number>(13).fill(0);
 
-    for (const n of variant.numberTokens) {
-      counts[n] += 1;
-    }
+      for (const n of pool.numberTokens) {
+        left[n] += 1;
+      }
+
+      return left;
+    });
 
     const remaining = new Set(hexIds);
 
@@ -696,8 +765,9 @@ function placeNumbers(
       let targetValues: number[] = [];
 
       for (const hexId of remaining) {
-        const legal = distinct.filter(
-          n => counts[n] > 0 && fits(assigned, hexId, n),
+        const left = counts[poolOf[hexId]];
+        const legal = distinct[poolOf[hexId]].filter(
+          n => left[n] > 0 && fits(assigned, hexId, n),
         );
 
         if (legal.length < fewest) {
@@ -717,7 +787,7 @@ function placeNumbers(
 
       const n = targetValues[Math.floor(rng() * targetValues.length)];
       assigned.set(target, n);
-      counts[n] -= 1;
+      counts[poolOf[target]][n] -= 1;
       remaining.delete(target);
     }
 
@@ -732,7 +802,6 @@ function placeNumbers(
     }
   }
 
-  /* c8 ignore next -- unreachable: this token set always has a placement */
   return null;
 }
 
@@ -888,6 +957,19 @@ const PORT_ATTEMPTS = 100;
 /** Rejection budget for keeping the extension's two deserts apart. */
 const DESERT_ATTEMPTS = 100;
 
+/** For each land cell id, the index of the pool it draws its tile from. */
+function poolIndexByHex(variant: CatanVariant): number[] {
+  const of: number[] = [];
+
+  variant.pools.forEach((pool, index) => {
+    for (const id of pool.cellIds) {
+      of[id] = index;
+    }
+  });
+
+  return of;
+}
+
 /** Default max summed pips at an intersection when capping is on. */
 const DEFAULT_MAX_PIPS = 12;
 
@@ -1020,19 +1102,25 @@ function terrainCost(
   );
 }
 
-/** Deserts on `desertIds`, the resources shuffled over the other hexes. */
+/**
+ * Deserts on `desertIds`, each pool's remaining tiles shuffled over its own
+ * cells — so a zone only ever receives the tiles its own bag holds.
+ */
 function layTerrain(
   desertIds: number[],
   rng: () => number,
   variant: CatanVariant,
 ): CatanTerrain[] {
-  const rest = shuffle(nonDesertTerrains(variant), rng);
   const desert = new Set(desertIds);
   const map: CatanTerrain[] = [];
-  let ri = 0;
 
-  for (const cell of variant.cells) {
-    map[cell.id] = desert.has(cell.id) ? "desert" : rest[ri++];
+  for (const pool of variant.pools) {
+    const rest = shuffle(nonDesertTerrains(pool.terrainCounts), rng);
+    let ri = 0;
+
+    for (const id of pool.cellIds) {
+      map[id] = desert.has(id) ? "desert" : rest[ri++];
+    }
   }
 
   return map;
@@ -1052,9 +1140,10 @@ function anyAdjacent(ids: number[], neighbours: number[][]): boolean {
 }
 
 /**
- * Picks the desert hex(es). The base board's single desert honours the
- * centre/ring options; the extension scatters its two deserts anywhere, keeping
- * them apart unless `allowAdjacent`.
+ * Picks the desert hex(es), each pool's deserts among its own cells. The base
+ * board's single desert honours the centre/ring options; the extension scatters
+ * its two deserts anywhere, keeping them apart unless `allowAdjacent` — and two
+ * deserts drawn by different pools are kept apart just the same.
  */
 function pickDeserts(
   variant: CatanVariant,
@@ -1066,26 +1155,29 @@ function pickDeserts(
     allowAdjacent: boolean;
   },
 ): number[] {
-  const count = variant.terrainCounts.desert;
-  const eligible = variant.cells
-    .filter(cell => {
+  const bags = variant.pools.map(pool => ({
+    count: pool.terrainCounts.desert,
+    eligible: pool.cellIds.filter(id => {
       // The centre/ring rule only means something on the base hexagon.
       if (opts.ignore || variant.id !== "base") {
         return true;
       }
 
-      const ring = ringOf(cell);
+      const ring = ringOf(variant.cells[id]);
 
       return (
         ring === 0 ||
         (ring === 1 && opts.innerOk) ||
         (ring === 2 && opts.outerOk)
       );
-    })
-    .map(cell => cell.id);
+    }),
+  }));
+
+  const draw = (): number[] =>
+    bags.flatMap(bag => shuffle(bag.eligible, rng).slice(0, bag.count));
 
   const allowAdjacent = opts.allowAdjacent || opts.ignore;
-  let picked = shuffle(eligible, rng).slice(0, count);
+  let picked = draw();
 
   if (!allowAdjacent) {
     for (
@@ -1093,25 +1185,64 @@ function pickDeserts(
       i < DESERT_ATTEMPTS && anyAdjacent(picked, variant.neighbours);
       i++
     ) {
-      picked = shuffle(eligible, rng).slice(0, count);
+      picked = draw();
     }
   }
 
   return picked;
 }
 
-/** An unconstrained shuffle of the tokens onto the numbered hexes. */
+/**
+ * Shuffles the harbour tokens over their slots, each bag staying within the
+ * slots it was bought for.
+ */
+function shufflePorts(
+  variant: CatanVariant,
+  rng: () => number,
+): CatanPortType[] {
+  const bags = new Map<number, number[]>();
+
+  variant.portPoolOf.forEach((pool, slot) => {
+    const slots = bags.get(pool) ?? [];
+    slots.push(slot);
+    bags.set(pool, slots);
+  });
+
+  const out = new Array<CatanPortType>(variant.portTypes.length);
+
+  for (const slots of bags.values()) {
+    const drawn = shuffle(
+      slots.map(slot => variant.portTypes[slot]),
+      rng,
+    );
+
+    slots.forEach((slot, i) => {
+      out[slot] = drawn[i];
+    });
+  }
+
+  return out;
+}
+
+/** An unconstrained shuffle of each pool's tokens onto its numbered hexes. */
 function randomNumbers(
   hexIds: number[],
   rng: () => number,
   variant: CatanVariant,
 ): Map<number, number> {
-  const tokens = shuffle([...variant.numberTokens], rng);
+  const numbered = new Set(hexIds);
   const map = new Map<number, number>();
 
-  hexIds.forEach((id, i) => {
-    map.set(id, tokens[i]);
-  });
+  for (const pool of variant.pools) {
+    const tokens = shuffle([...pool.numberTokens], rng);
+    let i = 0;
+
+    for (const id of pool.cellIds) {
+      if (numbered.has(id)) {
+        map.set(id, tokens[i++]);
+      }
+    }
+  }
 
   return map;
 }
@@ -1195,15 +1326,19 @@ export function generateCatanBoard(
     terrainByHex = laid;
   }
 
+  const hiddenPool = poolIndexByHex(variant).map(i => variant.pools[i].hidden);
   const hexes: BoardHex[] = variant.cells.map(cell => ({
     id: cell.id,
     q: cell.q,
     r: cell.r,
     terrain: terrainByHex[cell.id],
     number: null,
+    hidden: hiddenPool[cell.id],
   }));
 
-  const numberedIds = hexes.filter(h => h.terrain !== "desert").map(h => h.id);
+  const numberedIds = hexes
+    .filter(h => carriesNumber(h.terrain))
+    .map(h => h.id);
 
   // Numbers: an unconstrained shuffle when ignoring, else the balanced search.
   let best: Map<number, number>;
@@ -1223,7 +1358,8 @@ export function generateCatanBoard(
         variant,
       );
 
-      /* c8 ignore next 3 -- defensive: this constraint set is always solvable */
+      // No placement satisfies the rules — an authored scenario can pin two
+      // reds side by side, and then no shuffle will do.
       if (placement === null) {
         continue;
       }
@@ -1246,21 +1382,18 @@ export function generateCatanBoard(
       }
     }
 
-    /* c8 ignore next 4 -- unreachable: a valid placement always exists */
-    if (candidate === null) {
-      candidate =
-        placeNumbers(numberedIds, rng, avoidReds, avoidDuplicates, variant) ??
-        new Map();
-    }
-
-    best = candidate;
+    // Nothing satisfied the rules — an authored scenario can leave no legal
+    // arrangement at all. Lay the tokens anyway rather than hand back a board
+    // with no numbers: a board that breaks a rule beats a board with no
+    // production, and what it costs shows up in `boardWarnings`.
+    best = candidate ?? randomNumbers(numberedIds, rng, variant);
   }
 
   for (const h of hexes) {
     h.number = best.get(h.id) ?? null;
   }
 
-  let portTypes = shuffle(variant.portTypes, rng);
+  let portTypes = shufflePorts(variant, rng);
 
   if (avoidPortRes && !ignore) {
     for (
@@ -1269,7 +1402,7 @@ export function generateCatanBoard(
       portTouchesOwnResource(portTypes, terrainByHex, variant);
       i++
     ) {
-      portTypes = shuffle(variant.portTypes, rng);
+      portTypes = shufflePorts(variant, rng);
     }
   }
 
