@@ -1,6 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import type { BoardgameId, ConfigId, GameId, PlayerId } from "@/lib/domain";
+import type {
+  BoardgameId,
+  ConfigId,
+  ExtensionId,
+  ExtensionScenarioId,
+  GameId,
+  PlayerId,
+} from "@/lib/domain";
 import { createGameRepository } from "@/lib/supabase/repositories/games";
 import {
   authedClient,
@@ -582,6 +589,33 @@ describe("games adapter — listing & ending", () => {
     await admin.from("configs").delete().eq("id", cfgId);
   });
 
+  it("raises the threshold by an option's modifier (Maître du port)", async () => {
+    const admin = serviceClient();
+    const { data: cfg } = await admin
+      .from("configs")
+      .insert({
+        boardgame_id: CATAN_ID,
+        name: `port-${Date.now()}`,
+        values: { pointsToWin: 10, harborMaster: true },
+      })
+      .select("id")
+      .single();
+    const cfgId = cfg?.id as string;
+
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId: cfgId as ConfigId,
+      playerIds,
+    });
+
+    const populated = await repo().getPopulated(game.id);
+
+    expect(populated?.winThreshold).toBe(11); // 10 + 1 for the harbour master
+
+    await admin.from("games").delete().eq("id", game.id);
+    await admin.from("configs").delete().eq("id", cfgId);
+  });
+
   it("resolves no threshold for a non-scored boardgame", async () => {
     const admin = serviceClient();
     const { data: bg } = await admin
@@ -786,6 +820,91 @@ describe("games adapter — recording a finished game", () => {
     ).rejects.toThrow(/Ajout des joueurs/);
 
     // Track the orphan games row (inserted before game_players failed).
+    const after = (await admin.from("games").select("id")).data ?? [];
+    for (const g of after) {
+      if (!before.has(g.id)) {
+        gameIds.push(g.id as GameId);
+      }
+    }
+  });
+});
+
+describe("games adapter — extensions", () => {
+  it("records active extensions and locks the win target to the scenario", async () => {
+    const admin = serviceClient();
+    const { data: ext } = await admin
+      .from("extensions")
+      .select("id")
+      .eq("name", "Catan - Marins")
+      .single();
+    const extId = ext?.id as ExtensionId;
+    const { data: sc } = await admin
+      .from("extension_scenarios")
+      .select("id")
+      .eq("board_key", "four-islands")
+      .single();
+    const scId = sc?.id as ExtensionScenarioId;
+
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId: null,
+      playerIds,
+      extensionIds: [extId],
+      scenarioByExtension: { [extId]: scId },
+    });
+    gameIds.push(game.id);
+
+    const populated = await repo().getPopulated(game.id);
+
+    expect(populated?.extensions.map(e => e.name)).toEqual(["Catan - Marins"]);
+    expect(populated?.extensions[0].scenarioId).toBe(scId);
+    // Four Islands imposes 13, overriding Catan's editable pointsToWin (10),
+    // with no extension modifier.
+    expect(populated?.winThreshold).toBe(13);
+  });
+
+  it("without a scenario, keeps the base game's configured win target", async () => {
+    const admin = serviceClient();
+    const { data: ext } = await admin
+      .from("extensions")
+      .select("id")
+      .eq("name", "Catan - Marins")
+      .single();
+    const extId = ext?.id as ExtensionId;
+
+    // The extension active but no scenario chosen (scenario_id null).
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId: null,
+      playerIds,
+      extensionIds: [extId],
+    });
+    gameIds.push(game.id);
+
+    const populated = await repo().getPopulated(game.id);
+
+    expect(populated?.extensions[0].scenarioId).toBeNull();
+    // No scenario → the win target falls back to the config template default (10).
+    expect(populated?.winThreshold).toBe(10);
+  });
+
+  it("rejects an unknown extension id (FK violation)", async () => {
+    const admin = serviceClient();
+    const before = new Set(
+      ((await admin.from("games").select("id")).data ?? []).map(g => g.id),
+    );
+    const bad = crypto.randomUUID() as ExtensionId;
+
+    await expect(
+      repo().create({
+        boardgameId: CATAN_ID,
+        configId: null,
+        playerIds,
+        extensionIds: [bad],
+      }),
+    ).rejects.toThrow(/Ajout des extensions/);
+
+    // Track the orphan game (inserted before game_extensions failed).
     const after = (await admin.from("games").select("id")).data ?? [];
     for (const g of after) {
       if (!before.has(g.id)) {

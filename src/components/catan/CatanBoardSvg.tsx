@@ -12,7 +12,11 @@ const SIZE = 42; // hex circumradius in px
 /** Long axis of the board: down the screen, or across it. */
 export type BoardOrientation = "vertical" | "horizontal";
 
-const TERRAIN: Record<CatanTerrain, { fill: string; stroke: string }> = {
+/** Tile colours, shared with the legend. */
+export const TERRAIN_STYLE: Record<
+  CatanTerrain,
+  { fill: string; stroke: string }
+> = {
   forest: { fill: "#2e7d46", stroke: "#1f5a31" },
   pasture: { fill: "#7cb342", stroke: "#5c8a2f" },
   fields: { fill: "#e5b731", stroke: "#b98f1f" },
@@ -20,6 +24,9 @@ const TERRAIN: Record<CatanTerrain, { fill: string; stroke: string }> = {
   mountains: { fill: "#8a929c", stroke: "#69707a" },
   desert: { fill: "#e0cfa3", stroke: "#c3ac79" },
 };
+
+/** Marins sea tiles: plain water, no terrain and no number. */
+export const SEA_STYLE = { fill: "#2b6ca3", stroke: "#1d4f79" };
 
 const PORT_COLOR: Record<CatanPortType, string> = {
   generic: "#94a3b8",
@@ -89,6 +96,13 @@ export function CatanBoardSvg({
   const rawCentres = board.hexes.map(h => axialToPixel(h.q, h.r, SIZE));
   const centres = rawCentres.map(tf);
 
+  // Marins sea tiles, drawn first so the land and the harbours sit on top.
+  const seaCorners = board.sea.map(s => {
+    const c = axialToPixel(s.q, s.r, SIZE);
+
+    return hexCorners(c.x, c.y).map(tf);
+  });
+
   // Harbours: anchor pushed off the coast into the sea, with two dock lines
   // back to the edge's corners. Computed in raw space, then rotated.
   const ports = board.ports.map(port => {
@@ -132,7 +146,7 @@ export function CatanBoardSvg({
     hexCorners(rawCentres[h.id].x, rawCentres[h.id].y).map(tf),
   );
 
-  for (const hexCorner of corners) {
+  for (const hexCorner of [...corners, ...seaCorners]) {
     for (const p of hexCorner) {
       stretch(p.x, p.y);
     }
@@ -157,10 +171,21 @@ export function CatanBoardSvg({
       aria-label="Plateau de Catan généré"
       className="h-auto w-full max-w-md"
     >
+      {board.sea.map((s, i) => (
+        <polygon
+          key={s.id}
+          points={seaCorners[i].map(p => `${p.x},${p.y}`).join(" ")}
+          fill={SEA_STYLE.fill}
+          stroke={SEA_STYLE.stroke}
+          strokeWidth={2}
+          strokeLinejoin="round"
+        />
+      ))}
+
       {board.hexes.map(h => {
         const c = centres[h.id];
         const points = corners[h.id].map(p => `${p.x},${p.y}`).join(" ");
-        const t = TERRAIN[h.terrain];
+        const t = TERRAIN_STYLE[h.terrain];
 
         return (
           <g key={h.id}>

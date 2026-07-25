@@ -4,6 +4,7 @@ import type {
   BoardgameId,
   ConfigId,
   ConfigValues,
+  ExtensionScenarioId,
   FieldSpec,
   Game,
   GameId,
@@ -20,13 +21,19 @@ import type {
   PopulatedGame,
   TurnMode,
 } from "@/lib/domain";
-import { winThresholdFrom } from "@/lib/game/scoring";
+import {
+  composeScoring,
+  scenarioTarget,
+  winTargetWithModifiers,
+} from "@/lib/game/extensions";
+import { optionTargetModifier, winThresholdFrom } from "@/lib/game/scoring";
 import { advanceTurn as nextTurnState } from "@/lib/game/turn";
 import { turnScheduleFrom } from "@/lib/game/turn-schedule";
 import type { GameRepository, Unsubscribe } from "@/lib/repositories/types";
 import type { Database, Json } from "@/lib/supabase/database.types";
 import { toBoardgame } from "@/lib/supabase/repositories/boardgames";
 import { toConfig } from "@/lib/supabase/repositories/configs";
+import { toExtension } from "@/lib/supabase/repositories/extensions";
 import { toPlayer } from "@/lib/supabase/repositories/players";
 
 type GameRow = Database["public"]["Tables"]["games"]["Row"];
@@ -34,6 +41,8 @@ type BoardgameRow = Database["public"]["Tables"]["boardgames"]["Row"];
 type ConfigRow = Database["public"]["Tables"]["configs"]["Row"];
 type PlayerRow = Database["public"]["Tables"]["players"]["Row"];
 type GameTurnRow = Database["public"]["Tables"]["game_turns"]["Row"];
+type ExtensionRow = Database["public"]["Tables"]["extensions"]["Row"];
+type ScenarioRow = Database["public"]["Tables"]["extension_scenarios"]["Row"];
 
 function toGame(row: GameRow): Game {
   return {
@@ -172,6 +181,11 @@ type PopulatedRow = GameRow & {
     player: PlayerRow;
   }>;
   game_turns: GameTurnRow[];
+  game_extensions: Array<{
+    extension_id: string;
+    scenario_id: string | null;
+    extension: ExtensionRow & { extension_scenarios: ScenarioRow[] };
+  }>;
   score_events: Array<{
     player_id: string;
     score: number;
@@ -184,6 +198,8 @@ type PopulatedRow = GameRow & {
 const POPULATED_SELECT =
   "*, boardgame:boardgames(*, config_templates(fields)), config:configs(*), " +
   "game_players(*, player:players(*)), game_turns(*), " +
+  "game_extensions(extension_id, scenario_id, " +
+  "extension:extensions(*, extension_scenarios(*))), " +
   "score_events(player_id, score, round, created_at), " +
   "dice_rolls(value, created_at)";
 
@@ -260,17 +276,42 @@ export function createGameRepository(
       const config = row.config ? toConfig(row.config) : null;
       const templateFields = (row.boardgame.config_templates?.fields ??
         []) as unknown as FieldSpec[];
+
+      // Active extensions, with the scenario chosen for each. Their scoresheet
+      // additions compose onto the base scoring.
+      const extensions = row.game_extensions.map(ge => ({
+        ...toExtension(ge.extension),
+        scenarioId: ge.scenario_id as ExtensionScenarioId | null,
+      }));
+      const scoring = composeScoring(boardgame.scoring, extensions);
+      boardgame.scoring = scoring;
+
       // The game's own snapshot (tweaked at the recap) wins over the source
       // config's values, which win over the template default.
       const effectiveValues =
         (row.config_values as ConfigValues | null) ?? config?.values ?? null;
-      const winThreshold = boardgame.scoring
-        ? winThresholdFrom(
-            boardgame.scoring.winCondition,
-            effectiveValues,
-            templateFields,
-          )
-        : null;
+      // The win target: a selected scenario imposes its base (over the config),
+      // then the options switched on and the active extensions' modifiers raise
+      // it (never lower).
+      const scenarioBy = Object.fromEntries(
+        extensions.flatMap(e =>
+          e.scenarioId ? [[e.id, e.scenarioId] as const] : [],
+        ),
+      );
+      const baseTarget =
+        scenarioTarget(extensions, scenarioBy) ??
+        (scoring
+          ? winThresholdFrom(
+              scoring.winCondition,
+              effectiveValues,
+              templateFields,
+            )
+          : null);
+      const optionBonus = optionTargetModifier(effectiveValues, templateFields);
+      const winThreshold = winTargetWithModifiers(
+        baseTarget === null ? null : baseTarget + optionBonus,
+        extensions,
+      );
       const turnSchedule = turnScheduleFrom(effectiveValues, templateFields);
 
       const scoreEvents = [...row.score_events]
@@ -292,6 +333,7 @@ export function createGameRepository(
         config,
         winThreshold,
         turnSchedule,
+        extensions,
         scoreEvents,
         diceRolls,
         players,
@@ -336,6 +378,24 @@ export function createGameRepository(
       if (gpError) {
         throw new Error(`Ajout des joueurs: ${gpError.message}`);
       }
+
+      const extensionIds = input.extensionIds ?? [];
+
+      if (extensionIds.length > 0) {
+        const byExt = input.scenarioByExtension ?? {};
+        const extRows = extensionIds.map(extensionId => ({
+          game_id: game.id,
+          extension_id: extensionId,
+          scenario_id: byExt[extensionId] ?? null,
+        }));
+        const { error: geError } = await supabase
+          .from("game_extensions")
+          .insert(extRows);
+        if (geError) {
+          throw new Error(`Ajout des extensions: ${geError.message}`);
+        }
+      }
+
       return toGame(game);
     },
 

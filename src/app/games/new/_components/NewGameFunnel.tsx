@@ -4,24 +4,34 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { ConfigField } from "@/components/ConfigField";
+import { StickyActionBar } from "@/components/StickyActionBar";
 import { useConfirm } from "@/components/use-confirm";
 import { buildDefaults, validateConfigValues } from "@/lib/config/validation";
 import type {
   Boardgame,
+  BooleanFieldSpec,
   Config,
   ConfigValues,
+  ExtensionId,
+  ExtensionScenarioId,
   Player,
   PlayerId,
 } from "@/lib/domain";
-import { initialScoreFor } from "@/lib/game/scoring";
+import {
+  composeConfigFields,
+  scenarioTarget,
+  winTargetWithModifiers,
+} from "@/lib/game/extensions";
+import { initialScoreFor, optionTargetModifier } from "@/lib/game/scoring";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useConfigs } from "@/lib/hooks/use-configs";
+import { useExtensions } from "@/lib/hooks/use-extensions";
 import { useGames } from "@/lib/hooks/use-games";
 import { usePlayers } from "@/lib/hooks/use-players";
 import { FirstPlayerWheel } from "./FirstPlayerWheel";
-
-const tileClass =
-  "rounded-xl border border-black/10 bg-white px-4 py-3 text-left transition hover:border-indigo-400 dark:border-white/10 dark:bg-zinc-900";
+import { PlayerPickCardList } from "./PlayerPickCardList";
+import { tileClass } from "./tile-class";
+import { WinTargetBar } from "./WinTargetBar";
 
 export function NewGameFunnel() {
   const router = useRouter();
@@ -35,7 +45,11 @@ export function NewGameFunnel() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function launch(configValues: ConfigValues | null) {
+  async function launch(
+    configValues: ConfigValues | null,
+    extensionIds: ExtensionId[],
+    scenarioByExtension: Record<ExtensionId, ExtensionScenarioId>,
+  ) {
     if (!boardgame) {
       return;
     }
@@ -49,6 +63,8 @@ export function NewGameFunnel() {
         configValues,
         playerIds: players.map(p => p.id),
         initialScore: initialScoreFor(boardgame.scoring),
+        extensionIds,
+        scenarioByExtension,
       });
       router.push(`/games/${game.id}/play`);
     } catch {
@@ -137,18 +153,25 @@ export function NewGameFunnel() {
   return null;
 }
 
+/**
+ * One screen of the funnel: a fixed heading, a body that scrolls on its own,
+ * and — when the step gives one — a footer pinned to the bottom of the screen,
+ * so a long list never pushes the step's action out of reach.
+ */
 function Step({
   title,
   children,
   onBack,
+  footer,
 }: {
   title: string;
   children: React.ReactNode;
   onBack?: () => void;
+  footer?: React.ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+    <section className="flex min-h-0 flex-1 flex-col gap-4">
+      <div className="flex shrink-0 items-center justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
           {title}
         </h2>
@@ -162,7 +185,16 @@ function Step({
           </button>
         ) : null}
       </div>
-      {children}
+
+      {/* Scrolling on one axis clips the other too, which would shave the ring
+          off a selected card at the left, right and top edges. The padding
+          gives the ring room and the negative margin puts the content back
+          where it was, flush with the page's column. */}
+      <div className="-mx-1 -mt-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 pt-1 pb-6">
+        {children}
+      </div>
+
+      {footer ? <StickyActionBar>{footer}</StickyActionBar> : null}
     </section>
   );
 }
@@ -241,14 +273,13 @@ function PlayersStep({
   const tooMany = maxPlayers != null && selected.length > maxPlayers;
   const canContinue = selected.length >= 1 && !tooFew && !tooMany;
 
-  function confirm() {
-    // Keep the click order → seat / turn order.
-    const ordered = selected
-      .map(id => active.find(p => p.id === id))
-      .filter((p): p is Player => p != null);
-
-    onConfirm(ordered);
-  }
+  // The click order is the seat / turn order.
+  const picked = selected
+    .map(id => active.find(p => p.id === id))
+    .filter((p): p is Player => p != null);
+  // Picked players sit at the top of the list, first seat first, so the order
+  // being built is read at a glance rather than hunted for among the others.
+  const listed = [...picked, ...active.filter(p => !selected.includes(p.id))];
 
   return (
     <Step
@@ -258,6 +289,30 @@ function PlayersStep({
           : "3 · Choisis les joueurs (dans l’ordre de jeu)"
       }
       onBack={onBack}
+      footer={
+        <>
+          <p className="text-xs text-zinc-500">
+            {selected.length} sélectionné{selected.length > 1 ? "s" : ""}
+            {minPlayers != null || maxPlayers != null
+              ? ` · recommandé ${minPlayers ?? "?"}–${maxPlayers ?? "?"}`
+              : ""}
+          </p>
+          {tooMany ? (
+            <p className="text-sm text-amber-600 dark:text-amber-400">
+              Ce jeu se joue à {maxPlayers} joueurs max.
+            </p>
+          ) : null}
+
+          <button
+            type="button"
+            disabled={!canContinue}
+            onClick={() => onConfirm(picked)}
+            className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
+          >
+            Continuer →
+          </button>
+        </>
+      }
     >
       {loading ? (
         <p className="text-sm text-zinc-500">Chargement…</p>
@@ -266,53 +321,13 @@ function PlayersStep({
           Aucun joueur actif. Ajoute-en dans « Joueurs ».
         </p>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {active.map(p => {
-            const order = selected.indexOf(p.id);
-            const picked = order !== -1;
-
-            return (
-              <li key={p.id}>
-                <button
-                  type="button"
-                  onClick={() => toggle(p.id)}
-                  className={`${tileClass} flex w-full items-center justify-between ${
-                    picked ? "border-indigo-500 ring-1 ring-indigo-500" : ""
-                  }`}
-                >
-                  <span>{p.name}</span>
-                  {picked ? (
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-semibold text-white">
-                      {simultaneous ? "✓" : order + 1}
-                    </span>
-                  ) : null}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+        <PlayerPickCardList
+          players={listed}
+          selected={selected}
+          simultaneous={simultaneous}
+          onToggle={toggle}
+        />
       )}
-
-      <p className="text-xs text-zinc-500">
-        {selected.length} sélectionné{selected.length > 1 ? "s" : ""}
-        {minPlayers != null || maxPlayers != null
-          ? ` · recommandé ${minPlayers ?? "?"}–${maxPlayers ?? "?"}`
-          : ""}
-      </p>
-      {tooMany ? (
-        <p className="text-sm text-amber-600 dark:text-amber-400">
-          Ce jeu se joue à {maxPlayers} joueurs max.
-        </p>
-      ) : null}
-
-      <button
-        type="button"
-        disabled={!canContinue}
-        onClick={confirm}
-        className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
-      >
-        Continuer →
-      </button>
     </Step>
   );
 }
@@ -334,26 +349,56 @@ function RecapStep({
   error: string | null;
   onBack: () => void;
   onReorderPlayers: (players: Player[]) => void;
-  onLaunch: (values: ConfigValues | null) => void;
+  onLaunch: (
+    values: ConfigValues | null,
+    extensionIds: ExtensionId[],
+    scenarioByExtension: Record<ExtensionId, ExtensionScenarioId>,
+  ) => void;
 }) {
   const { template, loading } = useConfigs(boardgame.id);
+  const extensions = useExtensions(boardgame.id);
   const { requestConfirm, confirmDialog } = useConfirm();
   const [values, setValues] = useState<ConfigValues | null>(null);
   const [invalid, setInvalid] = useState<string | null>(null);
   const [wheelOpen, setWheelOpen] = useState(false);
+  // Selected extensions and, per scenario-based one, the chosen scenario.
+  const [selectedExt, setSelectedExt] = useState<ExtensionId[]>([]);
+  const [scenarioByExt, setScenarioByExt] = useState<
+    Record<ExtensionId, ExtensionScenarioId>
+  >({});
   // Simultaneous games have no turn order → no numbered list, no first player.
   const simultaneous = boardgame.turnMode === "simultaneous";
 
-  // Prefill the form from the selected config over the template defaults, so
-  // every attribute shows a value that can be tweaked for this game only.
+  const active = extensions.filter(e => selectedExt.includes(e.id));
+  // Config fields composed with the active extensions (fields merged by key).
+  const composedFields = composeConfigFields(template?.fields ?? [], active);
+
+  // Prefill the form from the selected config over the (composed) template
+  // defaults, so every attribute shows a value tweakable for this game only.
+  // Re-seeds when the selected extensions change (their field defaults may
+  // differ, e.g. a raised win target).
   useEffect(() => {
     if (template) {
-      setValues({
-        ...buildDefaults(template.fields),
-        ...(config?.values ?? {}),
-      });
+      const fields = composeConfigFields(
+        template.fields,
+        extensions.filter(e => selectedExt.includes(e.id)),
+      );
+      setValues({ ...buildDefaults(fields), ...(config?.values ?? {}) });
     }
-  }, [template, config]);
+  }, [template, config, extensions, selectedExt]);
+
+  // Options switched on can raise the target (Catan's « Maître du port » = +1);
+  // the threshold input holds the base, so the bonus is spelled out separately.
+  const optionBonus = optionTargetModifier(values, composedFields);
+
+  // A selected scenario imposes a fixed win target (read-only), raised by the
+  // options and any active extension modifiers; it overrides the editable
+  // threshold field.
+  const scenarioBase = scenarioTarget(active, scenarioByExt);
+  const lockedTarget = winTargetWithModifiers(
+    scenarioBase === null ? null : scenarioBase + optionBonus,
+    active,
+  );
 
   const thresholdField =
     boardgame.scoring?.winCondition.type === "threshold"
@@ -361,29 +406,53 @@ function RecapStep({
       : null;
   const thresholdSpec =
     thresholdField != null
-      ? (template?.fields.find(f => f.key === thresholdField) ?? null)
+      ? (composedFields.find(f => f.key === thresholdField) ?? null)
       : null;
-  const editableFields = (template?.fields ?? []).filter(
-    f => f.key !== thresholdField,
-  );
+  const editableFields = composedFields.filter(f => f.key !== thresholdField);
+
+  function toggleExtension(id: ExtensionId) {
+    setSelectedExt(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id],
+    );
+  }
 
   function setField(key: string, value: unknown) {
     setValues(prev => ({ ...(prev ?? {}), [key]: value }));
   }
 
+  /** Only reachable from the editable target bar, which needs the field. */
+  function setTarget(value: number | undefined) {
+    if (thresholdField != null) {
+      setField(thresholdField, value);
+    }
+  }
+
+  function confirmLaunch(snapshot: ConfigValues | null) {
+    requestConfirm({
+      message: "Tout est prêt ? La partie va démarrer.",
+      confirmLabel: "Lancer",
+      onConfirm: () => onLaunch(snapshot, selectedExt, scenarioByExt),
+    });
+  }
+
   function handleLaunch() {
-    // No template → nothing to snapshot; launch straight from the confirmation.
-    if (!template) {
-      requestConfirm({
-        message: "Tout est prêt ? La partie va démarrer.",
-        confirmLabel: "Lancer",
-        onConfirm: () => onLaunch(null),
-      });
+    // A scenario-based extension needs its scenario chosen.
+    if (active.some(e => e.hasScenarios && !scenarioByExt[e.id])) {
+      setInvalid(
+        "Choisis un scénario pour chaque extension qui en demande un.",
+      );
 
       return;
     }
 
-    const parsed = validateConfigValues(template.fields, values ?? {});
+    // No template → nothing to snapshot; launch straight from the confirmation.
+    if (!template) {
+      confirmLaunch(null);
+
+      return;
+    }
+
+    const parsed = validateConfigValues(composedFields, values ?? {});
     if (!parsed.success) {
       setInvalid("Vérifie les attributs de la partie avant de lancer.");
 
@@ -391,11 +460,7 @@ function RecapStep({
     }
 
     setInvalid(null);
-    requestConfirm({
-      message: "Tout est prêt ? La partie va démarrer.",
-      confirmLabel: "Lancer",
-      onConfirm: () => onLaunch(parsed.data),
-    });
+    confirmLaunch(parsed.data);
   }
 
   const targetValue =
@@ -403,8 +468,86 @@ function RecapStep({
       ? (values[thresholdField] as number)
       : "";
 
+  const boostedOptions = composedFields.filter(
+    (f): f is BooleanFieldSpec =>
+      f.type === "boolean" &&
+      (f.targetModifier ?? 0) > 0 &&
+      values?.[f.key] === true,
+  );
+
+  // The bar shows the target the options actually add up to; the field itself
+  // only holds the base, so the sum is spelled out rather than silently applied.
+  const bonus =
+    optionBonus > 0 && typeof targetValue === "number"
+      ? {
+          label: boostedOptions
+            .map(f => `+${f.targetModifier} ${f.label}`)
+            .join(" · "),
+          total: targetValue + optionBonus,
+        }
+      : null;
+  const showTarget = lockedTarget !== null || thresholdSpec !== null;
+
   return (
-    <Step title="4 · Vérifie et lance la partie" onBack={onBack}>
+    <Step
+      title="4 · Vérifie et lance la partie"
+      onBack={onBack}
+      footer={
+        loading ? null : (
+          <>
+            {showTarget ? (
+              <WinTargetBar
+                locked={lockedTarget}
+                note={`Imposé par le scénario${
+                  active.some(e => e.targetModifier > 0) || optionBonus > 0
+                    ? " (relevé par les options et extensions actives)"
+                    : ""
+                }.`}
+                value={targetValue}
+                min={
+                  thresholdSpec && "min" in thresholdSpec
+                    ? thresholdSpec.min
+                    : undefined
+                }
+                max={
+                  thresholdSpec && "max" in thresholdSpec
+                    ? thresholdSpec.max
+                    : undefined
+                }
+                bonus={bonus}
+                onChange={setTarget}
+              />
+            ) : null}
+
+            {invalid ? (
+              <p
+                role="alert"
+                className="text-sm text-red-600 dark:text-red-400"
+              >
+                {invalid}
+              </p>
+            ) : null}
+            {error ? (
+              <p
+                role="alert"
+                className="text-sm text-red-600 dark:text-red-400"
+              >
+                {error}
+              </p>
+            ) : null}
+
+            <button
+              type="button"
+              disabled={creating}
+              onClick={handleLaunch}
+              className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
+            >
+              {creating ? "Création…" : "Lancer la partie"}
+            </button>
+          </>
+        )
+      }
+    >
       {loading ? (
         <p className="text-sm text-zinc-500">Chargement…</p>
       ) : (
@@ -450,6 +593,63 @@ function RecapStep({
             </div>
           ) : null}
 
+          {extensions.length > 0 ? (
+            <div className="flex flex-col gap-3 rounded-xl border border-black/10 p-4 dark:border-white/10">
+              <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                Extensions
+              </h3>
+              {extensions.map(e => {
+                const on = selectedExt.includes(e.id);
+
+                return (
+                  <div key={e.id} className="flex flex-col gap-2">
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        onChange={() => toggleExtension(e.id)}
+                        className="h-4 w-4 shrink-0 accent-indigo-600"
+                      />
+                      {e.name}
+                    </label>
+                    {on && e.hasScenarios ? (
+                      <div className="flex flex-col gap-1 pl-6">
+                        <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                          Scénario
+                        </span>
+                        {e.scenarios.map(s => (
+                          <label
+                            key={s.id}
+                            className="flex items-center gap-2 text-sm"
+                          >
+                            <input
+                              type="radio"
+                              name={`scenario-${e.id}`}
+                              checked={scenarioByExt[e.id] === s.id}
+                              onChange={() =>
+                                setScenarioByExt(prev => ({
+                                  ...prev,
+                                  [e.id]: s.id,
+                                }))
+                              }
+                              className="h-4 w-4 shrink-0 accent-indigo-600"
+                            />
+                            {s.name}
+                            {s.targetScore !== null ? (
+                              <span className="text-zinc-400">
+                                · 🎯 {s.targetScore}
+                              </span>
+                            ) : null}
+                          </label>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+
           {editableFields.length > 0 ? (
             <div className="flex flex-col gap-3">
               <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
@@ -466,57 +666,6 @@ function RecapStep({
             </div>
           ) : null}
 
-          {thresholdField != null && thresholdSpec ? (
-            <div className="flex flex-col gap-1 rounded-xl border border-indigo-500/40 bg-indigo-500/[0.06] p-4">
-              <label
-                htmlFor="win-threshold"
-                className="flex items-center gap-2 font-medium"
-              >
-                <span aria-hidden>🎯</span>
-                Score à atteindre pour gagner
-              </label>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Indicatif — ajuste-le selon votre partie (extensions,
-                scénario…).
-              </p>
-              <input
-                id="win-threshold"
-                type="number"
-                inputMode="numeric"
-                step={1}
-                min={"min" in thresholdSpec ? thresholdSpec.min : undefined}
-                max={"max" in thresholdSpec ? thresholdSpec.max : undefined}
-                value={targetValue}
-                onChange={e =>
-                  setField(
-                    thresholdField,
-                    e.target.value === "" ? undefined : Number(e.target.value),
-                  )
-                }
-                className="mt-1 w-28 rounded-lg border border-black/15 bg-white px-3 py-2 text-lg font-semibold tabular-nums outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900"
-              />
-            </div>
-          ) : null}
-
-          {invalid ? (
-            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-              {invalid}
-            </p>
-          ) : null}
-          {error ? (
-            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-              {error}
-            </p>
-          ) : null}
-
-          <button
-            type="button"
-            disabled={creating}
-            onClick={handleLaunch}
-            className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
-          >
-            {creating ? "Création…" : "Lancer la partie"}
-          </button>
           {confirmDialog}
           {wheelOpen ? (
             <FirstPlayerWheel

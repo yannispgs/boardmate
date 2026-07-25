@@ -264,14 +264,28 @@ function FieldExtras({
 
   if (field.type === "boolean") {
     return (
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={field.default === true}
-          onChange={e => patch(i, { default: e.target.checked })}
-        />
-        Coché par défaut
-      </label>
+      <div className="flex flex-col gap-2">
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={field.default === true}
+            onChange={e => patch(i, { default: e.target.checked })}
+          />
+          Coché par défaut
+        </label>
+        <label className="flex flex-col gap-0.5 text-[11px] text-zinc-500">
+          Points ajoutés au score à atteindre quand l&apos;option est active
+          <input
+            type="number"
+            min={0}
+            value={field.targetModifier ?? ""}
+            onChange={e =>
+              patch(i, { targetModifier: numOrUndef(e.target.value) })
+            }
+            className={inputClass}
+          />
+        </label>
+      </div>
     );
   }
 

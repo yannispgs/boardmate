@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { CatanBoardGenerator } from "./_components/CatanBoardGenerator";
+import { MarinsBoardGenerator } from "./_components/MarinsBoardGenerator";
 
 export const metadata: Metadata = {
-  title: "Plateau Catan — Boardmate",
+  title: "Plateau Catan - Marins — Boardmate",
 };
 
-export default function CatanBoardPage() {
+export default function CatanMarinsBoardPage() {
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-6 py-10">
       <header className="flex flex-col gap-1">
@@ -17,14 +17,16 @@ export default function CatanBoardPage() {
         >
           ← Générer un plateau
         </Link>
-        <h1 className="text-3xl font-semibold tracking-tight">Catan - Base</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">
+          Catan - Marins
+        </h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Un plateau aléatoire et équilibré pour le jeu de base (3–4 joueurs),
-          prêt à recopier sur la table.
+          Îles, mers et ports tirés au sort pour un scénario de l&apos;extension
+          Marins, prêts à recopier sur la table.
         </p>
       </header>
 
-      <CatanBoardGenerator />
+      <MarinsBoardGenerator />
     </main>
   );
 }

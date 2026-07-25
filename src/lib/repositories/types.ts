@@ -13,6 +13,7 @@ import type {
   ConfigId,
   ConfigTemplate,
   ConfigValues,
+  Extension,
   Feedback,
   FieldSpec,
   Game,
@@ -213,6 +214,11 @@ export interface FeedbackRepository {
   create(input: NewFeedback): Promise<Feedback>;
 }
 
+export interface ExtensionRepository {
+  /** The active extensions (with their scenarios) available for a base game. */
+  listByBase(baseGameId: BoardgameId): Promise<Extension[]>;
+}
+
 /** Aggregate of all repositories, resolved by the active adapter. */
 export interface Repositories {
   players: PlayerRepository;
@@ -220,4 +226,5 @@ export interface Repositories {
   configs: ConfigRepository;
   games: GameRepository;
   feedback: FeedbackRepository;
+  extensions: ExtensionRepository;
 }

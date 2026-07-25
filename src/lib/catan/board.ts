@@ -49,8 +49,13 @@ export type CatanResource = "wood" | "wool" | "grain" | "brick" | "ore";
 /** A harbour: `generic` trades 3:1, a resource trades that resource 2:1. */
 export type CatanPortType = "generic" | CatanResource;
 
-/** Which board is generated: the base game or the 5–6 player extension. */
-export type CatanVariantId = "base" | "extension";
+/**
+ * Which board is generated: the base game, the 5–6 player extension, or a
+ * Seafarers ("Marins") scenario. The first two are fixed layouts resolved by
+ * {@link variantOf}; a Marins board's geometry changes with the scenario and the
+ * player count, so it is passed around as a {@link BoardOptions.variantSpec}.
+ */
+export type CatanVariantId = "base" | "extension" | "marins";
 
 /** The resource a terrain produces (`null` for the desert). */
 export const TERRAIN_RESOURCE: Record<CatanTerrain, CatanResource | null> = {
@@ -102,7 +107,7 @@ export function resourceCombinations(
 }
 
 /** The six axial neighbour directions (orientation-independent). */
-const DIRECTIONS: ReadonlyArray<readonly [number, number]> = [
+export const DIRECTIONS: ReadonlyArray<readonly [number, number]> = [
   [1, 0],
   [1, -1],
   [0, -1],
@@ -146,6 +151,12 @@ export interface CatanBoard {
   variant: CatanVariantId;
   hexes: BoardHex[];
   ports: BoardPort[];
+  /**
+   * The sea tiles surrounding the land, in their own id space — empty on the
+   * base boards, where the sea is just the space around the hexagon. Purely
+   * positional: they carry no terrain and no number.
+   */
+  sea: HexCell[];
   seed: number;
 }
 
@@ -157,7 +168,10 @@ export interface CatanBoard {
  */
 export interface CatanVariant {
   id: CatanVariantId;
+  /** The land tiles — the only ones that get a terrain and a number. */
   cells: HexCell[];
+  /** The sea tiles framing them (empty on the base boards). */
+  seaCells: HexCell[];
   /** For each hex id, the ids of its on-board neighbours. */
   neighbours: number[][];
   /** Triples of mutually-adjacent hexes — the interior intersections. */
@@ -179,6 +193,13 @@ export interface CatanVariant {
 export interface BoardOptions {
   /** Which board to build (default `"base"`). */
   variant?: CatanVariantId;
+  /**
+   * A ready-made layout to generate on, taking precedence over
+   * {@link BoardOptions.variant}. Marins scenarios build one per scenario ×
+   * player count, so their geometry can't be looked up by id — pass the same
+   * spec to {@link boardWarnings} to audit the result.
+   */
+  variantSpec?: CatanVariant;
   /** Allow the desert on the inner ring — base board only (default centre). */
   desertInnerRing?: boolean;
   /** Allow the desert on the outer coast — base board only (default centre). */
@@ -271,7 +292,7 @@ function buildExtensionCells(): HexCell[] {
 }
 
 /** Assigns sequential ids in the current order. */
-function withIds(cells: HexCell[]): HexCell[] {
+export function withIds(cells: HexCell[]): HexCell[] {
   cells.forEach((c, i) => {
     c.id = i;
   });
@@ -279,7 +300,8 @@ function withIds(cells: HexCell[]): HexCell[] {
   return cells;
 }
 
-function buildNeighbours(cells: HexCell[]): number[][] {
+/** For each cell id, the ids of the cells it touches in the given set. */
+export function buildNeighbours(cells: HexCell[]): number[][] {
   const index = new Map<string, number>();
 
   for (const c of cells) {
@@ -440,23 +462,37 @@ function resourceTileCount(
   return out;
 }
 
+/** A board's raw box contents, before the geometry is derived from it. */
+export interface VariantContents {
+  id: CatanVariantId;
+  /** The land tiles. */
+  cells: HexCell[];
+  terrainCounts: Record<CatanTerrain, number>;
+  numberTokens: number[];
+  portTypes: CatanPortType[];
+  /** Sea tiles framing the land — none on the base boards. */
+  seaCells?: HexCell[];
+  /**
+   * Where the harbours sit. Omitted on the base boards, whose slots are spread
+   * evenly around the coastline; a Marins scenario picks its own.
+   */
+  portSlots?: PortSlot[];
+}
+
 /** Derives a full {@link CatanVariant} from a board's raw box contents. */
-function buildVariant(
-  id: CatanVariantId,
-  cells: HexCell[],
-  terrainCounts: Record<CatanTerrain, number>,
-  numberTokens: number[],
-  portTypes: CatanPortType[],
-): CatanVariant {
+export function buildCatanVariant(contents: VariantContents): CatanVariant {
+  const { id, cells, terrainCounts, numberTokens, portTypes } = contents;
   const neighbours = buildNeighbours(cells);
   const vertices = buildVertices(neighbours);
-  const portSlots = buildPortSlots(cells, neighbours, portTypes.length);
+  const portSlots =
+    contents.portSlots ?? buildPortSlots(cells, neighbours, portTypes.length);
   const portTouched = buildPortTouched(cells, portSlots);
   const totalPips = numberTokens.reduce((sum, n) => sum + pipCount(n), 0);
 
   return {
     id,
     cells,
+    seaCells: contents.seaCells ?? [],
     neighbours,
     vertices,
     portSlots,
@@ -470,12 +506,19 @@ function buildVariant(
 }
 
 /** The base game (3–4 players): 19 hexes, 18 tokens, 9 harbours. */
-export const BASE_VARIANT: CatanVariant = buildVariant(
-  "base",
-  buildBaseCells(),
-  { forest: 4, pasture: 4, fields: 4, hills: 3, mountains: 3, desert: 1 },
-  [2, 3, 3, 4, 4, 5, 5, 6, 6, 8, 8, 9, 9, 10, 10, 11, 11, 12],
-  [
+export const BASE_VARIANT: CatanVariant = buildCatanVariant({
+  id: "base",
+  cells: buildBaseCells(),
+  terrainCounts: {
+    forest: 4,
+    pasture: 4,
+    fields: 4,
+    hills: 3,
+    mountains: 3,
+    desert: 1,
+  },
+  numberTokens: [2, 3, 3, 4, 4, 5, 5, 6, 6, 8, 8, 9, 9, 10, 10, 11, 11, 12],
+  portTypes: [
     "generic",
     "generic",
     "generic",
@@ -486,18 +529,25 @@ export const BASE_VARIANT: CatanVariant = buildVariant(
     "grain",
     "ore",
   ],
-);
+});
 
 /** The 5–6 player extension: 30 hexes, 28 tokens, 11 harbours (wool ×2). */
-export const EXTENSION_VARIANT: CatanVariant = buildVariant(
-  "extension",
-  buildExtensionCells(),
-  { forest: 6, pasture: 6, fields: 6, hills: 5, mountains: 5, desert: 2 },
-  [
+export const EXTENSION_VARIANT: CatanVariant = buildCatanVariant({
+  id: "extension",
+  cells: buildExtensionCells(),
+  terrainCounts: {
+    forest: 6,
+    pasture: 6,
+    fields: 6,
+    hills: 5,
+    mountains: 5,
+    desert: 2,
+  },
+  numberTokens: [
     2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 8, 8, 8, 9, 9, 9, 10, 10, 10, 11,
     11, 11, 12, 12,
   ],
-  [
+  portTypes: [
     "generic",
     "generic",
     "generic",
@@ -510,10 +560,18 @@ export const EXTENSION_VARIANT: CatanVariant = buildVariant(
     "grain",
     "ore",
   ],
-);
+});
 
-/** The board layout for a variant id. */
+/**
+ * The board layout for a variant id. Only the two fixed layouts can be resolved
+ * this way — a Marins board is built per scenario × player count and travels as
+ * a {@link BoardOptions.variantSpec}.
+ */
 export function variantOf(id: CatanVariantId): CatanVariant {
+  if (id === "marins") {
+    throw new Error("Un plateau Marins doit fournir son propre `variantSpec`.");
+  }
+
   return id === "extension" ? EXTENSION_VARIANT : BASE_VARIANT;
 }
 
@@ -525,7 +583,7 @@ export const PORT_TOUCHED: number[][] = BASE_VARIANT.portTouched;
 export const NUMBER_TOKENS: number[] = BASE_VARIANT.numberTokens;
 
 /** Small, fast, seedable PRNG (mulberry32) for reproducible boards. */
-function mulberry32(seed: number): () => number {
+export function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
 
   return () => {
@@ -538,7 +596,8 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-function shuffle<T>(items: T[], rng: () => number): T[] {
+/** Fisher-Yates on a copy, driven by a seeded rng. */
+export function shuffle<T>(items: T[], rng: () => number): T[] {
   const out = items.slice();
 
   for (let i = out.length - 1; i > 0; i--) {
@@ -1010,7 +1069,8 @@ function pickDeserts(
   const count = variant.terrainCounts.desert;
   const eligible = variant.cells
     .filter(cell => {
-      if (opts.ignore || variant.id === "extension") {
+      // The centre/ring rule only means something on the base hexagon.
+      if (opts.ignore || variant.id !== "base") {
         return true;
       }
 
@@ -1067,7 +1127,7 @@ export function generateCatanBoard(
   seed?: number,
   options?: BoardOptions,
 ): CatanBoard {
-  const variant = variantOf(options?.variant ?? "base");
+  const variant = options?.variantSpec ?? variantOf(options?.variant ?? "base");
   const innerOk = options?.desertInnerRing ?? false;
   const outerOk = options?.desertOuterRing ?? false;
   const allowAdjacentDeserts = options?.allowAdjacentDeserts ?? false;
@@ -1218,7 +1278,13 @@ export function generateCatanBoard(
     type: portTypes[i],
   }));
 
-  return { variant: variant.id, hexes, ports, seed: actualSeed };
+  return {
+    variant: variant.id,
+    hexes,
+    ports,
+    sea: variant.seaCells,
+    seed: actualSeed,
+  };
 }
 
 /**
@@ -1254,7 +1320,7 @@ export function boardWarnings(
     return [];
   }
 
-  const variant = variantOf(board.variant);
+  const variant = options?.variantSpec ?? variantOf(board.variant);
   const tolerance = options?.balanceTolerance ?? DEFAULT_TOLERANCE;
   const limitPips = options?.limitIntersectionPips ?? true;
   const maxPips = options?.maxIntersectionPips ?? DEFAULT_MAX_PIPS;

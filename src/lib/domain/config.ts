@@ -47,6 +47,12 @@ export interface TextFieldSpec extends FieldSpecBase {
 export interface BooleanFieldSpec extends FieldSpecBase {
   type: "boolean";
   default?: boolean;
+  /**
+   * Points this option adds to the score to reach when it's switched on
+   * (Catan's « Maître du port » = +1). Additive and never negative — an option
+   * may make the game longer to win, never shorter.
+   */
+  targetModifier?: number;
 }
 
 export interface EnumFieldSpec extends FieldSpecBase {

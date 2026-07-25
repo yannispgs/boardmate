@@ -1,72 +1,44 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { BoardStructure } from "@/components/catan/BoardStructure";
+import { BoardWarnings, WarningsBadge } from "@/components/catan/BoardWarnings";
+import {
+  type BoardOrientation,
+  CatanBoardSvg,
+} from "@/components/catan/CatanBoardSvg";
+import {
+  type SegmentedOption,
+  SegmentedPicker,
+} from "@/components/catan/SegmentedPicker";
+import { TerrainLegend } from "@/components/catan/TerrainLegend";
 import { MoveHorizontalIcon, MoveVerticalIcon } from "@/components/icons";
 import {
   type BoardOptions,
-  type BoardWarning,
   boardWarnings,
   type CatanBoard,
-  type CatanResource,
+  type CatanTerrain,
   type CatanVariantId,
   generateCatanBoard,
 } from "@/lib/catan/board";
-import { BoardStructure } from "./BoardStructure";
-import { type BoardOrientation, CatanBoardSvg } from "./CatanBoardSvg";
 
-const RESOURCE_LABEL: Record<CatanResource, string> = {
-  wood: "bois",
-  brick: "argile",
-  wool: "laine",
-  grain: "blé",
-  ore: "minerai",
-};
-
-/** A single unmet placement rule, phrased for the player. */
-function warningText(w: BoardWarning): string {
-  switch (w.kind) {
-    case "intersectionTooStrong": {
-      const plural = w.count > 1;
-
-      return `${w.count} intersection${plural ? "s" : ""} dépasse${
-        plural ? "nt" : ""
-      } le plafond de ${w.max} pastilles (jusqu'à ${w.worst}).`;
-    }
-    case "resourceBalance": {
-      // The band is fractional; show the exact integer limit that was broken so
-      // the message can never contradict the check (e.g. 17 combos is out when
-      // the real cap is 16.6, whose whole-number limit is 16, not a rounded 17).
-      const tooHigh = w.combos > w.high;
-      const limit = tooHigh ? Math.floor(w.high) : Math.ceil(w.low);
-
-      return `La production de ${RESOURCE_LABEL[w.resource]} est ${
-        tooHigh ? "trop forte" : "trop faible"
-      } (${w.combos} combinaisons, ${tooHigh ? "maximum" : "minimum"} ${limit}).`;
-    }
-    default: {
-      return `Un port 2:1 est adjacent à une tuile de sa ressource (${w.resources
-        .map(r => RESOURCE_LABEL[r])
-        .join(", ")}).`;
-    }
-  }
-}
-
-const LEGEND: { label: string; resource: string; color: string }[] = [
-  { label: "Forêt", resource: "bois", color: "#2e7d46" },
-  { label: "Prairie", resource: "laine", color: "#7cb342" },
-  { label: "Champs", resource: "blé", color: "#e5b731" },
-  { label: "Collines", resource: "argile", color: "#c1673b" },
-  { label: "Montagnes", resource: "minerai", color: "#8a929c" },
-  { label: "Désert", resource: "voleur", color: "#e0cfa3" },
+/** Every terrain the base game ships, in legend order. */
+const TERRAINS: CatanTerrain[] = [
+  "forest",
+  "pasture",
+  "fields",
+  "hills",
+  "mountains",
+  "desert",
 ];
 
 const sectionClass =
   "flex w-full max-w-md flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10";
 
 /** Board sizes offered by the selector. */
-const VARIANTS: { id: CatanVariantId; label: string; hint: string }[] = [
-  { id: "base", label: "3-4 joueurs", hint: "19 tuiles" },
-  { id: "extension", label: "5-6 joueurs", hint: "30 tuiles" },
+const VARIANTS: SegmentedOption<CatanVariantId>[] = [
+  { value: "base", label: "3-4 joueurs", hint: "19 tuiles" },
+  { value: "extension", label: "5-6 joueurs", hint: "30 tuiles" },
 ];
 
 /** Generator settings — session-only (they reset to these on every visit). */
@@ -197,32 +169,12 @@ export function CatanBoardGenerator() {
 
   return (
     <div className="flex flex-col items-center gap-6">
-      <div className="flex rounded-lg border border-black/10 p-1 dark:border-white/10">
-        {VARIANTS.map(v => {
-          const active = opts.variant === v.id;
-
-          return (
-            <button
-              key={v.id}
-              type="button"
-              onClick={() => regen({ variant: v.id })}
-              aria-pressed={active}
-              className={`flex flex-col items-center rounded-md px-4 py-1.5 text-sm font-medium transition ${
-                active
-                  ? "bg-indigo-600 text-white"
-                  : "text-zinc-600 hover:bg-black/5 dark:text-zinc-300 dark:hover:bg-white/5"
-              }`}
-            >
-              {v.label}
-              <span
-                className={`text-[11px] ${active ? "text-white/80" : "text-zinc-400"}`}
-              >
-                {v.hint}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      <SegmentedPicker
+        label="Taille du plateau"
+        options={VARIANTS}
+        value={opts.variant}
+        onChange={variant => regen({ variant })}
+      />
 
       <div className="relative w-full max-w-md">
         <CatanBoardSvg
@@ -231,41 +183,12 @@ export function CatanBoardGenerator() {
         />
 
         {warnings.length > 0 ? (
-          <button
-            type="button"
-            onClick={() => setShowWarnings(v => !v)}
-            aria-label="Voir les règles de placement non respectées"
-            className="absolute right-0 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-lg shadow ring-1 ring-amber-400 transition hover:bg-amber-200 dark:bg-amber-950 dark:ring-amber-600"
-          >
-            ⚠️
-          </button>
+          <WarningsBadge onClick={() => setShowWarnings(v => !v)} />
         ) : null}
       </div>
 
       {warnings.length > 0 && showWarnings ? (
-        <section
-          className={`${sectionClass} border-amber-400/60 bg-amber-50 text-sm dark:bg-amber-950/40`}
-        >
-          <h2 className="font-semibold">
-            ⚠️ Règles non garanties sur ce plateau
-          </h2>
-          <p className="text-xs text-zinc-600 dark:text-zinc-300">
-            Le générateur fait au mieux : ce plateau respecte les contraintes
-            strictes, mais pas les règles souples ci-dessous. Retire un nouveau
-            plateau pour retenter.
-          </p>
-          <ul className="flex list-disc flex-col gap-1 pl-4 text-zinc-700 dark:text-zinc-200">
-            {warnings.map(w => (
-              <li
-                key={
-                  w.kind === "resourceBalance" ? `bal-${w.resource}` : w.kind
-                }
-              >
-                {warningText(w)}
-              </li>
-            ))}
-          </ul>
-        </section>
+        <BoardWarnings warnings={warnings} className={sectionClass} />
       ) : null}
 
       <div className="flex flex-wrap items-center justify-center gap-3">
@@ -308,28 +231,7 @@ export function CatanBoardGenerator() {
 
       <BoardStructure board={board} />
 
-      <div className="flex flex-col gap-2">
-        <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm sm:grid-cols-3">
-          {LEGEND.map(item => (
-            <li key={item.label} className="flex items-center gap-2">
-              <span
-                aria-hidden
-                className="h-3.5 w-3.5 shrink-0 rounded-sm border border-black/10"
-                style={{ backgroundColor: item.color }}
-              />
-              <span>
-                {item.label}{" "}
-                <span className="text-zinc-500 dark:text-zinc-400">
-                  ({item.resource})
-                </span>
-              </span>
-            </li>
-          ))}
-        </ul>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          Les pastilles sous chaque nombre indiquent sa fréquence de sortie.
-        </p>
-      </div>
+      <TerrainLegend terrains={TERRAINS} />
 
       {showConfig ? (
         <section className={sectionClass}>
