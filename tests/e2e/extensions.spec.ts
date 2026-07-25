@@ -57,3 +57,28 @@ test("launches a Catan game with the Marins extension and a scenario", async ({
     await admin.from("players").delete().in("name", names);
   }
 });
+
+/**
+ * Browsing a game's extensions from the "Jeux" list: the puzzle shortcut opens
+ * the dedicated screen, which lists what the extension changes and each of its
+ * scenarios with the fixed score to reach.
+ */
+test("browses the Catan extensions from the games list", async ({ page }) => {
+  await page.goto("/boardgames");
+  await page.getByRole("link", { name: `Extensions de ${CATAN_NAME}` }).click();
+
+  await expect(page).toHaveURL(/\/boardgames\/[0-9a-f-]+\/extensions/);
+  await expect(
+    page.getByRole("heading", { name: `Extensions — ${CATAN_NAME}` }),
+  ).toBeVisible();
+
+  await expect(
+    page.getByRole("heading", { name: "Catan - Marins" }),
+  ).toBeVisible();
+  await expect(page.getByText("2 scénarios au choix")).toBeVisible();
+  await expect(page.getByText("Modifie le plateau")).toBeVisible();
+
+  // Each scenario shows its rulebook target (Four Islands = 13).
+  await expect(page.getByText("Les quatre îles")).toBeVisible();
+  await expect(page.getByText("🎯 13 pts")).toBeVisible();
+});

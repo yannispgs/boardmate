@@ -10,6 +10,7 @@ import type {
 import {
   composeConfigFields,
   composeScoring,
+  extensionEffects,
   scenarioTarget,
   winTargetWithModifiers,
 } from "./extensions";
@@ -25,7 +26,7 @@ function ext(
     scoringDelta: partial.scoringDelta ?? null,
     targetModifier: partial.targetModifier ?? 0,
     hasScenarios: partial.hasScenarios ?? false,
-    changesBoard: false,
+    changesBoard: partial.changesBoard ?? false,
     isActive: true,
     sortOrder: partial.sortOrder ?? 0,
     scenarios: partial.scenarios ?? [],
@@ -34,6 +35,63 @@ function ext(
 
 const intField = (key: string, def: number): FieldSpec =>
   ({ key, label: key, type: "integer", default: def }) as FieldSpec;
+
+describe("extensionEffects", () => {
+  it("says nothing for an extension that is only recorded", () => {
+    expect(extensionEffects(ext({ id: "vc" }))).toEqual([]);
+  });
+
+  it("lists scenarios, board, target, categories and settings", () => {
+    const effects = extensionEffects(
+      ext({
+        id: "marins",
+        hasScenarios: true,
+        changesBoard: true,
+        targetModifier: 2,
+        scoringDelta: {
+          appendSheet: [{ key: "iles", label: "Îles" } as never],
+        },
+        configFields: [intField("pointsToWin", 14)],
+        scenarios: [
+          { id: "s1" as ExtensionScenarioId } as never,
+          { id: "s2" as ExtensionScenarioId } as never,
+        ],
+      }),
+    );
+
+    expect(effects).toEqual([
+      "2 scénarios au choix",
+      "Modifie le plateau",
+      "+2 points pour gagner",
+      "1 catégorie de score en plus",
+      "1 réglage de partie",
+    ]);
+  });
+
+  it("pluralises the counted nouns", () => {
+    const effects = extensionEffects(
+      ext({
+        id: "vc",
+        configFields: [intField("a", 1), intField("b", 2)],
+        scoringDelta: {
+          appendSheet: [
+            { key: "a", label: "A" } as never,
+            { key: "b", label: "B" } as never,
+          ],
+        },
+      }),
+    );
+
+    expect(effects).toEqual([
+      "2 catégories de score en plus",
+      "2 réglages de partie",
+    ]);
+  });
+
+  it("ignores a scoring delta that appends nothing", () => {
+    expect(extensionEffects(ext({ id: "x", scoringDelta: {} }))).toEqual([]);
+  });
+});
 
 describe("composeConfigFields", () => {
   it("returns the base fields unchanged with no extensions", () => {

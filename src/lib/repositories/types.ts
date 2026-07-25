@@ -217,6 +217,8 @@ export interface FeedbackRepository {
 export interface ExtensionRepository {
   /** The active extensions (with their scenarios) available for a base game. */
   listByBase(baseGameId: BoardgameId): Promise<Extension[]>;
+  /** The ids of the base games that have at least one active extension. */
+  listExtendedBaseGames(): Promise<BoardgameId[]>;
 }
 
 /** Aggregate of all repositories, resolved by the active adapter. */
