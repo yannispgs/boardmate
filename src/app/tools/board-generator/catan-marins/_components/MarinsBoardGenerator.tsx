@@ -10,7 +10,7 @@ import {
   SegmentedPicker,
 } from "@/components/catan/SegmentedPicker";
 import { TerrainLegend } from "@/components/catan/TerrainLegend";
-import { PlusIcon } from "@/components/icons";
+import { PencilIcon } from "@/components/icons";
 import { iconButtonClass } from "@/components/ui";
 import { boardWarnings, type CatanTerrain } from "@/lib/catan/board";
 import {
@@ -87,10 +87,10 @@ export function MarinsBoardGenerator() {
         action={
           <Link
             href={MARINS_SCENARIOS_HREF}
-            title="Créer un scénario"
+            title="Gérer les scénarios"
             className={iconButtonClass}
           >
-            <PlusIcon />
+            <PencilIcon />
           </Link>
         }
       />

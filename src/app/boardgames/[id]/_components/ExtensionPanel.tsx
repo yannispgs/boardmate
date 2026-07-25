@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { PlusIcon } from "@/components/icons";
+import { PencilIcon } from "@/components/icons";
 import { iconButtonClass, sectionHeadingClass } from "@/components/ui";
 import type { Extension } from "@/lib/domain";
 import { extensionEffects } from "@/lib/game/extensions";
@@ -50,10 +50,10 @@ export function ExtensionPanel({ extension }: { extension: Extension }) {
             {editorHref === null ? null : (
               <Link
                 href={editorHref}
-                title="Créer un scénario"
+                title="Gérer les scénarios"
                 className={iconButtonClass}
               >
-                <PlusIcon />
+                <PencilIcon />
               </Link>
             )}
           </div>
