@@ -3,17 +3,35 @@
 import { type SpecIssue, specIssueText } from "@/lib/catan/scenario-spec";
 
 /**
+ * One key per issue, leaning on what it says rather than on where it sits: the
+ * board it is about, its wording, and how many issues before it read exactly
+ * alike — two boards can raise the very same complaint, word for word.
+ */
+function keyed(issues: SpecIssue[]): { key: string; issue: SpecIssue }[] {
+  const seen = new Map<string, number>();
+
+  return issues.map(issue => {
+    const said = `${"board" in issue ? issue.board : "-"}:${specIssueText(issue)}`;
+    const before = seen.get(said) ?? 0;
+
+    seen.set(said, before + 1);
+
+    return { key: `${said}#${before}`, issue };
+  });
+}
+
+/**
  * What still keeps a scenario from being drawn, in the author's words. Empty
  * means the generator can take it — which is exactly when saving is allowed.
  */
 export function SpecIssueList({
   issues,
   boardLabels,
-}: {
+}: Readonly<{
   issues: SpecIssue[];
   /** How each board is named, so an issue says which map it is about. */
   boardLabels: string[];
-}) {
+}>) {
   if (issues.length === 0) {
     return (
       <p className="text-sm text-emerald-600 dark:text-emerald-400">
@@ -24,12 +42,8 @@ export function SpecIssueList({
 
   return (
     <ul className="flex flex-col gap-1.5 text-sm text-red-600 dark:text-red-400">
-      {issues.map((issue, index) => (
-        <li
-          // biome-ignore lint/suspicious/noArrayIndexKey: the list is rebuilt whole on every change, and two issues can read exactly alike
-          key={index}
-          className="flex gap-2"
-        >
+      {keyed(issues).map(({ key, issue }) => (
+        <li key={key} className="flex gap-2">
           <span aria-hidden>•</span>
           <span>
             {"board" in issue && boardLabels.length > 1 ? (

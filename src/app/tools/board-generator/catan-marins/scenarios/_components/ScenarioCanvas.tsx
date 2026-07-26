@@ -87,7 +87,7 @@ export function ScenarioCanvas({
   selected,
   onCell,
   onPort,
-}: {
+}: Readonly<{
   board: ScenarioBoardSpec;
   width: number;
   activeZone: number;
@@ -96,7 +96,7 @@ export function ScenarioCanvas({
   selected: SpecCell | null;
   onCell: (cell: SpecCell) => void;
   onPort: (port: SpecPort) => void;
-}) {
+}>) {
   const [drawing, setDrawing] = useState(false);
   // The space the stroke last applied the tool to, so sliding across one space
   // rebuilds the scenario once instead of on every pointer report.

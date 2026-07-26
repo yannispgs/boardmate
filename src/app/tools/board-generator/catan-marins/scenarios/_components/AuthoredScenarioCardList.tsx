@@ -8,11 +8,11 @@ export function AuthoredScenarioCardList({
   scenarios,
   onEdit,
   onDelete,
-}: {
+}: Readonly<{
   scenarios: ExtensionScenario[];
   onEdit: (scenario: ExtensionScenario) => void;
   onDelete: (scenario: ExtensionScenario) => void;
-}) {
+}>) {
   if (scenarios.length === 0) {
     return (
       <p className="text-sm text-zinc-500">

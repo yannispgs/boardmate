@@ -30,11 +30,11 @@ export function AuthoredScenarioCard({
   scenario,
   onEdit,
   onDelete,
-}: {
+}: Readonly<{
   scenario: ExtensionScenario;
   onEdit: (scenario: ExtensionScenario) => void;
   onDelete: (scenario: ExtensionScenario) => void;
-}) {
+}>) {
   const editable = scenario.boardSpec !== null;
 
   return (

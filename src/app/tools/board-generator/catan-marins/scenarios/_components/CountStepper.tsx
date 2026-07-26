@@ -12,7 +12,7 @@ export function CountStepper({
   onChange,
   max = 99,
   layout = "row",
-}: {
+}: Readonly<{
   label: string;
   /** Colour chip in front of the label, when the thing counted has one. */
   color?: string;
@@ -25,7 +25,7 @@ export function CountStepper({
    * a dozen of them fit side by side instead of eating a dozen lines.
    */
   layout?: "row" | "stack";
-}) {
+}>) {
   const buttonClass =
     "h-6 w-6 rounded-md border border-black/10 text-sm leading-none transition hover:bg-black/5 disabled:opacity-30 dark:border-white/15 dark:hover:bg-white/5";
 

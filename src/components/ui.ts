@@ -9,3 +9,11 @@ export const dangerIconButtonClass =
 
 export const sectionHeadingClass =
   "text-xs font-semibold uppercase tracking-wide text-zinc-400";
+
+/** A pill-shaped choice, filled in when it is the one in force. */
+export const chipClass = (active: boolean) =>
+  `rounded-full border px-3 py-1 text-sm transition ${
+    active
+      ? "border-indigo-500 bg-indigo-500/10 font-medium text-indigo-700 dark:text-indigo-300"
+      : "border-black/10 hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+  }`;

@@ -176,7 +176,7 @@ export function ZonePanel({
             }
             className="h-4 w-4"
           />
-          Tuiles face cachée (île de brume)
+          <span>Tuiles face cachée (île de brume)</span>
         </label>
 
         <label className="flex items-center gap-2 text-sm">
@@ -195,7 +195,7 @@ export function ZonePanel({
             }
             className="h-4 w-4"
           />
-          Regrouper la terre en îles
+          <span>Regrouper la terre en îles</span>
         </label>
 
         {islands === null ? null : (

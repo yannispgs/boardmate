@@ -4,19 +4,13 @@ import { useState } from "react";
 
 import { SPEC_TERRAIN_NAME } from "@/components/catan/terrain-labels";
 import { StickyActionBar } from "@/components/StickyActionBar";
-import { sectionHeadingClass } from "@/components/ui";
+import { chipClass, sectionHeadingClass } from "@/components/ui";
 import { useConfirm } from "@/components/use-confirm";
 import { playerGroupLabel } from "@/lib/catan/marins";
 import {
-  addBoard,
   addZone,
-  duplicateBoard,
   eraseCell,
-  narrowestWidth,
   paintCell,
-  removeBoard,
-  setBoardPlayers,
-  setBoardWidth,
   setScenarioName,
   setStaticTile,
   setTargetScore,
@@ -24,8 +18,6 @@ import {
 } from "@/lib/catan/scenario-draft";
 import {
   boardWidth,
-  MAX_WIDTH,
-  MIN_WIDTH,
   type ScenarioSpec,
   type SpecCell,
   type SpecPort,
@@ -35,12 +27,11 @@ import {
 import type { ScenarioDraft } from "@/lib/hooks/use-extensions";
 import { BoardPortsPanel } from "./BoardPortsPanel";
 import { BoardPreview } from "./BoardPreview";
+import { BoardTabs } from "./BoardTabs";
 import { type CanvasTool, ScenarioCanvas, zoneColor } from "./ScenarioCanvas";
 import { SpecIssueList } from "./SpecIssueList";
+import { WidthStepper } from "./WidthStepper";
 import { ZonePanel } from "./ZonePanel";
-
-/** The player counts a Marins map is drawn for. */
-const PLAYER_COUNTS = [3, 4, 5, 6];
 
 /** The terrains a static tile can be fixed to, sea first. */
 const STATIC_TERRAINS: SpecTerrain[] = [
@@ -76,13 +67,6 @@ const toolButtonClass = (active: boolean) =>
       : "text-zinc-600 hover:bg-black/5 dark:text-zinc-300 dark:hover:bg-white/5"
   }`;
 
-const chipClass = (active: boolean) =>
-  `rounded-full border px-3 py-1 text-sm transition ${
-    active
-      ? "border-indigo-500 bg-indigo-500/10 font-medium text-indigo-700 dark:text-indigo-300"
-      : "border-black/10 hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
-  }`;
-
 const fieldClass =
   "rounded-lg border border-black/10 px-3 py-2 text-sm dark:border-white/15";
 
@@ -100,11 +84,11 @@ export function ScenarioEditor({
   draft,
   onSave,
   onClose,
-}: {
+}: Readonly<{
   draft: ScenarioDraft;
   onSave: (draft: ScenarioDraft) => Promise<void>;
   onClose: () => void;
-}) {
+}>) {
   const [spec, setSpec] = useState<ScenarioSpec>(draft.boardSpec);
   const [boardIndex, setBoardIndex] = useState(0);
   const [zoneIndex, setZoneIndex] = useState(0);
@@ -123,10 +107,6 @@ export function ScenarioEditor({
   const issues = validateScenarioSpec(spec);
   const labels = spec.boards.map(b => boardLabel(b.players));
   const width = boardWidth(board);
-  // Never narrower than what is already painted, so nothing can hide off-map.
-  const floor = narrowestWidth(board);
-  const taken = new Set(spec.boards.flatMap(b => b.players));
-  const free = PLAYER_COUNTS.filter(count => !taken.has(count));
 
   function change(next: ScenarioSpec) {
     setSpec(next);
@@ -163,25 +143,6 @@ export function ScenarioEditor({
     setBoardIndex(index);
     setZoneIndex(0);
     setSelected(null);
-  }
-
-  function togglePlayers(count: number) {
-    const players = board.players.includes(count)
-      ? board.players.filter(p => p !== count)
-      : [...board.players, count].sort((a, b) => a - b);
-
-    change(setBoardPlayers(spec, boardIndex, players));
-  }
-
-  function dropBoard() {
-    requestConfirm({
-      message: `Supprimer le plateau « ${labels[boardIndex]} » ? Son plan est perdu.`,
-      confirmLabel: "Supprimer",
-      onConfirm: () => {
-        change(removeBoard(spec, boardIndex));
-        pickBoard(0);
-      },
-    });
   }
 
   async function save() {
@@ -310,7 +271,7 @@ export function ScenarioEditor({
                 {board.zones.map((z, index) => (
                   <button
                     // biome-ignore lint/suspicious/noArrayIndexKey: a zone is identified by its index, which is how every draft operation names it
-                    key={index}
+                    key={index} // NOSONAR: same reason
                     type="button"
                     onClick={() => {
                       setZoneIndex(index);
@@ -351,75 +312,13 @@ export function ScenarioEditor({
           </aside>
 
           <div className="flex min-w-0 flex-1 flex-col gap-4">
-            <section className="flex flex-col gap-2">
-              <h3 className={sectionHeadingClass}>Plateaux</h3>
-              <div className="flex flex-wrap gap-2">
-                {labels.map((label, index) => (
-                  <button
-                    // biome-ignore lint/suspicious/noArrayIndexKey: a board is identified by its index, which is how every draft operation names it
-                    key={index}
-                    type="button"
-                    onClick={() => pickBoard(index)}
-                    className={chipClass(index === boardIndex)}
-                  >
-                    {label}
-                  </button>
-                ))}
-                {free.length > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      change(addBoard(spec, [free[0]]));
-                      pickBoard(spec.boards.length);
-                    }}
-                    className={chipClass(false)}
-                  >
-                    + Plateau
-                  </button>
-                ) : null}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="text-zinc-500 dark:text-zinc-400">
-                  Utilisé à
-                </span>
-                {PLAYER_COUNTS.map(count => (
-                  <button
-                    key={count}
-                    type="button"
-                    onClick={() => togglePlayers(count)}
-                    disabled={
-                      taken.has(count) && !board.players.includes(count)
-                    }
-                    className={`${chipClass(board.players.includes(count))} disabled:opacity-30`}
-                  >
-                    {count}
-                  </button>
-                ))}
-                {free.map(count => (
-                  <button
-                    key={`copy-${count}`}
-                    type="button"
-                    onClick={() => {
-                      change(duplicateBoard(spec, boardIndex, [count]));
-                      pickBoard(spec.boards.length);
-                    }}
-                    className={chipClass(false)}
-                  >
-                    Dupliquer vers {count} joueurs
-                  </button>
-                ))}
-                {spec.boards.length > 1 ? (
-                  <button
-                    type="button"
-                    onClick={dropBoard}
-                    className="rounded-full border border-black/10 px-3 py-1 text-sm text-red-600 transition hover:bg-red-50 dark:border-white/15 dark:text-red-400 dark:hover:bg-red-950/40"
-                  >
-                    Supprimer ce plateau
-                  </button>
-                ) : null}
-              </div>
-            </section>
+            <BoardTabs
+              spec={spec}
+              board={boardIndex}
+              labels={labels}
+              onChange={change}
+              onPick={pickBoard}
+            />
 
             <div className="rounded-xl border border-black/10 p-3 dark:border-white/10">
               <ScenarioCanvas
@@ -433,40 +332,12 @@ export function ScenarioEditor({
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="text-zinc-500 dark:text-zinc-400">
-                Largeur du plateau
-              </span>
-              <button
-                type="button"
-                onClick={() =>
-                  change(setBoardWidth(spec, boardIndex, width - 1))
-                }
-                disabled={width <= floor}
-                className={`${chipClass(false)} disabled:opacity-30`}
-              >
-                −
-              </button>
-              <span className="w-6 text-center tabular-nums font-semibold">
-                {width}
-              </span>
-              <button
-                type="button"
-                onClick={() =>
-                  change(setBoardWidth(spec, boardIndex, width + 1))
-                }
-                disabled={width >= MAX_WIDTH}
-                className={`${chipClass(false)} disabled:opacity-30`}
-              >
-                +
-              </button>
-              <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                {width} tuiles sur les rangées du bord, {width + 3} au milieu
-                {width <= floor && width > MIN_WIDTH
-                  ? " · réduire découperait une zone peinte"
-                  : ""}
-              </span>
-            </div>
+            <WidthStepper
+              spec={spec}
+              board={boardIndex}
+              width={width}
+              onChange={change}
+            />
 
             <section className="flex flex-col gap-2">
               <h3 className={sectionHeadingClass}>Vérifications</h3>

@@ -16,10 +16,10 @@ import type { ScenarioSpec } from "@/lib/catan/scenario-spec";
 export function BoardPreview({
   spec,
   players,
-}: {
+}: Readonly<{
   spec: ScenarioSpec;
   players: number;
-}) {
+}>) {
   const [seed, setSeed] = useState(1);
 
   let drawn: ReturnType<typeof generateSpecBoard> | null = null;
