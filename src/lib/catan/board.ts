@@ -21,6 +21,8 @@
  *    is fine — only the closed triangle of three mutually-adjacent same tiles);
  *  - the red numbers **6 and 8 are never adjacent** (official expert rule);
  *  - **two identical numbers are never adjacent**;
+ *  - a **face-up gold river never carries a red number** (Seafarers rule: it
+ *    pays any resource, so a 6 or an 8 on one would out-produce the whole map);
  *  - each resource's production stays within a tolerance of its balanced share,
  *    and (optionally) is spread evenly *within* the resource — no single tile
  *    hogging all its pips (penalised exponentially);
@@ -716,6 +718,7 @@ function placeNumbers(
   avoidReds: boolean,
   avoidDuplicates: boolean,
   variant: CatanVariant,
+  noReds: ReadonlySet<number>,
 ): Map<number, number> | null {
   const poolOf = poolIndexByHex(variant);
   const distinct = variant.pools.map(pool => [...new Set(pool.numberTokens)]);
@@ -725,6 +728,10 @@ function placeNumbers(
     hexId: number,
     n: number,
   ): boolean => {
+    if (isRedNumber(n) && noReds.has(hexId)) {
+      return false;
+    }
+
     for (const nb of variant.neighbours[hexId]) {
       const other = assigned.get(nb);
 
@@ -1340,6 +1347,14 @@ export function generateCatanBoard(
     .filter(h => carriesNumber(h.terrain))
     .map(h => h.id);
 
+  // Seafarers: a gold river tile pays any resource, so a red number on one
+  // would out-produce everything else on the map — the rulebook forbids it.
+  // Only where the tile can be *seen*: a face-down gold river (the fog island)
+  // is no one's advantage until it is turned over.
+  const noReds = new Set(
+    hexes.filter(h => h.terrain === "gold" && !h.hidden).map(h => h.id),
+  );
+
   // Numbers: an unconstrained shuffle when ignoring, else the balanced search.
   let best: Map<number, number>;
 
@@ -1356,6 +1371,7 @@ export function generateCatanBoard(
         avoidReds,
         avoidDuplicates,
         variant,
+        noReds,
       );
 
       // No placement satisfies the rules — an authored scenario can pin two

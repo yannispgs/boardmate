@@ -265,6 +265,77 @@ describe("validateScenarioSpec", () => {
     ).toEqual(["static-token", "static-token"]);
   });
 
+  it("flags a red number pinned on a gold river", () => {
+    expect(
+      kinds(
+        spec({
+          statics: [
+            { cell: { q: 0, r: 1 }, terrain: "gold", number: 6 },
+            { cell: { q: 1, r: 1 }, terrain: "gold", number: 8 },
+          ],
+        }),
+      ),
+    ).toEqual(["static-gold-red", "static-gold-red"]);
+  });
+
+  it("accepts a gold river pinned with anything but a red", () => {
+    expect(
+      validateScenarioSpec(
+        spec({
+          statics: [{ cell: { q: 0, r: 1 }, terrain: "gold", number: 9 }],
+        }),
+      ),
+    ).toEqual([]);
+  });
+
+  it("flags a bag with nowhere left to put its reds but a gold river", () => {
+    // Three tiles carry a token, two of them gold — so a single non-gold tile
+    // for two reds. One of the 6 and the 8 has to land on a gold river.
+    expect(
+      kinds(
+        spec({
+          zones: [
+            zone({
+              terrainCounts: { forest: 1, gold: 2 },
+              numberTokens: [6, 8, 5],
+            }),
+          ],
+        }),
+      ),
+    ).toEqual(["forced-gold-red"]);
+  });
+
+  it("accepts reds a zone can keep off its gold rivers", () => {
+    expect(
+      validateScenarioSpec(
+        spec({
+          zones: [
+            zone({
+              terrainCounts: { forest: 2, gold: 1 },
+              numberTokens: [6, 8, 5],
+            }),
+          ],
+        }),
+      ),
+    ).toEqual([]);
+  });
+
+  it("lets a face-down zone hold reds it could not place face up", () => {
+    expect(
+      validateScenarioSpec(
+        spec({
+          zones: [
+            zone({
+              hidden: true,
+              terrainCounts: { forest: 1, gold: 2 },
+              numberTokens: [6, 8, 5],
+            }),
+          ],
+        }),
+      ),
+    ).toEqual([]);
+  });
+
   it("accepts a harbour bag with no pinned slot", () => {
     expect(
       validateScenarioSpec(
@@ -399,6 +470,8 @@ describe("specIssueText", () => {
     { kind: "port-count", ...shared, types: 1, slots: 2 },
     { kind: "port-over-land", ...shared, spaces: 2, land: 1 },
     { kind: "port-off-zone", ...shared, cell },
+    { kind: "static-gold-red", board: 0, cell },
+    { kind: "forced-gold-red", ...shared, reds: 2, others: 1 },
   ];
 
   it("phrases every issue for the author, in French and without a blank", () => {

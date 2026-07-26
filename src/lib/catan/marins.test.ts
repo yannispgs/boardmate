@@ -557,4 +557,81 @@ describe("generateSpecBoard", () => {
 
     expect(board.hexes.map(h => h.number).sort()).toEqual([6, 8]);
   });
+
+  it("keeps the reds off a gold river anyone can see", () => {
+    // Five spaces in a blob, two of the five tokens red: wherever the gold river
+    // lands there is always a pair of non-adjacent spaces left to take them, so
+    // the only thing that can push a red onto the gold is a missing rule.
+    const spec: ScenarioSpec = {
+      name: "Or",
+      targetScore: 10,
+      boards: [
+        {
+          players: [3],
+          zones: [
+            {
+              name: "Île",
+              cells: [
+                { q: 0, r: 0 },
+                { q: 1, r: 0 },
+                { q: 2, r: 0 },
+                { q: 0, r: 1 },
+                { q: 1, r: 1 },
+              ],
+              terrainCounts: { gold: 1, forest: 2, pasture: 2 },
+              numberTokens: [6, 8, 5, 4, 3],
+            },
+          ],
+        },
+      ],
+    };
+
+    for (let seed = 0; seed < 10; seed++) {
+      const { board } = generateSpecBoard(spec, 3, seed);
+      const gold = board.hexes.find(h => h.terrain === "gold");
+
+      expect(gold?.number).not.toBe(6);
+      expect(gold?.number).not.toBe(8);
+    }
+  });
+
+  it("lets a gold river hidden in the fog take a red", () => {
+    // The fog holds one gold river and one 6, so that 6 has nowhere else to go.
+    // The island next to it has one reading and one only: its two 5s can't touch,
+    // so they take the ends and the 4 the middle. Reach the rule into the fog and
+    // there is no legal board at all — everything falls back to a raw shuffle and
+    // the island's tokens wander.
+    const spec: ScenarioSpec = {
+      name: "Brume dorée",
+      targetScore: 10,
+      boards: [
+        {
+          players: [3],
+          zones: [
+            {
+              name: "Île",
+              cells: strip(3),
+              terrainCounts: { forest: 3 },
+              numberTokens: [5, 5, 4],
+            },
+            {
+              name: "Brume",
+              cells: [{ q: 0, r: 1 }],
+              terrainCounts: { gold: 1 },
+              numberTokens: [6],
+              hidden: true,
+            },
+          ],
+        },
+      ],
+    };
+
+    for (let seed = 0; seed < 10; seed++) {
+      const { board } = generateSpecBoard(spec, 3, seed);
+      const at = (q: number, r: number) =>
+        board.hexes.find(h => h.q === q && h.r === r)?.number;
+
+      expect([at(0, 0), at(1, 0), at(2, 0), at(0, 1)]).toEqual([5, 4, 5, 6]);
+    }
+  });
 });

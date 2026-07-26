@@ -21,7 +21,7 @@
  * paints must still add up — see {@link validateScenarioSpec}.
  */
 
-import type { CatanPortType, CatanTerrain } from "./board";
+import { type CatanPortType, type CatanTerrain, isRedNumber } from "./board";
 
 /** Every scenario board is seven rows deep; only its width changes. */
 export const BOARD_ROWS = 7;
@@ -304,6 +304,15 @@ export type SpecIssue =
     }
   | { kind: "bad-token"; board: number; where: string; token: number }
   | { kind: "static-token"; board: number; cell: SpecCell }
+  | { kind: "static-gold-red"; board: number; cell: SpecCell }
+  | {
+      kind: "forced-gold-red";
+      board: number;
+      zone: number;
+      name: string;
+      reds: number;
+      others: number;
+    }
   | {
       kind: "port-count";
       board: number;
@@ -400,6 +409,7 @@ function boardIssues(board: ScenarioBoardSpec, index: number): SpecIssue[] {
       }
     }
 
+    issues.push(...goldIssues(zone, shared));
     issues.push(...portIssues(zone, shared));
   });
 
@@ -422,9 +432,39 @@ function boardIssues(board: ScenarioBoardSpec, index: number): SpecIssue[] {
     if (tile.terrain === "sea" || tile.terrain === "desert") {
       issues.push({ kind: "static-token", board: index, cell: tile.cell });
     }
+
+    if (tile.terrain === "gold" && isRedNumber(tile.number)) {
+      issues.push({ kind: "static-gold-red", board: index, cell: tile.cell });
+    }
   }
 
   return issues;
+}
+
+/**
+ * The Seafarers rule on gold rivers: no 6 and no 8 on one that is face up. The
+ * generator honours it while laying the tokens, so all the author can do wrong
+ * is leave it *no way out* — a bag holding more red tokens than it has non-gold
+ * tiles to put them on. A face-down zone is exempt: the fog island's gold pays
+ * nothing until someone sails over and turns it up.
+ */
+function goldIssues(
+  zone: ScenarioZone,
+  shared: { board: number; zone: number; name: string },
+): SpecIssue[] {
+  if (zone.hidden) {
+    return [];
+  }
+
+  const reds = zone.numberTokens.filter(isRedNumber).length;
+  const others =
+    tokenBearingCount(zone.terrainCounts) - (zone.terrainCounts.gold ?? 0);
+
+  if (reds <= others) {
+    return [];
+  }
+
+  return [{ kind: "forced-gold-red", ...shared, reds, others }];
 }
 
 /**
@@ -531,6 +571,10 @@ export function specIssueText(issue: SpecIssue): string {
       return `Jeton ${issue.token} impossible (${issue.where}) : les jetons vont de 2 à 12, sans le 7.`;
     case "static-token":
       return `La case ${cellKey(issue.cell)} ne peut pas porter de jeton : ni la mer ni le désert n'en reçoivent.`;
+    case "static-gold-red":
+      return `La case ${cellKey(issue.cell)} est une rivière d'or : elle ne peut porter ni 6 ni 8.`;
+    case "forced-gold-red":
+      return `La zone « ${issue.name} » a ${issue.reds} jetons rouges (6 et 8) pour ${issue.others} tuiles hors rivière d'or : au moins un finirait sur une rivière d'or visible.`;
     case "port-count":
       return `La zone « ${issue.name} » épingle ${issue.slots} emplacements de port pour ${issue.types} ports.`;
     case "port-over-land":
