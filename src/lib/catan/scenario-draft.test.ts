@@ -15,6 +15,7 @@ import {
   removeZone,
   renameZone,
   setBoardPlayers,
+  setBoardPortTypeCount,
   setBoardWidth,
   setPortTypeCount,
   setScenarioName,
@@ -26,7 +27,6 @@ import {
   setZoneIslands,
   togglePortSlot,
   tokenCounts,
-  zoneOfPortSlot,
 } from "./scenario-draft";
 import {
   BOARD_ROWS,
@@ -265,7 +265,7 @@ describe("painting", () => {
   });
 
   it("unpins the harbours of a space it takes away", () => {
-    const pinned = togglePortSlot(painted(), 0, 0, {
+    const pinned = togglePortSlot(painted(), 0, {
       q: 0,
       r: 0,
       dq: 0,
@@ -378,21 +378,21 @@ describe("zone options", () => {
 describe("harbours", () => {
   const slot = { q: 0, r: 0, dq: 0, dr: -1 } as const;
 
+  /** A scenario whose (0,0) is a fixed land tile rather than a zone's space. */
+  function onStatic(): ScenarioSpec {
+    return setStaticTile(painted(), 0, { q: 0, r: 0 }, "hills", 6);
+  }
+
   it("pins a harbour on an edge, and unpins the same one", () => {
-    const pinned = togglePortSlot(painted(), 0, 0, slot);
+    const pinned = togglePortSlot(painted(), 0, slot);
 
     expect(zone(pinned).ports?.slots).toEqual([slot]);
-    expect(zone(togglePortSlot(pinned, 0, 0, slot)).ports?.slots).toEqual([]);
+    expect(zone(togglePortSlot(pinned, 0, slot)).ports?.slots).toEqual([]);
   });
 
   it("tells one edge of a space from another", () => {
     const other = { q: 0, r: 0, dq: 1, dr: -1 } as const;
-    const both = togglePortSlot(
-      togglePortSlot(painted(), 0, 0, slot),
-      0,
-      0,
-      other,
-    );
+    const both = togglePortSlot(togglePortSlot(painted(), 0, slot), 0, other);
 
     expect(both.boards[0].zones[0].ports?.slots).toEqual([slot, other]);
   });
@@ -400,19 +400,53 @@ describe("harbours", () => {
   it("leaves the harbours already in the bag where they are", () => {
     const spec = setPortTypeCount(painted(), 0, 0, "wood", 1);
 
-    expect(zone(togglePortSlot(spec, 0, 0, slot)).ports?.types).toEqual([
+    expect(zone(togglePortSlot(spec, 0, slot)).ports?.types).toEqual(["wood"]);
+  });
+
+  it("fills the bag of the zone holding the space, not the one being edited", () => {
+    // The author has zone 1 open, but (0,0) was painted into zone 2 — which is
+    // the zone whose coast the harbour sits on.
+    const spec = paintCell(addZone(painted(), 0), 0, 1, { q: 0, r: 0 });
+    const pinned = togglePortSlot(spec, 0, slot);
+
+    expect(zone(pinned, 0).ports).toBeUndefined();
+    expect(zone(pinned, 1).ports?.slots).toEqual([slot]);
+  });
+
+  it("fills the board's own bag for a harbour on a static tile", () => {
+    const pinned = togglePortSlot(onStatic(), 0, slot);
+
+    expect(pinned.boards[0].ports).toEqual({ types: [], slots: [slot] });
+    expect(zone(pinned).ports).toBeUndefined();
+  });
+
+  it("unpins a harbour of the board's own bag", () => {
+    const pinned = togglePortSlot(onStatic(), 0, slot);
+
+    expect(togglePortSlot(pinned, 0, slot).boards[0].ports?.slots).toEqual([]);
+  });
+
+  it("unpins a board harbour along with the tile it hugged", () => {
+    const erased = eraseCell(togglePortSlot(onStatic(), 0, slot), 0, {
+      q: 0,
+      r: 0,
+    });
+
+    expect(erased.boards[0].ports?.slots).toEqual([]);
+  });
+
+  it("fills the board's own bag by type", () => {
+    const spec = setBoardPortTypeCount(
+      setBoardPortTypeCount(painted(), 0, "generic", 2),
+      0,
       "wood",
-    ]);
-  });
+      1,
+    );
 
-  it("names the zone a pinned harbour belongs to", () => {
-    const spec = togglePortSlot(addZone(painted(), 0), 0, 1, slot);
-
-    expect(zoneOfPortSlot(spec.boards[0], slot)).toBe(1);
-  });
-
-  it("names no zone for an edge nothing is pinned on", () => {
-    expect(zoneOfPortSlot(painted().boards[0], slot)).toBeNull();
+    expect(spec.boards[0].ports?.types).toEqual(["generic", "generic", "wood"]);
+    expect(
+      setBoardPortTypeCount(spec, 0, "generic", 0).boards[0].ports?.types,
+    ).toEqual(["wood"]);
   });
 });
 

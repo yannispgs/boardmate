@@ -25,6 +25,7 @@ import {
   type ScenarioZone,
   type SpecCell,
   type SpecPort,
+  type SpecPortBag,
   type SpecTerrain,
   type StaticTile,
 } from "./scenario-spec";
@@ -209,25 +210,29 @@ export function renameZone(
   return withZone(spec, board, zone, z => ({ ...z, name }));
 }
 
-/** Takes a space away from whatever holds it — a zone, or a static tile. */
+/**
+ * Takes a space away from whatever holds it — a zone, or a static tile. The
+ * harbours pinned on it go too: a space nothing holds is open sea, and open sea
+ * has no coast to pin a harbour on.
+ */
 export function eraseCell(
   spec: ScenarioSpec,
   board: number,
   cell: SpecCell,
 ): ScenarioSpec {
   const key = cellKey(cell);
+  const unpin = (bag: SpecPortBag | undefined): SpecPortBag | undefined =>
+    bag && { ...bag, slots: bag.slots?.filter(slot => cellKey(slot) !== key) };
 
   return withBoard(spec, board, b => ({
     ...b,
     zones: b.zones.map(zone => ({
       ...zone,
       cells: zone.cells.filter(c => cellKey(c) !== key),
-      ports: zone.ports && {
-        ...zone.ports,
-        slots: zone.ports.slots?.filter(slot => cellKey(slot) !== key),
-      },
+      ports: unpin(zone.ports),
     })),
     statics: (b.statics ?? []).filter(tile => cellKey(tile.cell) !== key),
+    ports: unpin(b.ports),
   }));
 }
 
@@ -311,6 +316,23 @@ export function setTokenCount(
   });
 }
 
+/** The same bag, holding `count` harbours of one type — the rest untouched. */
+function withTypeCount(
+  bag: SpecPortBag | undefined,
+  type: CatanPortType,
+  count: number,
+): SpecPortBag {
+  const kept = portTypeCounts(bag?.types ?? []);
+
+  kept.set(type, Math.max(0, count));
+
+  const types = [...kept.entries()].flatMap(([value, n]) =>
+    Array.from({ length: n }, () => value),
+  );
+
+  return { ...bag, types };
+}
+
 /** Sets how many harbours of one type a zone's bag holds. */
 export function setPortTypeCount(
   spec: ScenarioSpec,
@@ -319,17 +341,26 @@ export function setPortTypeCount(
   type: CatanPortType,
   count: number,
 ): ScenarioSpec {
-  return withZone(spec, board, zone, z => {
-    const kept = portTypeCounts(z.ports?.types ?? []);
+  return withZone(spec, board, zone, z => ({
+    ...z,
+    ports: withTypeCount(z.ports, type, count),
+  }));
+}
 
-    kept.set(type, Math.max(0, count));
-
-    const types = [...kept.entries()].flatMap(([value, n]) =>
-      Array.from({ length: n }, () => value),
-    );
-
-    return { ...z, ports: { ...z.ports, types } };
-  });
+/**
+ * Sets how many harbours of one type the board's own bag holds — the ones tied
+ * to no zone, sitting on a coast the scenario fixes.
+ */
+export function setBoardPortTypeCount(
+  spec: ScenarioSpec,
+  board: number,
+  type: CatanPortType,
+  count: number,
+): ScenarioSpec {
+  return withBoard(spec, board, b => ({
+    ...b,
+    ports: withTypeCount(b.ports, type, count),
+  }));
 }
 
 /** Lays a zone's tiles face down, or back up (the fog island). */
@@ -368,35 +399,70 @@ function samePort(a: SpecPort, b: SpecPort): boolean {
   return a.q === b.q && a.r === b.r && a.dq === b.dq && a.dr === b.dr;
 }
 
-/**
- * The zone that pins a given harbour, if any. A click on the map unpins the
- * harbour it lands on whichever zone holds it — not the one being edited.
- */
-export function zoneOfPortSlot(
-  board: ScenarioBoardSpec,
-  port: SpecPort,
-): number | null {
-  const index = board.zones.findIndex(zone =>
-    (zone.ports?.slots ?? []).some(slot => samePort(slot, port)),
-  );
+/** Whether a board pins a harbour on that edge, in any of its bags. */
+function pinsPort(board: ScenarioBoardSpec, port: SpecPort): boolean {
+  const bags = [board.ports, ...board.zones.map(zone => zone.ports)];
 
-  return index === -1 ? null : index;
+  return bags.some(bag =>
+    (bag?.slots ?? []).some(slot => samePort(slot, port)),
+  );
 }
 
-/** Pins a harbour on an edge, or unpins the one already there. */
+/** The same bag, with one more harbour pinned on it. */
+function withSlot(bag: SpecPortBag | undefined, port: SpecPort): SpecPortBag {
+  return { types: bag?.types ?? [], slots: [...(bag?.slots ?? []), port] };
+}
+
+/** The same board, with that harbour unpinned from wherever it was. */
+function withoutSlot(
+  board: ScenarioBoardSpec,
+  port: SpecPort,
+): ScenarioBoardSpec {
+  const unpin = (bag: SpecPortBag | undefined): SpecPortBag | undefined =>
+    bag && { ...bag, slots: (bag.slots ?? []).filter(s => !samePort(s, port)) };
+
+  return {
+    ...board,
+    zones: board.zones.map(zone => ({ ...zone, ports: unpin(zone.ports) })),
+    ports: unpin(board.ports),
+  };
+}
+
+/**
+ * Pins a harbour on an edge, or unpins the one already there.
+ *
+ * Which bag it lands in follows the space it hugs rather than the zone being
+ * edited: a space of a zone fills that zone's bag, a static tile — where a
+ * printed map puts the harbours along its fixed coasts — fills the board's own.
+ * Unpinning reaches into whichever bag holds it, so a harbour is never stranded
+ * in one the author is no longer looking at.
+ */
 export function togglePortSlot(
   spec: ScenarioSpec,
   board: number,
-  zone: number,
   port: SpecPort,
 ): ScenarioSpec {
-  return withZone(spec, board, zone, z => {
-    const slots = z.ports?.slots ?? [];
-    const kept = slots.some(slot => samePort(slot, port))
-      ? slots.filter(slot => !samePort(slot, port))
-      : [...slots, port];
+  return withBoard(spec, board, b => {
+    const stripped = withoutSlot(b, port);
 
-    return { ...z, ports: { types: z.ports?.types ?? [], slots: kept } };
+    if (pinsPort(b, port)) {
+      return stripped;
+    }
+
+    const owner = cellOwner(b, port);
+
+    if (owner?.kind === "zone") {
+      return {
+        ...stripped,
+        zones: stripped.zones.map((zone, i) =>
+          i === owner.zone
+            ? { ...zone, ports: withSlot(zone.ports, port) }
+            : zone,
+        ),
+      };
+    }
+
+    return { ...stripped, ports: withSlot(stripped.ports, port) };
   });
 }
 

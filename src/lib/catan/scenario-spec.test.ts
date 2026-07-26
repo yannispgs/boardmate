@@ -364,11 +364,10 @@ describe("validateScenarioSpec", () => {
     ).toEqual(["port-count"]);
   });
 
-  it("accepts a harbour pinned on a zone whose sea is drawn", () => {
-    // The scenario always fixes where a harbour sits; pinning one simply makes
-    // that space land whatever the draw.
+  it("refuses a harbour pinned where the sea is drawn", () => {
+    // Its space could come up as sea: a harbour needs land in every draw.
     expect(
-      validateScenarioSpec(
+      kinds(
         spec({
           zones: [
             zone({
@@ -382,43 +381,85 @@ describe("validateScenarioSpec", () => {
           ],
         }),
       ),
-    ).toEqual([]);
+    ).toEqual(["port-on-drawn"]);
   });
 
-  it("flags more coast pinned than the zone has land to give", () => {
+  it("refuses a harbour pinned on a zone that is nothing but sea", () => {
     expect(
       kinds(
         spec({
           zones: [
             zone({
-              terrainCounts: { forest: 1, sea: 2 },
-              numberTokens: [4],
+              terrainCounts: { sea: 3 },
+              numberTokens: [],
               ports: {
-                slots: [
-                  { q: 0, r: 0, dq: 0, dr: -1 },
-                  { q: 1, r: 0, dq: 0, dr: -1 },
-                ],
-                types: ["wood", "ore"],
+                slots: [{ q: 0, r: 0, dq: 0, dr: -1 }],
+                types: ["wood"],
               },
             }),
           ],
         }),
       ),
-    ).toEqual(["port-over-land"]);
+    ).toEqual(["port-on-water"]);
   });
 
-  it("counts two harbours on one space as one space of coast", () => {
+  it("refuses a harbour whose edge faces land rather than water", () => {
+    // (1,0) is a space of the island too, so the edge between them is inland.
+    expect(
+      kinds(
+        spec({
+          zones: [
+            zone({
+              ports: {
+                slots: [{ q: 0, r: 0, dq: 1, dr: 0 }],
+                types: ["wood"],
+              },
+            }),
+          ],
+        }),
+      ),
+    ).toEqual(["port-inland"]);
+  });
+
+  it("refuses a harbour whose edge faces a space left to the draw", () => {
+    expect(
+      kinds(
+        spec({
+          zones: [
+            zone({
+              cells: [{ q: 0, r: 0 }],
+              terrainCounts: { forest: 1 },
+              numberTokens: [4],
+              ports: {
+                slots: [{ q: 0, r: 0, dq: 1, dr: 0 }],
+                types: ["wood"],
+              },
+            }),
+            zone({
+              name: "Large",
+              cells: [
+                { q: 1, r: 0 },
+                { q: 2, r: 0 },
+              ],
+              terrainCounts: { forest: 1, sea: 1 },
+              numberTokens: [5],
+            }),
+          ],
+        }),
+      ),
+    ).toEqual(["port-inland"]);
+  });
+
+  it("accepts two harbours on the two coasts of one space", () => {
     expect(
       validateScenarioSpec(
         spec({
           zones: [
             zone({
-              terrainCounts: { forest: 1, sea: 2 },
-              numberTokens: [4],
               ports: {
                 slots: [
                   { q: 0, r: 0, dq: 0, dr: -1 },
-                  { q: 0, r: 0, dq: 1, dr: -1 },
+                  { q: 0, r: 0, dq: -1, dr: 0 },
                 ],
                 types: ["wood", "ore"],
               },
@@ -429,7 +470,33 @@ describe("validateScenarioSpec", () => {
     ).toEqual([]);
   });
 
-  it("flags a harbour pinned on a space the zone doesn't hold", () => {
+  it("accepts a harbour on a static tile, in the board's own bag", () => {
+    expect(
+      validateScenarioSpec(
+        spec({
+          statics: [{ cell: { q: 0, r: 1 }, terrain: "hills", number: 6 }],
+          ports: {
+            slots: [{ q: 0, r: 1, dq: 0, dr: 1 }],
+            types: ["generic"],
+          },
+        }),
+      ),
+    ).toEqual([]);
+  });
+
+  it("makes the board's own bag pin every one of its harbours", () => {
+    expect(
+      kinds(
+        spec({
+          statics: [{ cell: { q: 0, r: 1 }, terrain: "hills", number: 6 }],
+          ports: { types: ["generic"] },
+        }),
+      ),
+    ).toEqual(["board-port-count"]);
+  });
+
+  it("refuses a harbour pinned on a space nothing holds", () => {
+    // Unpainted, so open sea — there is no coast there to pin anything on.
     expect(
       kinds(
         spec({
@@ -443,7 +510,7 @@ describe("validateScenarioSpec", () => {
           ],
         }),
       ),
-    ).toEqual(["port-off-zone"]);
+    ).toEqual(["port-on-water"]);
   });
 });
 
@@ -468,8 +535,10 @@ describe("specIssueText", () => {
     { kind: "bad-token", board: 0, where: "Île", token: 7 },
     { kind: "static-token", board: 0, cell },
     { kind: "port-count", ...shared, types: 1, slots: 2 },
-    { kind: "port-over-land", ...shared, spaces: 2, land: 1 },
-    { kind: "port-off-zone", ...shared, cell },
+    { kind: "board-port-count", board: 0, types: 2, slots: 1 },
+    { kind: "port-on-water", board: 0, cell },
+    { kind: "port-on-drawn", board: 0, cell },
+    { kind: "port-inland", board: 0, cell, across: { q: 1, r: 1 } },
     { kind: "static-gold-red", board: 0, cell },
     { kind: "forced-gold-red", ...shared, reds: 2, others: 1 },
   ];
@@ -487,8 +556,8 @@ describe("specIssueText", () => {
     expect(specIssueText(issues[7])).toBe(
       "La zone « Île » déclare 1 jetons pour 2 tuiles qui en portent un.",
     );
-    expect(specIssueText(issues[12])).toBe(
-      "Le port épinglé en 1,2 n'est pas dans la zone « Île ».",
+    expect(specIssueText(issues[11])).toBe(
+      "Les 2 ports hors zone demandent autant d'emplacements épinglés : il y en a 1.",
     );
   });
 });

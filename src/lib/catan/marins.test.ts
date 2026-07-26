@@ -418,41 +418,98 @@ describe("generateSpecBoard", () => {
     expect(board.ports.map(p => p.type).sort()).toEqual(["generic", "wood"]);
   });
 
-  it("makes a pinned harbour's space land, even where the sea is drawn", () => {
-    const ports = {
-      slots: [
-        { q: 0, r: 0, dq: 0, dr: -1 },
-        { q: 5, r: 0, dq: 0, dr: 1 },
-      ],
-      types: ["wood", "ore"] as const,
-    };
-    const zone = {
-      name: "Large",
-      cells: strip(6),
-      terrainCounts: { forest: 2, pasture: 1, sea: 3 },
-      numberTokens: [4, 5, 6],
-      ports: { slots: ports.slots, types: [...ports.types] },
-    };
-
-    // Both draw modes: the plain shuffle, and grown islands.
-    for (const islands of [undefined, [1, 2] as const]) {
-      for (let seed = 0; seed < 8; seed++) {
-        const { board } = generateSpecBoard(
-          {
-            name: "Côte épinglée",
-            targetScore: 10,
-            boards: [{ players: [3], zones: [{ ...zone, islands }] }],
+  it("keeps the harbours of the board's own bag on their fixed coast", () => {
+    // The harbours a printed map sets outside every zone: pinned on static land
+    // tiles, facing the static sea beside them.
+    const spec: ScenarioSpec = {
+      name: "Côte fixe",
+      targetScore: 10,
+      boards: [
+        {
+          players: [3],
+          zones: [
+            {
+              name: "Île",
+              cells: strip(2),
+              terrainCounts: { forest: 1, hills: 1 },
+              numberTokens: [4, 5],
+            },
+          ],
+          statics: [
+            { cell: { q: 2, r: 0 }, terrain: "mountains", number: 8 },
+            { cell: { q: 3, r: 0 }, terrain: "sea" },
+          ],
+          ports: {
+            slots: [{ q: 2, r: 0, dq: 1, dr: 0 }],
+            types: ["grain"],
           },
-          3,
-          seed,
-        );
-        const land = new Set(board.hexes.map(cellKey));
+        },
+      ],
+    };
+    const { board } = generateSpecBoard(spec, 3, 5);
+    const host = board.hexes.find(hex => cellKey(hex) === "2,0");
 
-        expect(land.has("0,0")).toBe(true);
-        expect(land.has("5,0")).toBe(true);
-        expect(board.hexes).toHaveLength(3);
-      }
-    }
+    expect(board.ports).toEqual([
+      { hexId: host?.id, dq: 1, dr: 0, type: "grain" },
+    ]);
+  });
+
+  it("draws nothing from a board bag the editor emptied", () => {
+    // Stepping the last harbour of the board's bag back down to zero leaves the
+    // bag itself behind, with neither a type nor a pin in it.
+    const { board } = generateSpecBoard(
+      {
+        name: "Sac vide",
+        targetScore: 10,
+        boards: [
+          {
+            players: [3],
+            zones: [
+              {
+                name: "Île",
+                cells: strip(2),
+                terrainCounts: { forest: 1, hills: 1 },
+                numberTokens: [4, 5],
+              },
+            ],
+            ports: { types: [] },
+          },
+        ],
+      },
+      3,
+      5,
+    );
+
+    expect(board.ports).toEqual([]);
+  });
+
+  it("refuses a harbour pinned where the draw could put the sea", () => {
+    expect(() =>
+      generateSpecBoard(
+        {
+          name: "Côte incertaine",
+          targetScore: 10,
+          boards: [
+            {
+              players: [3],
+              zones: [
+                {
+                  name: "Large",
+                  cells: strip(6),
+                  terrainCounts: { forest: 2, pasture: 1, sea: 3 },
+                  numberTokens: [4, 5, 6],
+                  ports: {
+                    slots: [{ q: 0, r: 0, dq: 0, dr: -1 }],
+                    types: ["wood"],
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        3,
+      ),
+    ).toThrow("est sur une case tirée au sort");
   });
 
   it("keeps each zone's harbour types inside that zone", () => {

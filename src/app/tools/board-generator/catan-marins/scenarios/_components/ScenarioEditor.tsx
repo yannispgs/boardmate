@@ -21,7 +21,6 @@ import {
   setStaticTile,
   setTargetScore,
   togglePortSlot,
-  zoneOfPortSlot,
 } from "@/lib/catan/scenario-draft";
 import {
   boardWidth,
@@ -34,6 +33,7 @@ import {
   validateScenarioSpec,
 } from "@/lib/catan/scenario-spec";
 import type { ScenarioDraft } from "@/lib/hooks/use-extensions";
+import { BoardPortsPanel } from "./BoardPortsPanel";
 import { BoardPreview } from "./BoardPreview";
 import { type CanvasTool, ScenarioCanvas, zoneColor } from "./ScenarioCanvas";
 import { SpecIssueList } from "./SpecIssueList";
@@ -65,7 +65,7 @@ const TOOLS: { value: CanvasTool; label: string; hint: string }[] = [
   {
     value: "port",
     label: "Ports",
-    hint: "Clique une case, puis l'arête où le port est imprimé.",
+    hint: "Clique une case de terre, puis l'arête côtière où le port est imprimé. Le port rejoint la zone de la case, ou le plateau si la case est une tuile fixe.",
   },
 ];
 
@@ -154,10 +154,9 @@ export function ScenarioEditor({
   }
 
   function handlePort(port: SpecPort) {
-    // Unpinning has to reach the zone that pinned it, not the one being edited.
-    const owner = zoneOfPortSlot(board, port);
-
-    change(togglePortSlot(spec, boardIndex, owner ?? zone, port));
+    // Which bag it lands in follows the space it hugs, not the zone being
+    // edited — a harbour on a static tile belongs to the board itself.
+    change(togglePortSlot(spec, boardIndex, port));
   }
 
   function pickBoard(index: number) {
@@ -347,6 +346,8 @@ export function ScenarioEditor({
               onChange={change}
               onRemoved={() => setZoneIndex(0)}
             />
+
+            <BoardPortsPanel spec={spec} board={boardIndex} onChange={change} />
           </aside>
 
           <div className="flex min-w-0 flex-1 flex-col gap-4">

@@ -3,10 +3,8 @@
 import { SEA_STYLE, TERRAIN_STYLE } from "@/components/catan/CatanBoardSvg";
 import { SPEC_TERRAIN_NAME } from "@/components/catan/terrain-labels";
 import { TrashIcon } from "@/components/icons";
-import { dangerIconButtonClass, sectionHeadingClass } from "@/components/ui";
-import type { CatanPortType } from "@/lib/catan/board";
+import { dangerIconButtonClass } from "@/components/ui";
 import {
-  portTypeCounts,
   removeZone,
   renameZone,
   setPortTypeCount,
@@ -24,6 +22,9 @@ import {
   tokenBearingCount,
 } from "@/lib/catan/scenario-spec";
 import { CountStepper } from "./CountStepper";
+import { PanelBlock } from "./PanelBlock";
+import { PortTypeFields } from "./PortTypeFields";
+import { Tally } from "./Tally";
 
 /** The bag's terrains, sea first — a Marins map is mostly water. */
 const TERRAIN_ORDER: SpecTerrain[] = [
@@ -37,71 +38,9 @@ const TERRAIN_ORDER: SpecTerrain[] = [
   "desert",
 ];
 
-const PORT_TYPES: CatanPortType[] = [
-  "generic",
-  "wood",
-  "wool",
-  "grain",
-  "brick",
-  "ore",
-];
-
-const PORT_NAME: Record<CatanPortType, string> = {
-  generic: "Port 3:1",
-  wood: "Port bois 2:1",
-  wool: "Port laine 2:1",
-  grain: "Port blé 2:1",
-  brick: "Port argile 2:1",
-  ore: "Port minerai 2:1",
-};
-
 /** The colour a terrain's counter is chipped with. */
 function terrainColor(terrain: SpecTerrain): string {
   return terrain === "sea" ? SEA_STYLE.fill : TERRAIN_STYLE[terrain].fill;
-}
-
-/** One titled block of the panel. */
-function Block({
-  title,
-  hint,
-  children,
-}: {
-  title: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="flex flex-col gap-2">
-      <h4 className={sectionHeadingClass}>{title}</h4>
-      {hint === undefined ? null : (
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">{hint}</p>
-      )}
-      {children}
-    </section>
-  );
-}
-
-/** A count against the count it has to match, red until the two agree. */
-function Tally({
-  label,
-  have,
-  need,
-}: {
-  label: string;
-  have: number;
-  need: number;
-}) {
-  return (
-    <span
-      className={`text-xs tabular-nums ${
-        have === need
-          ? "text-emerald-600 dark:text-emerald-400"
-          : "text-red-600 dark:text-red-400"
-      }`}
-    >
-      {label} {have} / {need}
-    </span>
-  );
 }
 
 /**
@@ -116,18 +55,17 @@ export function ZonePanel({
   zone,
   onChange,
   onRemoved,
-}: {
+}: Readonly<{
   spec: ScenarioSpec;
   board: number;
   zone: number;
   onChange: (spec: ScenarioSpec) => void;
   /** Called after the zone is dropped, so the editor can select another. */
   onRemoved: () => void;
-}) {
+}>) {
   const current = spec.boards[board].zones[zone];
   const tiles = bagTileCount(current.terrainCounts);
   const tokens = tokenCounts(current.numberTokens);
-  const ports = portTypeCounts(current.ports?.types ?? []);
   const slots = current.ports?.slots?.length ?? 0;
   const portCount = current.ports?.types.length ?? 0;
   const islands = current.islands ?? null;
@@ -162,7 +100,7 @@ export function ZonePanel({
         </button>
       </div>
 
-      <Block
+      <PanelBlock
         title="Tuiles"
         hint="Une tuile par case peinte, la mer comprise. Le tirage les mélange à l'intérieur de la zone."
       >
@@ -180,9 +118,9 @@ export function ZonePanel({
           ))}
         </div>
         <Tally label="tuiles" have={tiles} need={current.cells.length} />
-      </Block>
+      </PanelBlock>
 
-      <Block
+      <PanelBlock
         title="Jetons"
         hint="Un jeton par tuile qui en porte un : ni la mer ni le désert n'en reçoivent."
       >
@@ -207,24 +145,18 @@ export function ZonePanel({
           have={current.numberTokens.length}
           need={tokenBearingCount(current.terrainCounts)}
         />
-      </Block>
+      </PanelBlock>
 
-      <Block
-        title="Ports"
-        hint="Épingle les emplacements sur le plan, en mode « Ports », autant que de ports. Ou n'en épingle aucun : ils seront tirés au hasard sur la côte de la zone, un par tuile."
+      <PanelBlock
+        title="Ports de la zone"
+        hint="Épingle les emplacements sur le plan, en mode « Ports », autant que de ports : chacun sur une case de terre certaine, le long d'une arête qui donne sur la mer. Ou n'en épingle aucun : ils seront tirés au hasard sur la côte de la zone, un par tuile."
       >
-        <div className="flex flex-col gap-1">
-          {PORT_TYPES.map(type => (
-            <CountStepper
-              key={type}
-              label={PORT_NAME[type]}
-              value={ports.get(type) ?? 0}
-              onChange={count =>
-                onChange(setPortTypeCount(spec, board, zone, type, count))
-              }
-            />
-          ))}
-        </div>
+        <PortTypeFields
+          bag={current.ports}
+          onCount={(type, count) =>
+            onChange(setPortTypeCount(spec, board, zone, type, count))
+          }
+        />
         {slots === 0 && portCount > 0 ? (
           <span className="text-slate-500 text-xs dark:text-slate-400">
             emplacements tirés au hasard sur la côte
@@ -232,9 +164,9 @@ export function ZonePanel({
         ) : (
           <Tally label="emplacements" have={slots} need={portCount} />
         )}
-      </Block>
+      </PanelBlock>
 
-      <Block title="Tirage">
+      <PanelBlock title="Tirage">
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
@@ -289,7 +221,7 @@ export function ZonePanel({
             <span className="text-zinc-500 dark:text-zinc-400">îles</span>
           </div>
         )}
-      </Block>
+      </PanelBlock>
     </div>
   );
 }

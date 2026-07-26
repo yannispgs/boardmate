@@ -51,6 +51,8 @@ import {
   type ScenarioSpec,
   type ScenarioZone,
   type SpecCell,
+  type SpecPort,
+  type SpecPortBag,
   specIssueText,
   validateScenarioSpec,
 } from "./scenario-spec";
@@ -246,7 +248,6 @@ export function growIslands(
   total: number,
   sizes: number[],
   rng: () => number,
-  seeded: number[] = [],
 ): number[] {
   const spaces = neighbours.map((_, id) => id);
   const owner = new Map<number, number>();
@@ -254,17 +255,7 @@ export function growIslands(
   const taken = (id: number): boolean => owner.has(id);
   const grown: number[] = [];
 
-  // Spaces the scenario pins as land (a harbour's coast) are laid before
-  // anything is drawn, as the first island — the rest grows around them.
-  if (seeded.length > 0) {
-    for (const id of seeded) {
-      owner.set(id, 0);
-    }
-
-    grown.push(seeded.length);
-  }
-
-  for (const _size of sizes.slice(grown.length)) {
+  for (const _size of sizes) {
     if (owner.size >= total) {
       break;
     }
@@ -420,8 +411,9 @@ export function pickPortSlots(
 }
 
 /**
- * Which spaces of a zone end up as land, and which as sea. A harbour pinned by
- * the scenario needs a coast to sit on, so its space is land whatever the draw.
+ * Which spaces of a zone end up as land, and which as sea. Nothing is held back
+ * for the harbours: a zone whose sea is drawn can pin none, since a harbour needs
+ * a coast that is there in every game (see `certaintyMap`).
  */
 function resolveZone(
   zone: ScenarioZone,
@@ -434,17 +426,14 @@ function resolveZone(
   }
 
   const landCount = zone.cells.length - seaCount;
-  const pinned = new Set((zone.ports?.slots ?? []).map(cellKey));
 
   if (zone.islands === undefined) {
-    const held = zone.cells.filter(c => pinned.has(cellKey(c)));
-    const drawn = shuffle(
-      zone.cells.filter(c => !pinned.has(cellKey(c))),
-      rng,
-    );
-    const free = landCount - held.length;
+    const drawn = shuffle(zone.cells, rng);
 
-    return { land: [...held, ...drawn.slice(0, free)], sea: drawn.slice(free) };
+    return {
+      land: drawn.slice(0, landCount),
+      sea: drawn.slice(landCount),
+    };
   }
 
   const spaces = withIds(zone.cells.map(c => ({ id: 0, q: c.q, r: c.r })));
@@ -456,7 +445,6 @@ function resolveZone(
       landCount,
       islandSizes(landCount, islands, rng),
       rng,
-      spaces.filter(c => pinned.has(cellKey(c))).map(c => c.id),
     ),
   );
 
@@ -524,7 +512,11 @@ function resolveMap(board: ScenarioBoardSpec, rng: () => number): ResolvedMap {
   return { cells, seaCells, pools, zoneCells };
 }
 
-/** The harbours of every zone: pinned where authored, drawn on the coast else. */
+/**
+ * The harbours of a board: those of a zone, pinned where authored and drawn on
+ * the zone's own coast otherwise, plus the board's own bag — the ones a printed
+ * map sets outside every zone, always pinned.
+ */
 function resolvePorts(
   board: ScenarioBoardSpec,
   map: ResolvedMap,
@@ -536,6 +528,24 @@ function resolvePorts(
   const types: CatanPortType[] = [];
   const poolOf: number[] = [];
 
+  // A validated spec pins a harbour on land that is land in every draw, so the
+  // space it hugs is always one of the map's tiles.
+  const pinned = (slot: SpecPort): PortSlot => ({
+    hexId: idAt.get(cellKey(slot)) as number,
+    dq: slot.dq,
+    dr: slot.dr,
+  });
+
+  /** One bag's harbours, kept in a pool of their own so their types stay put. */
+  const take = (bag: SpecPortBag, drawn: PortSlot[], pool: number): void => {
+    for (const slot of drawn) {
+      slots.push(slot);
+      poolOf.push(pool);
+    }
+
+    types.push(...bag.types);
+  };
+
   board.zones.forEach((zone, z) => {
     const bag = zone.ports;
 
@@ -543,28 +553,31 @@ function resolvePorts(
       return;
     }
 
-    const pinned = bag.slots ?? [];
-    const drawn =
-      pinned.length > 0
-        ? pinned.map(slot => ({
-            hexId: idAt.get(cellKey(slot)) as number,
-            dq: slot.dq,
-            dr: slot.dr,
-          }))
+    const pins = bag.slots ?? [];
+
+    take(
+      bag,
+      pins.length > 0
+        ? pins.map(pinned)
         : pickPortSlots(
             map.zoneCells[z].map(id => map.cells[id]),
             land,
             bag.types.length,
             rng,
-          );
-
-    for (const slot of drawn) {
-      slots.push(slot);
-      poolOf.push(z);
-    }
-
-    types.push(...bag.types);
+          ),
+      z,
+    );
   });
+
+  if (board.ports !== undefined) {
+    // Its own pool, past the last zone's, so a fixed coast's harbours are never
+    // shuffled into a zone's.
+    take(
+      board.ports,
+      (board.ports.slots ?? []).map(pinned),
+      board.zones.length,
+    );
+  }
 
   return { slots, types, poolOf };
 }

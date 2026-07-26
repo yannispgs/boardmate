@@ -160,20 +160,18 @@ export function ScenarioCanvas({
     cells.map(cell => [cellKey(cell), axialToPixel(cell.q, cell.r, SIZE)]),
   );
 
+  // Every harbour the map pins, whichever bag holds it — a zone's, or the
+  // board's own for the ones sitting on a fixed coast.
+  const edges: SpecPort[] = [
+    ...board.zones.flatMap(zone => zone.ports?.slots ?? []),
+    ...(board.ports?.slots ?? []),
+  ];
   const pinned = new Set(
-    board.zones.flatMap(zone =>
-      (zone.ports?.slots ?? []).map(
-        slot => `${cellKey(slot)}:${slot.dq},${slot.dr}`,
-      ),
-    ),
+    edges.map(slot => `${cellKey(slot)}:${slot.dq},${slot.dr}`),
   );
 
-  // The edges on offer: the six around the selected space, plus every harbour
-  // already pinned, so unpinning never needs the right space selected first.
-  const edges: SpecPort[] = board.zones.flatMap(
-    zone => zone.ports?.slots ?? [],
-  );
-
+  // On top of those, the six edges around the selected space: pinned harbours
+  // stay on show throughout, so unpinning one never needs its space selected.
   if (selected !== null && tool === "port") {
     for (const [dq, dr] of DIRECTIONS) {
       const port = { q: selected.q, r: selected.r, dq, dr };

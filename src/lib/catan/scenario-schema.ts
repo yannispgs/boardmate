@@ -55,6 +55,11 @@ const portSchema = z.object({
   dr: z.number().int(),
 });
 
+const portBagSchema = z.object({
+  slots: z.array(portSchema).max(MAX_CELLS).optional(),
+  types: z.array(portTypeSchema).max(MAX_CELLS),
+});
+
 const zoneSchema = z.object({
   name: z.string().max(MAX_NAME),
   cells: z.array(cellSchema).max(MAX_CELLS),
@@ -65,12 +70,7 @@ const zoneSchema = z.object({
   numberTokens: z.array(z.number().int()).max(MAX_TILES),
   hidden: z.boolean().optional(),
   islands: z.tuple([z.number().int(), z.number().int()]).optional(),
-  ports: z
-    .object({
-      slots: z.array(portSchema).max(MAX_CELLS).optional(),
-      types: z.array(portTypeSchema).max(MAX_CELLS),
-    })
-    .optional(),
+  ports: portBagSchema.optional(),
 });
 
 const staticSchema = z.object({
@@ -84,6 +84,7 @@ const boardSchema = z.object({
   width: z.number().int().min(MIN_WIDTH).max(MAX_WIDTH).optional(),
   zones: z.array(zoneSchema).max(MAX_ZONES),
   statics: z.array(staticSchema).max(MAX_CELLS).optional(),
+  ports: portBagSchema.optional(),
 });
 
 /**
