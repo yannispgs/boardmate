@@ -1,7 +1,10 @@
 "use client";
 
 import { SEA_STYLE, TERRAIN_STYLE } from "@/components/catan/CatanBoardSvg";
-import { SPEC_TERRAIN_NAME } from "@/components/catan/terrain-labels";
+import {
+  SPEC_TERRAIN_NAME,
+  SPEC_TERRAIN_ORDER,
+} from "@/components/catan/terrain-labels";
 import { TrashIcon } from "@/components/icons";
 import { dangerIconButtonClass } from "@/components/ui";
 import {
@@ -25,18 +28,6 @@ import { CountStepper } from "./CountStepper";
 import { PanelBlock } from "./PanelBlock";
 import { PortTypeFields } from "./PortTypeFields";
 import { Tally } from "./Tally";
-
-/** The bag's terrains, sea first — a Marins map is mostly water. */
-const TERRAIN_ORDER: SpecTerrain[] = [
-  "sea",
-  "forest",
-  "pasture",
-  "fields",
-  "hills",
-  "mountains",
-  "gold",
-  "desert",
-];
 
 /** The colour a terrain's counter is chipped with. */
 function terrainColor(terrain: SpecTerrain): string {
@@ -105,7 +96,7 @@ export function ZonePanel({
         hint="Une tuile par case peinte, la mer comprise. Le tirage les mélange à l'intérieur de la zone."
       >
         <div className="flex flex-col gap-1">
-          {TERRAIN_ORDER.map(terrain => (
+          {SPEC_TERRAIN_ORDER.map(terrain => (
             <CountStepper
               key={terrain}
               label={SPEC_TERRAIN_NAME[terrain]}

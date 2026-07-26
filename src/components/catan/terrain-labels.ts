@@ -19,3 +19,18 @@ export const SPEC_TERRAIN_NAME: Record<SpecTerrain, string> = {
   ...TERRAIN_NAME,
   sea: "Mer",
 };
+
+/**
+ * The order terrains are offered in, sea first — a Marins map is mostly water,
+ * whether it is being poured into a bag or fixed one tile at a time.
+ */
+export const SPEC_TERRAIN_ORDER: SpecTerrain[] = [
+  "sea",
+  "forest",
+  "pasture",
+  "fields",
+  "hills",
+  "mountains",
+  "gold",
+  "desert",
+];

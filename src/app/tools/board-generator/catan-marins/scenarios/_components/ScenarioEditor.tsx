@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 
-import { SPEC_TERRAIN_NAME } from "@/components/catan/terrain-labels";
 import { StickyActionBar } from "@/components/StickyActionBar";
-import { chipClass, sectionHeadingClass } from "@/components/ui";
+import { chipClass, fieldClass, sectionHeadingClass } from "@/components/ui";
 import { useConfirm } from "@/components/use-confirm";
 import { playerGroupLabel } from "@/lib/catan/marins";
 import {
@@ -17,6 +16,7 @@ import {
   togglePortSlot,
 } from "@/lib/catan/scenario-draft";
 import {
+  bearsToken,
   boardWidth,
   type ScenarioSpec,
   type SpecCell,
@@ -30,20 +30,9 @@ import { BoardPreview } from "./BoardPreview";
 import { BoardTabs } from "./BoardTabs";
 import { type CanvasTool, ScenarioCanvas, zoneColor } from "./ScenarioCanvas";
 import { SpecIssueList } from "./SpecIssueList";
+import { StaticTileFields } from "./StaticTileFields";
 import { WidthStepper } from "./WidthStepper";
 import { ZonePanel } from "./ZonePanel";
-
-/** The terrains a static tile can be fixed to, sea first. */
-const STATIC_TERRAINS: SpecTerrain[] = [
-  "sea",
-  "forest",
-  "pasture",
-  "fields",
-  "hills",
-  "mountains",
-  "gold",
-  "desert",
-];
 
 const TOOLS: { value: CanvasTool; label: string; hint: string }[] = [
   { value: "paint", label: "Peindre", hint: "Ajoute les cases à la zone." },
@@ -66,9 +55,6 @@ const toolButtonClass = (active: boolean) =>
       ? "bg-indigo-600 text-white"
       : "text-zinc-600 hover:bg-black/5 dark:text-zinc-300 dark:hover:bg-white/5"
   }`;
-
-const fieldClass =
-  "rounded-lg border border-black/10 px-3 py-2 text-sm dark:border-white/15";
 
 /** How a board is named, from the player counts it serves. */
 function boardLabel(players: number[]): string {
@@ -125,7 +111,11 @@ export function ScenarioEditor({
           boardIndex,
           cell,
           staticTerrain,
-          staticNumber === "" ? undefined : staticNumber,
+          // The sea and the deserts carry no token, whatever was last typed
+          // into a field the terrain before them offered.
+          staticNumber === "" || !bearsToken(staticTerrain)
+            ? undefined
+            : staticNumber,
         ),
       );
     } else {
@@ -234,34 +224,12 @@ export function ScenarioEditor({
               </p>
 
               {tool === "static" ? (
-                <div className="flex items-center gap-2">
-                  <select
-                    value={staticTerrain}
-                    onChange={e =>
-                      setStaticTerrain(e.target.value as SpecTerrain)
-                    }
-                    className={`${fieldClass} flex-1`}
-                  >
-                    {STATIC_TERRAINS.map(terrain => (
-                      <option key={terrain} value={terrain}>
-                        {SPEC_TERRAIN_NAME[terrain]}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="number"
-                    min={2}
-                    max={12}
-                    value={staticNumber}
-                    placeholder="jeton"
-                    onChange={e =>
-                      setStaticNumber(
-                        e.target.value === "" ? "" : Number(e.target.value),
-                      )
-                    }
-                    className={`${fieldClass} w-24`}
-                  />
-                </div>
+                <StaticTileFields
+                  terrain={staticTerrain}
+                  token={staticNumber}
+                  onTerrain={setStaticTerrain}
+                  onToken={setStaticNumber}
+                />
               ) : null}
             </section>
 

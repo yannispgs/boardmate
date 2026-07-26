@@ -215,6 +215,15 @@ export function bagTileCount(
 }
 
 /**
+ * Whether a tile of that terrain carries a number token. Nothing is ever rolled
+ * for the sea or for a desert, so neither takes one — every other terrain does,
+ * the gold river included.
+ */
+export function bearsToken(terrain: SpecTerrain): boolean {
+  return terrain !== "sea" && terrain !== "desert";
+}
+
+/**
  * Tiles of a bag that carry a number token — everything but the deserts and the
  * sea, the gold river included.
  */
@@ -482,7 +491,7 @@ function boardIssues(board: ScenarioBoardSpec, index: number): SpecIssue[] {
       });
     }
 
-    if (tile.terrain === "sea" || tile.terrain === "desert") {
+    if (!bearsToken(tile.terrain)) {
       issues.push({ kind: "static-token", board: index, cell: tile.cell });
     }
 

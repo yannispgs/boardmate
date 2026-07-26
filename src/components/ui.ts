@@ -10,6 +10,10 @@ export const dangerIconButtonClass =
 export const sectionHeadingClass =
   "text-xs font-semibold uppercase tracking-wide text-zinc-400";
 
+/** A text/number/select field, bordered to match the buttons beside it. */
+export const fieldClass =
+  "rounded-lg border border-black/10 px-3 py-2 text-sm dark:border-white/15";
+
 /** A pill-shaped choice, filled in when it is the one in force. */
 export const chipClass = (active: boolean) =>
   `rounded-full border px-3 py-1 text-sm transition ${
