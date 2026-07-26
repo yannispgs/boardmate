@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { SEA_STYLE, TERRAIN_STYLE } from "@/components/catan/CatanBoardSvg";
-import { axialToPixel, DIRECTIONS } from "@/lib/catan/board";
+import { axialToPixel } from "@/lib/catan/board";
 import {
   hexCorners,
   pixelToAxial,
@@ -17,7 +17,7 @@ import {
 } from "@/lib/catan/scenario-draft";
 import {
   cellKey,
-  portHosts,
+  portEdges,
   type ScenarioBoardSpec,
   type SpecCell,
   type SpecPort,
@@ -172,22 +172,23 @@ export function ScenarioCanvas({
   const pinned = new Set(
     edges.map(slot => `${cellKey(slot)}:${slot.dq},${slot.dr}`),
   );
-  // The spaces a harbour may be pinned on at all: land in every draw. In `port`
-  // mode the others do not even take a tap, so no harbour can be started on a
-  // sea space and then reported as an error.
-  const hosts = portHosts(board);
-
-  // On top of those, the six edges around the selected space — unless it already
-  // carries a harbour, since a tile bears one. Pinned harbours stay on show
-  // throughout, so unpinning one never needs its space selected.
-  if (selected !== null && tool === "port" && !pinsPortOn(board, selected)) {
-    for (const [dq, dr] of DIRECTIONS) {
-      const port = { q: selected.q, r: selected.r, dq, dr };
-
-      if (!pinned.has(`${cellKey(port)}:${dq},${dr}`)) {
-        edges.push(port);
-      }
+  // What a space still offers in `port` mode: its coastal edges — land on this
+  // side, open water on the other, in every draw — and none at all once it
+  // carries a harbour, since a tile bears one. A space offering nothing does not
+  // even take a tap, so no harbour can be pinned somewhere only to be reported
+  // as an error afterwards.
+  const offers = (cell: SpecCell): SpecPort[] => {
+    if (pinsPortOn(board, cell)) {
+      return [];
     }
+
+    return portEdges(board, cell);
+  };
+
+  // Pinned harbours stay on show throughout, so unpinning one never needs its
+  // space selected; the free edges are only drawn around the selected space.
+  if (selected !== null && tool === "port") {
+    edges.push(...offers(selected));
   }
 
   const bounds = cells.flatMap(cell => {
@@ -226,7 +227,7 @@ export function ScenarioCanvas({
         const { fill, opacity, label } = cellFill(board, cell, activeZone);
         const isSelected =
           selected !== null && cellKey(selected) === cellKey(cell);
-        const takesTap = tool !== "port" || hosts.has(cellKey(cell));
+        const takesTap = tool !== "port" || offers(cell).length > 0;
 
         return (
           <g key={cellKey(cell)}>

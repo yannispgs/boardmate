@@ -9,6 +9,7 @@ import {
   cellKey,
   isValidToken,
   MIN_WIDTH,
+  portEdges,
   type ScenarioBoardSpec,
   type ScenarioSpec,
   type ScenarioZone,
@@ -109,6 +110,32 @@ describe("boardOutline", () => {
       .sort();
 
     expect(boardOutline(MIN_WIDTH).map(cellKey).sort()).toEqual(extension);
+  });
+});
+
+describe("portEdges", () => {
+  /** The three spaces of `zone()`, in a row, with the sea all around them. */
+  const board: ScenarioBoardSpec = { players: [3], zones: [zone()] };
+
+  it("offers the coastal edges of a space, and only those", () => {
+    // (1,0) sits between its two neighbours: four of its six edges face the
+    // open sea, the two along the row face land.
+    expect(portEdges(board, { q: 1, r: 0 })).toEqual([
+      { q: 1, r: 0, dq: 1, dr: -1 },
+      { q: 1, r: 0, dq: 0, dr: -1 },
+      { q: 1, r: 0, dq: -1, dr: 1 },
+      { q: 1, r: 0, dq: 0, dr: 1 },
+    ]);
+  });
+
+  it("offers nothing on a space the draw could turn into sea", () => {
+    const drawn = { ...board, zones: [zone({ terrainCounts: { sea: 1 } })] };
+
+    expect(portEdges(drawn, { q: 1, r: 0 })).toEqual([]);
+  });
+
+  it("offers nothing on a space the map never painted", () => {
+    expect(portEdges(board, { q: 5, r: 5 })).toEqual([]);
   });
 });
 

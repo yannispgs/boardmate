@@ -20,7 +20,7 @@ import {
   MAX_WIDTH,
   MIN_WIDTH,
   minimumWidth,
-  portHosts,
+  portEdges,
   type ScenarioBoardSpec,
   type ScenarioSpec,
   type ScenarioZone,
@@ -446,9 +446,9 @@ function withoutSlot(
  * Unpinning reaches into whichever bag holds it, so a harbour is never stranded
  * in one the author is no longer looking at.
  *
- * Two things are refused outright rather than reported afterwards: a space that
- * the draw could turn into sea ({@link portHosts}), and a second harbour on a
- * space that already carries one — a tile bears a single harbour.
+ * Two things are refused outright rather than reported afterwards: an edge that
+ * is no coast in every draw ({@link portEdges}), and a second harbour on a space
+ * that already carries one — a tile bears a single harbour.
  */
 export function togglePortSlot(
   spec: ScenarioSpec,
@@ -466,7 +466,7 @@ export function togglePortSlot(
 
     if (
       owner === null ||
-      !portHosts(b).has(cellKey(port)) ||
+      !portEdges(b, port).some(edge => samePort(edge, port)) ||
       pinsPortOn(b, port)
     ) {
       return b;

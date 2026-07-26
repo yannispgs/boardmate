@@ -23,7 +23,12 @@
  * paints must still add up — see {@link validateScenarioSpec}.
  */
 
-import { type CatanPortType, type CatanTerrain, isRedNumber } from "./board";
+import {
+  type CatanPortType,
+  type CatanTerrain,
+  DIRECTIONS,
+  isRedNumber,
+} from "./board";
 
 /** Every scenario board is seven rows deep; only its width changes. */
 export const BOARD_ROWS = 7;
@@ -303,21 +308,29 @@ function certaintyMap(board: ScenarioBoardSpec): Map<string, CellCertainty> {
 }
 
 /**
- * The spaces a harbour may be pinned on: the ones that come up as land whatever
- * the draw does. A harbour is printed on the land tile it stands on, so a space
- * the bag could turn into sea — or one the map never painted — is no place for
- * one; see {@link slotIssues}.
+ * The edges of a space a harbour may be pinned on — none at all unless the space
+ * itself is land whatever the draw does. A harbour is printed on a land tile and
+ * trades across the water it faces, so **both sides have to be certain**: a
+ * space a bag could turn into sea is no place for one, and neither is an edge
+ * facing anything but open water. What the editor offers is this and nothing
+ * more, so nothing that can be pinned is ever reported afterwards; the same
+ * rules are enforced on any spec in {@link slotIssues}.
  */
-export function portHosts(board: ScenarioBoardSpec): Set<string> {
-  const hosts = new Set<string>();
+export function portEdges(
+  board: ScenarioBoardSpec,
+  cell: SpecCell,
+): SpecPort[] {
+  const certainty = certaintyMap(board);
+  const at = (space: SpecCell): CellCertainty =>
+    certainty.get(cellKey(space)) ?? "water";
 
-  for (const [key, certainty] of certaintyMap(board)) {
-    if (certainty === "land") {
-      hosts.add(key);
-    }
+  if (at(cell) !== "land") {
+    return [];
   }
 
-  return hosts;
+  return DIRECTIONS.filter(
+    ([dq, dr]) => at({ q: cell.q + dq, r: cell.r + dr }) === "water",
+  ).map(([dq, dr]) => ({ q: cell.q, r: cell.r, dq, dr }));
 }
 
 /** What a board adds up to, for the recap and for the generator's own totals. */

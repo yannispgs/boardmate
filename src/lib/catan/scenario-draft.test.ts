@@ -422,6 +422,14 @@ describe("harbours", () => {
     expect(togglePortSlot(drawn, 0, slot)).toEqual(drawn);
   });
 
+  it("refuses an edge facing another tile rather than the sea", () => {
+    // (1,0) is the zone's other space, land in every draw: the edge between the
+    // two is no coast, and a harbour trades across water or not at all.
+    const inland = { q: 0, r: 0, dq: 1, dr: 0 } as const;
+
+    expect(togglePortSlot(painted(), 0, inland)).toEqual(painted());
+  });
+
   it("refuses a harbour on a fixed sea tile", () => {
     const sea = setStaticTile(painted(), 0, { q: 0, r: 0 }, "sea");
 
