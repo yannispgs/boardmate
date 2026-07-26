@@ -333,7 +333,13 @@ export function portCorners(port: SpecPort): string[] {
   return ring(here)
     .map(cellKey)
     .filter(key => beside.has(key))
-    .map(key => [cellKey(here), cellKey(across), key].sort().join("|"));
+    .map(key =>
+      // Sorted so the three spaces name their corner the same way whichever of
+      // them it is read from; which order they land in does not matter.
+      [cellKey(here), cellKey(across), key]
+        .sort((a, b) => a.localeCompare(b))
+        .join("|"),
+    );
 }
 
 /**
