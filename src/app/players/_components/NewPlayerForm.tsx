@@ -1,6 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
+import { ErrorText } from "@/components/ErrorText";
 
 /**
  * The creation form itself — markup only. What a typed name means, and when the
@@ -46,11 +47,7 @@ export function NewPlayerForm({
             : "border-black/15 focus:border-indigo-500 dark:border-white/15"
         }`}
       />
-      {error ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      ) : null}
+      <ErrorText message={error} />
       <div className="flex gap-2">
         <button
           type="submit"

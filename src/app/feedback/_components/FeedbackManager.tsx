@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { ErrorText } from "@/components/ErrorText";
 import type { Feedback } from "@/lib/domain";
 import { useFeedback } from "@/lib/hooks/use-feedback";
 
@@ -65,11 +66,7 @@ export function FeedbackManager() {
           aria-label="Votre retour"
           className="w-full resize-y rounded-xl border border-black/15 bg-white px-3 py-2 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900"
         />
-        {sendError ? (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-            {sendError}
-          </p>
-        ) : null}
+        <ErrorText message={sendError} />
         <div className="flex items-center gap-3">
           <button
             type="submit"
@@ -86,11 +83,7 @@ export function FeedbackManager() {
         </div>
       </form>
 
-      {error ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      ) : null}
+      <ErrorText message={error} />
 
       {loading ? (
         <p className="text-sm text-zinc-500">Chargement…</p>

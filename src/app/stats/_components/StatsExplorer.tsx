@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { ErrorText } from "@/components/ErrorText";
 import { TabButton, tabBarClass } from "@/components/TabButton";
 import { useGameStats } from "@/lib/hooks/use-game-stats";
 import { GamesTab } from "./GamesTab";
@@ -23,11 +24,7 @@ export function StatsExplorer() {
   }
 
   if (error) {
-    return (
-      <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-        {error}
-      </p>
-    );
+    return <ErrorText message={error} />;
   }
 
   if (records.length === 0) {

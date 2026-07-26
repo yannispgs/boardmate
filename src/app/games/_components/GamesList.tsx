@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { ErrorText } from "@/components/ErrorText";
 import { ListBody } from "@/components/ListBody";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { StickyActionBar } from "@/components/StickyActionBar";
@@ -69,11 +70,7 @@ export function GamesList() {
       </ScreenHeader>
 
       <div className="flex min-h-0 flex-1 flex-col gap-3">
-        {error ? (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-            {error}
-          </p>
-        ) : null}
+        <ErrorText message={error} />
 
         <ListBody
           loading={loading}

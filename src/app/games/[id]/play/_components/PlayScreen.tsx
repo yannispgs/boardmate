@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ErrorText } from "@/components/ErrorText";
 import type {
   GameId,
   PlayerId,
@@ -474,11 +475,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         </>
       )}
 
-      {error ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      ) : null}
+      <ErrorText message={error} />
 
       {scoreFormOpen ? null : atFinalTurn ? (
         <p className="text-center text-sm font-semibold text-amber-600 dark:text-amber-400">

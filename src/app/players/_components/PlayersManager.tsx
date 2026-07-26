@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { ErrorText } from "@/components/ErrorText";
 import { ListBody } from "@/components/ListBody";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { StickyActionBar } from "@/components/StickyActionBar";
@@ -123,17 +124,9 @@ export function PlayersManager() {
       </ScreenHeader>
 
       <div className="flex min-h-0 flex-1 flex-col gap-3">
-        {actionError ? (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-            {actionError}
-          </p>
-        ) : null}
+        <ErrorText message={actionError} />
 
-        {error ? (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-            {error}
-          </p>
-        ) : null}
+        <ErrorText message={error} />
 
         <ListBody
           loading={loading}

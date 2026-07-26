@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ConfigField } from "@/components/ConfigField";
 import { HiddenMaterial } from "@/components/catan/HiddenMaterial";
+import { ErrorText } from "@/components/ErrorText";
 import { useConfirm } from "@/components/use-confirm";
 import { hiddenMaterial } from "@/lib/catan/hidden-material";
 import { buildDefaults, validateConfigValues } from "@/lib/config/validation";
@@ -540,22 +541,8 @@ function RecapStep({
               />
             ) : null}
 
-            {invalid ? (
-              <p
-                role="alert"
-                className="text-sm text-red-600 dark:text-red-400"
-              >
-                {invalid}
-              </p>
-            ) : null}
-            {error ? (
-              <p
-                role="alert"
-                className="text-sm text-red-600 dark:text-red-400"
-              >
-                {error}
-              </p>
-            ) : null}
+            <ErrorText message={invalid} />
+            <ErrorText message={error} />
 
             <button
               type="button"

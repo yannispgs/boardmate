@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { ErrorText } from "@/components/ErrorText";
 import { StickyActionBar } from "@/components/StickyActionBar";
 import { useConfirm } from "@/components/use-confirm";
 import type { Boardgame } from "@/lib/domain";
@@ -79,17 +80,9 @@ export function BoardgamesManager() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
-      {actionError ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {actionError}
-        </p>
-      ) : null}
+      <ErrorText message={actionError} />
 
-      {error ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      ) : null}
+      <ErrorText message={error} />
 
       {/* Only the list of games scrolls; the header above and the action bar
           below stay put. */}
