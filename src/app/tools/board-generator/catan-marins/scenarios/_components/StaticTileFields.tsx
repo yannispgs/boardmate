@@ -5,6 +5,7 @@ import {
   SPEC_TERRAIN_ORDER,
 } from "@/components/catan/terrain-labels";
 import { fieldClass } from "@/components/ui";
+import { TOKEN_VALUES } from "@/lib/catan/scenario-draft";
 import { bearsToken, type SpecTerrain } from "@/lib/catan/scenario-spec";
 
 /**
@@ -39,17 +40,20 @@ export function StaticTileFields({
         ))}
       </select>
       {bearsToken(terrain) ? (
-        <input
-          type="number"
-          min={2}
-          max={12}
+        <select
           value={token}
-          placeholder="jeton"
           onChange={e =>
             onToken(e.target.value === "" ? "" : Number(e.target.value))
           }
-          className={`${fieldClass} w-24`}
-        />
+          className={`${fieldClass} w-32`}
+        >
+          <option value="">sans jeton</option>
+          {TOKEN_VALUES.map(value => (
+            <option key={value} value={value}>
+              {value}
+            </option>
+          ))}
+        </select>
       ) : null}
     </div>
   );
