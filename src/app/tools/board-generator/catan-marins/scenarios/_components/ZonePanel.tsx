@@ -82,10 +82,9 @@ export function ZonePanel({
             onChange(removeZone(spec, board, zone));
             onRemoved();
           }}
-          disabled={spec.boards[board].zones.length <= 1}
           aria-label="Supprimer la zone"
           title="Supprimer la zone"
-          className={`${dangerIconButtonClass} disabled:opacity-40`}
+          className={dangerIconButtonClass}
         >
           <TrashIcon />
         </button>

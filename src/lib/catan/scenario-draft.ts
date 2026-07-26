@@ -98,9 +98,14 @@ export function emptyZone(name: string): ScenarioZone {
   return { name, cells: [], terrainCounts: {}, numberTokens: [] };
 }
 
-/** A board with one empty zone, used at the given player counts. */
+/**
+ * A bare board, used at the given player counts. It starts with **no zone at
+ * all**: a scenario whose map is drawn tile by tile has nothing to draw at
+ * random, and an empty zone nobody asked for would only be one more thing to
+ * delete before saving.
+ */
 export function emptyBoard(players: number[]): ScenarioBoardSpec {
-  return { players, width: DEFAULT_WIDTH, zones: [emptyZone("Zone 1")] };
+  return { players, width: DEFAULT_WIDTH, zones: [] };
 }
 
 /** A blank scenario: one board for three players, nothing painted. */
@@ -245,6 +250,12 @@ export function paintCell(
   zone: number,
   cell: SpecCell,
 ): ScenarioSpec {
+  // Nothing to paint into, on a map that has no zone yet: the space keeps
+  // whatever holds it rather than being rubbed out on the way to nowhere.
+  if (spec.boards[board].zones[zone] === undefined) {
+    return spec;
+  }
+
   const cleared = eraseCell(spec, board, cell);
 
   return withZone(cleared, board, zone, z => ({

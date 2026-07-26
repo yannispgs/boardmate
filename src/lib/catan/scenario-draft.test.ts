@@ -37,9 +37,14 @@ import {
   type ScenarioSpec,
 } from "./scenario-spec";
 
+/** A scenario with one zone, which a board does not start with. */
+function oneZone(): ScenarioSpec {
+  return addZone(emptyScenario(), 0);
+}
+
 /** A scenario with two spaces painted into its only zone. */
 function painted(): ScenarioSpec {
-  const start = emptyScenario();
+  const start = oneZone();
 
   return paintCell(paintCell(start, 0, 0, { q: 0, r: 0 }), 0, 0, {
     q: 1,
@@ -81,7 +86,7 @@ describe("narrowestWidth", () => {
   });
 
   it("grows to hold the space painted furthest out", () => {
-    const wide = paintCell(emptyScenario(), 0, 0, { q: 6, r: 2 });
+    const wide = paintCell(oneZone(), 0, 0, { q: 6, r: 2 });
 
     expect(narrowestWidth(wide.boards[0])).toBe(7);
   });
@@ -93,13 +98,13 @@ describe("narrowestWidth", () => {
   });
 
   it("ignores a space that fell outside the seven rows", () => {
-    const stray = paintCell(emptyScenario(), 0, 0, { q: 9, r: 9 });
+    const stray = paintCell(oneZone(), 0, 0, { q: 9, r: 9 });
 
     expect(narrowestWidth(stray.boards[0])).toBe(MIN_WIDTH);
   });
 
   it("never grows past the widest board the editor draws", () => {
-    const huge = paintCell(emptyScenario(), 0, 0, { q: 99, r: 0 });
+    const huge = paintCell(oneZone(), 0, 0, { q: 99, r: 0 });
 
     expect(narrowestWidth(huge.boards[0])).toBe(MAX_WIDTH);
   });
@@ -125,7 +130,7 @@ describe("setBoardWidth", () => {
   });
 
   it("refuses to narrow past what is already painted", () => {
-    const painted = paintCell(emptyScenario(), 0, 0, { q: 6, r: 2 });
+    const painted = paintCell(oneZone(), 0, 0, { q: 6, r: 2 });
 
     expect(boardWidth(setBoardWidth(painted, 0, MIN_WIDTH).boards[0])).toBe(7);
   });
@@ -168,13 +173,15 @@ describe("cellOwner", () => {
 });
 
 describe("the scenario itself", () => {
-  it("starts blank, with one board and one empty zone", () => {
+  it("starts blank, with one board and no zone at all", () => {
     const spec = emptyScenario();
 
     expect(spec.name).toBe("");
     expect(spec.boards).toHaveLength(1);
     expect(spec.boards[0].players).toEqual([3]);
-    expect(zone(spec).cells).toEqual([]);
+    // A map made of fixed tiles alone is a scenario too: the author asks for a
+    // zone when he wants one drawn.
+    expect(spec.boards[0].zones).toEqual([]);
   });
 
   it("takes a name and a score to reach", () => {
@@ -194,7 +201,7 @@ describe("boards", () => {
 
     expect(spec.boards).toHaveLength(2);
     expect(spec.boards[1].players).toEqual([4]);
-    expect(spec.boards[1].zones[0].cells).toEqual([]);
+    expect(spec.boards[1].zones).toEqual([]);
   });
 
   it("copies a board over to another player count, spaces and bags", () => {
@@ -227,7 +234,7 @@ describe("boards", () => {
 
 describe("zones", () => {
   it("adds zones, numbered after the ones already there", () => {
-    const spec = addZone(addZone(emptyScenario(), 0), 0);
+    const spec = addZone(addZone(addZone(emptyScenario(), 0), 0), 0);
 
     expect(spec.boards[0].zones.map(z => z.name)).toEqual([
       "Zone 1",
@@ -237,13 +244,13 @@ describe("zones", () => {
   });
 
   it("takes the name it is given", () => {
-    const spec = renameZone(addZone(emptyScenario(), 0, "Mer"), 0, 0, "Île");
+    const spec = renameZone(addZone(oneZone(), 0, "Mer"), 0, 0, "Île");
 
     expect(spec.boards[0].zones.map(z => z.name)).toEqual(["Île", "Mer"]);
   });
 
   it("removes a zone", () => {
-    const left = removeZone(addZone(emptyScenario(), 0), 0, 0);
+    const left = removeZone(addZone(oneZone(), 0), 0, 0);
 
     expect(left.boards[0].zones.map(z => z.name)).toEqual(["Zone 2"]);
   });
@@ -281,6 +288,14 @@ describe("painting", () => {
     const erased = eraseCell(painted(), 0, { q: 0, r: 0 });
 
     expect(zone(erased).ports).toBeUndefined();
+  });
+
+  it("paints nothing on a board that has no zone yet", () => {
+    // The map can be drawn with fixed tiles alone, and the brush then has
+    // nowhere to put anything: the space is left to whoever holds it.
+    const blank = emptyScenario();
+
+    expect(paintCell(blank, 0, 0, { q: 0, r: 0 })).toBe(blank);
   });
 
   it("erases a static tile like any other space", () => {

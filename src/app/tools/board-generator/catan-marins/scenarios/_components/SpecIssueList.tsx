@@ -21,8 +21,8 @@ function keyed(issues: SpecIssue[]): { key: string; issue: SpecIssue }[] {
 }
 
 /**
- * What still keeps a scenario from being drawn, in the author's words. Empty
- * means the generator can take it — which is exactly when saving is allowed.
+ * What still keeps a scenario from being saved, in the author's words. Empty
+ * means the map is drawn to its edges and the generator can take it.
  */
 export function SpecIssueList({
   issues,

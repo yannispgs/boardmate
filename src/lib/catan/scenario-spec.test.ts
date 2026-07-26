@@ -7,6 +7,7 @@ import {
   boardOutline,
   boardTotals,
   cellKey,
+  DEFAULT_WIDTH,
   isValidToken,
   MIN_WIDTH,
   portEdges,
@@ -16,6 +17,7 @@ import {
   type SpecIssue,
   specIssueText,
   tokenBearingCount,
+  validateScenarioDraft,
   validateScenarioSpec,
 } from "./scenario-spec";
 
@@ -618,6 +620,36 @@ describe("validateScenarioSpec", () => {
   });
 });
 
+describe("validateScenarioDraft", () => {
+  it("counts the spaces of the map the author has left to nobody", () => {
+    // `spec()` paints three spaces of a full board: the rest is still blank,
+    // which the draw would take as it is but no author should save.
+    expect(validateScenarioDraft(spec())).toEqual([
+      {
+        kind: "unassigned",
+        board: 0,
+        count: boardOutline(DEFAULT_WIDTH).length - 3,
+      },
+    ]);
+  });
+
+  it("accepts a map drawn to its edges with no zone at all", () => {
+    // Every space a fixed tile: a scenario that draws nothing at random is a
+    // scenario all the same, and it needs no zone to be saved.
+    expect(
+      validateScenarioDraft(
+        spec({
+          zones: [],
+          statics: boardOutline(DEFAULT_WIDTH).map(cell => ({
+            cell,
+            terrain: "sea" as const,
+          })),
+        }),
+      ),
+    ).toEqual([]);
+  });
+});
+
 describe("cellKey", () => {
   it("keys a space by its coordinates", () => {
     expect(cellKey({ q: -1, r: 2 })).toBe("-1,2");
@@ -648,6 +680,8 @@ describe("specIssueText", () => {
     { kind: "port-crowded", board: 0, cell, count: 2 },
     { kind: "static-no-token", board: 0, cell },
     { kind: "port-touching", board: 0, cell, other: { q: 1, r: 1 } },
+    { kind: "unassigned", board: 0, count: 1 },
+    { kind: "unassigned", board: 0, count: 12 },
   ];
 
   it("phrases every issue for the author, in French and without a blank", () => {

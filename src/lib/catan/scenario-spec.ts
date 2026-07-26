@@ -433,6 +433,7 @@ export type SpecIssue =
   | { kind: "no-players"; board: number }
   | { kind: "duplicate-players"; board: number; players: number }
   | { kind: "empty-zone"; board: number; zone: number; name: string }
+  | { kind: "unassigned"; board: number; count: number }
   | { kind: "off-board"; board: number; cell: SpecCell }
   | { kind: "overlap"; board: number; cell: SpecCell }
   | {
@@ -801,6 +802,32 @@ export function validateScenarioSpec(spec: ScenarioSpec): SpecIssue[] {
   return issues;
 }
 
+/**
+ * Everything an author has left to do before saving: what the draw needs, plus
+ * a map drawn to its edges. The draw itself is happy with a half-painted board —
+ * it lays out what it is given and leaves the rest empty — but a scenario put
+ * away that way would come back out with holes in it.
+ */
+export function validateScenarioDraft(spec: ScenarioSpec): SpecIssue[] {
+  const issues = validateScenarioSpec(spec);
+
+  spec.boards.forEach((board, index) => {
+    const held = certaintyMap(board);
+
+    // Reported as a count rather than one line per space: a board barely
+    // started has forty of them, and the list would say nothing else.
+    const missing = boardOutline(boardWidth(board)).filter(
+      cell => !held.has(cellKey(cell)),
+    ).length;
+
+    if (missing > 0) {
+      issues.push({ kind: "unassigned", board: index, count: missing });
+    }
+  });
+
+  return issues;
+}
+
 /** One issue, phrased for the author. */
 export function specIssueText(issue: SpecIssue): string {
   switch (issue.kind) {
@@ -812,6 +839,10 @@ export function specIssueText(issue: SpecIssue): string {
       return `${issue.players} joueurs sont déjà servis par un autre plateau.`;
     case "empty-zone":
       return `La zone « ${issue.name} » ne contient aucune case.`;
+    case "unassigned":
+      return issue.count === 1
+        ? "Une case du plateau n'est assignée à rien : chaque case rejoint une zone ou devient une tuile fixe."
+        : `${issue.count} cases du plateau ne sont assignées à rien : chaque case rejoint une zone ou devient une tuile fixe.`;
     case "off-board":
       return `La case ${cellKey(issue.cell)} sort du plateau : réduis la zone ou élargis le plateau.`;
     case "overlap":

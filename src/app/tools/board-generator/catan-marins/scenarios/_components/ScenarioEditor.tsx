@@ -22,7 +22,7 @@ import {
   type SpecCell,
   type SpecPort,
   type SpecTerrain,
-  validateScenarioSpec,
+  validateScenarioDraft,
 } from "@/lib/catan/scenario-spec";
 import type { ScenarioDraft } from "@/lib/hooks/use-extensions";
 import { BoardPortsPanel } from "./BoardPortsPanel";
@@ -32,8 +32,7 @@ import { type CanvasTool, ScenarioCanvas } from "./ScenarioCanvas";
 import { SpecIssueList } from "./SpecIssueList";
 import { StaticTileFields } from "./StaticTileFields";
 import { WidthStepper } from "./WidthStepper";
-import { ZonePanel } from "./ZonePanel";
-import { ZonePicker } from "./ZonePicker";
+import { ZoneSection } from "./ZoneSection";
 
 const TOOLS: { value: CanvasTool; label: string; hint: string }[] = [
   { value: "paint", label: "Peindre", hint: "Ajoute les cases à la zone." },
@@ -51,6 +50,19 @@ const TOOLS: { value: CanvasTool; label: string; hint: string }[] = [
 
 /** Rubbing out has no button of its own up here: it lives on the map itself. */
 const ERASE_HINT = "Gomme : les cases repartent au plateau vide.";
+
+/** The word of help under the tools, for whatever is in the author's hand. */
+function toolHint(tool: CanvasTool, zones: number): string | undefined {
+  if (tool === "erase") {
+    return ERASE_HINT;
+  }
+
+  if (tool === "paint" && zones === 0) {
+    return "Aucune zone à peindre : ajoute-en une, ou dessine la carte tuile fixe par tuile fixe.";
+  }
+
+  return TOOLS.find(item => item.value === tool)?.hint;
+}
 
 const toolButtonClass = (active: boolean) =>
   `rounded-md px-2.5 py-1.5 text-sm font-medium transition ${
@@ -93,7 +105,7 @@ export function ScenarioEditor({
 
   const board = spec.boards[boardIndex] ?? spec.boards[0];
   const zone = Math.min(zoneIndex, board.zones.length - 1);
-  const issues = validateScenarioSpec(spec);
+  const issues = validateScenarioDraft(spec);
   const labels = spec.boards.map(b => boardLabel(b.players));
   const width = boardWidth(board);
 
@@ -181,30 +193,38 @@ export function ScenarioEditor({
           the canvas they ate close to half a phone screen, for two fields set
           once and never looked at again. */}
       <div className="flex flex-1 flex-col gap-6 pb-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="flex min-w-60 flex-1 flex-col gap-1 text-sm">
-            <span className={sectionHeadingClass}>Nom du scénario</span>
-            <input
-              value={spec.name}
-              onChange={e => change(setScenarioName(spec, e.target.value))}
-              placeholder="Les quatre îles"
-              className={fieldClass}
-            />
-          </label>
-          <label className="flex w-32 flex-col gap-1 text-sm">
-            <span className={sectionHeadingClass}>Score à atteindre</span>
-            <input
-              type="number"
-              min={1}
-              max={30}
-              value={spec.targetScore}
-              onChange={e =>
-                change(setTargetScore(spec, Number(e.target.value)))
-              }
-              className={fieldClass}
-            />
-          </label>
-        </div>
+        <label className="flex max-w-md flex-col gap-1 text-sm">
+          <span className={sectionHeadingClass}>Nom du scénario</span>
+          <input
+            value={spec.name}
+            onChange={e => change(setScenarioName(spec, e.target.value))}
+            placeholder="Les quatre îles"
+            className={fieldClass}
+          />
+        </label>
+
+        {/* Which maps the scenario is made of, and who each is played by, is
+            scenario-wide like the name above: it says nothing about what is
+            painted on them, so it reads with the rest of the heading. */}
+        <BoardTabs
+          spec={spec}
+          board={boardIndex}
+          labels={labels}
+          onChange={change}
+          onPick={pickBoard}
+        />
+
+        <label className="flex w-32 flex-col gap-1 text-sm">
+          <span className={sectionHeadingClass}>Score à atteindre</span>
+          <input
+            type="number"
+            min={1}
+            max={30}
+            value={spec.targetScore}
+            onChange={e => change(setTargetScore(spec, Number(e.target.value)))}
+            className={fieldClass}
+          />
+        </label>
 
         <div className="flex flex-col gap-6 lg:flex-row">
           <aside className="flex shrink-0 flex-col gap-5 lg:w-80">
@@ -226,9 +246,7 @@ export function ScenarioEditor({
                 ))}
               </div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                {tool === "erase"
-                  ? ERASE_HINT
-                  : TOOLS.find(item => item.value === tool)?.hint}
+                {toolHint(tool, board.zones.length)}
               </p>
 
               {tool === "static" ? (
@@ -245,37 +263,19 @@ export function ScenarioEditor({
                 and the bag it draws from, only muddied a mode that has nothing
                 to do with either. */}
             {tool === "static" ? null : (
-              <>
-                <ZonePicker
-                  spec={spec}
-                  board={boardIndex}
-                  zone={zone}
-                  onChange={change}
-                  onPick={pickZone}
-                />
-
-                <ZonePanel
-                  spec={spec}
-                  board={boardIndex}
-                  zone={zone}
-                  onChange={change}
-                  onRemoved={() => setZoneIndex(0)}
-                />
-              </>
+              <ZoneSection
+                spec={spec}
+                board={boardIndex}
+                zone={zone}
+                onChange={change}
+                onPick={pickZone}
+              />
             )}
 
             <BoardPortsPanel spec={spec} board={boardIndex} onChange={change} />
           </aside>
 
           <div className="flex min-w-0 flex-1 flex-col gap-4">
-            <BoardTabs
-              spec={spec}
-              board={boardIndex}
-              labels={labels}
-              onChange={change}
-              onPick={pickBoard}
-            />
-
             {/* The eraser sits on the map rather than among the tools: it is
                 reached where it is used, in the corner the outline leaves
                 empty, and it toggles — off, painting takes over again. */}
