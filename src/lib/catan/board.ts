@@ -1343,17 +1343,8 @@ export function generateCatanBoard(
     hidden: hiddenPool[cell.id],
   }));
 
-  // A tile takes a number when its terrain carries one *and* its bag has one to
-  // give. An authored scenario may fix a land tile and leave it blank — a bag of
-  // one tile and no token. Asking the placer for a token it cannot draw starves
-  // every attempt, and the whole board falls back to an unconstrained shuffle.
-  const poolOfHex = poolIndexByHex(variant);
   const numberedIds = hexes
-    .filter(
-      h =>
-        carriesNumber(h.terrain) &&
-        variant.pools[poolOfHex[h.id]].numberTokens.length > 0,
-    )
+    .filter(h => carriesNumber(h.terrain))
     .map(h => h.id);
 
   // Seafarers: a gold river tile pays any resource, so a red number on one

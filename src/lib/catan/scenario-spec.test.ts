@@ -244,10 +244,23 @@ describe("validateScenarioSpec", () => {
     ).toEqual(["bad-token"]);
   });
 
-  it("accepts a static tile left without a token", () => {
+  it("flags a static tile of a rolled terrain left without a token", () => {
+    expect(
+      kinds(
+        spec({ statics: [{ cell: { q: 0, r: 1 }, terrain: "mountains" }] }),
+      ),
+    ).toEqual(["static-no-token"]);
+  });
+
+  it("accepts the sea and the desert left without a token", () => {
     expect(
       validateScenarioSpec(
-        spec({ statics: [{ cell: { q: 0, r: 1 }, terrain: "mountains" }] }),
+        spec({
+          statics: [
+            { cell: { q: 0, r: 1 }, terrain: "sea" },
+            { cell: { q: 1, r: 1 }, terrain: "desert" },
+          ],
+        }),
       ),
     ).toEqual([]);
   });
@@ -565,6 +578,7 @@ describe("specIssueText", () => {
     { kind: "static-gold-red", board: 0, cell },
     { kind: "forced-gold-red", ...shared, reds: 2, others: 1 },
     { kind: "port-crowded", board: 0, cell, count: 2 },
+    { kind: "static-no-token", board: 0, cell },
   ];
 
   it("phrases every issue for the author, in French and without a blank", () => {

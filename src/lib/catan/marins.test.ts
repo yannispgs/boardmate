@@ -4,7 +4,6 @@ import {
   boardWarnings,
   buildNeighbours,
   type CatanTerrain,
-  isRedNumber,
   mulberry32,
 } from "./board";
 import {
@@ -453,53 +452,6 @@ describe("generateSpecBoard", () => {
     expect(board.ports).toEqual([
       { hexId: host?.id, dq: 1, dr: 0, type: "grain" },
     ]);
-  });
-
-  it("leaves a blank fixed tile blank, and the rest of the board in order", () => {
-    // A fixed land tile with no token is a bag of one holding nothing to draw.
-    // The tile takes no number — and, above all, the tiles around it keep the
-    // placement rules: asking the placer for a token this bag cannot give used
-    // to starve every attempt and drop the whole board to a plain shuffle.
-    const spec: ScenarioSpec = {
-      name: "Tuile muette",
-      targetScore: 10,
-      boards: [
-        {
-          players: [3],
-          zones: [
-            {
-              name: "Île",
-              cells: strip(5),
-              terrainCounts: { forest: 2, hills: 2, mountains: 1 },
-              numberTokens: [6, 8, 4, 5, 9],
-            },
-          ],
-          statics: [{ cell: { q: 0, r: 1 }, terrain: "hills" }],
-        },
-      ],
-    };
-
-    for (let seed = 0; seed < 10; seed++) {
-      const { board } = generateSpecBoard(spec, 3, seed);
-      const neighbours = buildNeighbours(board.hexes);
-      const numbers = new Map(board.hexes.map(hex => [hex.id, hex.number]));
-
-      expect(
-        board.hexes.find(hex => cellKey(hex) === "0,1")?.number,
-      ).toBeNull();
-
-      for (const hex of board.hexes) {
-        for (const other of neighbours[hex.id]) {
-          expect([hex.number, numbers.get(other)]).not.toEqual([6, 6]);
-          expect([hex.number, numbers.get(other)]).not.toEqual([8, 8]);
-          expect(
-            hex.number !== null &&
-              isRedNumber(hex.number) &&
-              isRedNumber(numbers.get(other) ?? 0),
-          ).toBe(false);
-        }
-      }
-    }
   });
 
   it("draws nothing from a board bag the editor emptied", () => {

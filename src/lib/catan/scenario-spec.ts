@@ -390,6 +390,7 @@ export type SpecIssue =
     }
   | { kind: "bad-token"; board: number; where: string; token: number }
   | { kind: "static-token"; board: number; cell: SpecCell }
+  | { kind: "static-no-token"; board: number; cell: SpecCell }
   | { kind: "static-gold-red"; board: number; cell: SpecCell }
   | {
       kind: "forced-gold-red";
@@ -498,6 +499,12 @@ function boardIssues(board: ScenarioBoardSpec, index: number): SpecIssue[] {
     claim(tile.cell);
 
     if (tile.number === undefined) {
+      // Every land but the desert is rolled for: a fixed tile of one without a
+      // token would produce nothing all game, which is a desert drawn wrong.
+      if (bearsToken(tile.terrain)) {
+        issues.push({ kind: "static-no-token", board: index, cell: tile.cell });
+      }
+
       continue;
     }
 
@@ -721,6 +728,8 @@ export function specIssueText(issue: SpecIssue): string {
       return `Jeton ${issue.token} impossible (${issue.where}) : les jetons vont de 2 à 12, sans le 7.`;
     case "static-token":
       return `La case ${cellKey(issue.cell)} ne peut pas porter de jeton : ni la mer ni le désert n'en reçoivent.`;
+    case "static-no-token":
+      return `La case ${cellKey(issue.cell)} doit porter un jeton : seuls la mer et le désert n'en reçoivent pas.`;
     case "static-gold-red":
       return `La case ${cellKey(issue.cell)} est une rivière d'or : elle ne peut porter ni 6 ni 8.`;
     case "forced-gold-red":

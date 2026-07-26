@@ -80,7 +80,7 @@ export function ScenarioEditor({
   const [zoneIndex, setZoneIndex] = useState(0);
   const [tool, setTool] = useState<CanvasTool>("paint");
   const [staticTerrain, setStaticTerrain] = useState<SpecTerrain>("sea");
-  const [staticNumber, setStaticNumber] = useState<number | "">("");
+  const [staticNumber, setStaticNumber] = useState(2);
   const [selected, setSelected] = useState<SpecCell | null>(null);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -111,11 +111,9 @@ export function ScenarioEditor({
           boardIndex,
           cell,
           staticTerrain,
-          // The sea and the deserts carry no token, whatever was last typed
-          // into a field the terrain before them offered.
-          staticNumber === "" || !bearsToken(staticTerrain)
-            ? undefined
-            : staticNumber,
+          // The sea and the deserts carry no token, whatever was last picked
+          // in a field the terrain before them offered.
+          bearsToken(staticTerrain) ? staticNumber : undefined,
         ),
       );
     } else {
