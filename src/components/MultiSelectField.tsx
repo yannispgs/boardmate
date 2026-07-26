@@ -2,23 +2,28 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { searchByName } from "@/lib/game/player-search";
+
 /**
  * A searchable multi-select shown as a box of removable pills. Empty selection
  * renders a single "Tous" pill (so the box stays small when everything is in
  * scope). Clicking the box opens a dropdown with a text search; clicking an
  * option toggles it. Each selected pill carries a × to remove it in one tap.
+ *
+ * Generic over the id so callers holding branded ids (`PlayerId`,
+ * `BoardgameId`) get them back branded instead of casting on every change.
  */
-export function MultiSelectField({
+export function MultiSelectField<Id extends string>({
   label,
   options,
   selected,
   onChange,
-}: {
+}: Readonly<{
   label: string;
-  options: { id: string; name: string }[];
-  selected: string[];
-  onChange: (ids: string[]) => void;
-}) {
+  options: { id: Id; name: string }[];
+  selected: Id[];
+  onChange: (ids: Id[]) => void;
+}>) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const ref = useRef<HTMLDivElement>(null);
@@ -39,19 +44,16 @@ export function MultiSelectField({
     return () => document.removeEventListener("pointerdown", onDown);
   }, [open]);
 
-  const nameOf = (id: string) => options.find(o => o.id === id)?.name ?? id;
-  const toggle = (id: string) =>
+  const nameOf = (id: Id) => options.find(o => o.id === id)?.name ?? id;
+  const toggle = (id: Id) =>
     onChange(
       selected.includes(id)
         ? selected.filter(x => x !== id)
         : [...selected, id],
     );
-  const remove = (id: string) => onChange(selected.filter(x => x !== id));
+  const remove = (id: Id) => onChange(selected.filter(x => x !== id));
 
-  const q = query.trim().toLowerCase();
-  const filtered = q
-    ? options.filter(o => o.name.toLowerCase().includes(q))
-    : options;
+  const filtered = searchByName(options, query);
 
   return (
     <div className="flex flex-col gap-2">
