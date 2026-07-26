@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 
+import { EXTENSION_VARIANT } from "./board";
 import {
   bagLandCounts,
   bagTileCount,
+  boardOutline,
   boardTotals,
   cellKey,
   isValidToken,
+  MIN_WIDTH,
   type ScenarioBoardSpec,
   type ScenarioSpec,
   type ScenarioZone,
@@ -93,6 +96,19 @@ describe("bagLandCounts", () => {
 
   it("is all zeroes with no bag at all", () => {
     expect(bagTileCount(bagLandCounts())).toBe(0);
+  });
+});
+
+describe("boardOutline", () => {
+  it("is the 5–6 player board at its narrowest", () => {
+    // The extension board was laid out long before this format existed, so it
+    // pins the outline's arithmetic against something independent: at width 3
+    // the seven rows are 3-4-5-6-5-4-3, that board exactly, down to the offsets.
+    const extension = EXTENSION_VARIANT.cells
+      .map(cell => cellKey({ q: cell.q, r: cell.r + 3 }))
+      .sort();
+
+    expect(boardOutline(MIN_WIDTH).map(cellKey).sort()).toEqual(extension);
   });
 });
 

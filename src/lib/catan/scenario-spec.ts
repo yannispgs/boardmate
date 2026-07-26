@@ -30,10 +30,13 @@ export const BOARD_ROWS = 7;
 const ROW_BULGE = [0, 1, 2, 3, 2, 1, 0];
 
 /**
- * How narrow and how wide a map gets. The smallest published maps — the three
- * player ones — sit at 4; the floor is one below that so a two-player variant,
- * should one turn up, has somewhere to go. The ceiling is the largest Marins
- * map with a little room to spare.
+ * How narrow and how wide a map gets. The smallest published Marins maps — the
+ * three-player ones — sit at 4, and the floor is one below so a two-player
+ * variant has somewhere to go. That floor lands on a real board: at 3 the
+ * outline is 3-4-5-6-5-4-3, the base game's 5–6 player extension exactly (see
+ * `buildExtensionCells` in `board.ts`). The base 3–4 player board is *not*
+ * reachable — same 3 tiles on its end rows, but five rows rather than seven.
+ * The ceiling is the largest Marins map with a little room to spare.
  */
 export const MIN_WIDTH = 3;
 export const MAX_WIDTH = 10;
