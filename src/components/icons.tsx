@@ -146,6 +146,35 @@ export function MoveHorizontalIcon(props: IconProps) {
   );
 }
 
+/** A magnifying glass — reveals the search field it sits above. */
+export function SearchIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.3-4.3" />
+    </Icon>
+  );
+}
+
+/** A funnel — opens the criteria a list is narrowed by. */
+export function FilterIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3Z" />
+    </Icon>
+  );
+}
+
+/** A cross — closes what an icon opened, or clears what was typed. */
+export function CloseIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M18 6 6 18" />
+      <path d="m6 6 12 12" />
+    </Icon>
+  );
+}
+
 export function InfoIcon(props: IconProps) {
   return (
     <Icon {...props}>

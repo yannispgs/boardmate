@@ -5,6 +5,7 @@
  * player presence, date window). Pure: no network, no vendor types, unit-tested.
  */
 import type { BoardgameId, GameStatsRecord, PlayerId } from "@/lib/domain";
+import { matchesGameFilter } from "./game-filters";
 
 export interface GlobalStatsFilters {
   /** Keep only games of these boardgames (empty = all). */
@@ -195,22 +196,18 @@ export function filterRecords(
   records: GameStatsRecord[],
   filters: GlobalStatsFilters = {},
 ): GameStatsRecord[] {
-  const boardgameIds = filters.boardgameIds ?? [];
-  const playerIds = filters.playerIds ?? [];
-  const from = filters.from;
-  const until = filters.until;
-
-  return records.filter(g => {
-    const byBoardgame =
-      boardgameIds.length === 0 || boardgameIds.includes(g.boardgameId);
-    const byPlayer =
-      playerIds.length === 0 ||
-      playerIds.every(id => g.players.some(p => p.playerId === id));
-    const day = g.endedAt?.slice(0, 10) ?? "";
-    const inWindow = (!from || day >= from) && (!until || day <= until);
-
-    return byBoardgame && byPlayer && inWindow;
-  });
+  return records.filter(g =>
+    matchesGameFilter(
+      {
+        boardgameId: g.boardgameId,
+        playerIds: g.players.map(p => p.playerId),
+        // Statistics are about games that are over, so a record is filed under
+        // the day it ended; one without an end date matches no window at all.
+        day: g.endedAt?.slice(0, 10) ?? "",
+      },
+      { ...filters, from: filters.from ?? null, until: filters.until ?? null },
+    ),
+  );
 }
 
 /**

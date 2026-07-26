@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-
+import { DateWindow } from "@/components/DateWindow";
 import { InfoTip } from "@/components/InfoTip";
+import { MultiSelectField } from "@/components/MultiSelectField";
 import { StatTile } from "@/components/StatTile";
 import type { BoardgameId, GameStatsRecord, PlayerId } from "@/lib/domain";
 import { formatDuration } from "@/lib/game/format-time";
@@ -15,10 +16,8 @@ import { winnerDirection } from "@/lib/game/scoring";
 import { computeSeatStats } from "@/lib/game/seat-stats";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { CategoryCharts } from "./CategoryCharts";
-import { DateWindow } from "./DateWindow";
 import { GamePicker } from "./GamePicker";
 import { GamePlayerTable } from "./GamePlayerTable";
-import { MultiSelectField } from "./MultiSelectField";
 import { ScoreDistribution } from "./ScoreDistribution";
 import { SeatStats } from "./SeatStats";
 import { StatsDiceDistribution } from "./StatsDiceDistribution";
