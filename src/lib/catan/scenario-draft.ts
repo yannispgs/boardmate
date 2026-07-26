@@ -20,6 +20,7 @@ import {
   MAX_WIDTH,
   MIN_WIDTH,
   minimumWidth,
+  portHosts,
   type ScenarioBoardSpec,
   type ScenarioSpec,
   type ScenarioZone,
@@ -399,13 +400,21 @@ function samePort(a: SpecPort, b: SpecPort): boolean {
   return a.q === b.q && a.r === b.r && a.dq === b.dq && a.dr === b.dr;
 }
 
+/** Every harbour a board pins, whichever bag holds it — a zone's, or its own. */
+export function pinnedSlots(board: ScenarioBoardSpec): SpecPort[] {
+  return [board.ports, ...board.zones.map(zone => zone.ports)].flatMap(
+    bag => bag?.slots ?? [],
+  );
+}
+
 /** Whether a board pins a harbour on that edge, in any of its bags. */
 function pinsPort(board: ScenarioBoardSpec, port: SpecPort): boolean {
-  const bags = [board.ports, ...board.zones.map(zone => zone.ports)];
+  return pinnedSlots(board).some(slot => samePort(slot, port));
+}
 
-  return bags.some(bag =>
-    (bag?.slots ?? []).some(slot => samePort(slot, port)),
-  );
+/** Whether a space already carries a harbour, on whichever of its edges. */
+export function pinsPortOn(board: ScenarioBoardSpec, cell: SpecCell): boolean {
+  return pinnedSlots(board).some(slot => cellKey(slot) === cellKey(cell));
 }
 
 /** The same bag, with one more harbour pinned on it. */
@@ -436,6 +445,10 @@ function withoutSlot(
  * printed map puts the harbours along its fixed coasts — fills the board's own.
  * Unpinning reaches into whichever bag holds it, so a harbour is never stranded
  * in one the author is no longer looking at.
+ *
+ * Two things are refused outright rather than reported afterwards: a space that
+ * the draw could turn into sea ({@link portHosts}), and a second harbour on a
+ * space that already carries one — a tile bears a single harbour.
  */
 export function togglePortSlot(
   spec: ScenarioSpec,
@@ -451,7 +464,15 @@ export function togglePortSlot(
 
     const owner = cellOwner(b, port);
 
-    if (owner?.kind === "zone") {
+    if (
+      owner === null ||
+      !portHosts(b).has(cellKey(port)) ||
+      pinsPortOn(b, port)
+    ) {
+      return b;
+    }
+
+    if (owner.kind === "zone") {
       return {
         ...stripped,
         zones: stripped.zones.map((zone, i) =>

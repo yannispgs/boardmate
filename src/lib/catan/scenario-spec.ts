@@ -302,6 +302,24 @@ function certaintyMap(board: ScenarioBoardSpec): Map<string, CellCertainty> {
   return map;
 }
 
+/**
+ * The spaces a harbour may be pinned on: the ones that come up as land whatever
+ * the draw does. A harbour is printed on the land tile it stands on, so a space
+ * the bag could turn into sea — or one the map never painted — is no place for
+ * one; see {@link slotIssues}.
+ */
+export function portHosts(board: ScenarioBoardSpec): Set<string> {
+  const hosts = new Set<string>();
+
+  for (const [key, certainty] of certaintyMap(board)) {
+    if (certainty === "land") {
+      hosts.add(key);
+    }
+  }
+
+  return hosts;
+}
+
 /** What a board adds up to, for the recap and for the generator's own totals. */
 export function boardTotals(board: ScenarioBoardSpec): {
   land: number;
@@ -392,6 +410,7 @@ export type SpecIssue =
   | { kind: "board-port-count"; board: number; types: number; slots: number }
   | { kind: "port-on-water"; board: number; cell: SpecCell }
   | { kind: "port-on-drawn"; board: number; cell: SpecCell }
+  | { kind: "port-crowded"; board: number; cell: SpecCell; count: number }
   | {
       kind: "port-inland";
       board: number;
@@ -568,6 +587,33 @@ function slotIssues(
 }
 
 /**
+ * The spaces carrying more than one harbour, counted across every bag: a tile
+ * bears a single harbour, whichever of its six edges it is printed on.
+ */
+function crowdedIssues(index: number, slots: SpecPort[]): SpecIssue[] {
+  const counts = new Map<string, { cell: SpecCell; count: number }>();
+
+  for (const slot of slots) {
+    const seen = counts.get(cellKey(slot));
+
+    counts.set(cellKey(slot), {
+      cell: { q: slot.q, r: slot.r },
+      count: seen === undefined ? 1 : seen.count + 1,
+    });
+  }
+
+  const issues: SpecIssue[] = [];
+
+  for (const { cell, count } of counts.values()) {
+    if (count > 1) {
+      issues.push({ kind: "port-crowded", board: index, cell, count });
+    }
+  }
+
+  return issues;
+}
+
+/**
  * The harbour bags of a board: as many slots pinned as the bag holds harbours,
  * and every one of them on a proper coast ({@link slotIssues}).
  *
@@ -610,6 +656,12 @@ function portIssues(board: ScenarioBoardSpec, index: number): SpecIssue[] {
   }
 
   issues.push(...slotIssues(index, certainty, slots));
+  issues.push(
+    ...crowdedIssues(index, [
+      ...board.zones.flatMap(zone => zone.ports?.slots ?? []),
+      ...slots,
+    ]),
+  );
 
   return issues;
 }
@@ -677,6 +729,8 @@ export function specIssueText(issue: SpecIssue): string {
       return `Les ${issue.types} ports hors zone demandent autant d'emplacements épinglés : il y en a ${issue.slots}.`;
     case "port-on-water":
       return `Le port épinglé en ${cellKey(issue.cell)} n'est sur aucune terre : un port se pose sur la case de terre qu'il borde, jamais sur la mer.`;
+    case "port-crowded":
+      return `La case ${cellKey(issue.cell)} porte ${issue.count} ports : une tuile n'en reçoit qu'un.`;
     case "port-on-drawn":
       return `Le port épinglé en ${cellKey(issue.cell)} est sur une case tirée au sort : pose-le sur une tuile fixe de terre, ou dans une zone dont le sac ne contient pas de mer.`;
     default:

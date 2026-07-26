@@ -391,10 +391,41 @@ describe("harbours", () => {
   });
 
   it("tells one edge of a space from another", () => {
-    const other = { q: 0, r: 0, dq: 1, dr: -1 } as const;
-    const both = togglePortSlot(togglePortSlot(painted(), 0, slot), 0, other);
+    const next = { q: 1, r: 0, dq: 0, dr: -1 } as const;
+    const both = togglePortSlot(togglePortSlot(painted(), 0, slot), 0, next);
 
-    expect(both.boards[0].zones[0].ports?.slots).toEqual([slot, other]);
+    expect(zone(both).ports?.slots).toEqual([slot, next]);
+  });
+
+  it("refuses a second harbour on a space that already carries one", () => {
+    const other = { q: 0, r: 0, dq: 1, dr: -1 } as const;
+    const crowded = togglePortSlot(
+      togglePortSlot(painted(), 0, slot),
+      0,
+      other,
+    );
+
+    expect(zone(crowded).ports?.slots).toEqual([slot]);
+  });
+
+  it("refuses a harbour on a space the map never painted", () => {
+    const nowhere = { q: 5, r: 5, dq: 0, dr: -1 } as const;
+
+    expect(togglePortSlot(painted(), 0, nowhere)).toEqual(painted());
+  });
+
+  it("refuses a harbour on a space the draw could turn into sea", () => {
+    // One sea tile for two spaces: which of them comes up as water is decided
+    // on the night, so neither is a coast to print a harbour on.
+    const drawn = setTerrainCount(painted(), 0, 0, "sea", 1);
+
+    expect(togglePortSlot(drawn, 0, slot)).toEqual(drawn);
+  });
+
+  it("refuses a harbour on a fixed sea tile", () => {
+    const sea = setStaticTile(painted(), 0, { q: 0, r: 0 }, "sea");
+
+    expect(togglePortSlot(sea, 0, slot)).toEqual(sea);
   });
 
   it("leaves the harbours already in the bag where they are", () => {

@@ -45,7 +45,7 @@ const TOOLS: { value: CanvasTool; label: string; hint: string }[] = [
   {
     value: "port",
     label: "Ports",
-    hint: "Clique une case de terre, puis l'arête côtière où le port est imprimé. Le port rejoint la zone de la case, ou le plateau si la case est une tuile fixe.",
+    hint: "Clique une case de terre, puis l'arête côtière où le port est imprimé. Seules les cases de terre à chaque partie répondent, et une tuile ne porte qu'un port. Le port rejoint la zone de la case, ou le plateau si la case est une tuile fixe.",
   },
 ];
 

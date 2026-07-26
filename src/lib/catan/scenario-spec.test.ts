@@ -450,9 +450,10 @@ describe("validateScenarioSpec", () => {
     ).toEqual(["port-inland"]);
   });
 
-  it("accepts two harbours on the two coasts of one space", () => {
+  it("refuses two harbours on one space, coast or no coast", () => {
+    // Both edges give on the open sea, but a tile bears a single harbour.
     expect(
-      validateScenarioSpec(
+      kinds(
         spec({
           zones: [
             zone({
@@ -467,7 +468,29 @@ describe("validateScenarioSpec", () => {
           ],
         }),
       ),
-    ).toEqual([]);
+    ).toEqual(["port-crowded"]);
+  });
+
+  it("counts the harbours of a space across every bag", () => {
+    // One in the zone's bag, one in the board's own: still two on (0,0).
+    expect(
+      kinds(
+        spec({
+          zones: [
+            zone({
+              ports: {
+                slots: [{ q: 0, r: 0, dq: 0, dr: -1 }],
+                types: ["wood"],
+              },
+            }),
+          ],
+          ports: {
+            slots: [{ q: 0, r: 0, dq: -1, dr: 0 }],
+            types: ["generic"],
+          },
+        }),
+      ),
+    ).toEqual(["port-crowded"]);
   });
 
   it("accepts a harbour on a static tile, in the board's own bag", () => {
@@ -541,6 +564,7 @@ describe("specIssueText", () => {
     { kind: "port-inland", board: 0, cell, across: { q: 1, r: 1 } },
     { kind: "static-gold-red", board: 0, cell },
     { kind: "forced-gold-red", ...shared, reds: 2, others: 1 },
+    { kind: "port-crowded", board: 0, cell, count: 2 },
   ];
 
   it("phrases every issue for the author, in French and without a blank", () => {

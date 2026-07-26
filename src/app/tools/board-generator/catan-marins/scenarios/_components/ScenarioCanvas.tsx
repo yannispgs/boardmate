@@ -9,9 +9,15 @@ import {
   pixelToAxial,
   polygonPoints,
 } from "@/lib/catan/hex-geometry";
-import { canvasGrid, cellOwner } from "@/lib/catan/scenario-draft";
+import {
+  canvasGrid,
+  cellOwner,
+  pinnedSlots,
+  pinsPortOn,
+} from "@/lib/catan/scenario-draft";
 import {
   cellKey,
+  portHosts,
   type ScenarioBoardSpec,
   type SpecCell,
   type SpecPort,
@@ -162,17 +168,19 @@ export function ScenarioCanvas({
 
   // Every harbour the map pins, whichever bag holds it — a zone's, or the
   // board's own for the ones sitting on a fixed coast.
-  const edges: SpecPort[] = [
-    ...board.zones.flatMap(zone => zone.ports?.slots ?? []),
-    ...(board.ports?.slots ?? []),
-  ];
+  const edges: SpecPort[] = [...pinnedSlots(board)];
   const pinned = new Set(
     edges.map(slot => `${cellKey(slot)}:${slot.dq},${slot.dr}`),
   );
+  // The spaces a harbour may be pinned on at all: land in every draw. In `port`
+  // mode the others do not even take a tap, so no harbour can be started on a
+  // sea space and then reported as an error.
+  const hosts = portHosts(board);
 
-  // On top of those, the six edges around the selected space: pinned harbours
-  // stay on show throughout, so unpinning one never needs its space selected.
-  if (selected !== null && tool === "port") {
+  // On top of those, the six edges around the selected space — unless it already
+  // carries a harbour, since a tile bears one. Pinned harbours stay on show
+  // throughout, so unpinning one never needs its space selected.
+  if (selected !== null && tool === "port" && !pinsPortOn(board, selected)) {
     for (const [dq, dr] of DIRECTIONS) {
       const port = { q: selected.q, r: selected.r, dq, dr };
 
@@ -218,6 +226,7 @@ export function ScenarioCanvas({
         const { fill, opacity, label } = cellFill(board, cell, activeZone);
         const isSelected =
           selected !== null && cellKey(selected) === cellKey(cell);
+        const takesTap = tool !== "port" || hosts.has(cellKey(cell));
 
         return (
           <g key={cellKey(cell)}>
@@ -227,9 +236,11 @@ export function ScenarioCanvas({
               fillOpacity={opacity}
               stroke={isSelected ? "#111827" : "#64748b"}
               strokeWidth={isSelected ? 3 : 1}
-              className="cursor-pointer"
+              className={takesTap ? "cursor-pointer" : "cursor-not-allowed"}
               onPointerDown={() => {
-                start(cell);
+                if (takesTap) {
+                  start(cell);
+                }
               }}
             />
             {label === null ? null : (
