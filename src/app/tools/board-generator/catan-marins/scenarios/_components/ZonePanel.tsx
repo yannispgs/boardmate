@@ -129,6 +129,7 @@ export function ZonePanel({
   const tokens = tokenCounts(current.numberTokens);
   const ports = portTypeCounts(current.ports?.types ?? []);
   const slots = current.ports?.slots?.length ?? 0;
+  const portCount = current.ports?.types.length ?? 0;
   const islands = current.islands ?? null;
 
   function setIslands(min: number, max: number) {
@@ -210,7 +211,7 @@ export function ZonePanel({
 
       <Block
         title="Ports"
-        hint="Les emplacements sont épinglés sur le plan, en mode « Ports » : autant d'emplacements que de ports."
+        hint="Épingle les emplacements sur le plan, en mode « Ports », autant que de ports. Ou n'en épingle aucun : ils seront tirés au hasard sur la côte de la zone, un par tuile."
       >
         <div className="flex flex-col gap-1">
           {PORT_TYPES.map(type => (
@@ -224,11 +225,13 @@ export function ZonePanel({
             />
           ))}
         </div>
-        <Tally
-          label="emplacements"
-          have={slots}
-          need={current.ports?.types.length ?? 0}
-        />
+        {slots === 0 && portCount > 0 ? (
+          <span className="text-slate-500 text-xs dark:text-slate-400">
+            emplacements tirés au hasard sur la côte
+          </span>
+        ) : (
+          <Tally label="emplacements" have={slots} need={portCount} />
+        )}
       </Block>
 
       <Block title="Tirage">
