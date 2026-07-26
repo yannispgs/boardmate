@@ -7,9 +7,9 @@ import type { PropsWithChildren } from "react";
  * (defaults to h-4 w-4, currentColor).
  */
 
-interface IconProps {
+type IconProps = Readonly<{
   className?: string;
-}
+}>;
 
 function Icon({
   className = "h-4 w-4",
