@@ -1,12 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-
+import { MultiSelectField } from "@/components/MultiSelectField";
 import { StatTile } from "@/components/StatTile";
 import type { GameStatsRecord, PlayerId } from "@/lib/domain";
 import { computeGlobalStats, coPlayerOptions } from "@/lib/game/global-stats";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
-import { MultiSelectField } from "./MultiSelectField";
 import { PlayerDetail } from "./PlayerDetail";
 import { PlayerRankingTable } from "./PlayerRankingTable";
 
