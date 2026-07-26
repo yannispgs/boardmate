@@ -655,8 +655,10 @@ function portIssues(board: ScenarioBoardSpec, index: number): SpecIssue[] {
     });
   }
 
-  issues.push(...slotIssues(index, certainty, slots));
   issues.push(
+    ...slotIssues(index, certainty, slots),
+    // Judged across every bag at once: two harbours on one space are two, wherever
+    // each of them is held.
     ...crowdedIssues(index, [
       ...board.zones.flatMap(zone => zone.ports?.slots ?? []),
       ...slots,
