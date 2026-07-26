@@ -408,6 +408,18 @@ describe("harbours", () => {
     expect(zone(crowded).ports?.slots).toEqual([slot]);
   });
 
+  it("refuses a harbour meeting one already pinned at a corner", () => {
+    // Both edges run onto (1,-1) and end at the corner (0,0) and (1,0) share:
+    // two harbours always leave a free corner between them.
+    const first = { q: 0, r: 0, dq: 1, dr: -1 } as const;
+    const touching = { q: 1, r: 0, dq: 0, dr: -1 } as const;
+    const pinned = togglePortSlot(painted(), 0, first);
+
+    expect(zone(togglePortSlot(pinned, 0, touching)).ports?.slots).toEqual([
+      first,
+    ]);
+  });
+
   it("refuses a harbour on a space the map never painted", () => {
     const nowhere = { q: 5, r: 5, dq: 0, dr: -1 } as const;
 

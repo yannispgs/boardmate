@@ -9,14 +9,10 @@ import {
   pixelToAxial,
   polygonPoints,
 } from "@/lib/catan/hex-geometry";
-import {
-  canvasGrid,
-  cellOwner,
-  pinnedSlots,
-  pinsPortOn,
-} from "@/lib/catan/scenario-draft";
+import { canvasGrid, cellOwner, pinsPortOn } from "@/lib/catan/scenario-draft";
 import {
   cellKey,
+  pinnedSlots,
   portEdges,
   type ScenarioBoardSpec,
   type SpecCell,

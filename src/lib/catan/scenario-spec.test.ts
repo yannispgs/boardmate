@@ -137,6 +137,25 @@ describe("portEdges", () => {
   it("offers nothing on a space the map never painted", () => {
     expect(portEdges(board, { q: 5, r: 5 })).toEqual([]);
   });
+
+  it("drops the edges touching a harbour already pinned", () => {
+    // The harbour on (0,0) runs onto (1,-1) and ends at the corner the two
+    // spaces share, which is where the north-west edge of (1,0) starts.
+    const pinned = {
+      ...board,
+      zones: [
+        zone({
+          ports: { slots: [{ q: 0, r: 0, dq: 1, dr: -1 }], types: ["wood"] },
+        }),
+      ],
+    };
+
+    expect(portEdges(pinned, { q: 1, r: 0 })).toEqual([
+      { q: 1, r: 0, dq: 1, dr: -1 },
+      { q: 1, r: 0, dq: -1, dr: 1 },
+      { q: 1, r: 0, dq: 0, dr: 1 },
+    ]);
+  });
 });
 
 describe("boardTotals", () => {
@@ -533,6 +552,28 @@ describe("validateScenarioSpec", () => {
     ).toEqual(["port-crowded"]);
   });
 
+  it("refuses two harbours meeting at a corner", () => {
+    // Both edges run onto (1,-1) and end at the corner (0,0) and (1,0) share:
+    // a printed board always leaves a free corner between two harbours.
+    expect(
+      kinds(
+        spec({
+          zones: [
+            zone({
+              ports: {
+                slots: [
+                  { q: 0, r: 0, dq: 1, dr: -1 },
+                  { q: 1, r: 0, dq: 0, dr: -1 },
+                ],
+                types: ["wood", "ore"],
+              },
+            }),
+          ],
+        }),
+      ),
+    ).toEqual(["port-touching"]);
+  });
+
   it("accepts a harbour on a static tile, in the board's own bag", () => {
     expect(
       validateScenarioSpec(
@@ -606,6 +647,7 @@ describe("specIssueText", () => {
     { kind: "forced-gold-red", ...shared, reds: 2, others: 1 },
     { kind: "port-crowded", board: 0, cell, count: 2 },
     { kind: "static-no-token", board: 0, cell },
+    { kind: "port-touching", board: 0, cell, other: { q: 1, r: 1 } },
   ];
 
   it("phrases every issue for the author, in French and without a blank", () => {

@@ -47,6 +47,7 @@ import {
   boardOutline,
   boardTotals,
   cellKey,
+  portCorners,
   type ScenarioBoardSpec,
   type ScenarioSpec,
   type ScenarioZone,
@@ -328,12 +329,17 @@ export function growIslands(
  * neighbours too.
  *
  * The draw **keeps them apart**, the way the printed boards space theirs around
- * the island: the first harbour is taken at random, then each next one is the
- * candidate lying furthest from every harbour already placed. A pure shuffle
- * clumps three of them on one headland often enough to be worth avoiding, and
- * spacing is the one thing a real board never leaves to chance. At most one
- * harbour to a tile — it doubles up only when the coast has fewer tiles than
- * the zone has harbours.
+ * the island: an edge touching a harbour already placed comes last of all — a
+ * printed board leaves a free corner between two of them, and the editor
+ * refuses to pin them any closer — and among the rest the candidate lying
+ * furthest from every harbour placed wins. The first is taken at random. A pure
+ * shuffle clumps three of them on one headland often enough to be worth
+ * avoiding, and spacing is the one thing a real board never leaves to chance.
+ * At most one harbour to a tile — it doubles up only when the coast has fewer
+ * tiles than the zone has harbours.
+ *
+ * Both are preferences, not rules: a coast too short for what the bag holds
+ * keeps its harbours rather than losing them.
  */
 export function pickPortSlots(
   cells: HexCell[],
@@ -341,7 +347,12 @@ export function pickPortSlots(
   count: number,
   rng: () => number,
 ): PortSlot[] {
-  const candidates: Array<{ slot: PortSlot; x: number; y: number }> = [];
+  const candidates: Array<{
+    slot: PortSlot;
+    x: number;
+    y: number;
+    corners: string[];
+  }> = [];
 
   for (const cell of cells) {
     for (const [dq, dr] of DIRECTIONS) {
@@ -356,6 +367,7 @@ export function pickPortSlots(
         slot: { hexId: cell.id, dq, dr },
         x: (from.x + to.x) / 2,
         y: (from.y + to.y) / 2,
+        corners: portCorners({ q: cell.q, r: cell.r, dq, dr }),
       });
     }
   }
@@ -366,21 +378,63 @@ export function pickPortSlots(
   const nearest = pool.map(() => Number.POSITIVE_INFINITY);
   const taken = new Set<number>();
   const used = new Set<number>();
+  const corners = new Set<string>();
   const picked: PortSlot[] = [];
+
+  /** Whether candidate `i` would end up corner to corner with one already placed. */
+  const touching = (i: number): boolean => {
+    return pool[i].corners.some(corner => corners.has(corner));
+  };
+
+  /** Free of a neighbour's corner first, then furthest from every harbour. */
+  const better = (i: number, best: number): boolean => {
+    if (touching(i) !== touching(best)) {
+      return !touching(i);
+    }
+
+    return nearest[i] > nearest[best];
+  };
+
+  /** The best of the candidates still free, or -1 when none of them is. */
+  const nextPick = (onePerTile: boolean): number => {
+    let best = -1;
+
+    for (let i = 0; i < pool.length; i++) {
+      if (taken.has(i) || (onePerTile && used.has(pool[i].slot.hexId))) {
+        continue;
+      }
+
+      if (best === -1 || better(i, best)) {
+        best = i;
+      }
+    }
+
+    return best;
+  };
+
+  /** Takes a candidate, then measures the rest of the coast against it. */
+  const place = (best: number): void => {
+    taken.add(best);
+    used.add(pool[best].slot.hexId);
+    picked.push(pool[best].slot);
+
+    for (const corner of pool[best].corners) {
+      corners.add(corner);
+    }
+
+    for (let i = 0; i < pool.length; i++) {
+      const away = Math.hypot(
+        pool[i].x - pool[best].x,
+        pool[i].y - pool[best].y,
+      );
+
+      nearest[i] = Math.min(nearest[i], away);
+    }
+  };
 
   const fill = (onePerTile: boolean): void => {
     while (picked.length < count) {
-      let best = -1;
-
-      for (let i = 0; i < pool.length; i++) {
-        if (taken.has(i) || (onePerTile && used.has(pool[i].slot.hexId))) {
-          continue;
-        }
-
-        if (best === -1 || nearest[i] > nearest[best]) {
-          best = i;
-        }
-      }
+      const best = nextPick(onePerTile);
 
       // Every coastal tile already carries one: the second pass takes over and
       // starts doubling up, and when even that runs dry the zone keeps fewer
@@ -389,18 +443,7 @@ export function pickPortSlots(
         return;
       }
 
-      taken.add(best);
-      used.add(pool[best].slot.hexId);
-      picked.push(pool[best].slot);
-
-      for (let i = 0; i < pool.length; i++) {
-        const away = Math.hypot(
-          pool[i].x - pool[best].x,
-          pool[i].y - pool[best].y,
-        );
-
-        nearest[i] = Math.min(nearest[i], away);
-      }
+      place(best);
     }
   };
 

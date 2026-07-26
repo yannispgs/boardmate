@@ -307,14 +307,49 @@ function certaintyMap(board: ScenarioBoardSpec): Map<string, CellCertainty> {
   return map;
 }
 
+/** Every harbour a board pins, whichever bag holds it — a zone's, or its own. */
+export function pinnedSlots(board: ScenarioBoardSpec): SpecPort[] {
+  return [board.ports, ...board.zones.map(zone => zone.ports)].flatMap(
+    bag => bag?.slots ?? [],
+  );
+}
+
+/** The six spaces touching one, in the order {@link DIRECTIONS} names them. */
+function ring(cell: SpecCell): SpecCell[] {
+  return DIRECTIONS.map(([dq, dr]) => ({ q: cell.q + dq, r: cell.r + dr }));
+}
+
+/**
+ * The two corners of the edge a harbour sits on, each named by the three spaces
+ * meeting there — the two the edge separates, plus the one closing the corner.
+ * Two harbours touch exactly when a name comes up twice, whichever of their own
+ * spaces each is read from.
+ */
+export function portCorners(port: SpecPort): string[] {
+  const here = { q: port.q, r: port.r };
+  const across = { q: port.q + port.dq, r: port.r + port.dr };
+  const beside = new Set(ring(across).map(cellKey));
+
+  return ring(here)
+    .map(cellKey)
+    .filter(key => beside.has(key))
+    .map(key => [cellKey(here), cellKey(across), key].sort().join("|"));
+}
+
 /**
  * The edges of a space a harbour may be pinned on — none at all unless the space
- * itself is land whatever the draw does. A harbour is printed on a land tile and
- * trades across the water it faces, so **both sides have to be certain**: a
- * space a bag could turn into sea is no place for one, and neither is an edge
- * facing anything but open water. What the editor offers is this and nothing
- * more, so nothing that can be pinned is ever reported afterwards; the same
- * rules are enforced on any spec in {@link slotIssues}.
+ * itself is land whatever the draw does.
+ *
+ * A harbour is printed on a land tile and trades across the water it faces, so
+ * **both sides have to be certain**: a space a bag could turn into sea is no
+ * place for one, and neither is an edge facing anything but open water. Two of
+ * them never **touch** either — a printed board always leaves a free corner
+ * between two harbours, so an edge sharing one with a harbour already pinned is
+ * not offered.
+ *
+ * What the editor offers is this and nothing more, so nothing that can be pinned
+ * is ever reported afterwards; the same rules are enforced on any spec in
+ * {@link slotIssues} and {@link touchingIssues}.
  */
 export function portEdges(
   board: ScenarioBoardSpec,
@@ -328,9 +363,18 @@ export function portEdges(
     return [];
   }
 
-  return DIRECTIONS.filter(
-    ([dq, dr]) => at({ q: cell.q + dq, r: cell.r + dr }) === "water",
-  ).map(([dq, dr]) => ({ q: cell.q, r: cell.r, dq, dr }));
+  const taken = new Set(pinnedSlots(board).flatMap(portCorners));
+
+  return DIRECTIONS.map(([dq, dr]) => ({
+    q: cell.q,
+    r: cell.r,
+    dq,
+    dr,
+  })).filter(
+    port =>
+      at({ q: port.q + port.dq, r: port.r + port.dr }) === "water" &&
+      !portCorners(port).some(corner => taken.has(corner)),
+  );
 }
 
 /** What a board adds up to, for the recap and for the generator's own totals. */
@@ -425,6 +469,7 @@ export type SpecIssue =
   | { kind: "port-on-water"; board: number; cell: SpecCell }
   | { kind: "port-on-drawn"; board: number; cell: SpecCell }
   | { kind: "port-crowded"; board: number; cell: SpecCell; count: number }
+  | { kind: "port-touching"; board: number; cell: SpecCell; other: SpecCell }
   | {
       kind: "port-inland";
       board: number;
@@ -634,6 +679,38 @@ function crowdedIssues(index: number, slots: SpecPort[]): SpecIssue[] {
 }
 
 /**
+ * The harbours pinned corner to corner, counted across every bag: a printed
+ * board always leaves a free corner between two of them, so two edges meeting
+ * at one are two harbours a player would settle between with nothing in
+ * between.
+ */
+function touchingIssues(index: number, slots: SpecPort[]): SpecIssue[] {
+  const issues: SpecIssue[] = [];
+  const held = new Map<string, SpecCell>();
+
+  for (const slot of slots) {
+    const cell = { q: slot.q, r: slot.r };
+
+    for (const corner of portCorners(slot)) {
+      const other = held.get(corner);
+
+      if (other === undefined) {
+        held.set(corner, cell);
+        continue;
+      }
+
+      // The same harbour read twice is one harbour: only a *different* space
+      // sharing the corner is two of them meeting.
+      if (cellKey(other) !== cellKey(cell)) {
+        issues.push({ kind: "port-touching", board: index, cell, other });
+      }
+    }
+  }
+
+  return issues;
+}
+
+/**
  * The harbour bags of a board: as many slots pinned as the bag holds harbours,
  * and every one of them on a proper coast ({@link slotIssues}).
  *
@@ -675,14 +752,14 @@ function portIssues(board: ScenarioBoardSpec, index: number): SpecIssue[] {
     });
   }
 
+  // Judged across every bag at once: two harbours sharing a space, or a corner,
+  // are two of them wherever each is held.
+  const every = pinnedSlots(board);
+
   issues.push(
     ...slotIssues(index, certainty, slots),
-    // Judged across every bag at once: two harbours on one space are two, wherever
-    // each of them is held.
-    ...crowdedIssues(index, [
-      ...board.zones.flatMap(zone => zone.ports?.slots ?? []),
-      ...slots,
-    ]),
+    ...crowdedIssues(index, every),
+    ...touchingIssues(index, every),
   );
 
   return issues;
@@ -755,6 +832,8 @@ export function specIssueText(issue: SpecIssue): string {
       return `Le port épinglé en ${cellKey(issue.cell)} n'est sur aucune terre : un port se pose sur la case de terre qu'il borde, jamais sur la mer.`;
     case "port-crowded":
       return `La case ${cellKey(issue.cell)} porte ${issue.count} ports : une tuile n'en reçoit qu'un.`;
+    case "port-touching":
+      return `Les ports des cases ${cellKey(issue.other)} et ${cellKey(issue.cell)} se touchent : il faut au moins un sommet libre entre deux ports.`;
     case "port-on-drawn":
       return `Le port épinglé en ${cellKey(issue.cell)} est sur une case tirée au sort : pose-le sur une tuile fixe de terre, ou dans une zone dont le sac ne contient pas de mer.`;
     default:

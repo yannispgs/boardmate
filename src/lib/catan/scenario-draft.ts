@@ -20,6 +20,7 @@ import {
   MAX_WIDTH,
   MIN_WIDTH,
   minimumWidth,
+  pinnedSlots,
   portEdges,
   type ScenarioBoardSpec,
   type ScenarioSpec,
@@ -398,13 +399,6 @@ export function setZoneIslands(
 /** Whether two harbours sit on the same edge of the same space. */
 function samePort(a: SpecPort, b: SpecPort): boolean {
   return a.q === b.q && a.r === b.r && a.dq === b.dq && a.dr === b.dr;
-}
-
-/** Every harbour a board pins, whichever bag holds it — a zone's, or its own. */
-export function pinnedSlots(board: ScenarioBoardSpec): SpecPort[] {
-  return [board.ports, ...board.zones.map(zone => zone.ports)].flatMap(
-    bag => bag?.slots ?? [],
-  );
 }
 
 /** Whether a board pins a harbour on that edge, in any of its bags. */
