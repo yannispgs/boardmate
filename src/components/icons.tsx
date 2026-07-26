@@ -8,7 +8,7 @@ import type { PropsWithChildren } from "react";
  */
 
 interface IconProps {
-  className?: string;
+  readonly className?: string;
 }
 
 function Icon({

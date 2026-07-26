@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { ListBody } from "@/components/ListBody";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { StickyActionBar } from "@/components/StickyActionBar";
 import { useConfirm } from "@/components/use-confirm";
@@ -11,6 +12,22 @@ import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useGames } from "@/lib/hooks/use-games";
 import { GameCardList } from "./GameCardList";
 import { useGameFilter } from "./use-game-filter";
+
+/**
+ * What stands in for the list: never having played, or having filtered every
+ * game out. `null` once there is something to show.
+ */
+function emptyMessage(recorded: number, shown: number): string | null {
+  if (recorded === 0) {
+    return "Aucune partie. Lance-en une !";
+  }
+
+  if (shown === 0) {
+    return "Aucune partie ne correspond aux filtres.";
+  }
+
+  return null;
+}
 
 export function GamesList() {
   const { games, endedGames, loading, error, removeGame } = useGames();
@@ -58,45 +75,37 @@ export function GamesList() {
           </p>
         ) : null}
 
-        {/* Only the list of games scrolls; the header above and the action bar
-            below stay put. */}
-        <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto pb-4">
-          {loading ? (
-            <p className="text-sm text-zinc-500">Chargement…</p>
-          ) : games.length === 0 && endedGames.length === 0 ? (
-            <p className="text-sm text-zinc-500">
-              Aucune partie. Lance-en une !
-            </p>
-          ) : shownGames.length === 0 && shownEnded.length === 0 ? (
-            <p className="text-sm text-zinc-500">
-              Aucune partie ne correspond aux filtres.
-            </p>
-          ) : (
-            <>
-              {shownGames.length > 0 ? (
-                <GameCardList
-                  games={shownGames}
-                  boardgameFor={boardgameFor}
-                  onAbandon={handleAbandon}
-                />
-              ) : filter.status === "ended" ? null : (
-                // Worth saying nothing is running — unless "Terminées" is
-                // precisely what was asked for.
-                <p className="text-sm text-zinc-500">Aucune partie en cours.</p>
-              )}
-
-              {shownEnded.length > 0 ? (
-                <GameCardList
-                  games={shownEnded}
-                  boardgameFor={boardgameFor}
-                  ended
-                  collapsible
-                  title="Terminées"
-                />
-              ) : null}
-            </>
+        <ListBody
+          loading={loading}
+          message={emptyMessage(
+            games.length + endedGames.length,
+            shownGames.length + shownEnded.length,
           )}
-        </div>
+        >
+          {shownGames.length > 0 ? (
+            <GameCardList
+              games={shownGames}
+              boardgameFor={boardgameFor}
+              onAbandon={handleAbandon}
+            />
+          ) : null}
+
+          {/* Worth saying nothing is running — unless "Terminées" is precisely
+              what was asked for. */}
+          {shownGames.length === 0 && filter.status !== "ended" ? (
+            <p className="text-sm text-zinc-500">Aucune partie en cours.</p>
+          ) : null}
+
+          {shownEnded.length > 0 ? (
+            <GameCardList
+              games={shownEnded}
+              boardgameFor={boardgameFor}
+              ended
+              collapsible
+              title="Terminées"
+            />
+          ) : null}
+        </ListBody>
 
         <StickyActionBar>
           <div className="flex flex-wrap items-center gap-2">

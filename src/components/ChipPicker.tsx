@@ -10,13 +10,13 @@ export function ChipPicker<Id extends string>({
   options,
   selected,
   onSelect,
-}: {
+}: Readonly<{
   /** Shown above the row; omit it where the surrounding screen says enough. */
   label?: string;
   options: { id: Id; name: string }[];
   selected: Id;
   onSelect: (id: Id) => void;
-}) {
+}>) {
   return (
     <div className="flex flex-col gap-2">
       {label === undefined ? null : (

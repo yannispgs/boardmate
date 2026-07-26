@@ -14,7 +14,7 @@ export function ScreenHeader({
   backLabel = "← Accueil",
   action,
   children,
-}: {
+}: Readonly<{
   title: string;
   description?: ReactNode;
   backHref?: string;
@@ -23,7 +23,7 @@ export function ScreenHeader({
   action?: ReactNode;
   /** Anything unfolding under the heading, e.g. a search field. */
   children?: ReactNode;
-}) {
+}>) {
   return (
     <header className="flex shrink-0 flex-col gap-1 pt-10 pb-4">
       <Link

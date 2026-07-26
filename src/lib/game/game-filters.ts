@@ -55,16 +55,13 @@ export function matchesGameFilter(
   game: FilterableGame,
   filter: Partial<GameFilter>,
 ): boolean {
-  const boardgameIds = filter.boardgameIds ?? [];
+  // A `Set<string>` rather than the branded array it is built from: the ids a
+  // filterable game carries are plain strings, and a branded array refuses to
+  // look one up.
+  const boardgameIds = new Set<string>(filter.boardgameIds ?? []);
   const playerIds = filter.playerIds ?? [];
 
-  // `some` rather than `includes`: the ids the caller holds are branded, the
-  // ones a filterable game carries are plain strings, and only `===` narrows
-  // across the two.
-  if (
-    boardgameIds.length > 0 &&
-    !boardgameIds.some(id => id === game.boardgameId)
-  ) {
+  if (boardgameIds.size > 0 && !boardgameIds.has(game.boardgameId)) {
     return false;
   }
 

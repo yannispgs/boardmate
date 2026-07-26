@@ -28,13 +28,13 @@ export function GameFilterPanel({
   nameOf,
   filter,
   onChange,
-}: {
+}: Readonly<{
   /** Every game the filter chooses from, unfiltered. */
   games: GameListItem[];
   nameOf: (id: BoardgameId) => string | undefined;
   filter: GameFilter;
   onChange: (filter: GameFilter) => void;
-}) {
+}>) {
   const boardgames = playedBoardgames(games, nameOf);
   const players = filterablePlayers(games, filter.playerIds);
   const active =

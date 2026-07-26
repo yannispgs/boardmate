@@ -1,7 +1,8 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { useState } from "react";
 
+import { ListBody } from "@/components/ListBody";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { StickyActionBar } from "@/components/StickyActionBar";
 import { useConfirm } from "@/components/use-confirm";
@@ -9,21 +10,33 @@ import { useSearch } from "@/components/use-search";
 import type { Player } from "@/lib/domain";
 import { searchByName } from "@/lib/game/player-search";
 import { usePlayers } from "@/lib/hooks/use-players";
-import {
-  DuplicateNameError,
-  PlayerInUseError,
-} from "@/lib/repositories/errors";
+import { PlayerInUseError } from "@/lib/repositories/errors";
 import { PlayerCardList } from "./PlayerCardList";
+import { useNewPlayer } from "./use-new-player";
 
-const normalize = (s: string) => s.trim().toLowerCase();
+/**
+ * What stands in for the list: nobody recorded yet, or a search nobody answers.
+ * `null` once there is someone to show.
+ */
+function emptyMessage(
+  recorded: number,
+  found: number,
+  query: string,
+): string | null {
+  if (recorded === 0) {
+    return "Aucun joueur pour l'instant.";
+  }
+
+  if (found === 0) {
+    return `Aucun joueur ne correspond à « ${query} ».`;
+  }
+
+  return null;
+}
 
 export function PlayersManager() {
   const { players, loading, error, addPlayer, setActive, removePlayer } =
     usePlayers();
-  const [name, setName] = useState("");
-  const [formOpen, setFormOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [nameError, setNameError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   // In-app confirmation (replaces window.confirm, which browsers suppress).
   const { requestConfirm, confirmDialog } = useConfirm();
@@ -31,61 +44,18 @@ export function PlayersManager() {
     label: "Rechercher un joueur",
     placeholder: "Nom du joueur",
   });
+  const { newPlayerForm } = useNewPlayer({
+    players,
+    addPlayer,
+    requestConfirm,
+    onFailure: setActionError,
+  });
 
   // Searching cuts across both lists: a name you are hunting for is worth
   // finding whether or not its player is still active.
   const found = searchByName(players, query);
   const active = found.filter(p => p.isActive);
   const inactive = found.filter(p => !p.isActive);
-
-  function closeForm() {
-    setName("");
-    setNameError(null);
-    setFormOpen(false);
-  }
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const trimmed = name.trim();
-    if (!trimmed) {
-      return;
-    }
-
-    // Reject a duplicate name up front (case/space-insensitive).
-    if (players.some(p => normalize(p.name) === normalize(trimmed))) {
-      setNameError("Ce nom est déjà pris.");
-      return;
-    }
-    setNameError(null);
-
-    // Players can only be deleted before they've played — confirm first.
-    requestConfirm({
-      message:
-        `Créer le joueur « ${trimmed} » ?\n\n` +
-        "Un joueur ne pourra plus être supprimé dès qu'il aura participé à " +
-        "une partie (il pourra seulement être désactivé).",
-      confirmLabel: "Créer le joueur",
-      onConfirm: () => createPlayer(trimmed),
-    });
-  }
-
-  async function createPlayer(trimmed: string) {
-    setSubmitting(true);
-    setActionError(null);
-    try {
-      await addPlayer({ name: trimmed });
-      closeForm();
-    } catch (e) {
-      // Safety net if someone else took the name between the check and submit.
-      if (e instanceof DuplicateNameError) {
-        setNameError("Ce nom est déjà pris.");
-      } else {
-        setActionError("Ajout impossible. Réessaie.");
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  }
 
   async function deactivate(player: Player) {
     setActionError(null);
@@ -165,104 +135,33 @@ export function PlayersManager() {
           </p>
         ) : null}
 
-        {/* Only the list of players scrolls; the header above and the action
-            bar below stay put. */}
-        <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto pb-4">
-          {loading ? (
-            <p className="text-sm text-zinc-500">Chargement…</p>
-          ) : players.length === 0 ? (
-            <p className="text-sm text-zinc-500">
-              Aucun joueur pour l&apos;instant.
-            </p>
-          ) : found.length === 0 ? (
-            <p className="text-sm text-zinc-500">
-              Aucun joueur ne correspond à « {query} ».
-            </p>
-          ) : (
-            <>
-              <PlayerCardList
-                title="Joueurs actifs"
-                players={active}
-                onToggle={p => handleToggle(p, false)}
-                actionLabel="Désactiver"
-                onDelete={handleDelete}
-              />
-              {inactive.length > 0 ? (
-                <PlayerCardList
-                  title="Désactivés"
-                  players={inactive}
-                  onToggle={p => handleToggle(p, true)}
-                  actionLabel="Réactiver"
-                  onDelete={handleDelete}
-                  dimmed
-                  collapsible
-                />
-              ) : null}
-            </>
-          )}
-        </div>
+        <ListBody
+          loading={loading}
+          message={emptyMessage(players.length, found.length, query)}
+        >
+          <PlayerCardList
+            title="Joueurs actifs"
+            players={active}
+            onToggle={p => handleToggle(p, false)}
+            actionLabel="Désactiver"
+            onDelete={handleDelete}
+          />
+
+          {inactive.length > 0 ? (
+            <PlayerCardList
+              title="Désactivés"
+              players={inactive}
+              onToggle={p => handleToggle(p, true)}
+              actionLabel="Réactiver"
+              onDelete={handleDelete}
+              dimmed
+              collapsible
+            />
+          ) : null}
+        </ListBody>
 
         {/* Add a player: fixed at the bottom, the form expands in place. */}
-        <StickyActionBar>
-          {formOpen ? (
-            <form
-              onSubmit={handleSubmit}
-              className="flex flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10"
-            >
-              <h2 className="text-sm font-semibold">Nouveau joueur</h2>
-              <input
-                value={name}
-                onChange={e => {
-                  setName(e.target.value);
-                  if (nameError) {
-                    setNameError(null);
-                  }
-                }}
-                placeholder="Nom du joueur"
-                aria-label="Nom du joueur"
-                aria-invalid={nameError ? true : undefined}
-                maxLength={20}
-                className={`rounded-lg border bg-white px-3 py-2 outline-none dark:bg-zinc-900 ${
-                  nameError
-                    ? "border-red-500 focus:border-red-500"
-                    : "border-black/15 focus:border-indigo-500 dark:border-white/15"
-                }`}
-              />
-              {nameError ? (
-                <p
-                  role="alert"
-                  className="text-sm text-red-600 dark:text-red-400"
-                >
-                  {nameError}
-                </p>
-              ) : null}
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  disabled={submitting || name.trim() === ""}
-                  className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
-                >
-                  Ajouter
-                </button>
-                <button
-                  type="button"
-                  onClick={closeForm}
-                  className="rounded-lg border border-black/10 px-4 py-2 transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
-                >
-                  Annuler
-                </button>
-              </div>
-            </form>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setFormOpen(true)}
-              className="self-start rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
-            >
-              + Ajouter un joueur
-            </button>
-          )}
-        </StickyActionBar>
+        <StickyActionBar>{newPlayerForm}</StickyActionBar>
 
         {confirmDialog}
       </div>

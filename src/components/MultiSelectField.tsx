@@ -18,12 +18,12 @@ export function MultiSelectField<Id extends string>({
   options,
   selected,
   onChange,
-}: {
+}: Readonly<{
   label: string;
   options: { id: Id; name: string }[];
   selected: Id[];
   onChange: (ids: Id[]) => void;
-}) {
+}>) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const ref = useRef<HTMLDivElement>(null);
