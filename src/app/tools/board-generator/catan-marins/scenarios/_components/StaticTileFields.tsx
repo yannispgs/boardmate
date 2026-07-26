@@ -10,9 +10,9 @@ import { bearsToken, type SpecTerrain } from "@/lib/catan/scenario-spec";
 
 /**
  * What the next fixed tile is made of: its terrain, and the token printed on it.
- * The two go together — every land but the desert is rolled for, so the field
- * offers the ten tokens of a board and nothing else, and it disappears on the
- * sea and on a desert, which are never rolled for at all.
+ * The two go together — every land but the desert is rolled for, so the token is
+ * always asked for, and never on the sea or on a desert, which are never rolled
+ * for at all.
  */
 export function StaticTileFields({
   terrain,
@@ -26,11 +26,11 @@ export function StaticTileFields({
   onToken: (token: number) => void;
 }>) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-col gap-2">
       <select
         value={terrain}
         onChange={e => onTerrain(e.target.value as SpecTerrain)}
-        className={`${fieldClass} flex-1`}
+        className={fieldClass}
       >
         {SPEC_TERRAIN_ORDER.map(value => (
           <option key={value} value={value}>
@@ -38,18 +38,26 @@ export function StaticTileFields({
           </option>
         ))}
       </select>
+      {/* Laid out, not dropped down: a browser's list is one column tall, where
+          the ten tokens of a board read as the two rows they are printed in —
+          2 to 6, then 8 to 12 — and are picked in one tap instead of two. */}
       {bearsToken(terrain) ? (
-        <select
-          value={token}
-          onChange={e => onToken(Number(e.target.value))}
-          className={`${fieldClass} w-32`}
-        >
+        <div className="grid grid-cols-5 gap-1">
           {TOKEN_VALUES.map(value => (
-            <option key={value} value={value}>
+            <button
+              key={value}
+              type="button"
+              onClick={() => onToken(value)}
+              className={`rounded-md py-1.5 text-sm font-medium tabular-nums transition ${
+                value === token
+                  ? "bg-indigo-600 text-white"
+                  : "bg-black/5 text-zinc-600 hover:bg-black/10 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-white/20"
+              }`}
+            >
               {value}
-            </option>
+            </button>
           ))}
-        </select>
+        </div>
       ) : null}
     </div>
   );
