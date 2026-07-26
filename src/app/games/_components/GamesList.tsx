@@ -79,7 +79,9 @@ export function GamesList() {
                   boardgameFor={boardgameFor}
                   onAbandon={handleAbandon}
                 />
-              ) : (
+              ) : filter.status === "ended" ? null : (
+                // Worth saying nothing is running — unless "Terminées" is
+                // precisely what was asked for.
                 <p className="text-sm text-zinc-500">Aucune partie en cours.</p>
               )}
 

@@ -1,10 +1,15 @@
-import type { BoardgameId, GameListItem, PlayerId } from "@/lib/domain";
+import type {
+  BoardgameId,
+  GameListItem,
+  GameStatus,
+  PlayerId,
+} from "@/lib/domain";
 
 /**
  * Narrowing a set of games down to the ones worth looking at: which game was
- * played, who was at the table, and when. The same three questions are asked
- * of the statistics and of the games list, so the rule lives here once and both
- * hand it the shape they hold ({@link FilterableGame}).
+ * played, who was at the table, when, and whether it is over. The same
+ * questions are asked of the statistics and of the games list, so the rule
+ * lives here once and both hand it the shape they hold ({@link FilterableGame}).
  */
 export interface GameFilter {
   /** Keep only games of these boardgames (empty = all). */
@@ -19,6 +24,12 @@ export interface GameFilter {
   from: string | null;
   /** Keep games filed on or before this day (`YYYY-MM-DD`), or `null`. */
   until: string | null;
+  /**
+   * Keep only the games in this state, or `null` for both. There are two
+   * statuses, so asking for both is the same as asking for neither — hence a
+   * single value rather than a set.
+   */
+  status: GameStatus | null;
 }
 
 /** Everything filtering needs of a game, whatever record it came from. */
@@ -27,6 +38,7 @@ export interface FilterableGame {
   playerIds: string[];
   /** The day it is filed under, `YYYY-MM-DD`; empty when it has none. */
   day: string;
+  status: GameStatus;
 }
 
 /** The filter that keeps everything — the state the screens open in. */
@@ -35,6 +47,7 @@ export const NO_GAME_FILTER: GameFilter = {
   playerIds: [],
   from: null,
   until: null,
+  status: null,
 };
 
 /** Whether a game survives the filter. Absent criteria never exclude anything. */
@@ -63,7 +76,11 @@ export function matchesGameFilter(
     return false;
   }
 
-  return !(filter.until && game.day > filter.until);
+  if (filter.until && game.day > filter.until) {
+    return false;
+  }
+
+  return !(filter.status && game.status !== filter.status);
 }
 
 /**
@@ -77,8 +94,9 @@ export function matchesGameFilter(
 export function activeFilterCount(filter: GameFilter): number {
   const dates = filter.from !== null || filter.until !== null ? 1 : 0;
   const boardgames = filter.boardgameIds.length > 0 ? 1 : 0;
+  const status = filter.status !== null ? 1 : 0;
 
-  return boardgames + filter.playerIds.length + dates;
+  return boardgames + filter.playerIds.length + dates + status;
 }
 
 /**
@@ -97,6 +115,7 @@ export function filterGameList(
         boardgameId: game.boardgameId,
         playerIds: game.players.map(p => p.id),
         day: game.startedAt.slice(0, 10),
+        status: game.status,
       },
       filter,
     ),

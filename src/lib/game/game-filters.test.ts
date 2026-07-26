@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import type { BoardgameId, GameId, GameListItem, PlayerId } from "@/lib/domain";
+import type {
+  BoardgameId,
+  GameId,
+  GameListItem,
+  GameStatus,
+  PlayerId,
+} from "@/lib/domain";
 import {
   activeFilterCount,
   filterablePlayers,
@@ -16,18 +22,21 @@ function game(
   boardgameId: string,
   startedAt: string,
   players: Array<[string, string]>,
+  status: GameStatus = "ongoing",
 ): GameListItem {
   return {
     id: id as GameId,
     boardgameId: boardgameId as BoardgameId,
     configId: null,
     configValues: null,
-    status: "ongoing",
+    status,
     round: 1,
     turn: 1,
     currentPlayerId: null,
     startedAt,
-    endedAt: null,
+    // A game played past midnight ends on the NEXT day — which is what makes
+    // "filed under the day it started" an assertion and not a coincidence.
+    endedAt: status === "ended" ? "2026-07-21T01:00:00.000Z" : null,
     players: players.map(([playerId, name]) => ({
       id: playerId as PlayerId,
       name,
@@ -45,9 +54,13 @@ const cascadiaWithOne = game("g2", "cascadia", "2026-07-15T20:00:00.000Z", [
   ["p1", "Zoé"],
   ["p3", "Bruno"],
 ]);
-const catanLater = game("g3", "catan", "2026-07-20T20:00:00.000Z", [
-  ["p2", "Amélie"],
-]);
+const catanLater = game(
+  "g3",
+  "catan",
+  "2026-07-20T20:00:00.000Z",
+  [["p2", "Amélie"]],
+  "ended",
+);
 const all = [catanWithBoth, cascadiaWithOne, catanLater];
 
 describe("matchesGameFilter", () => {
@@ -55,6 +68,7 @@ describe("matchesGameFilter", () => {
     boardgameId: "catan",
     playerIds: ["p1", "p2"],
     day: "2026-07-10",
+    status: "ongoing" as GameStatus,
   };
 
   it("keeps everything when nothing is asked", () => {
@@ -86,6 +100,12 @@ describe("matchesGameFilter", () => {
     expect(matchesGameFilter(one, { from: "2026-07-11" })).toBe(false);
     expect(matchesGameFilter(one, { until: "2026-07-09" })).toBe(false);
   });
+
+  it("keeps only the status asked for", () => {
+    expect(matchesGameFilter(one, { status: "ongoing" })).toBe(true);
+    expect(matchesGameFilter(one, { status: "ended" })).toBe(false);
+    expect(matchesGameFilter(one, { status: null })).toBe(true);
+  });
 });
 
 describe("activeFilterCount", () => {
@@ -115,6 +135,10 @@ describe("activeFilterCount", () => {
       }),
     ).toBe(3);
   });
+
+  it("counts a chosen status", () => {
+    expect(activeFilterCount({ ...NO_GAME_FILTER, status: "ended" })).toBe(1);
+  });
 });
 
 describe("filterGameList", () => {
@@ -124,15 +148,31 @@ describe("filterGameList", () => {
     expect(
       filterGameList(all, { ...NO_GAME_FILTER, from: "2026-07-15" }),
     ).toEqual([cascadiaWithOne, catanLater]);
+
+    // `catanLater` ran past midnight into the 21st, and a window closing on the
+    // 20th still holds it: it is the evening it started that we remember.
+    expect(
+      filterGameList(all, { ...NO_GAME_FILTER, until: "2026-07-20" }),
+    ).toEqual(all);
   });
 
-  it("crosses the three criteria", () => {
+  it("splits the running games from the finished ones", () => {
+    expect(
+      filterGameList(all, { ...NO_GAME_FILTER, status: "ongoing" }),
+    ).toEqual([catanWithBoth, cascadiaWithOne]);
+    expect(filterGameList(all, { ...NO_GAME_FILTER, status: "ended" })).toEqual(
+      [catanLater],
+    );
+  });
+
+  it("crosses every criterion", () => {
     expect(
       filterGameList(all, {
         boardgameIds: ["catan" as BoardgameId],
         playerIds: ["p2" as PlayerId],
         from: "2026-07-05",
         until: null,
+        status: "ended",
       }),
     ).toEqual([catanLater]);
   });

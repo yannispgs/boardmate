@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ChipPicker } from "@/components/ChipPicker";
 import { DateWindow } from "@/components/DateWindow";
 import { InfoTip } from "@/components/InfoTip";
 import { MultiSelectField } from "@/components/MultiSelectField";
@@ -16,7 +17,6 @@ import { winnerDirection } from "@/lib/game/scoring";
 import { computeSeatStats } from "@/lib/game/seat-stats";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { CategoryCharts } from "./CategoryCharts";
-import { GamePicker } from "./GamePicker";
 import { GamePlayerTable } from "./GamePlayerTable";
 import { ScoreDistribution } from "./ScoreDistribution";
 import { SeatStats } from "./SeatStats";
@@ -130,7 +130,7 @@ export function GamesTab({ records }: { records: GameStatsRecord[] }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <GamePicker options={games} selected={active} onSelect={setSelected} />
+      <ChipPicker options={games} selected={active} onSelect={setSelected} />
 
       <div className="flex flex-col gap-4 rounded-xl border border-black/10 p-4 dark:border-white/10">
         <MultiSelectField

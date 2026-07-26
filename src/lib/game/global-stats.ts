@@ -204,6 +204,9 @@ export function filterRecords(
         // Statistics are about games that are over, so a record is filed under
         // the day it ended; one without an end date matches no window at all.
         day: g.endedAt?.slice(0, 10) ?? "",
+        // A statistics record only ever describes a game that is over, so the
+        // status criterion has nothing left to sort out here.
+        status: "ended",
       },
       { ...filters, from: filters.from ?? null, until: filters.until ?? null },
     ),
