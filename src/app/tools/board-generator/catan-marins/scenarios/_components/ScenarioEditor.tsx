@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { EraserIcon } from "@/components/icons";
 import { StickyActionBar } from "@/components/StickyActionBar";
 import { fieldClass, sectionHeadingClass } from "@/components/ui";
 import { useConfirm } from "@/components/use-confirm";
@@ -36,7 +37,6 @@ import { ZonePicker } from "./ZonePicker";
 
 const TOOLS: { value: CanvasTool; label: string; hint: string }[] = [
   { value: "paint", label: "Peindre", hint: "Ajoute les cases à la zone." },
-  { value: "erase", label: "Effacer", hint: "Rend les cases au plateau vide." },
   {
     value: "static",
     label: "Tuile fixe",
@@ -48,6 +48,9 @@ const TOOLS: { value: CanvasTool; label: string; hint: string }[] = [
     hint: "Clique une case de terre, puis l'arête où le port est imprimé. Seules les cases posables répondent, et seules leurs arêtes donnant sur la mer à chaque partie sont proposées ; une tuile ne porte qu'un port. Le port rejoint la zone de la case, ou le plateau si la case est une tuile fixe.",
   },
 ];
+
+/** Rubbing out has no button of its own up here: it lives on the map itself. */
+const ERASE_HINT = "Gomme : les cases repartent au plateau vide.";
 
 const toolButtonClass = (active: boolean) =>
   `rounded-md px-2.5 py-1.5 text-sm font-medium transition ${
@@ -223,7 +226,9 @@ export function ScenarioEditor({
                 ))}
               </div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                {TOOLS.find(item => item.value === tool)?.hint}
+                {tool === "erase"
+                  ? ERASE_HINT
+                  : TOOLS.find(item => item.value === tool)?.hint}
               </p>
 
               {tool === "static" ? (
@@ -271,7 +276,26 @@ export function ScenarioEditor({
               onPick={pickBoard}
             />
 
-            <div className="rounded-xl border border-black/10 p-3 dark:border-white/10">
+            {/* The eraser sits on the map rather than among the tools: it is
+                reached where it is used, in the corner the outline leaves
+                empty, and it toggles — off, painting takes over again. */}
+            <div className="relative rounded-xl border border-black/10 p-3 dark:border-white/10">
+              <button
+                type="button"
+                onClick={() => {
+                  setTool(current => (current === "erase" ? "paint" : "erase"));
+                  setSelected(null);
+                }}
+                title={ERASE_HINT}
+                aria-label="Gomme"
+                className={`absolute top-2 right-2 rounded-lg border p-2 transition ${
+                  tool === "erase"
+                    ? "border-indigo-600 bg-indigo-600 text-white"
+                    : "border-black/10 bg-white/70 text-zinc-600 hover:bg-black/5 dark:border-white/15 dark:bg-zinc-900/70 dark:text-zinc-300 dark:hover:bg-white/10"
+                }`}
+              >
+                <EraserIcon />
+              </button>
               <ScenarioCanvas
                 board={board}
                 width={width}

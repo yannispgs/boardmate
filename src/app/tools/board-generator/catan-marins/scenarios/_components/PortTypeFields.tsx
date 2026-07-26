@@ -14,13 +14,14 @@ const PORT_TYPES: CatanPortType[] = [
   "ore",
 ];
 
+/** Named by their rate alone: the panel's own title already says "ports". */
 const PORT_NAME: Record<CatanPortType, string> = {
-  generic: "Port 3:1",
-  wood: "Port bois 2:1",
-  wool: "Port laine 2:1",
-  grain: "Port blé 2:1",
-  brick: "Port argile 2:1",
-  ore: "Port minerai 2:1",
+  generic: "3:1",
+  wood: "bois 2:1",
+  wool: "laine 2:1",
+  grain: "blé 2:1",
+  brick: "argile 2:1",
+  ore: "minerai 2:1",
 };
 
 /**
@@ -37,11 +38,14 @@ export function PortTypeFields({
   const counts = portTypeCounts(bag?.types ?? []);
 
   return (
-    <div className="flex flex-col gap-1">
+    // All six across one row rather than six labelled lines, twice over: the
+    // panel carries this block once for the zone and once for the board.
+    <div className="grid grid-cols-6 gap-x-1">
       {PORT_TYPES.map(type => (
         <CountStepper
           key={type}
           label={PORT_NAME[type]}
+          layout="stack"
           value={counts.get(type) ?? 0}
           onChange={count => onCount(type, count)}
         />

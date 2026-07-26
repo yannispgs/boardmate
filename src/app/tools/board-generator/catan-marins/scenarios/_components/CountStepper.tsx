@@ -21,8 +21,8 @@ export function CountStepper({
   max?: number;
   /**
    * "row" spells the label out beside the counter — right for a named thing
-   * ("Port bois 2:1"). "stack" puts a short label over a vertical counter, so
-   * a dozen of them fit side by side instead of eating a dozen lines.
+   * ("Forêt"). "stack" puts a short label over a vertical counter, so a dozen
+   * of them fit side by side instead of eating a dozen lines.
    */
   layout?: "row" | "stack";
 }>) {
@@ -65,8 +65,12 @@ export function CountStepper({
 
   if (layout === "stack") {
     return (
-      <div className="flex flex-col items-center gap-1 text-sm">
-        <span className="font-semibold tabular-nums">{label}</span>
+      <div className="flex flex-col items-center gap-1 text-xs">
+        {/* Two lines' worth of room whatever the label needs: a name that wraps
+            ("minerai 2:1") then keeps its buttons level with its neighbours'. */}
+        <span className="flex h-7 items-center text-center font-semibold leading-tight tabular-nums">
+          {label}
+        </span>
         {plus}
         {count}
         {minus}

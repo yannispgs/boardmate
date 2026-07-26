@@ -116,9 +116,9 @@ export function ZonePanel({
         hint="Un jeton par tuile qui en porte un : ni la mer ni le désert n'en reçoivent."
       >
         {/* Laid out across, not down: ten tokens as ten labelled lines ate the
-            panel. Five per row keeps them readable in a 320px aside and reads
-            2, 3, 4… straight through. */}
-        <div className="grid grid-cols-5 gap-x-2 gap-y-3">
+            panel. The whole run fits one row of a 320px aside once the columns
+            are kept tight, and reads 2, 3, 4… straight through. */}
+        <div className="grid grid-cols-10 gap-x-1">
           {TOKEN_VALUES.map(token => (
             <CountStepper
               key={token}
