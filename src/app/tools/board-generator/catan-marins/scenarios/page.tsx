@@ -9,8 +9,11 @@ export const metadata: Metadata = {
 
 export default function MarinsScenariosPage() {
   return (
-    <main className="mx-auto flex h-dvh w-full max-w-6xl flex-col px-6">
-      <header className="flex shrink-0 flex-col gap-1 pt-10 pb-6">
+    // The page scrolls as one document: the title and the way back up to the
+    // generator scroll away with the rest instead of holding a band of a large
+    // editor screen for good.
+    <main className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-6">
+      <header className="flex flex-col gap-1 pt-10 pb-6">
         <Link
           href="/tools/board-generator/catan-marins"
           className="text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"

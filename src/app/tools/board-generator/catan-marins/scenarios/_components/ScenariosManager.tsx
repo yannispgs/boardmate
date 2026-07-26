@@ -71,14 +71,14 @@ export function ScenariosManager() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
+    <div className="flex flex-1 flex-col gap-3">
       {error ? (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
           {error}
         </p>
       ) : null}
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pb-4">
+      <div className="flex flex-1 flex-col gap-4 pb-4">
         {loading ? (
           <p className="text-sm text-zinc-500">Chargement…</p>
         ) : (

@@ -175,11 +175,11 @@ export function ScenarioEditor({
   const blocked = issues.length > 0 || spec.name.trim() === "";
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
+    <div className="flex flex-1 flex-col gap-4">
       {/* The name and the target scroll away with everything else. Pinned above
           the canvas they ate close to half a phone screen, for two fields set
           once and never looked at again. */}
-      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto pb-4">
+      <div className="flex flex-1 flex-col gap-6 pb-4">
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex min-w-60 flex-1 flex-col gap-1 text-sm">
             <span className={sectionHeadingClass}>Nom du scénario</span>
