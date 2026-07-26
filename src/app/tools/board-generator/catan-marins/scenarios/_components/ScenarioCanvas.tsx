@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { SEA_STYLE, TERRAIN_STYLE } from "@/components/catan/CatanBoardSvg";
 import { axialToPixel, DIRECTIONS } from "@/lib/catan/board";
-import { hexCorners, polygonPoints } from "@/lib/catan/hex-geometry";
+import {
+  hexCorners,
+  pixelToAxial,
+  polygonPoints,
+} from "@/lib/catan/hex-geometry";
 import { canvasGrid, cellOwner } from "@/lib/catan/scenario-draft";
 import {
   cellKey,
@@ -70,10 +74,10 @@ function cellFill(
 
 /**
  * The paintable map of one board: the fixed Marins outline at the board's
- * width, coloured by whatever holds them. Clicking — or dragging across — a
- * space applies the current tool. In `port` mode a click selects a space
- * instead, and the six edges around it become the harbour slots to pin or
- * unpin.
+ * width, coloured by whatever holds them. Tapping a space applies the current
+ * tool, and sliding — mouse or finger — applies it to every space crossed. In
+ * `port` mode a tap selects a space instead, and the six edges around it become
+ * the harbour slots to pin or unpin.
  */
 export function ScenarioCanvas({
   board,
@@ -94,10 +98,14 @@ export function ScenarioCanvas({
   onPort: (port: SpecPort) => void;
 }) {
   const [drawing, setDrawing] = useState(false);
+  // The space the stroke last applied the tool to, so sliding across one space
+  // rebuilds the scenario once instead of on every pointer report.
+  const last = useRef<string | null>(null);
 
   useEffect(() => {
     const stop = () => {
       setDrawing(false);
+      last.current = null;
     };
 
     window.addEventListener("pointerup", stop);
@@ -108,6 +116,46 @@ export function ScenarioCanvas({
   }, []);
 
   const cells = canvasGrid(width);
+  const painted = new Set(cells.map(cellKey));
+
+  function start(cell: SpecCell) {
+    setDrawing(true);
+    last.current = cellKey(cell);
+    onCell(cell);
+  }
+
+  /**
+   * Carries the stroke on, one space at a time. The hex is worked out from the
+   * pointer's own coordinates rather than from what it is over: a touch hands
+   * the whole gesture to the shape it started on, so no shape after that one
+   * ever hears the finger arrive.
+   */
+  function extend(event: React.PointerEvent<SVGSVGElement>) {
+    if (!drawing || tool === "port") {
+      return;
+    }
+
+    // Null only on an SVG that is not being displayed at all.
+    const screen = event.currentTarget.getScreenCTM();
+
+    if (screen === null) {
+      return;
+    }
+
+    const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(
+      screen.inverse(),
+    );
+    const cell = pixelToAxial(point.x, point.y, SIZE);
+    const key = cellKey(cell);
+
+    // Off the board, or still on the space the stroke last painted.
+    if (!painted.has(key) || key === last.current) {
+      return;
+    }
+
+    last.current = key;
+    onCell(cell);
+  }
   const centres = new Map(
     cells.map(cell => [cellKey(cell), axialToPixel(cell.q, cell.r, SIZE)]),
   );
@@ -158,6 +206,7 @@ export function ScenarioCanvas({
       role="img"
       aria-label="Plan du scénario"
       className="h-auto w-full touch-none select-none"
+      onPointerMove={extend}
     >
       <title>Plan du scénario</title>
       {cells.map(cell => {
@@ -182,15 +231,7 @@ export function ScenarioCanvas({
               strokeWidth={isSelected ? 3 : 1}
               className="cursor-pointer"
               onPointerDown={() => {
-                setDrawing(true);
-                onCell(cell);
-              }}
-              onPointerEnter={() => {
-                // Dragging paints a whole stretch at once; picking the space a
-                // harbour hangs off is a one-shot choice, so it stays a click.
-                if (drawing && tool !== "port") {
-                  onCell(cell);
-                }
+                start(cell);
               }}
             />
             {label === null ? null : (
