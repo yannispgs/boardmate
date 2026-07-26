@@ -221,259 +221,272 @@ export function ScenarioEditor({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="flex min-w-60 flex-1 flex-col gap-1 text-sm">
-          <span className={sectionHeadingClass}>Nom du scénario</span>
-          <input
-            value={spec.name}
-            onChange={e => change(setScenarioName(spec, e.target.value))}
-            placeholder="Les quatre îles"
-            className={fieldClass}
-          />
-        </label>
-        <label className="flex w-32 flex-col gap-1 text-sm">
-          <span className={sectionHeadingClass}>Score à atteindre</span>
-          <input
-            type="number"
-            min={1}
-            max={30}
-            value={spec.targetScore}
-            onChange={e => change(setTargetScore(spec, Number(e.target.value)))}
-            className={fieldClass}
-          />
-        </label>
-      </div>
+      {/* The name and the target scroll away with everything else. Pinned above
+          the canvas they ate close to half a phone screen, for two fields set
+          once and never looked at again. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto pb-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex min-w-60 flex-1 flex-col gap-1 text-sm">
+            <span className={sectionHeadingClass}>Nom du scénario</span>
+            <input
+              value={spec.name}
+              onChange={e => change(setScenarioName(spec, e.target.value))}
+              placeholder="Les quatre îles"
+              className={fieldClass}
+            />
+          </label>
+          <label className="flex w-32 flex-col gap-1 text-sm">
+            <span className={sectionHeadingClass}>Score à atteindre</span>
+            <input
+              type="number"
+              min={1}
+              max={30}
+              value={spec.targetScore}
+              onChange={e =>
+                change(setTargetScore(spec, Number(e.target.value)))
+              }
+              className={fieldClass}
+            />
+          </label>
+        </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto pb-4 lg:flex-row">
-        <aside className="flex shrink-0 flex-col gap-5 lg:w-80">
-          <section className="flex flex-col gap-2">
-            <h3 className={sectionHeadingClass}>Outil</h3>
-            <div className="flex rounded-lg border border-black/10 p-1 dark:border-white/10">
-              {TOOLS.map(item => (
-                <button
-                  key={item.value}
-                  type="button"
-                  onClick={() => {
-                    setTool(item.value);
-                    setSelected(null);
-                  }}
-                  className={toolButtonClass(item.value === tool)}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              {TOOLS.find(item => item.value === tool)?.hint}
-            </p>
-
-            {tool === "static" ? (
-              <div className="flex items-center gap-2">
-                <select
-                  value={staticTerrain}
-                  onChange={e =>
-                    setStaticTerrain(e.target.value as SpecTerrain)
-                  }
-                  className={`${fieldClass} flex-1`}
-                >
-                  {STATIC_TERRAINS.map(terrain => (
-                    <option key={terrain} value={terrain}>
-                      {SPEC_TERRAIN_NAME[terrain]}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="number"
-                  min={2}
-                  max={12}
-                  value={staticNumber}
-                  placeholder="jeton"
-                  onChange={e =>
-                    setStaticNumber(
-                      e.target.value === "" ? "" : Number(e.target.value),
-                    )
-                  }
-                  className={`${fieldClass} w-24`}
-                />
+        <div className="flex flex-col gap-6 lg:flex-row">
+          <aside className="flex shrink-0 flex-col gap-5 lg:w-80">
+            <section className="flex flex-col gap-2">
+              <h3 className={sectionHeadingClass}>Outil</h3>
+              <div className="flex rounded-lg border border-black/10 p-1 dark:border-white/10">
+                {TOOLS.map(item => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    onClick={() => {
+                      setTool(item.value);
+                      setSelected(null);
+                    }}
+                    className={toolButtonClass(item.value === tool)}
+                  >
+                    {item.label}
+                  </button>
+                ))}
               </div>
-            ) : null}
-          </section>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                {TOOLS.find(item => item.value === tool)?.hint}
+              </p>
 
-          <section className="flex flex-col gap-2">
-            <h3 className={sectionHeadingClass}>Zones</h3>
-            <div className="flex flex-wrap gap-2">
-              {board.zones.map((z, index) => (
-                <button
-                  // biome-ignore lint/suspicious/noArrayIndexKey: a zone is identified by its index, which is how every draft operation names it
-                  key={index}
-                  type="button"
-                  onClick={() => {
-                    setZoneIndex(index);
-                    setSelected(null);
-                  }}
-                  className={`${chipClass(index === zone)} flex items-center gap-2`}
-                >
-                  <span
-                    aria-hidden
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: zoneColor(index) }}
+              {tool === "static" ? (
+                <div className="flex items-center gap-2">
+                  <select
+                    value={staticTerrain}
+                    onChange={e =>
+                      setStaticTerrain(e.target.value as SpecTerrain)
+                    }
+                    className={`${fieldClass} flex-1`}
+                  >
+                    {STATIC_TERRAINS.map(terrain => (
+                      <option key={terrain} value={terrain}>
+                        {SPEC_TERRAIN_NAME[terrain]}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    min={2}
+                    max={12}
+                    value={staticNumber}
+                    placeholder="jeton"
+                    onChange={e =>
+                      setStaticNumber(
+                        e.target.value === "" ? "" : Number(e.target.value),
+                      )
+                    }
+                    className={`${fieldClass} w-24`}
                   />
-                  {z.name}
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={() => {
-                  change(addZone(spec, boardIndex));
-                  setZoneIndex(board.zones.length);
-                }}
-                className={chipClass(false)}
-              >
-                + Zone
-              </button>
-            </div>
-          </section>
+                </div>
+              ) : null}
+            </section>
 
-          <ZonePanel
-            spec={spec}
-            board={boardIndex}
-            zone={zone}
-            onChange={change}
-            onRemoved={() => setZoneIndex(0)}
-          />
-        </aside>
-
-        <div className="flex min-w-0 flex-1 flex-col gap-4">
-          <section className="flex flex-col gap-2">
-            <h3 className={sectionHeadingClass}>Plateaux</h3>
-            <div className="flex flex-wrap gap-2">
-              {labels.map((label, index) => (
-                <button
-                  // biome-ignore lint/suspicious/noArrayIndexKey: a board is identified by its index, which is how every draft operation names it
-                  key={index}
-                  type="button"
-                  onClick={() => pickBoard(index)}
-                  className={chipClass(index === boardIndex)}
-                >
-                  {label}
-                </button>
-              ))}
-              {free.length > 0 ? (
+            <section className="flex flex-col gap-2">
+              <h3 className={sectionHeadingClass}>Zones</h3>
+              <div className="flex flex-wrap gap-2">
+                {board.zones.map((z, index) => (
+                  <button
+                    // biome-ignore lint/suspicious/noArrayIndexKey: a zone is identified by its index, which is how every draft operation names it
+                    key={index}
+                    type="button"
+                    onClick={() => {
+                      setZoneIndex(index);
+                      setSelected(null);
+                    }}
+                    className={`${chipClass(index === zone)} flex items-center gap-2`}
+                  >
+                    <span
+                      aria-hidden
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: zoneColor(index) }}
+                    />
+                    {z.name}
+                  </button>
+                ))}
                 <button
                   type="button"
                   onClick={() => {
-                    change(addBoard(spec, [free[0]]));
-                    pickBoard(spec.boards.length);
+                    change(addZone(spec, boardIndex));
+                    setZoneIndex(board.zones.length);
                   }}
                   className={chipClass(false)}
                 >
-                  + Plateau
+                  + Zone
                 </button>
-              ) : null}
+              </div>
+            </section>
+
+            <ZonePanel
+              spec={spec}
+              board={boardIndex}
+              zone={zone}
+              onChange={change}
+              onRemoved={() => setZoneIndex(0)}
+            />
+          </aside>
+
+          <div className="flex min-w-0 flex-1 flex-col gap-4">
+            <section className="flex flex-col gap-2">
+              <h3 className={sectionHeadingClass}>Plateaux</h3>
+              <div className="flex flex-wrap gap-2">
+                {labels.map((label, index) => (
+                  <button
+                    // biome-ignore lint/suspicious/noArrayIndexKey: a board is identified by its index, which is how every draft operation names it
+                    key={index}
+                    type="button"
+                    onClick={() => pickBoard(index)}
+                    className={chipClass(index === boardIndex)}
+                  >
+                    {label}
+                  </button>
+                ))}
+                {free.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      change(addBoard(spec, [free[0]]));
+                      pickBoard(spec.boards.length);
+                    }}
+                    className={chipClass(false)}
+                  >
+                    + Plateau
+                  </button>
+                ) : null}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="text-zinc-500 dark:text-zinc-400">
+                  Utilisé à
+                </span>
+                {PLAYER_COUNTS.map(count => (
+                  <button
+                    key={count}
+                    type="button"
+                    onClick={() => togglePlayers(count)}
+                    disabled={
+                      taken.has(count) && !board.players.includes(count)
+                    }
+                    className={`${chipClass(board.players.includes(count))} disabled:opacity-30`}
+                  >
+                    {count}
+                  </button>
+                ))}
+                {free.map(count => (
+                  <button
+                    key={`copy-${count}`}
+                    type="button"
+                    onClick={() => {
+                      change(duplicateBoard(spec, boardIndex, [count]));
+                      pickBoard(spec.boards.length);
+                    }}
+                    className={chipClass(false)}
+                  >
+                    Dupliquer vers {count} joueurs
+                  </button>
+                ))}
+                {spec.boards.length > 1 ? (
+                  <button
+                    type="button"
+                    onClick={dropBoard}
+                    className="rounded-full border border-black/10 px-3 py-1 text-sm text-red-600 transition hover:bg-red-50 dark:border-white/15 dark:text-red-400 dark:hover:bg-red-950/40"
+                  >
+                    Supprimer ce plateau
+                  </button>
+                ) : null}
+              </div>
+            </section>
+
+            <div className="rounded-xl border border-black/10 p-3 dark:border-white/10">
+              <ScenarioCanvas
+                board={board}
+                width={width}
+                activeZone={zone}
+                tool={tool}
+                selected={selected}
+                onCell={handleCell}
+                onPort={handlePort}
+              />
             </div>
 
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <span className="text-zinc-500 dark:text-zinc-400">
-                Utilisé à
+                Largeur du plateau
               </span>
-              {PLAYER_COUNTS.map(count => (
-                <button
-                  key={count}
-                  type="button"
-                  onClick={() => togglePlayers(count)}
-                  disabled={taken.has(count) && !board.players.includes(count)}
-                  className={`${chipClass(board.players.includes(count))} disabled:opacity-30`}
-                >
-                  {count}
-                </button>
-              ))}
-              {free.map(count => (
-                <button
-                  key={`copy-${count}`}
-                  type="button"
-                  onClick={() => {
-                    change(duplicateBoard(spec, boardIndex, [count]));
-                    pickBoard(spec.boards.length);
-                  }}
-                  className={chipClass(false)}
-                >
-                  Dupliquer vers {count} joueurs
-                </button>
-              ))}
-              {spec.boards.length > 1 ? (
-                <button
-                  type="button"
-                  onClick={dropBoard}
-                  className="rounded-full border border-black/10 px-3 py-1 text-sm text-red-600 transition hover:bg-red-50 dark:border-white/15 dark:text-red-400 dark:hover:bg-red-950/40"
-                >
-                  Supprimer ce plateau
-                </button>
-              ) : null}
-            </div>
-          </section>
-
-          <div className="rounded-xl border border-black/10 p-3 dark:border-white/10">
-            <ScenarioCanvas
-              board={board}
-              width={width}
-              activeZone={zone}
-              tool={tool}
-              selected={selected}
-              onCell={handleCell}
-              onPort={handlePort}
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="text-zinc-500 dark:text-zinc-400">
-              Largeur du plateau
-            </span>
-            <button
-              type="button"
-              onClick={() => change(setBoardWidth(spec, boardIndex, width - 1))}
-              disabled={width <= floor}
-              className={`${chipClass(false)} disabled:opacity-30`}
-            >
-              −
-            </button>
-            <span className="w-6 text-center tabular-nums font-semibold">
-              {width}
-            </span>
-            <button
-              type="button"
-              onClick={() => change(setBoardWidth(spec, boardIndex, width + 1))}
-              disabled={width >= MAX_WIDTH}
-              className={`${chipClass(false)} disabled:opacity-30`}
-            >
-              +
-            </button>
-            <span className="text-xs text-zinc-500 dark:text-zinc-400">
-              {width} tuiles sur les rangées du bord, {width + 3} au milieu
-              {width <= floor && width > MIN_WIDTH
-                ? " · réduire découperait une zone peinte"
-                : ""}
-            </span>
-          </div>
-
-          <section className="flex flex-col gap-2">
-            <h3 className={sectionHeadingClass}>Vérifications</h3>
-            <SpecIssueList issues={issues} boardLabels={labels} />
-          </section>
-
-          {issues.length === 0 && board.players.length > 0 ? (
-            <section className="flex flex-col gap-2">
               <button
                 type="button"
-                onClick={() => setPreview(v => !v)}
-                className="self-start rounded-lg border border-black/10 px-3 py-1.5 text-sm font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+                onClick={() =>
+                  change(setBoardWidth(spec, boardIndex, width - 1))
+                }
+                disabled={width <= floor}
+                className={`${chipClass(false)} disabled:opacity-30`}
               >
-                {preview ? "Masquer l'aperçu" : "Aperçu du tirage"}
+                −
               </button>
-              {preview ? (
-                <BoardPreview spec={spec} players={board.players[0]} />
-              ) : null}
+              <span className="w-6 text-center tabular-nums font-semibold">
+                {width}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  change(setBoardWidth(spec, boardIndex, width + 1))
+                }
+                disabled={width >= MAX_WIDTH}
+                className={`${chipClass(false)} disabled:opacity-30`}
+              >
+                +
+              </button>
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                {width} tuiles sur les rangées du bord, {width + 3} au milieu
+                {width <= floor && width > MIN_WIDTH
+                  ? " · réduire découperait une zone peinte"
+                  : ""}
+              </span>
+            </div>
+
+            <section className="flex flex-col gap-2">
+              <h3 className={sectionHeadingClass}>Vérifications</h3>
+              <SpecIssueList issues={issues} boardLabels={labels} />
             </section>
-          ) : null}
+
+            {issues.length === 0 && board.players.length > 0 ? (
+              <section className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPreview(v => !v)}
+                  className="self-start rounded-lg border border-black/10 px-3 py-1.5 text-sm font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+                >
+                  {preview ? "Masquer l'aperçu" : "Aperçu du tirage"}
+                </button>
+                {preview ? (
+                  <BoardPreview spec={spec} players={board.players[0]} />
+                ) : null}
+              </section>
+            ) : null}
+          </div>
         </div>
       </div>
 
