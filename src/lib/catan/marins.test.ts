@@ -208,6 +208,25 @@ describe("pickPortSlots", () => {
     expect(pickPortSlots(cells, ring, 3, rng)).toEqual([]);
   });
 
+  it("keeps the harbours apart instead of clumping them", () => {
+    // A straight island of nine tiles. Wherever the opening harbour lands, the
+    // next is the furthest candidate from it and the one after that the furthest
+    // from both — so the three never come within three tiles of each other,
+    // whatever the seed. A pure shuffle drops two of them side by side about a
+    // third of the time.
+    const cells = strip(9).map((c, id) => ({ id, ...c }));
+    const land = new Set(cells.map(cellKey));
+
+    for (let seed = 0; seed < 20; seed++) {
+      const picked = pickPortSlots(cells, land, 3, mulberry32(seed))
+        .map(slot => slot.hexId)
+        .sort((a, b) => a - b);
+
+      expect(picked[1] - picked[0]).toBeGreaterThanOrEqual(3);
+      expect(picked[2] - picked[1]).toBeGreaterThanOrEqual(3);
+    }
+  });
+
   it("doubles up on a tile when the coast is shorter than the harbour stack", () => {
     const cells = [
       { id: 0, q: 0, r: 0 },

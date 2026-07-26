@@ -26,6 +26,7 @@
  */
 
 import {
+  axialToPixel,
   type BoardOptions,
   buildCatanVariant,
   buildNeighbours,
@@ -331,10 +332,17 @@ export function growIslands(
 
 /**
  * Spreads `count` harbours over the coastline of `cells`: every edge of theirs
- * that faces a space without land is a candidate, and at most one harbour lands
- * on a given tile. Falls back to doubling up on a tile only when the coast has
- * fewer tiles than harbours. `land` holds every land space of the whole board,
- * so a zone's coast is measured against its neighbours too.
+ * that faces a space without land is a candidate, and `land` holds every land
+ * space of the whole board, so a zone's coast is measured against its
+ * neighbours too.
+ *
+ * The draw **keeps them apart**, the way the printed boards space theirs around
+ * the island: the first harbour is taken at random, then each next one is the
+ * candidate lying furthest from every harbour already placed. A pure shuffle
+ * clumps three of them on one headland often enough to be worth avoiding, and
+ * spacing is the one thing a real board never leaves to chance. At most one
+ * harbour to a tile — it doubles up only when the coast has fewer tiles than
+ * the zone has harbours.
  */
 export function pickPortSlots(
   cells: HexCell[],
@@ -342,30 +350,73 @@ export function pickPortSlots(
   count: number,
   rng: () => number,
 ): PortSlot[] {
-  const candidates: PortSlot[] = [];
+  const candidates: Array<{ slot: PortSlot; x: number; y: number }> = [];
 
   for (const cell of cells) {
     for (const [dq, dr] of DIRECTIONS) {
-      if (!land.has(cellKey({ q: cell.q + dq, r: cell.r + dr }))) {
-        candidates.push({ hexId: cell.id, dq, dr });
+      if (land.has(cellKey({ q: cell.q + dq, r: cell.r + dr }))) {
+        continue;
       }
+
+      const from = axialToPixel(cell.q, cell.r, 1);
+      const to = axialToPixel(cell.q + dq, cell.r + dr, 1);
+
+      candidates.push({
+        slot: { hexId: cell.id, dq, dr },
+        x: (from.x + to.x) / 2,
+        y: (from.y + to.y) / 2,
+      });
     }
   }
 
+  // Shuffled so that the opening pick — every candidate still infinitely far
+  // from a harbour that does not exist yet — is a random one.
+  const pool = shuffle(candidates, rng);
+  const nearest = pool.map(() => Number.POSITIVE_INFINITY);
+  const taken = new Set<number>();
   const used = new Set<number>();
   const picked: PortSlot[] = [];
-  const spare: PortSlot[] = [];
 
-  for (const slot of shuffle(candidates, rng)) {
-    if (picked.length < count && !used.has(slot.hexId)) {
-      used.add(slot.hexId);
-      picked.push(slot);
-    } else {
-      spare.push(slot);
+  const fill = (onePerTile: boolean): void => {
+    while (picked.length < count) {
+      let best = -1;
+
+      for (let i = 0; i < pool.length; i++) {
+        if (taken.has(i) || (onePerTile && used.has(pool[i].slot.hexId))) {
+          continue;
+        }
+
+        if (best === -1 || nearest[i] > nearest[best]) {
+          best = i;
+        }
+      }
+
+      // Every coastal tile already carries one: the second pass takes over and
+      // starts doubling up, and when even that runs dry the zone keeps fewer
+      // harbours than it asked for.
+      if (best === -1) {
+        return;
+      }
+
+      taken.add(best);
+      used.add(pool[best].slot.hexId);
+      picked.push(pool[best].slot);
+
+      for (let i = 0; i < pool.length; i++) {
+        const away = Math.hypot(
+          pool[i].x - pool[best].x,
+          pool[i].y - pool[best].y,
+        );
+
+        nearest[i] = Math.min(nearest[i], away);
+      }
     }
-  }
+  };
 
-  return [...picked, ...spare.slice(0, count - picked.length)];
+  fill(true);
+  fill(false);
+
+  return picked;
 }
 
 /**
@@ -518,14 +569,27 @@ function resolvePorts(
   return { slots, types, poolOf };
 }
 
+/**
+ * What a Marins board is drawn under unless its caller says otherwise. The base
+ * generator hides the harbour rule behind a toggle because its board comes with
+ * its harbours printed on; a scenario's are dealt from a bag, so a 2:1 harbour
+ * landing on the coast of the very resource it trades is ours to avoid.
+ */
+export const MARINS_OPTIONS: BoardOptions = { avoidPortOnResource: true };
+
 /** A board drawn from an authored spec, plus the layout it was drawn on. */
 export interface SpecBoard {
   players: number;
   /** The authored map this was drawn from. */
   spec: ScenarioBoardSpec;
   board: CatanBoard;
-  /** Pass this back to `boardWarnings` to audit the board. */
   variant: CatanVariant;
+  /**
+   * The options it was actually drawn under, `variantSpec` included. Pass them
+   * straight to `boardWarnings`: audit a board against anything else and the
+   * rules it was held to and the rules it is judged by drift apart.
+   */
+  options: BoardOptions;
 }
 
 /** A generated board of one of the scenarios the generator ships with. */
@@ -583,11 +647,18 @@ export function generateSpecBoard(
     portPoolOf: ports.poolOf,
   });
 
+  const drawnUnder: BoardOptions = {
+    ...MARINS_OPTIONS,
+    ...options,
+    variantSpec: variant,
+  };
+
   return {
     players,
     spec,
     variant,
-    board: generateCatanBoard(actualSeed, { ...options, variantSpec: variant }),
+    options: drawnUnder,
+    board: generateCatanBoard(actualSeed, drawnUnder),
   };
 }
 

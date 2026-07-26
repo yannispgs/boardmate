@@ -66,10 +66,10 @@ export function MarinsBoardGenerator() {
     setDrawn(generateMarinsBoard(FIRST.key, DEFAULT_PLAYERS));
   }, []);
 
-  const { scenario, players, spec, board, variant } = drawn;
+  const { scenario, players, spec, board, options } = drawn;
   const totals = boardTotals(spec);
   const groups = marinsPlayerGroups(scenario.spec);
-  const warnings = boardWarnings(board, { variantSpec: variant });
+  const warnings = boardWarnings(board, options);
 
   function regen(key: MarinsScenarioKey, count: number) {
     setDrawn(generateMarinsBoard(key, count));

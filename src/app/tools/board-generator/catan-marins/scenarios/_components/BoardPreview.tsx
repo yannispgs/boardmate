@@ -39,7 +39,7 @@ export function BoardPreview({
     );
   }
 
-  const warnings = boardWarnings(drawn.board, { variantSpec: drawn.variant });
+  const warnings = boardWarnings(drawn.board, drawn.options);
 
   return (
     <div className="flex flex-col gap-3">
