@@ -3,11 +3,10 @@
 import { useState } from "react";
 
 import { StickyActionBar } from "@/components/StickyActionBar";
-import { chipClass, fieldClass, sectionHeadingClass } from "@/components/ui";
+import { fieldClass, sectionHeadingClass } from "@/components/ui";
 import { useConfirm } from "@/components/use-confirm";
 import { playerGroupLabel } from "@/lib/catan/marins";
 import {
-  addZone,
   eraseCell,
   paintCell,
   setScenarioName,
@@ -28,11 +27,12 @@ import type { ScenarioDraft } from "@/lib/hooks/use-extensions";
 import { BoardPortsPanel } from "./BoardPortsPanel";
 import { BoardPreview } from "./BoardPreview";
 import { BoardTabs } from "./BoardTabs";
-import { type CanvasTool, ScenarioCanvas, zoneColor } from "./ScenarioCanvas";
+import { type CanvasTool, ScenarioCanvas } from "./ScenarioCanvas";
 import { SpecIssueList } from "./SpecIssueList";
 import { StaticTileFields } from "./StaticTileFields";
 import { WidthStepper } from "./WidthStepper";
 import { ZonePanel } from "./ZonePanel";
+import { ZonePicker } from "./ZonePicker";
 
 const TOOLS: { value: CanvasTool; label: string; hint: string }[] = [
   { value: "paint", label: "Peindre", hint: "Ajoute les cases à la zone." },
@@ -127,6 +127,11 @@ export function ScenarioEditor({
     // Which bag it lands in follows the space it hugs, not the zone being
     // edited — a harbour on a static tile belongs to the board itself.
     change(togglePortSlot(spec, boardIndex, port));
+  }
+
+  function pickZone(index: number) {
+    setZoneIndex(index);
+    setSelected(null);
   }
 
   function pickBoard(index: number) {
@@ -233,48 +238,28 @@ export function ScenarioEditor({
               ) : null}
             </section>
 
-            <section className="flex flex-col gap-2">
-              <h3 className={sectionHeadingClass}>Zones</h3>
-              <div className="flex flex-wrap gap-2">
-                {board.zones.map((z, index) => (
-                  <button
-                    // biome-ignore lint/suspicious/noArrayIndexKey: a zone is identified by its index, which is how every draft operation names it
-                    key={index} // NOSONAR: same reason
-                    type="button"
-                    onClick={() => {
-                      setZoneIndex(index);
-                      setSelected(null);
-                    }}
-                    className={`${chipClass(index === zone)} flex items-center gap-2`}
-                  >
-                    <span
-                      aria-hidden
-                      className="h-2.5 w-2.5 rounded-full"
-                      style={{ backgroundColor: zoneColor(index) }}
-                    />
-                    {z.name}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => {
-                    change(addZone(spec, boardIndex));
-                    setZoneIndex(board.zones.length);
-                  }}
-                  className={chipClass(false)}
-                >
-                  + Zone
-                </button>
-              </div>
-            </section>
+            {/* A fixed tile belongs to no zone: showing the zone being edited,
+                and the bag it draws from, only muddied a mode that has nothing
+                to do with either. */}
+            {tool === "static" ? null : (
+              <>
+                <ZonePicker
+                  spec={spec}
+                  board={boardIndex}
+                  zone={zone}
+                  onChange={change}
+                  onPick={pickZone}
+                />
 
-            <ZonePanel
-              spec={spec}
-              board={boardIndex}
-              zone={zone}
-              onChange={change}
-              onRemoved={() => setZoneIndex(0)}
-            />
+                <ZonePanel
+                  spec={spec}
+                  board={boardIndex}
+                  zone={zone}
+                  onChange={change}
+                  onRemoved={() => setZoneIndex(0)}
+                />
+              </>
+            )}
 
             <BoardPortsPanel spec={spec} board={boardIndex} onChange={change} />
           </aside>
