@@ -2,14 +2,13 @@
 
 import { useState } from "react";
 
-import { StickyActionBar } from "@/components/StickyActionBar";
+import { sectionHeadingClass } from "@/components/ui";
 import { useConfirm } from "@/components/use-confirm";
 import {
   DEFAULT_TARGET_SCORE,
   emptyScenario,
 } from "@/lib/catan/scenario-draft";
-import type { ExtensionScenario } from "@/lib/domain";
-import { MARINS_KEY } from "@/lib/game/scenario-editor";
+import type { Extension, ExtensionScenario } from "@/lib/domain";
 import { type ScenarioDraft, useScenarios } from "@/lib/hooks/use-extensions";
 import { ScenarioInUseError } from "@/lib/repositories/errors";
 import { AuthoredScenarioCardList } from "./AuthoredScenarioCardList";
@@ -36,12 +35,19 @@ function draftOf(scenario: ExtensionScenario): ScenarioDraft {
 }
 
 /**
- * The scenarios authored for Catan - Marins: the list, and the editor that
- * writes to it. Both live on the same screen — leaving the editor is going back
- * to the list, so nothing is lost to a navigation.
+ * The scenarios authored for an extension, and the editor that writes to them.
+ * Both live on the extension's own screen — leaving the editor is going back to
+ * the list, so nothing is lost to a navigation and going back still leads where
+ * the extension came from.
  */
-export function ScenariosManager() {
-  const { scenarios, loading, save, remove } = useScenarios(MARINS_KEY);
+export function ScenariosManager({
+  extension,
+  extensionKey,
+}: Readonly<{ extension: Extension; extensionKey: string }>) {
+  const { scenarios, loading, save, remove } = useScenarios(
+    extensionKey,
+    extension,
+  );
   const [editing, setEditing] = useState<ScenarioDraft | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { requestConfirm, confirmDialog } = useConfirm();
@@ -80,43 +86,41 @@ export function ScenariosManager() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-3">
+    <section className="flex flex-col gap-3">
+      <h3 className={sectionHeadingClass}>Scénarios · {scenarios.length}</h3>
+
       {error ? (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
           {error}
         </p>
       ) : null}
 
-      <div className="flex flex-1 flex-col gap-4 pb-4">
-        {loading ? (
-          <p className="text-sm text-zinc-500">Chargement…</p>
-        ) : (
-          <AuthoredScenarioCardList
-            scenarios={scenarios}
-            onEdit={scenario => setEditing(draftOf(scenario))}
-            onDelete={confirmDelete}
-          />
-        )}
-      </div>
+      {loading ? (
+        <p className="text-sm text-zinc-500">Chargement…</p>
+      ) : (
+        <AuthoredScenarioCardList
+          scenarios={scenarios}
+          onEdit={scenario => setEditing(draftOf(scenario))}
+          onDelete={confirmDelete}
+        />
+      )}
 
-      <StickyActionBar>
-        <button
-          type="button"
-          onClick={() =>
-            setEditing({
-              id: null,
-              name: "",
-              targetScore: null,
-              boardSpec: emptyScenario(),
-            })
-          }
-          className="self-start rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
-        >
-          + Créer un scénario
-        </button>
-      </StickyActionBar>
+      <button
+        type="button"
+        onClick={() =>
+          setEditing({
+            id: null,
+            name: "",
+            targetScore: null,
+            boardSpec: emptyScenario(),
+          })
+        }
+        className="self-start rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
+      >
+        + Créer un scénario
+      </button>
 
       {confirmDialog}
-    </div>
+    </section>
   );
 }

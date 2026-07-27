@@ -59,6 +59,8 @@ export interface ScenarioDraft {
 /** The scenarios of one extension, and the two ways of changing them. */
 export interface ScenarioStore {
   scenarios: ExtensionScenario[];
+  /** The game the extension belongs to — where its scenarios are managed. */
+  baseGameId: BoardgameId | null;
   loading: boolean;
   save(draft: ScenarioDraft): Promise<void>;
   remove(id: ExtensionScenarioId): Promise<void>;
@@ -68,10 +70,17 @@ export interface ScenarioStore {
  * The scenarios authored for one extension, found by its stable key — what the
  * Marins generator lists and its editor writes to. Every write reloads the list,
  * so the screen never has to guess what the database made of it.
+ *
+ * A screen that was served the extension already — the game's extensions page
+ * renders it server-side — hands it over as `initial` and shows its scenarios
+ * straight away, instead of blanking on a round-trip it has already paid for.
  */
-export function useScenarios(key: string): ScenarioStore {
-  const [extension, setExtension] = useState<Extension | null>(null);
-  const [loading, setLoading] = useState(true);
+export function useScenarios(
+  key: string,
+  initial: Extension | null = null,
+): ScenarioStore {
+  const [extension, setExtension] = useState<Extension | null>(initial);
+  const [loading, setLoading] = useState(initial === null);
 
   const reload = useCallback(async () => {
     const found = await getExtensionRepository().getByKey(key);
@@ -138,5 +147,11 @@ export function useScenarios(key: string): ScenarioStore {
     [reload],
   );
 
-  return { scenarios: extension?.scenarios ?? [], loading, save, remove };
+  return {
+    scenarios: extension?.scenarios ?? [],
+    baseGameId: extension?.baseGameId ?? null,
+    loading,
+    save,
+    remove,
+  };
 }

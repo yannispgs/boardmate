@@ -12,7 +12,7 @@ import { iconButtonClass } from "@/components/ui";
 import { marinsPlayerGroups, playerGroupLabel } from "@/lib/catan/marins";
 import type { ScenarioSpec } from "@/lib/catan/scenario-spec";
 import type { ExtensionScenario, ExtensionScenarioId } from "@/lib/domain";
-import { MARINS_KEY, MARINS_SCENARIOS_HREF } from "@/lib/game/scenario-editor";
+import { extensionScenariosHref, MARINS_KEY } from "@/lib/game/scenario-editor";
 import { useScenarios } from "@/lib/hooks/use-extensions";
 import { MarinsScenarioBoard } from "./MarinsScenarioBoard";
 
@@ -29,27 +29,22 @@ function drawableOf(scenarios: ExtensionScenario[]): Drawable[] {
   );
 }
 
-const editorLink = (
-  <Link
-    href={MARINS_SCENARIOS_HREF}
-    title="Gérer les scénarios"
-    className={iconButtonClass}
-  >
-    <PencilIcon />
-  </Link>
-);
-
 /**
  * Interactive **Catan - Marins** board generator. Every scenario it offers is
  * one **authored in the app** and read back from the database — the generator
  * ships with none of its own, so what you draw here is what you saved there.
  */
 export function MarinsBoardGenerator() {
-  const { scenarios, loading } = useScenarios(MARINS_KEY);
+  const { scenarios, baseGameId, loading } = useScenarios(MARINS_KEY);
   const [picked, setPicked] = useState<ExtensionScenarioId | null>(null);
   const [seats, setSeats] = useState<number | null>(null);
 
   const drawable = drawableOf(scenarios);
+
+  // Scenarios are authored on the game they extend, not here: this generator
+  // only draws what it finds.
+  const manageHref =
+    baseGameId === null ? null : extensionScenariosHref(baseGameId);
 
   if (loading) {
     return (
@@ -66,12 +61,14 @@ export function MarinsBoardGenerator() {
           Aucun scénario n&apos;a encore de carte. Dessine-en un pour que le
           générateur ait quelque chose à tirer.
         </p>
-        <Link
-          href={MARINS_SCENARIOS_HREF}
-          className="rounded-lg bg-indigo-600 px-5 py-2.5 font-medium text-white transition hover:bg-indigo-500"
-        >
-          Gérer les scénarios
-        </Link>
+        {manageHref === null ? null : (
+          <Link
+            href={manageHref}
+            className="rounded-lg bg-indigo-600 px-5 py-2.5 font-medium text-white transition hover:bg-indigo-500"
+          >
+            Gérer les scénarios
+          </Link>
+        )}
       </div>
     );
   }
@@ -105,7 +102,17 @@ export function MarinsBoardGenerator() {
           setPicked(id);
           setSeats(null);
         }}
-        action={editorLink}
+        action={
+          manageHref === null ? null : (
+            <Link
+              href={manageHref}
+              title="Gérer les scénarios"
+              className={iconButtonClass}
+            >
+              <PencilIcon />
+            </Link>
+          )
+        }
       />
 
       {groups.length > 1 ? (

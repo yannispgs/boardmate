@@ -12,9 +12,9 @@ export const metadata: Metadata = {
 };
 
 /**
- * The extensions of one base game, one tab per extension. Read-only reference:
- * what the extension changes and, for a scenario-based one (Catan - Marins),
- * every scenario with the score to reach.
+ * The extensions of one base game, one tab per extension: what the extension
+ * changes and, for a scenario-based one, every scenario with the score to
+ * reach — managed here when the app knows how to author them (Catan - Marins).
  */
 export default async function BoardgameExtensionsPage({
   params,
@@ -34,8 +34,10 @@ export default async function BoardgameExtensionsPage({
   ]);
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-6 py-10">
-      <header className="flex flex-col gap-1">
+    // Wider than the other game screens: the scenario editor lives here, and it
+    // needs the room for its map. The reading blocks keep their own column.
+    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-6 py-10">
+      <header className="flex max-w-2xl flex-col gap-1">
         <Link
           href="/boardgames"
           className="text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"

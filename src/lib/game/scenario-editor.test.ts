@@ -1,20 +1,29 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  MARINS_SCENARIOS_HREF,
-  scenarioEditorHref,
+  editableScenarioKey,
+  extensionScenariosHref,
+  MARINS_KEY,
 } from "@/lib/game/scenario-editor";
 
-describe("scenarioEditorHref", () => {
-  it("sends the Marins extension to its scenario editor", () => {
-    expect(scenarioEditorHref("catan-marins")).toBe(MARINS_SCENARIOS_HREF);
+describe("extensionScenariosHref", () => {
+  it("sends a scenario back to the game it extends", () => {
+    expect(extensionScenariosHref("catan-id")).toBe(
+      "/boardgames/catan-id/extensions",
+    );
+  });
+});
+
+describe("editableScenarioKey", () => {
+  it("lets the Marins extension author its scenarios", () => {
+    expect(editableScenarioKey(MARINS_KEY)).toBe(MARINS_KEY);
   });
 
   it("has no editor for an extension that cannot be authored yet", () => {
-    expect(scenarioEditorHref("catan-villes-et-chevaliers")).toBeNull();
+    expect(editableScenarioKey("catan-villes-et-chevaliers")).toBeNull();
   });
 
   it("has no editor for an extension without a key", () => {
-    expect(scenarioEditorHref(null)).toBeNull();
+    expect(editableScenarioKey(null)).toBeNull();
   });
 });
