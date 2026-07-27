@@ -66,6 +66,13 @@ export function PlacementRules({
             ? ", et la production est étalée entre les intersections."
             : "."}
         </li>
+        {options.balanceZones ? (
+          <li>
+            Le même écart est tenu{" "}
+            <span className="font-semibold">zone par zone</span> sur celles du
+            scénario qui le demandent, et pas seulement sur le plateau entier.
+          </li>
+        ) : null}
         {options.penalizeVariance ? (
           <li>
             Aucune ressource n&apos;est trop concentrée sur une seule tuile
