@@ -27,6 +27,7 @@ import {
   setTokenCount,
   setZoneHidden,
   setZoneIslands,
+  stripFixedSea,
   togglePortSlot,
   tokenCounts,
 } from "./scenario-draft";
@@ -34,6 +35,7 @@ import {
   BOARD_ROWS,
   boardWidth,
   DEFAULT_WIDTH,
+  fixedSeaCells,
   MAX_WIDTH,
   MIN_WIDTH,
   type ScenarioSpec,
@@ -171,6 +173,73 @@ describe("cellOwner", () => {
 
   it("holds nothing on a space nobody claimed", () => {
     expect(cellOwner(emptyScenario().boards[0], { q: 0, r: 0 })).toBeNull();
+  });
+
+  it("hands back the board's own sea on the two spaces it fixes", () => {
+    const board = emptyScenario().boards[0];
+
+    for (const cell of fixedSeaCells(DEFAULT_WIDTH)) {
+      expect(cellOwner(board, cell)).toEqual({
+        kind: "static",
+        tile: { cell, terrain: "sea" },
+      });
+    }
+  });
+});
+
+describe("the sea the board fixes", () => {
+  it("takes no paint, and no fixed tile either", () => {
+    const [, far] = fixedSeaCells(DEFAULT_WIDTH);
+    const start = oneZone();
+
+    expect(paintCell(start, 0, 0, far)).toBe(start);
+    expect(setStaticTile(start, 0, far, "mountains", 9)).toBe(start);
+  });
+
+  it("keeps a column so narrowing never rubs out the middle row", () => {
+    // Painted right where a board one column narrower would fix its sea.
+    const spec = paintCell(setBoardWidth(oneZone(), 0, 7), 0, 0, {
+      q: 5,
+      r: 3,
+    });
+
+    expect(narrowestWidth(spec.boards[0])).toBe(7);
+    expect(boardWidth(setBoardWidth(spec, 0, MIN_WIDTH).boards[0])).toBe(7);
+  });
+
+  it("lifts off whatever an older map left on it", () => {
+    const [near, far] = fixedSeaCells(DEFAULT_WIDTH);
+    // Painted the long way round, since no tool of the editor reaches there.
+    const older: ScenarioSpec = {
+      ...oneZone(),
+      boards: [
+        {
+          players: [3],
+          width: DEFAULT_WIDTH,
+          zones: [
+            {
+              name: "Île",
+              cells: [near, { q: 0, r: 0 }],
+              terrainCounts: { forest: 2 },
+              numberTokens: [4, 5],
+            },
+          ],
+          statics: [{ cell: far, terrain: "mountains", number: 9 }],
+        },
+      ],
+    };
+    const stripped = stripFixedSea(older);
+
+    expect(stripped.boards[0].zones[0].cells).toEqual([{ q: 0, r: 0 }]);
+    expect(stripped.boards[0].statics).toEqual([]);
+  });
+
+  it("leaves a map that never claimed it alone", () => {
+    const spec = painted();
+
+    expect(stripFixedSea(spec).boards[0].zones[0].cells).toEqual(
+      spec.boards[0].zones[0].cells,
+    );
   });
 });
 

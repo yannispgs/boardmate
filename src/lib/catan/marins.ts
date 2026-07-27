@@ -45,7 +45,9 @@ import {
 import {
   bagLandCounts,
   boardTotals,
+  boardWidth,
   cellKey,
+  fixedSeaCells,
   portCorners,
   type ScenarioBoardSpec,
   type ScenarioSpec,
@@ -439,12 +441,19 @@ function resolveMap(board: ScenarioBoardSpec, rng: () => number): ResolvedMap {
     seaCells.push({ id: seaCells.length, q: cell.q, r: cell.r });
   };
 
+  // The board's own sea, laid before anything else and never drawn for: a map
+  // authored before those two spaces were fixed keeps them out of its draw.
+  const fixed = new Set(fixedSeaCells(boardWidth(board)).map(cellKey));
+  const drawn = (cell: SpecCell): boolean => !fixed.has(cellKey(cell));
+
+  fixedSeaCells(boardWidth(board)).forEach(addSea);
+
   for (const zone of board.zones) {
     const { land, sea } = resolveZone(zone, rng);
-    const ids = land.map(addLand);
+    const ids = land.filter(drawn).map(addLand);
 
     zoneCells.push(ids);
-    sea.forEach(addSea);
+    sea.filter(drawn).forEach(addSea);
     pools.push({
       cellIds: ids,
       terrainCounts: bagLandCounts(zone.terrainCounts),
@@ -456,6 +465,10 @@ function resolveMap(board: ScenarioBoardSpec, rng: () => number): ResolvedMap {
   // A static tile is a bag of one: one space, one tile, at most one token — so
   // it needs no special case downstream, it simply has nothing to shuffle.
   for (const tile of board.statics ?? []) {
+    if (!drawn(tile.cell)) {
+      continue;
+    }
+
     if (tile.terrain === "sea") {
       addSea(tile.cell);
       continue;

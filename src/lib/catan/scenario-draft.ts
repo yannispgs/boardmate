@@ -9,15 +9,20 @@
  *
  * The one invariant kept throughout: **a space belongs to at most one thing**.
  * Painting a space into a zone takes it away from whatever held it before,
- * which is what makes painting feel like painting.
+ * which is what makes painting feel like painting. The two spaces a board fixes
+ * to the open sea belong to the board itself: no tool here touches them, and
+ * {@link stripFixedSea} lifts off whatever an older scenario left on them.
  */
 
 import type { CatanPortType } from "./board";
 import { type GeneratorOptions, scenarioOptions } from "./generator-options";
 import {
   boardOutline,
+  boardWidth,
   cellKey,
   DEFAULT_WIDTH,
+  fixedSeaCells,
+  isFixedSea,
   MAX_WIDTH,
   MIN_WIDTH,
   minimumWidth,
@@ -80,6 +85,15 @@ export type CellOwner =
 
 /** What holds a given space of a board. */
 export function cellOwner(board: ScenarioBoardSpec, cell: SpecCell): CellOwner {
+  // The board's own sea comes first: those two spaces hold a sea tile in every
+  // game, whoever painted over them before they were the board's to keep.
+  if (isFixedSea(boardWidth(board), cell)) {
+    return {
+      kind: "static",
+      tile: { cell: { q: cell.q, r: cell.r }, terrain: "sea" },
+    };
+  }
+
   const key = cellKey(cell);
   const zone = board.zones.findIndex(z =>
     z.cells.some(c => cellKey(c) === key),
@@ -267,6 +281,24 @@ export function eraseCell(
   }));
 }
 
+/**
+ * The same scenario with its fixed sea spaces taken back from whatever claimed
+ * them, harbours pinned on them included. Run when a scenario is opened: a map
+ * authored before those spaces became the board's own may still paint over them,
+ * and the author has no way of lifting them off by hand. Whatever a zone's bag
+ * then over-declares comes up as a tile count to put right.
+ */
+export function stripFixedSea(spec: ScenarioSpec): ScenarioSpec {
+  return spec.boards.reduce(
+    (stripped, board, index) =>
+      fixedSeaCells(boardWidth(board)).reduce(
+        (current, cell) => eraseCell(current, index, cell),
+        stripped,
+      ),
+    spec,
+  );
+}
+
 /** Paints a space into a zone, taking it from whatever held it before. */
 export function paintCell(
   spec: ScenarioSpec,
@@ -274,9 +306,15 @@ export function paintCell(
   zone: number,
   cell: SpecCell,
 ): ScenarioSpec {
-  // Nothing to paint into, on a map that has no zone yet: the space keeps
-  // whatever holds it rather than being rubbed out on the way to nowhere.
-  if (spec.boards[board].zones[zone] === undefined) {
+  const target = spec.boards[board];
+
+  // Nothing to paint into on a map that has no zone yet, and nothing to paint on
+  // a space the board fixes to the open sea: either way the space keeps whatever
+  // holds it rather than being rubbed out on the way to nowhere.
+  if (
+    target.zones[zone] === undefined ||
+    isFixedSea(boardWidth(target), cell)
+  ) {
     return spec;
   }
 
@@ -527,6 +565,11 @@ export function setStaticTile(
   terrain: SpecTerrain,
   number?: number,
 ): ScenarioSpec {
+  // The board's own sea is nobody's tile to fix, not even to the sea itself.
+  if (isFixedSea(boardWidth(spec.boards[board]), cell)) {
+    return spec;
+  }
+
   const cleared = eraseCell(spec, board, cell);
   const tile: StaticTile =
     number === undefined

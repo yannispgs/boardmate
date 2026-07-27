@@ -12,6 +12,7 @@ import {
 import { canvasGrid, cellOwner, pinsPortOn } from "@/lib/catan/scenario-draft";
 import {
   cellKey,
+  fixedSeaCells,
   pinnedSlots,
   portEdges,
   type ScenarioBoardSpec,
@@ -118,7 +119,10 @@ export function ScenarioCanvas({
   }, []);
 
   const cells = canvasGrid(width);
-  const painted = new Set(cells.map(cellKey));
+  // The two spaces the board fixes to the open sea are drawn like the rest and
+  // take no tool at all — neither a tap nor a stroke sliding across them.
+  const fixed = new Set(fixedSeaCells(width).map(cellKey));
+  const takeable = new Set(cells.map(cellKey).filter(key => !fixed.has(key)));
 
   function start(cell: SpecCell) {
     setDrawing(true);
@@ -150,8 +154,8 @@ export function ScenarioCanvas({
     const cell = pixelToAxial(point.x, point.y, SIZE);
     const key = cellKey(cell);
 
-    // Off the board, or still on the space the stroke last painted.
-    if (!painted.has(key) || key === last.current) {
+    // Off the board, fixed to the sea, or still on the space last painted.
+    if (!takeable.has(key) || key === last.current) {
       return;
     }
 
@@ -223,7 +227,9 @@ export function ScenarioCanvas({
         const { fill, opacity, label } = cellFill(board, cell, activeZone);
         const isSelected =
           selected !== null && cellKey(selected) === cellKey(cell);
-        const takesTap = tool !== "port" || offers(cell).length > 0;
+        const takesTap =
+          takeable.has(cellKey(cell)) &&
+          (tool !== "port" || offers(cell).length > 0);
 
         return (
           <g key={cellKey(cell)}>

@@ -18,15 +18,30 @@ import {
   trySpecBoard,
 } from "./marins";
 import type { ScenarioSpec, SpecCell } from "./scenario-spec";
-import { boardOutline, boardTotals, cellKey } from "./scenario-spec";
+import {
+  boardOutline,
+  boardTotals,
+  cellKey,
+  DEFAULT_WIDTH,
+  fixedSeaCells,
+  isFixedSea,
+} from "./scenario-spec";
 
 const ARCHIPEL_WIDTH = 5;
+
+/** The spaces a board of the default width fixes to the open sea. */
+const FIXED_SEA = fixedSeaCells(DEFAULT_WIDTH).map(cellKey);
+
+/** Everything an author may paint on the archipelago's board. */
+const ARCHIPEL_CELLS = boardOutline(ARCHIPEL_WIDTH).filter(
+  cell => !isFixedSea(ARCHIPEL_WIDTH, cell),
+);
 
 /**
  * A full-size map to draw against. The generator ships with no scenario of its
  * own — they are authored in the app and read back from the database — so the
- * geometry tests bring their own: 44 spaces, 23 land tiles spread over 3 to 5
- * islands, 21 of sea, 9 harbours in the bag.
+ * geometry tests bring their own: 42 spaces to paint on, 23 land tiles spread
+ * over 3 to 5 islands, 19 of sea, 9 harbours in the bag.
  */
 const ARCHIPEL: ScenarioSpec = {
   name: "Archipel",
@@ -38,14 +53,14 @@ const ARCHIPEL: ScenarioSpec = {
       zones: [
         {
           name: "Archipel",
-          cells: boardOutline(ARCHIPEL_WIDTH),
+          cells: ARCHIPEL_CELLS,
           terrainCounts: {
             fields: 5,
             forest: 5,
             pasture: 5,
             hills: 4,
             mountains: 4,
-            sea: 21,
+            sea: 19,
           },
           numberTokens: [
             2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 8, 8, 9, 9, 9, 10, 10, 10, 11,
@@ -109,9 +124,9 @@ describe("scenario maps", () => {
     const totals = boardTotals(ARCHIPEL_BOARD);
 
     expect(totals.land).toBe(23);
-    expect(totals.sea).toBe(21);
+    expect(totals.sea).toBe(19);
     expect(totals.ports).toBe(9);
-    expect(ARCHIPEL_BOARD.zones[0].cells).toHaveLength(44);
+    expect(ARCHIPEL_BOARD.zones[0].cells).toHaveLength(42);
     expect(totals.numberTokens.length).toBeGreaterThanOrEqual(totals.land);
   });
 
@@ -412,7 +427,7 @@ describe("generateSpecBoard, on a hand-built spec", () => {
     const { board } = generateSpecBoard(spec, 3, 1);
 
     expect(board.hexes.map(h => cellKey(h))).toEqual(["0,0", "1,0", "2,0"]);
-    expect(board.sea).toEqual([]);
+    expect(board.sea.map(cellKey)).toEqual(FIXED_SEA);
     expect(board.hexes.filter(h => h.terrain === "desert")).toHaveLength(1);
   });
 
@@ -437,7 +452,7 @@ describe("generateSpecBoard, on a hand-built spec", () => {
     const { board } = generateSpecBoard(spec, 3, 2);
 
     expect(board.hexes).toHaveLength(3);
-    expect(board.sea).toHaveLength(3);
+    expect(board.sea).toHaveLength(3 + FIXED_SEA.length);
   });
 
   it("keeps a zone's harbours where the author pinned them", () => {
@@ -662,7 +677,35 @@ describe("generateSpecBoard, on a hand-built spec", () => {
 
     expect(at(0, 2)).toMatchObject({ terrain: "mountains", number: 9 });
     expect(at(1, 2)).toMatchObject({ terrain: "desert", number: null });
-    expect(board.sea.map(cellKey)).toEqual(["2,2"]);
+    expect(board.sea.map(cellKey)).toEqual([...FIXED_SEA, "2,2"]);
+  });
+
+  it("keeps its own sea whatever an older map painted there", () => {
+    // Both ends of the middle row claimed the way a map authored before they
+    // were the board's own would: one in a zone, one as a fixed tile.
+    const [near, far] = fixedSeaCells(DEFAULT_WIDTH).map(cell => ({ ...cell }));
+    const spec: ScenarioSpec = {
+      name: "Ancienne carte",
+      targetScore: 10,
+      boards: [
+        {
+          players: [3],
+          zones: [
+            {
+              name: "Île",
+              cells: [near, { q: 0, r: 0 }, { q: 1, r: 0 }],
+              terrainCounts: { forest: 3 },
+              numberTokens: [4, 5, 6],
+            },
+          ],
+          statics: [{ cell: far, terrain: "mountains", number: 9 }],
+        },
+      ],
+    };
+    const { board } = generateSpecBoard(spec, 3, 7);
+
+    expect(board.hexes.map(cellKey)).toEqual(["0,0", "1,0"]);
+    expect(board.sea.map(cellKey)).toEqual(FIXED_SEA);
   });
 
   it("lays the tokens anyway when no shuffle can satisfy the rules", () => {

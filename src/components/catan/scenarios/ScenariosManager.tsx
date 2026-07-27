@@ -7,6 +7,7 @@ import { useConfirm } from "@/components/use-confirm";
 import {
   DEFAULT_TARGET_SCORE,
   emptyScenario,
+  stripFixedSea,
 } from "@/lib/catan/scenario-draft";
 import type { Extension, ExtensionScenario } from "@/lib/domain";
 import { type ScenarioDraft, useScenarios } from "@/lib/hooks/use-extensions";
@@ -18,13 +19,19 @@ import { ScenarioEditor } from "./ScenarioEditor";
  * The draft the editor opens on for an existing scenario. A scenario seeded
  * from the rulebook carries no map yet: it opens on an empty board — but under
  * its own name and score, which the editor saves back from the spec itself.
+ *
+ * A map drawn before the ends of the middle row were fixed to the open sea may
+ * still paint over them; it is lifted off on the way in, since the author can no
+ * longer reach those spaces to do it himself.
  */
 function draftOf(scenario: ExtensionScenario): ScenarioDraft {
-  const boardSpec = scenario.boardSpec ?? {
-    ...emptyScenario(),
-    name: scenario.name,
-    targetScore: scenario.targetScore ?? DEFAULT_TARGET_SCORE,
-  };
+  const boardSpec = stripFixedSea(
+    scenario.boardSpec ?? {
+      ...emptyScenario(),
+      name: scenario.name,
+      targetScore: scenario.targetScore ?? DEFAULT_TARGET_SCORE,
+    },
+  );
 
   return {
     id: scenario.id,

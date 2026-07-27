@@ -5,7 +5,9 @@
  * A scenario board is always the same shape: seven rows holding `N`, `N+1`,
  * `N+2`, `N+3`, `N+2`, `N+1`, `N` spaces, centred on one another. Only `N`
  * changes from one scenario or player count to the next. The author never
- * draws that outline, only paints inside it:
+ * draws that outline, only paints inside it — bar the two spaces at the ends of
+ * the widest row, which are the open sea on every published map and so belong to
+ * the board rather than to whoever paints on it ({@link fixedSeaCells}):
  *
  *  - **zones** — a set of spaces plus the bag that fills them. One notion covers
  *    the three the rulebook uses: a bag of nothing but `sea` freezes a stretch of
@@ -36,6 +38,9 @@ export const BOARD_ROWS = 7;
 
 /** Spaces each row holds beyond the board's width, top row first. */
 const ROW_BULGE = [0, 1, 2, 3, 2, 1, 0];
+
+/** The widest row of a board — the one the two fixed sea spaces sit at. */
+const MIDDLE_ROW = (BOARD_ROWS - 1) / 2;
 
 /**
  * How narrow and how wide a map gets. The smallest published Marins maps — the
@@ -92,6 +97,26 @@ export function boardOutline(width: number): SpecCell[] {
   return cells;
 }
 
+/**
+ * The two spaces a board is open sea at whatever its author paints: the ends of
+ * its widest row. Every published Marins map leaves them to the ocean — they are
+ * the two corners a hexagonal board sticks out furthest at — so they are drawn
+ * on the map and taken out of the author's hands.
+ */
+export function fixedSeaCells(width: number): SpecCell[] {
+  const { start, count } = rowSpan(width, MIDDLE_ROW);
+
+  return [
+    { q: start, r: MIDDLE_ROW },
+    { q: start + count - 1, r: MIDDLE_ROW },
+  ];
+}
+
+/** Whether a space is one of the two a board fixes to open sea. */
+export function isFixedSea(width: number, cell: SpecCell): boolean {
+  return fixedSeaCells(width).some(sea => cellKey(sea) === cellKey(cell));
+}
+
 /** Whether a space falls on a board `width` wide. */
 export function isInsideBoard(width: number, cell: SpecCell): boolean {
   if (cell.r < 0 || cell.r >= BOARD_ROWS) {
@@ -103,7 +128,10 @@ export function isInsideBoard(width: number, cell: SpecCell): boolean {
   return cell.q >= start && cell.q < start + count;
 }
 
-/** The narrowest board that still holds everything painted on this one. */
+/**
+ * The narrowest board that still holds everything painted on this one — the
+ * spaces it fixes to the open sea included, since those hold nothing.
+ */
 export function minimumWidth(cells: SpecCell[]): number {
   let width = MIN_WIDTH;
 
@@ -113,9 +141,12 @@ export function minimumWidth(cells: SpecCell[]): number {
     }
 
     const { start } = rowSpan(0, cell.r);
+    // One column more on the middle row: its last space is the open sea the
+    // board fixes, so a board that narrow would rub out what is painted there.
+    const room = cell.r === MIDDLE_ROW ? 1 : 0;
 
     // How wide row `r` must be for `q` to fall in it, undoing the bulge.
-    width = Math.max(width, cell.q - start + 1 - ROW_BULGE[cell.r]);
+    width = Math.max(width, cell.q - start + 1 - ROW_BULGE[cell.r] + room);
   }
 
   return Math.min(width, MAX_WIDTH);
@@ -319,6 +350,12 @@ function certaintyMap(board: ScenarioBoardSpec): Map<string, CellCertainty> {
 
   for (const tile of board.statics ?? []) {
     map.set(cellKey(tile.cell), tile.terrain === "sea" ? "water" : "land");
+  }
+
+  // Last, and over everything: the two spaces the board itself fixes to the open
+  // sea. Nothing an older scenario left there changes what they hold.
+  for (const cell of fixedSeaCells(boardWidth(board))) {
+    map.set(cellKey(cell), "water");
   }
 
   return map;

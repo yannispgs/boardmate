@@ -8,6 +8,8 @@ import {
   boardTotals,
   cellKey,
   DEFAULT_WIDTH,
+  fixedSeaCells,
+  isFixedSea,
   isValidToken,
   MIN_WIDTH,
   portEdges,
@@ -638,30 +640,86 @@ describe("validateScenarioSpec", () => {
   });
 });
 
+describe("fixedSeaCells", () => {
+  it("fixes the two ends of the widest row to the open sea", () => {
+    expect(fixedSeaCells(DEFAULT_WIDTH)).toEqual([
+      { q: -3, r: 3 },
+      { q: 5, r: 3 },
+    ]);
+  });
+
+  it("carries the far one out as the board widens", () => {
+    expect(fixedSeaCells(DEFAULT_WIDTH + 1)).toEqual([
+      { q: -3, r: 3 },
+      { q: 6, r: 3 },
+    ]);
+  });
+
+  it("knows a space the board fixes from one the author paints", () => {
+    expect(isFixedSea(DEFAULT_WIDTH, { q: 5, r: 3 })).toBe(true);
+    expect(isFixedSea(DEFAULT_WIDTH, { q: -3, r: 3 })).toBe(true);
+
+    expect(isFixedSea(DEFAULT_WIDTH, { q: 4, r: 3 })).toBe(false);
+    expect(isFixedSea(DEFAULT_WIDTH, { q: 5, r: 2 })).toBe(false);
+  });
+
+  it("holds the open sea whatever a zone claims of it", () => {
+    // A bag of nothing but land over the whole row, the two ends included: they
+    // are still the sea the board fixes, so the tile beside one has a coast.
+    const board: ScenarioBoardSpec = {
+      players: [3],
+      width: DEFAULT_WIDTH,
+      zones: [
+        {
+          name: "Ligne",
+          cells: [
+            { q: 4, r: 3 },
+            { q: 5, r: 3 },
+          ],
+          terrainCounts: { forest: 2 },
+          numberTokens: [4, 5],
+        },
+      ],
+    };
+
+    expect(portEdges(board, { q: 5, r: 3 })).toEqual([]);
+    expect(portEdges(board, { q: 4, r: 3 })).toContainEqual({
+      q: 4,
+      r: 3,
+      dq: 1,
+      dr: 0,
+    });
+  });
+});
+
 describe("validateScenarioDraft", () => {
   it("counts the spaces of the map the author has left to nobody", () => {
     // `spec()` paints three spaces of a full board: the rest is still blank,
-    // which the draw would take as it is but no author should save.
+    // which the draw would take as it is but no author should save. The two the
+    // board fixes to the open sea are nobody's to paint, so they are not owed.
     expect(validateScenarioDraft(spec())).toEqual([
       {
         kind: "unassigned",
         board: 0,
-        count: boardOutline(DEFAULT_WIDTH).length - 3,
+        count:
+          boardOutline(DEFAULT_WIDTH).length -
+          3 -
+          fixedSeaCells(DEFAULT_WIDTH).length,
       },
     ]);
   });
 
   it("accepts a map drawn to its edges with no zone at all", () => {
-    // Every space a fixed tile: a scenario that draws nothing at random is a
+    // Every space a fixed tile — bar the two the board holds itself, which the
+    // author is owed nothing for. A scenario that draws nothing at random is a
     // scenario all the same, and it needs no zone to be saved.
     expect(
       validateScenarioDraft(
         spec({
           zones: [],
-          statics: boardOutline(DEFAULT_WIDTH).map(cell => ({
-            cell,
-            terrain: "sea" as const,
-          })),
+          statics: boardOutline(DEFAULT_WIDTH)
+            .filter(cell => !isFixedSea(DEFAULT_WIDTH, cell))
+            .map(cell => ({ cell, terrain: "sea" as const })),
         }),
       ),
     ).toEqual([]);
