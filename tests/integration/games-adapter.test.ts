@@ -841,7 +841,7 @@ describe("games adapter — extensions", () => {
     const { data: sc } = await admin
       .from("extension_scenarios")
       .select("id")
-      .eq("board_key", "four-islands")
+      .eq("name", "Les quatre îles")
       .single();
     const scId = sc?.id as ExtensionScenarioId;
 

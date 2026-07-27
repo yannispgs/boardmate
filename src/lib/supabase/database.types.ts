@@ -210,28 +210,28 @@ export type Database = {
       }
       extension_scenarios: {
         Row: {
-          board_key: string | null
           board_spec: Json | null
           extension_id: string
           id: string
+          is_official: boolean
           name: string
           sort_order: number
           target_score: number | null
         }
         Insert: {
-          board_key?: string | null
           board_spec?: Json | null
           extension_id: string
           id?: string
+          is_official?: boolean
           name: string
           sort_order?: number
           target_score?: number | null
         }
         Update: {
-          board_key?: string | null
           board_spec?: Json | null
           extension_id?: string
           id?: string
+          is_official?: boolean
           name?: string
           sort_order?: number
           target_score?: number | null

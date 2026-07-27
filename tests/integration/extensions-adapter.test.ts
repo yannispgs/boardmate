@@ -70,9 +70,10 @@ describe("extensions adapter", () => {
       "Les quatre îles",
     ]);
 
-    const four = marins?.scenarios.find(s => s.boardKey === "four-islands");
+    const four = marins?.scenarios.find(s => s.name === "Les quatre îles");
 
     expect(four?.targetScore).toBe(13);
+    expect(four?.isOfficial).toBe(true);
   });
 
   it("finds Catan Marins by its key, scenarios included", async () => {
@@ -171,7 +172,7 @@ describe("authored scenarios", () => {
     const created = await author("Test — création");
 
     expect(created.boardSpec).toEqual(SPEC);
-    expect(created.boardKey).toBeNull();
+    expect(created.isOfficial).toBe(false);
 
     const list = await repo().listByBase(CATAN_ID);
     const marins = list.find(e => e.name === "Catan - Marins");
@@ -204,6 +205,36 @@ describe("authored scenarios", () => {
     const marins = list.find(e => e.name === "Catan - Marins");
 
     expect(marins?.scenarios.some(s => s.id === created.id)).toBe(false);
+  });
+
+  it("leaves an official scenario standing when a delete reaches it", async () => {
+    const list = await repo().listByBase(CATAN_ID);
+    const marins = list.find(e => e.name === "Catan - Marins");
+    const official = marins?.scenarios.find(s => s.isOfficial);
+
+    // No error: the delete policy filters the rows it may reach, so the
+    // statement matches nothing at all — as on the players table.
+    await repo().deleteScenario(official?.id as ExtensionScenarioId);
+
+    const after = await repo().listByBase(CATAN_ID);
+    const stillThere = after
+      .find(e => e.name === "Catan - Marins")
+      ?.scenarios.some(s => s.id === official?.id);
+
+    expect(stillThere).toBe(true);
+  });
+
+  it("refuses to author a scenario as an official one", async () => {
+    const { error } = await authedClient(user.accessToken)
+      .from("extension_scenarios")
+      .insert({
+        extension_id: await marinsId(),
+        name: "Test — faux officiel",
+        is_official: true,
+        sort_order: 99,
+      });
+
+    expect(error).not.toBeNull();
   });
 
   it("refuses to delete a scenario a game was played with", async () => {

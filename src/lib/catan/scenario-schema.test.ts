@@ -62,7 +62,7 @@ describe("scenarioSpecSchema", () => {
   it("drops what the format doesn't declare", () => {
     const parsed = scenarioSpecSchema.parse({
       ...full,
-      boardKey: "four-islands",
+      isOfficial: true,
     });
 
     expect(parsed).toEqual(full);

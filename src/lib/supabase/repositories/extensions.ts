@@ -26,7 +26,7 @@ export function toScenario(row: ScenarioRow): ExtensionScenario {
     extensionId: row.extension_id as ExtensionId,
     name: row.name,
     targetScore: row.target_score,
-    boardKey: row.board_key,
+    isOfficial: row.is_official,
     // Authored in the app, so written by the client: never trusted on the way
     // back in. A blob that no longer fits the format reads as no board at all.
     boardSpec: parseScenarioSpec(row.board_spec),

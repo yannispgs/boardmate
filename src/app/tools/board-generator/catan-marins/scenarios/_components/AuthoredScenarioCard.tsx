@@ -1,5 +1,6 @@
 "use client";
 
+import { ScenarioOriginBadge } from "@/components/catan/ScenarioOriginBadge";
 import { PencilIcon, TrashIcon } from "@/components/icons";
 import { dangerIconButtonClass, iconButtonClass } from "@/components/ui";
 import { boardTotals } from "@/lib/catan/scenario-spec";
@@ -22,10 +23,10 @@ function summary(scenario: ExtensionScenario): string {
 }
 
 /**
- * One authored scenario: what it holds, the score it is played to, and the two
- * things that can be done to it. A scenario with no map yet — one seeded from
- * the rulebook, waiting to be drawn — opens on an empty board like a new one:
- * nothing is shipped in code any more, so nothing is read-only.
+ * One scenario: where it comes from, what it holds, the score it is played to,
+ * and what can be done to it. A scenario with no map yet — one from the rulebook
+ * waiting to be drawn — opens on an empty board like a new one; an official one
+ * is editable all the same, but it belongs to the rules and is never deleted.
  */
 export function AuthoredScenarioCard({
   scenario,
@@ -39,7 +40,10 @@ export function AuthoredScenarioCard({
   return (
     <li className="flex items-center gap-3 rounded-xl border border-black/10 bg-white px-4 py-3 dark:border-white/10 dark:bg-zinc-900">
       <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate font-medium">{scenario.name}</span>
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="min-w-0 truncate font-medium">{scenario.name}</span>
+          <ScenarioOriginBadge isOfficial={scenario.isOfficial} />
+        </div>
         <span className="text-xs text-zinc-500">{summary(scenario)}</span>
       </div>
 
@@ -61,9 +65,14 @@ export function AuthoredScenarioCard({
       <button
         type="button"
         onClick={() => onDelete(scenario)}
+        disabled={scenario.isOfficial}
         aria-label={`Supprimer ${scenario.name}`}
-        title="Supprimer"
-        className={dangerIconButtonClass}
+        title={
+          scenario.isOfficial
+            ? "Un scénario officiel ne se supprime pas"
+            : "Supprimer"
+        }
+        className={`${dangerIconButtonClass} disabled:cursor-not-allowed disabled:opacity-30`}
       >
         <TrashIcon />
       </button>

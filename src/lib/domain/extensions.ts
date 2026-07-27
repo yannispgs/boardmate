@@ -16,12 +16,13 @@ export interface ExtensionScenario {
   name: string;
   /** Hard-coded base score to reach (read-only in the app), or null. */
   targetScore: number | null;
-  /** Key the board generator reads to build this scenario's board. */
-  boardKey: string | null;
   /**
-   * The board the scenario is drawn from, when it was authored in the app
-   * rather than shipped in code. A scenario carries this or a `boardKey`.
+   * Printed in the rulebook, as opposed to invented in the scenario editor. Its
+   * map can be drawn and corrected like any other, but the scenario belongs to
+   * the rules: the app never deletes it.
    */
+  isOfficial: boolean;
+  /** The board the scenario is drawn from, once someone has drawn it. */
   boardSpec: ScenarioSpec | null;
   sortOrder: number;
 }
