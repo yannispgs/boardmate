@@ -12,7 +12,11 @@ import { iconButtonClass } from "@/components/ui";
 import { marinsPlayerGroups, playerGroupLabel } from "@/lib/catan/marins";
 import type { ScenarioSpec } from "@/lib/catan/scenario-spec";
 import type { ExtensionScenario, ExtensionScenarioId } from "@/lib/domain";
-import { extensionScenariosHref, MARINS_KEY } from "@/lib/game/scenario-editor";
+import {
+  extensionScenariosHref,
+  MARINS_KEY,
+  MARINS_ORIGIN,
+} from "@/lib/game/scenario-editor";
 import { useScenarios } from "@/lib/hooks/use-extensions";
 import { MarinsScenarioBoard } from "./MarinsScenarioBoard";
 
@@ -44,7 +48,9 @@ export function MarinsBoardGenerator() {
   // Scenarios are authored on the game they extend, not here: this generator
   // only draws what it finds.
   const manageHref =
-    baseGameId === null ? null : extensionScenariosHref(baseGameId);
+    baseGameId === null
+      ? null
+      : extensionScenariosHref(baseGameId, MARINS_ORIGIN);
 
   if (loading) {
     return (

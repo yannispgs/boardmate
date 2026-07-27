@@ -1,13 +1,54 @@
 /** The key the Marins extension is found by, whatever its name becomes. */
 export const MARINS_KEY = "catan-marins";
 
+/** A way back: where the link goes, and what it says. */
+export interface BackLink {
+  href: string;
+  label: string;
+}
+
+/** The origin a board generator claims when it links to the extensions. */
+export const MARINS_ORIGIN = "catan-marins";
+
+/**
+ * The screens that link into a game's extensions from somewhere other than the
+ * games list, and the way back to each of them.
+ */
+const ORIGINS = new Map<string, BackLink>([
+  [
+    MARINS_ORIGIN,
+    {
+      href: "/tools/board-generator/catan-marins",
+      label: "← Plateau Catan - Marins",
+    },
+  ],
+]);
+
+const GAMES_BACK_LINK: BackLink = { href: "/boardgames", label: "← Jeux" };
+
 /**
  * Where a base game's extensions — and the scenarios they are managed on —
  * live. The board generator only reads scenarios, so it sends anyone wanting to
- * change one back to the game they belong to.
+ * change one back to the game they belong to, saying where it comes from so
+ * that screen can offer the way back.
  */
-export function extensionScenariosHref(baseGameId: string): string {
-  return `/boardgames/${baseGameId}/extensions`;
+export function extensionScenariosHref(
+  baseGameId: string,
+  from?: string,
+): string {
+  const href = `/boardgames/${baseGameId}/extensions`;
+
+  return from === undefined ? href : `${href}?from=${encodeURIComponent(from)}`;
+}
+
+/**
+ * The way back out of a game's extensions: to whoever sent us there, or to the
+ * games list. Only the screens listed above can claim it — the origin travels
+ * in the URL, so an unknown one, or one crafted by hand, leads to the games
+ * list rather than to wherever it asked for.
+ */
+export function extensionsBackLink(from: string | undefined): BackLink {
+  return ORIGINS.get(from ?? "") ?? GAMES_BACK_LINK;
 }
 
 /**
