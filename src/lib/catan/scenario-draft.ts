@@ -163,7 +163,10 @@ function withBoard(
 
 /** The same board with every harbour it no longer has a coast for unpinned. */
 function prunePorts(board: ScenarioBoardSpec): ScenarioBoardSpec {
-  return strandedPorts(board).reduce(withoutSlot, board);
+  return strandedPorts(board).reduce(
+    (pruned, port) => withoutSlot(pruned, port),
+    board,
+  );
 }
 
 /**
