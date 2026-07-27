@@ -224,7 +224,9 @@ describe("growIslands", () => {
 describe("pickPortSlots", () => {
   const rng = mulberry32(11);
 
-  it("puts at most one harbour per tile, on an edge facing the sea", () => {
+  // Nothing forbids two on a tile any more; keeping them apart is what leaves
+  // them a tile each wherever the coast has the room for it.
+  it("gives them a tile each on a coast with room, facing the sea", () => {
     const canvas = ARCHIPEL_BOARD.zones[0].cells;
     const grown = growIslands(
       buildNeighbours(canvas.map((c, id) => ({ id, ...c }))),

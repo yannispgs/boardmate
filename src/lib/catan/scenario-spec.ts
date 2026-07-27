@@ -405,7 +405,8 @@ export function portCorners(port: SpecPort): string[] {
  * place for one, and neither is an edge facing anything but open water. Two of
  * them never **touch** either — a printed board always leaves a free corner
  * between two harbours, so an edge sharing one with a harbour already pinned is
- * not offered.
+ * not offered. One tile may carry two all the same, as a published Marins map
+ * does: what is asked of them is a free corner, not a tile each.
  *
  * What the editor offers is this and nothing more, so nothing that can be pinned
  * is ever reported afterwards; the same rules are enforced on any spec in
@@ -530,7 +531,6 @@ export type SpecIssue =
   | { kind: "board-port-count"; board: number; types: number; slots: number }
   | { kind: "port-on-water"; board: number; cell: SpecCell }
   | { kind: "port-on-drawn"; board: number; cell: SpecCell }
-  | { kind: "port-crowded"; board: number; cell: SpecCell; count: number }
   | { kind: "port-touching"; board: number; cell: SpecCell; other: SpecCell }
   | {
       kind: "port-inland";
@@ -714,37 +714,14 @@ function slotIssues(
 }
 
 /**
- * The spaces carrying more than one harbour, counted across every bag: a tile
- * bears a single harbour, whichever of its six edges it is printed on.
- */
-function crowdedIssues(index: number, slots: SpecPort[]): SpecIssue[] {
-  const counts = new Map<string, { cell: SpecCell; count: number }>();
-
-  for (const slot of slots) {
-    const seen = counts.get(cellKey(slot));
-
-    counts.set(cellKey(slot), {
-      cell: { q: slot.q, r: slot.r },
-      count: seen === undefined ? 1 : seen.count + 1,
-    });
-  }
-
-  const issues: SpecIssue[] = [];
-
-  for (const { cell, count } of counts.values()) {
-    if (count > 1) {
-      issues.push({ kind: "port-crowded", board: index, cell, count });
-    }
-  }
-
-  return issues;
-}
-
-/**
  * The harbours pinned corner to corner, counted across every bag: a printed
  * board always leaves a free corner between two of them, so two edges meeting
  * at one are two harbours a player would settle between with nothing in
  * between.
+ *
+ * One space may well carry two — a published Marins map does — as long as they
+ * are not on neighbouring edges of it, which is the very same rule read on a
+ * single tile.
  */
 function touchingIssues(index: number, slots: SpecPort[]): SpecIssue[] {
   const issues: SpecIssue[] = [];
@@ -761,11 +738,7 @@ function touchingIssues(index: number, slots: SpecPort[]): SpecIssue[] {
         continue;
       }
 
-      // The same harbour read twice is one harbour: only a *different* space
-      // sharing the corner is two of them meeting.
-      if (cellKey(other) !== cellKey(cell)) {
-        issues.push({ kind: "port-touching", board: index, cell, other });
-      }
+      issues.push({ kind: "port-touching", board: index, cell, other });
     }
   }
 
@@ -825,13 +798,12 @@ function portIssues(board: ScenarioBoardSpec, index: number): SpecIssue[] {
     });
   }
 
-  // Judged across every bag at once: two harbours sharing a space, or a corner,
-  // are two of them wherever each is held.
+  // Judged across every bag at once: two harbours sharing a corner are two of
+  // them meeting, wherever each is held.
   const every = pinnedSlots(board);
 
   issues.push(
     ...slotIssues(index, certainty, slots),
-    ...crowdedIssues(index, every),
     ...touchingIssues(index, every),
   );
 
@@ -935,10 +907,10 @@ export function specIssueText(issue: SpecIssue): string {
       return `Les ${issue.types} ports hors zone demandent autant d'emplacements épinglés : il y en a ${issue.slots}.`;
     case "port-on-water":
       return `Le port épinglé en ${cellKey(issue.cell)} n'est sur aucune terre : un port se pose sur la case de terre qu'il borde, jamais sur la mer.`;
-    case "port-crowded":
-      return `La case ${cellKey(issue.cell)} porte ${issue.count} ports : une tuile n'en reçoit qu'un.`;
     case "port-touching":
-      return `Les ports des cases ${cellKey(issue.other)} et ${cellKey(issue.cell)} se touchent : il faut au moins un sommet libre entre deux ports.`;
+      return cellKey(issue.other) === cellKey(issue.cell)
+        ? `La case ${cellKey(issue.cell)} porte deux ports sur des arêtes voisines : il faut au moins un sommet libre entre deux ports.`
+        : `Les ports des cases ${cellKey(issue.other)} et ${cellKey(issue.cell)} se touchent : il faut au moins un sommet libre entre deux ports.`;
     case "port-on-drawn":
       return `Le port épinglé en ${cellKey(issue.cell)} est sur une case tirée au sort : pose-le sur une tuile fixe de terre, ou dans une zone dont le sac ne contient pas de mer.`;
     default:

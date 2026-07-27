@@ -531,8 +531,9 @@ describe("validateScenarioSpec", () => {
     ).toEqual(["port-inland"]);
   });
 
-  it("refuses two harbours on one space, coast or no coast", () => {
-    // Both edges give on the open sea, but a tile bears a single harbour.
+  it("takes two harbours on one space when a corner stays free", () => {
+    // A published Marins map prints two on the same tile: what two harbours ask
+    // for is a free corner between them, not a tile each.
     expect(
       kinds(
         spec({
@@ -541,7 +542,7 @@ describe("validateScenarioSpec", () => {
               ports: {
                 slots: [
                   { q: 0, r: 0, dq: 0, dr: -1 },
-                  { q: 0, r: 0, dq: -1, dr: 0 },
+                  { q: 0, r: 0, dq: 0, dr: 1 },
                 ],
                 types: ["wood", "ore"],
               },
@@ -549,11 +550,13 @@ describe("validateScenarioSpec", () => {
           ],
         }),
       ),
-    ).toEqual(["port-crowded"]);
+    ).toEqual([]);
   });
 
-  it("counts the harbours of a space across every bag", () => {
-    // One in the zone's bag, one in the board's own: still two on (0,0).
+  it("refuses two harbours meeting on the edges of one space", () => {
+    // Both edges end at the corner (0,0) shares with (0,-1) and (1,-1): two
+    // edges of one tile meet exactly the way two tiles' do. One is held in the
+    // zone's bag and the other in the board's own — they are judged together.
     expect(
       kinds(
         spec({
@@ -566,12 +569,12 @@ describe("validateScenarioSpec", () => {
             }),
           ],
           ports: {
-            slots: [{ q: 0, r: 0, dq: -1, dr: 0 }],
+            slots: [{ q: 0, r: 0, dq: 1, dr: -1 }],
             types: ["generic"],
           },
         }),
       ),
-    ).toEqual(["port-crowded"]);
+    ).toEqual(["port-touching"]);
   });
 
   it("refuses two harbours meeting at a corner", () => {
@@ -753,9 +756,9 @@ describe("specIssueText", () => {
     { kind: "port-inland", board: 0, cell, across: { q: 1, r: 1 } },
     { kind: "static-gold-red", board: 0, cell },
     { kind: "forced-gold-red", ...shared, reds: 2, others: 1 },
-    { kind: "port-crowded", board: 0, cell, count: 2 },
     { kind: "static-no-token", board: 0, cell },
     { kind: "port-touching", board: 0, cell, other: { q: 1, r: 1 } },
+    { kind: "port-touching", board: 0, cell, other: cell },
     { kind: "unassigned", board: 0, count: 1 },
     { kind: "unassigned", board: 0, count: 12 },
     { kind: "port-hidden", ...shared },

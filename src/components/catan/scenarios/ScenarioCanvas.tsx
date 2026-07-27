@@ -9,7 +9,7 @@ import {
   pixelToAxial,
   polygonPoints,
 } from "@/lib/catan/hex-geometry";
-import { canvasGrid, cellOwner, pinsPortOn } from "@/lib/catan/scenario-draft";
+import { canvasGrid, cellOwner } from "@/lib/catan/scenario-draft";
 import {
   cellKey,
   fixedSeaCells,
@@ -172,23 +172,11 @@ export function ScenarioCanvas({
   const pinned = new Set(
     edges.map(slot => `${cellKey(slot)}:${slot.dq},${slot.dr}`),
   );
-  // What a space still offers in `port` mode: its coastal edges — land on this
-  // side, open water on the other, in every draw — and none at all once it
-  // carries a harbour, since a tile bears one. A space offering nothing does not
-  // even take a tap, so no harbour can be pinned somewhere only to be reported
-  // as an error afterwards.
-  const offers = (cell: SpecCell): SpecPort[] => {
-    if (pinsPortOn(board, cell)) {
-      return [];
-    }
-
-    return portEdges(board, cell);
-  };
-
   // Pinned harbours stay on show throughout, so unpinning one never needs its
-  // space selected; the free edges are only drawn around the selected space.
+  // space selected; the free edges — what `portEdges` still offers there — are
+  // only drawn around the selected space.
   if (selected !== null && tool === "port") {
-    edges.push(...offers(selected));
+    edges.push(...portEdges(board, selected));
   }
 
   const bounds = cells.flatMap(cell => {
@@ -227,9 +215,12 @@ export function ScenarioCanvas({
         const { fill, opacity, label } = cellFill(board, cell, activeZone);
         const isSelected =
           selected !== null && cellKey(selected) === cellKey(cell);
+        // A space with no coastal edge left to offer — every one of them inland,
+        // or running into a harbour already pinned — does not even take a tap in
+        // `port` mode, so nothing can be pinned only to be reported afterwards.
         const takesTap =
           takeable.has(cellKey(cell)) &&
-          (tool !== "port" || offers(cell).length > 0);
+          (tool !== "port" || portEdges(board, cell).length > 0);
 
         return (
           <g key={cellKey(cell)}>

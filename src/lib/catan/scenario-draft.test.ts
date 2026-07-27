@@ -497,12 +497,19 @@ describe("harbours", () => {
     expect(zone(both).ports?.slots).toEqual([slot, next]);
   });
 
-  it("refuses a second harbour on a space that already carries one", () => {
-    const other = { q: 0, r: 0, dq: 1, dr: -1 } as const;
+  it("pins a second harbour on a space, on an edge leaving a corner free", () => {
+    const across = { q: 0, r: 0, dq: 0, dr: 1 } as const;
+    const both = togglePortSlot(togglePortSlot(painted(), 0, slot), 0, across);
+
+    expect(zone(both).ports?.slots).toEqual([slot, across]);
+  });
+
+  it("refuses one on the edge beside it, which it meets at a corner", () => {
+    const beside = { q: 0, r: 0, dq: 1, dr: -1 } as const;
     const crowded = togglePortSlot(
       togglePortSlot(painted(), 0, slot),
       0,
-      other,
+      beside,
     );
 
     expect(zone(crowded).ports?.slots).toEqual([slot]);

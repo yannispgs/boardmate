@@ -254,11 +254,11 @@ export function growIslands(
  * furthest from every harbour placed wins. The first is taken at random. A pure
  * shuffle clumps three of them on one headland often enough to be worth
  * avoiding, and spacing is the one thing a real board never leaves to chance.
- * At most one harbour to a tile — it doubles up only when the coast has fewer
- * tiles than the zone has harbours.
  *
- * Both are preferences, not rules: a coast too short for what the bag holds
- * keeps its harbours rather than losing them.
+ * Nothing stops one tile carrying two, as a published map does: keeping them
+ * apart already does that wherever the coast has room. And spacing is a
+ * preference, not a rule — a coast too short for what the bag holds keeps its
+ * harbours rather than losing them.
  */
 export function pickPortSlots(
   cells: HexCell[],
@@ -296,7 +296,6 @@ export function pickPortSlots(
   const pool = shuffle(candidates, rng);
   const nearest = pool.map(() => Number.POSITIVE_INFINITY);
   const taken = new Set<number>();
-  const used = new Set<number>();
   const corners = new Set<string>();
   const picked: PortSlot[] = [];
 
@@ -315,11 +314,11 @@ export function pickPortSlots(
   };
 
   /** The best of the candidates still free, or -1 when none of them is. */
-  const nextPick = (onePerTile: boolean): number => {
+  const nextPick = (): number => {
     let best = -1;
 
     for (let i = 0; i < pool.length; i++) {
-      if (taken.has(i) || (onePerTile && used.has(pool[i].slot.hexId))) {
+      if (taken.has(i)) {
         continue;
       }
 
@@ -334,7 +333,6 @@ export function pickPortSlots(
   /** Takes a candidate, then measures the rest of the coast against it. */
   const place = (best: number): void => {
     taken.add(best);
-    used.add(pool[best].slot.hexId);
     picked.push(pool[best].slot);
 
     for (const corner of pool[best].corners) {
@@ -351,23 +349,17 @@ export function pickPortSlots(
     }
   };
 
-  const fill = (onePerTile: boolean): void => {
-    while (picked.length < count) {
-      const best = nextPick(onePerTile);
+  while (picked.length < count) {
+    const best = nextPick();
 
-      // Every coastal tile already carries one: the second pass takes over and
-      // starts doubling up, and when even that runs dry the zone keeps fewer
-      // harbours than it asked for.
-      if (best === -1) {
-        return;
-      }
-
-      place(best);
+    // Not one coastal edge left: the zone keeps fewer harbours than it asked
+    // for rather than printing two on the same edge.
+    if (best === -1) {
+      break;
     }
-  };
 
-  fill(true);
-  fill(false);
+    place(best);
+  }
 
   return picked;
 }

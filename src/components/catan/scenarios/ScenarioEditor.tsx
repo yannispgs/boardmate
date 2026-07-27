@@ -47,7 +47,7 @@ const TOOLS: { value: CanvasTool; label: string; hint: string }[] = [
   {
     value: "port",
     label: "Ports",
-    hint: "Clique une case de terre, puis l'arête où le port est imprimé. Seules les cases posables répondent, et seules leurs arêtes donnant sur la mer à chaque partie sont proposées ; une tuile ne porte qu'un port. Le port rejoint la zone de la case, ou le plateau si la case est une tuile fixe.",
+    hint: "Clique une case de terre, puis l'arête où le port est imprimé. Seules les cases posables répondent, et seules leurs arêtes donnant sur la mer à chaque partie sont proposées ; deux ports laissent toujours un sommet libre entre eux, mais une même tuile peut en porter deux. Le port rejoint la zone de la case, ou le plateau si la case est une tuile fixe.",
   },
 ];
 

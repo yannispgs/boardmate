@@ -479,11 +479,6 @@ function pinsPort(board: ScenarioBoardSpec, port: SpecPort): boolean {
   return pinnedSlots(board).some(slot => samePort(slot, port));
 }
 
-/** Whether a space already carries a harbour, on whichever of its edges. */
-export function pinsPortOn(board: ScenarioBoardSpec, cell: SpecCell): boolean {
-  return pinnedSlots(board).some(slot => cellKey(slot) === cellKey(cell));
-}
-
 /** The same bag, with one more harbour pinned on it. */
 function withSlot(bag: SpecPortBag | undefined, port: SpecPort): SpecPortBag {
   return { types: bag?.types ?? [], slots: [...(bag?.slots ?? []), port] };
@@ -513,9 +508,10 @@ function withoutSlot(
  * Unpinning reaches into whichever bag holds it, so a harbour is never stranded
  * in one the author is no longer looking at.
  *
- * Two things are refused outright rather than reported afterwards: an edge that
- * is no coast in every draw ({@link portEdges}), and a second harbour on a space
- * that already carries one — a tile bears a single harbour.
+ * An edge that is no coast in every draw is refused outright rather than
+ * reported afterwards, and so is one running into a harbour already pinned
+ * ({@link portEdges}) — including on the space's own neighbouring edge, since a
+ * tile may carry two harbours but never two that meet at a corner.
  */
 export function togglePortSlot(
   spec: ScenarioSpec,
@@ -533,8 +529,7 @@ export function togglePortSlot(
 
     if (
       owner === null ||
-      !portEdges(b, port).some(edge => samePort(edge, port)) ||
-      pinsPortOn(b, port)
+      !portEdges(b, port).some(edge => samePort(edge, port))
     ) {
       return b;
     }
