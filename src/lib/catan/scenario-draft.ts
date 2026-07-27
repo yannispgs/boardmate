@@ -469,6 +469,25 @@ export function setZoneIslands(
   });
 }
 
+/**
+ * The margin a zone's own resource balance is held to, in percent, or `null`
+ * for a zone that only serves the board's overall balance. It stays on the zone
+ * whatever the scenario's master switch says, so turning zone balance off and
+ * back on hands every margin back untouched.
+ */
+export function setZoneBalance(
+  spec: ScenarioSpec,
+  board: number,
+  zone: number,
+  tolerance: number | null,
+): ScenarioSpec {
+  return withZone(spec, board, zone, z => {
+    const { balanceTolerance: _was, ...rest } = z;
+
+    return tolerance === null ? rest : { ...rest, balanceTolerance: tolerance };
+  });
+}
+
 /** Whether two harbours sit on the same edge of the same space. */
 function samePort(a: SpecPort, b: SpecPort): boolean {
   return a.q === b.q && a.r === b.r && a.dq === b.dq && a.dr === b.dr;

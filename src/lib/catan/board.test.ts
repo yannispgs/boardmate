@@ -6,7 +6,9 @@ import {
   BASE_VARIANT,
   type BoardHex,
   boardWarnings,
+  buildCatanVariant,
   type CatanTerrain,
+  type CatanVariant,
   clusterPenalty,
   EXTENSION_VARIANT,
   generateCatanBoard,
@@ -21,6 +23,7 @@ import {
   resourceCombinations,
   resourceVariancePenalty,
   TERRAIN_RESOURCE,
+  type TilePool,
   variantOf,
 } from "./board";
 
@@ -831,4 +834,139 @@ describe("boardWarnings", () => {
 
     expect(clean).toBe(true);
   }, 30000);
+});
+
+describe("zone balance", () => {
+  /** The nine spaces the second bag is dealt onto, tokens and all. */
+  const ISLANDS: TilePool = {
+    cellIds: HEX_CELLS.slice(10).map(cell => cell.id),
+    terrainCounts: {
+      forest: 2,
+      pasture: 2,
+      fields: 2,
+      hills: 1,
+      mountains: 1,
+      gold: 0,
+      desert: 1,
+    },
+    numberTokens: [8, 9, 9, 10, 10, 11, 11, 12],
+    hidden: false,
+  };
+
+  /**
+   * The ten-space continent: two tiles of every resource, ten low tokens. It
+   * only gets a name where a warning has to name it — the engine asks a bag
+   * for a band, not for a name.
+   */
+  function continent(balanceTolerance?: number, label?: string): TilePool {
+    const pool: TilePool = {
+      cellIds: HEX_CELLS.slice(0, 10).map(cell => cell.id),
+      terrainCounts: {
+        forest: 2,
+        pasture: 2,
+        fields: 2,
+        hills: 2,
+        mountains: 2,
+        gold: 0,
+        desert: 0,
+      },
+      numberTokens: [2, 3, 3, 4, 4, 5, 5, 6, 6, 8],
+      hidden: false,
+    };
+
+    if (balanceTolerance !== undefined) {
+      pool.balanceTolerance = balanceTolerance;
+    }
+
+    if (label !== undefined) {
+      pool.label = label;
+    }
+
+    return pool;
+  }
+
+  /**
+   * The base hexagon dealt from two bags — a continent and the islands beyond —
+   * the way a scenario deals one. Everything the board holds is the sum of the
+   * two, so the board-wide balance is the usual one and only the zones' own
+   * bands change from one test to the next.
+   */
+  function twoZones(zone: TilePool): CatanVariant {
+    const terrainCounts = { ...ISLANDS.terrainCounts };
+
+    for (const terrain of Object.keys(terrainCounts) as CatanTerrain[]) {
+      terrainCounts[terrain] += zone.terrainCounts[terrain];
+    }
+
+    return buildCatanVariant({
+      id: "marins",
+      cells: HEX_CELLS,
+      terrainCounts,
+      numberTokens: [...zone.numberTokens, ...ISLANDS.numberTokens],
+      portTypes: [],
+      pools: [zone, ISLANDS],
+    });
+  }
+
+  it("holds a zone that asks for it inside its own band", () => {
+    const held = twoZones(continent(0.2));
+    const free = twoZones(continent());
+
+    for (let seed = 0; seed < 6; seed++) {
+      // The very same reading of a board drawn without the band: the continent
+      // is balanced on average with the islands, and short of something on its
+      // own — which is exactly what asking for the band prevents.
+      expect(
+        boardWarnings(generateCatanBoard(seed, { variantSpec: free }), {
+          variantSpec: held,
+        }).some(w => w.kind === "zoneBalance"),
+      ).toBe(true);
+
+      expect(
+        boardWarnings(generateCatanBoard(seed, { variantSpec: held }), {
+          variantSpec: held,
+        }).some(w => w.kind === "zoneBalance"),
+      ).toBe(false);
+    }
+  });
+
+  it("names the zone that could not be held, resource by resource", () => {
+    // A band of nothing at all around a share of 6.8 combinations: no whole
+    // number of pips lands on it, so every resource of the zone misses it.
+    const variantSpec = twoZones(continent(0, "Continent"));
+    const board = generateCatanBoard(1, { variantSpec });
+    const missed = boardWarnings(board, { variantSpec }).filter(
+      w => w.kind === "zoneBalance",
+    );
+
+    expect(missed).toHaveLength(5);
+
+    for (const w of missed) {
+      expect(w.zone).toBe("Continent");
+      expect(w.low).toBeCloseTo(6.8);
+      expect(w.high).toBeCloseTo(6.8);
+    }
+  });
+
+  it("has nothing to balance in a zone holding no token at all", () => {
+    const bare: TilePool = {
+      ...continent(0),
+      terrainCounts: {
+        forest: 0,
+        pasture: 0,
+        fields: 0,
+        hills: 0,
+        mountains: 0,
+        gold: 0,
+        desert: 10,
+      },
+      numberTokens: [],
+    };
+    const variantSpec = twoZones(bare);
+    const board = generateCatanBoard(1, { variantSpec });
+
+    expect(
+      boardWarnings(board, { variantSpec }).some(w => w.kind === "zoneBalance"),
+    ).toBe(false);
+  });
 });

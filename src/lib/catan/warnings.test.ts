@@ -63,6 +63,21 @@ describe("warningText", () => {
     );
   });
 
+  it("names the zone whose own band was missed", () => {
+    expect(
+      warningText({
+        kind: "zoneBalance",
+        zone: "Continent de départ",
+        resource: "wood",
+        combos: 4,
+        low: 6.4,
+        high: 9.6,
+      }),
+    ).toBe(
+      "Zone « Continent de départ » : la production de bois est trop faible (4 combinaisons, minimum 7).",
+    );
+  });
+
   it("lists the resources of a harbour sitting on its own terrain", () => {
     expect(
       warningText({ kind: "portOnResource", resources: ["wood", "brick"] }),

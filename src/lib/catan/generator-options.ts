@@ -18,6 +18,12 @@ export interface GeneratorOptions {
   ignore: boolean;
   /** Allowed deviation from each resource's balanced share, in percent. */
   tolerancePct: number;
+  /**
+   * Scenarios only: also hold each zone that asks for it within a margin of its
+   * own, on top of the board's. Off unless the author turns it on — and then
+   * only the zones he gave a margin to are held to one.
+   */
+  balanceZones: boolean;
   avoidReds: boolean;
   avoidDuplicates: boolean;
   avoidClusters: boolean;
@@ -30,13 +36,17 @@ export interface GeneratorOptions {
   numberN: number;
 }
 
+/** The margin a resource's production is held to until someone moves it. */
+export const DEFAULT_TOLERANCE_PCT = 20;
+
 /** What the generator applies until someone says otherwise. */
 export const DEFAULT_GENERATOR_OPTIONS: GeneratorOptions = {
   desertInner: false,
   desertOuter: false,
   allowAdjacentDeserts: false,
   ignore: false,
-  tolerancePct: 20,
+  tolerancePct: DEFAULT_TOLERANCE_PCT,
+  balanceZones: false,
   avoidReds: true,
   avoidDuplicates: true,
   avoidClusters: true,
@@ -86,6 +96,7 @@ export function toBoardOptions(
     allowAdjacentDeserts: o.allowAdjacentDeserts,
     ignoreConstraints: o.ignore,
     balanceTolerance: o.tolerancePct / 100,
+    balanceZones: o.balanceZones,
     avoidAdjacentReds: o.avoidReds,
     avoidAdjacentDuplicates: o.avoidDuplicates,
     avoidResourceClusters: o.avoidClusters,

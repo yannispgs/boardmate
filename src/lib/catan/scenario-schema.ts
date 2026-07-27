@@ -72,6 +72,7 @@ const zoneSchema = z.object({
   numberTokens: z.array(z.number().int()).max(MAX_TILES),
   hidden: z.boolean().optional(),
   islands: z.tuple([z.number().int(), z.number().int()]).optional(),
+  balanceTolerance: z.number().int().min(0).max(100).optional(),
   ports: portBagSchema.optional(),
 });
 
@@ -93,6 +94,7 @@ const generatorOptionsSchema = z.object({
   allowAdjacentDeserts: z.boolean().optional(),
   ignore: z.boolean().optional(),
   tolerancePct: z.number().int().min(0).max(100).optional(),
+  balanceZones: z.boolean().optional(),
   avoidReds: z.boolean().optional(),
   avoidDuplicates: z.boolean().optional(),
   avoidClusters: z.boolean().optional(),

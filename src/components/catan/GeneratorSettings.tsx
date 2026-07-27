@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import type { GeneratorOptions } from "@/lib/catan/generator-options";
+import { Check } from "./Check";
+import { ToleranceRange } from "./ToleranceRange";
 
 /** Which desert rule the board being generated actually has. */
 export type DesertRule = "rings" | "pair" | "none";
@@ -12,29 +14,6 @@ const sectionClass =
 
 const numField =
   "w-20 rounded-lg border border-black/15 bg-white px-2 py-1 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900";
-
-/** A labelled checkbox, to keep the settings panel readable. */
-function Check({
-  label,
-  checked,
-  onChange,
-}: Readonly<{
-  label: string;
-  checked: boolean;
-  onChange: (value: boolean) => void;
-}>) {
-  return (
-    <label className="flex items-center gap-2 text-sm">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={e => onChange(e.target.checked)}
-        className="h-4 w-4 shrink-0 accent-indigo-600"
-      />
-      {label}
-    </label>
-  );
-}
 
 /**
  * Where the desert may land. The rule depends on the board: the base hexagon
@@ -95,10 +74,17 @@ export function GeneratorSettings({
   options,
   onChange,
   deserts,
+  zones,
 }: Readonly<{
   options: GeneratorOptions;
   onChange: (patch: Partial<GeneratorOptions>) => void;
   deserts: DesertRule;
+  /**
+   * The per-zone margins, shown under the board's own once zone balance is on.
+   * Only a scenario has zones — the base board leaves this out and never offers
+   * the switch.
+   */
+  zones?: ReactNode;
 }>) {
   const [open, setOpen] = useState(false);
 
@@ -167,24 +153,34 @@ export function GeneratorSettings({
           />
         </div>
 
-        <label className="flex flex-col gap-1 text-sm">
-          <span>Écart de production toléré : ±{options.tolerancePct} %</span>
-          <input
-            type="range"
-            min={0}
-            max={60}
-            step={5}
-            value={options.tolerancePct}
-            onChange={e => onChange({ tolerancePct: Number(e.target.value) })}
-            aria-label="Écart de production toléré en pourcentage"
-            className="accent-indigo-600"
-          />
-          <span className="text-[11px] text-zinc-400">
-            De chaque ressource par rapport à sa part attendue (∝ à son nombre
-            de tuiles). 0 % = parts strictement égales ; plus haut = plus de
-            variété.
-          </span>
-        </label>
+        <ToleranceRange
+          label="Écart de production toléré"
+          value={options.tolerancePct}
+          onChange={v => onChange({ tolerancePct: v })}
+          hint={
+            <>
+              De chaque ressource par rapport à sa part attendue (∝ à son nombre
+              de tuiles). 0 % = parts strictement égales ; plus haut = plus de
+              variété.
+            </>
+          }
+        />
+
+        {zones === undefined ? null : (
+          <div className="flex flex-col gap-2">
+            <Check
+              label="Équilibrer aussi au sein des zones"
+              checked={options.balanceZones}
+              onChange={v => onChange({ balanceZones: v })}
+            />
+            <span className="text-[11px] text-zinc-400">
+              Le même écart, mesuré zone par zone : un continent de départ reste
+              jouable même si des îles lointaines portent le reste de la
+              production.
+            </span>
+            {options.balanceZones ? zones : null}
+          </div>
+        )}
 
         <div className="flex flex-col gap-2">
           <Check

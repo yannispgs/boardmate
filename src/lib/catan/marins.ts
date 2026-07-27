@@ -417,8 +417,18 @@ interface ResolvedMap {
   zoneCells: number[][];
 }
 
-/** Runs the draw: every zone's sea, then the static tiles on their own spaces. */
-function resolveMap(board: ScenarioBoardSpec, rng: () => number): ResolvedMap {
+/**
+ * Runs the draw: every zone's sea, then the static tiles on their own spaces.
+ * `balanceZones` is the scenario's master switch: with it on, a zone the author
+ * gave a margin to hands it to its own bag, so the draw holds that zone in
+ * balance as well as the whole board. With it off the margins stay in the spec,
+ * unused — the setting is turned back on and they are all there again.
+ */
+function resolveMap(
+  board: ScenarioBoardSpec,
+  rng: () => number,
+  balanceZones: boolean,
+): ResolvedMap {
   const cells: HexCell[] = [];
   const seaCells: HexCell[] = [];
   const pools: TilePool[] = [];
@@ -446,12 +456,20 @@ function resolveMap(board: ScenarioBoardSpec, rng: () => number): ResolvedMap {
 
     zoneCells.push(ids);
     sea.filter(drawn).forEach(addSea);
-    pools.push({
+
+    const pool: TilePool = {
       cellIds: ids,
       terrainCounts: bagLandCounts(zone.terrainCounts),
       numberTokens: zone.numberTokens,
       hidden: zone.hidden ?? false,
-    });
+    };
+
+    if (balanceZones && zone.balanceTolerance !== undefined) {
+      pool.balanceTolerance = zone.balanceTolerance / 100;
+      pool.label = zone.name;
+    }
+
+    pools.push(pool);
   }
 
   // A static tile is a bag of one: one space, one tile, at most one token — so
@@ -604,7 +622,7 @@ export function generateSpecBoard(
   const actualSeed = seed ?? crypto.getRandomValues(new Uint32Array(1))[0];
   const rng = mulberry32(actualSeed);
 
-  const map = resolveMap(spec, rng);
+  const map = resolveMap(spec, rng, options?.balanceZones ?? false);
   const ports = resolvePorts(spec, map, rng);
   const totals = boardTotals(spec);
 

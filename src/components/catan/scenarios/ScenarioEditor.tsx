@@ -16,6 +16,7 @@ import {
   setScenarioName,
   setStaticTile,
   setTargetScore,
+  setZoneBalance,
   togglePortSlot,
 } from "@/lib/catan/scenario-draft";
 import {
@@ -35,6 +36,7 @@ import { type CanvasTool, ScenarioCanvas } from "./ScenarioCanvas";
 import { SpecIssueList } from "./SpecIssueList";
 import { StaticTileFields } from "./StaticTileFields";
 import { WidthStepper } from "./WidthStepper";
+import { ZoneBalanceCardList } from "./ZoneBalanceCardList";
 import { ZoneSection } from "./ZoneSection";
 
 const TOOLS: { value: CanvasTool; label: string; hint: string }[] = [
@@ -346,6 +348,15 @@ export function ScenarioEditor({
                 options={generator}
                 onChange={patch => change(setGeneratorOptions(spec, patch))}
                 deserts="none"
+                zones={
+                  <ZoneBalanceCardList
+                    spec={spec}
+                    board={boardIndex}
+                    onChange={(zone, tolerance) =>
+                      change(setZoneBalance(spec, boardIndex, zone, tolerance))
+                    }
+                  />
+                }
               />
 
               {issues.length === 0 && board.players.length > 0 ? (

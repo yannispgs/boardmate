@@ -200,6 +200,15 @@ export interface ScenarioZone {
    * generator grows proper islands instead of a scattering of lone tiles.
    */
   islands?: readonly [min: number, max: number];
+  /**
+   * Allowed deviation from each resource's balanced share **inside the zone**,
+   * in percent — the board's own band read over these spaces alone, so that a
+   * starting continent stands on its own instead of being balanced on average
+   * with islands nobody can reach at first. Absent on a zone that only has to
+   * serve the board's overall balance, and only applied when the scenario's
+   * settings turn zone balance on (`balanceZones`).
+   */
+  balanceTolerance?: number;
   ports?: SpecPortBag;
 }
 

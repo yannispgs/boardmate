@@ -100,7 +100,30 @@ export function isRedNumber(n: number): boolean {
 export function resourceCombinations(
   hexes: BoardHex[],
 ): Array<{ resource: CatanResource; combos: number }> {
-  const totals = new Map<CatanResource, number>();
+  const totals = combosByResource(hexes);
+
+  return RESOURCE_ORDER.map((resource, i) => ({
+    resource,
+    combos: totals[i],
+  }));
+}
+
+/** The five resources in the order every reading of a board lists them. */
+const RESOURCE_ORDER: readonly CatanResource[] = [
+  "wood",
+  "brick",
+  "wool",
+  "grain",
+  "ore",
+];
+
+/**
+ * Summed pips per resource over a set of tiles, aligned with
+ * {@link RESOURCE_ORDER} — the raw reading behind both the whole-board totals
+ * and each zone's own, which are the very same measure taken over fewer tiles.
+ */
+function combosByResource(hexes: BoardHex[]): number[] {
+  const totals = RESOURCE_ORDER.map(() => 0);
 
   for (const h of hexes) {
     const res = TERRAIN_RESOURCE[h.terrain];
@@ -109,15 +132,10 @@ export function resourceCombinations(
       continue;
     }
 
-    totals.set(res, (totals.get(res) ?? 0) + pipCount(h.number));
+    totals[RESOURCE_ORDER.indexOf(res)] += pipCount(h.number);
   }
 
-  const order: CatanResource[] = ["wood", "brick", "wool", "grain", "ore"];
-
-  return order.map(resource => ({
-    resource,
-    combos: totals.get(resource) ?? 0,
-  }));
+  return totals;
 }
 
 /** The six axial neighbour directions (orientation-independent). */
@@ -194,6 +212,16 @@ export interface TilePool {
   numberTokens: number[];
   /** Lay these tiles face down (Seafarers' fog island). */
   hidden: boolean;
+  /**
+   * Allowed deviation from each resource's balanced share **within this bag**,
+   * as a fraction — the whole-board band read over these cells alone. Set on a
+   * zone that must stand on its own (a starting continent whose wood all sits
+   * on far-off islands is balanced on paper and miserable to play). Left out on
+   * a bag that only has to serve the board's overall balance.
+   */
+  balanceTolerance?: number;
+  /** The zone's name, so a band it misses can be named in a warning. */
+  label?: string;
 }
 
 /**
@@ -262,6 +290,14 @@ export interface BoardOptions {
    * on the base board) expects fewer combinations than a 4-tile one.
    */
   balanceTolerance?: number;
+  /**
+   * Scenarios only: hold each zone that carries a margin of its own within it,
+   * on top of the board's band. Read by the Marins generator, which stamps the
+   * margins onto the bags it builds ({@link TilePool.balanceTolerance}) — the
+   * engine itself only ever sees a bag that asks for a band, or one that
+   * doesn't.
+   */
+  balanceZones?: boolean;
   /** Forbid two red numbers (6/8) on adjacent hexes (default `true`). */
   avoidAdjacentReds?: boolean;
   /** Forbid the same number on adjacent hexes (default `true`). */
@@ -826,6 +862,94 @@ function expectedCombos(
   );
 }
 
+/** How far outside its band a resource's combinations fall — 0 when inside. */
+function bandMiss(combos: number, low: number, high: number): number {
+  return Math.max(0, low - combos) + Math.max(0, combos - high);
+}
+
+/**
+ * One zone's balanced share per resource, ready to measure a layout against.
+ * The bag alone fixes it — which tiles and which tokens go in — so it is worked
+ * out once and reused for every candidate.
+ */
+interface PoolBand {
+  /** The zone's name, for the warning that names the band it missed. */
+  label: string;
+  cellIds: number[];
+  /** Balanced combinations per resource, aligned with {@link RESOURCE_ORDER}. */
+  expected: number[];
+  tolerance: number;
+}
+
+/**
+ * The bands to honour zone by zone, one entry per bag that asks for one — none
+ * at all on a board drawn from a single bag, where the overall balance already
+ * is the zone's. A bag holding no number token has nothing to balance and is
+ * skipped rather than made to divide by zero.
+ */
+function poolBands(pools: TilePool[]): PoolBand[] {
+  const bands: PoolBand[] = [];
+
+  for (const pool of pools) {
+    if (pool.balanceTolerance === undefined || pool.numberTokens.length === 0) {
+      continue;
+    }
+
+    const pips = pool.numberTokens.reduce((sum, n) => sum + pipCount(n), 0);
+    const tiles = RESOURCE_ORDER.map(() => 0);
+
+    for (const terrain of Object.keys(pool.terrainCounts) as CatanTerrain[]) {
+      const res = TERRAIN_RESOURCE[terrain];
+
+      if (res !== null) {
+        tiles[RESOURCE_ORDER.indexOf(res)] += pool.terrainCounts[terrain];
+      }
+    }
+
+    bands.push({
+      label: pool.label ?? "",
+      cellIds: pool.cellIds,
+      expected: tiles.map(n => (n * pips) / pool.numberTokens.length),
+      tolerance: pool.balanceTolerance,
+    });
+  }
+
+  return bands;
+}
+
+/** Each resource of a zone read off a laid-out board, against its own band. */
+function bandChecks(
+  hexes: BoardHex[],
+  band: PoolBand,
+): Array<{
+  resource: CatanResource;
+  combos: number;
+  low: number;
+  high: number;
+}> {
+  const totals = combosByResource(band.cellIds.map(id => hexes[id]));
+
+  return RESOURCE_ORDER.map((resource, i) => ({
+    resource,
+    combos: totals[i],
+    low: band.expected[i] * (1 - band.tolerance),
+    high: band.expected[i] * (1 + band.tolerance),
+  }));
+}
+
+/** Total distance every zone's resources sit outside their own band. */
+function poolsOutOfBand(hexes: BoardHex[], bands: PoolBand[]): number {
+  let out = 0;
+
+  for (const band of bands) {
+    for (const { combos, low, high } of bandChecks(hexes, band)) {
+      out += bandMiss(combos, low, high);
+    }
+  }
+
+  return out;
+}
+
 /** Variance of a resource's pips below which no concentration penalty applies. */
 const VARIANCE_SOFT_START = 0.8;
 /** How fast the concentration penalty grows past the soft start. */
@@ -872,8 +996,10 @@ const CAP_WEIGHT = 4;
 
 /**
  * Lower is better. The single **hard** rule is the resource band: each
- * resource's combinations must land within `tolerance` of its balanced share;
- * a board that breaches it scores 1000+ (worse the further it strays), so the
+ * resource's combinations must land within `tolerance` of its balanced share —
+ * over the whole board, and over each zone that asks for a band of its own
+ * ({@link poolBands}), the two adding up into one distance. A board that
+ * breaches either scores 1000+ (worse the further it strays), so the
  * search always prefers a compliant board when the batch holds one. Among the
  * compliant boards it ranks by soft criteria — an even spread across the
  * intersections, no single resource over-concentrated, and no intersection
@@ -887,6 +1013,7 @@ function numberBalance(
   variant: CatanVariant,
   opts: {
     tolerance: number;
+    bands: PoolBand[];
     balanceIntersections: boolean;
     penalizeVariance: boolean;
     limitPips: boolean;
@@ -909,18 +1036,16 @@ function numberBalance(
     perResource.set(res, (perResource.get(res) ?? 0) + pips[h.id]);
   }
 
-  let outOfRange = 0;
+  let outOfRange = poolsOutOfBand(hexes, opts.bands);
 
   for (const [res, combos] of perResource) {
     const expected = expectedCombos(variant, res);
-    const lo = expected * (1 - opts.tolerance);
-    const hi = expected * (1 + opts.tolerance);
 
-    if (combos < lo) {
-      outOfRange += lo - combos;
-    } else if (combos > hi) {
-      outOfRange += combos - hi;
-    }
+    outOfRange += bandMiss(
+      combos,
+      expected * (1 - opts.tolerance),
+      expected * (1 + opts.tolerance),
+    );
   }
 
   if (outOfRange > 0) {
@@ -1363,6 +1488,9 @@ export function generateCatanBoard(
   } else {
     let candidate: Map<number, number> | null = null;
     let bestScore = Number.POSITIVE_INFINITY;
+    // The zones' own bands read off the bags, so the search works them out once
+    // rather than once per candidate.
+    const bands = poolBands(variant.pools);
 
     for (let i = 0; i < numberN; i++) {
       const placement = placeNumbers(
@@ -1386,6 +1514,7 @@ export function generateCatanBoard(
       }));
       const score = numberBalance(scored, variant, {
         tolerance,
+        bands,
         balanceIntersections: balanceInter,
         penalizeVariance,
         limitPips,
@@ -1452,8 +1581,49 @@ export type BoardWarning =
       low: number;
       high: number;
     }
+  | {
+      kind: "zoneBalance";
+      /** The zone whose own band was missed. */
+      zone: string;
+      resource: CatanResource;
+      combos: number;
+      low: number;
+      high: number;
+    }
   | { kind: "intersectionTooStrong"; worst: number; max: number; count: number }
   | { kind: "portOnResource"; resources: CatanResource[] };
+
+/**
+ * The resources whose production fell outside its band, over the whole board
+ * first, then over each zone that asked for a band of its own.
+ */
+function balanceWarnings(
+  board: CatanBoard,
+  variant: CatanVariant,
+  tolerance: number,
+): BoardWarning[] {
+  const warnings: BoardWarning[] = [];
+
+  for (const { resource, combos } of resourceCombinations(board.hexes)) {
+    const expected = expectedCombos(variant, resource);
+    const low = expected * (1 - tolerance);
+    const high = expected * (1 + tolerance);
+
+    if (bandMiss(combos, low, high) > 0) {
+      warnings.push({ kind: "resourceBalance", resource, combos, low, high });
+    }
+  }
+
+  for (const band of poolBands(variant.pools)) {
+    for (const check of bandChecks(board.hexes, band)) {
+      if (bandMiss(check.combos, check.low, check.high) > 0) {
+        warnings.push({ kind: "zoneBalance", zone: band.label, ...check });
+      }
+    }
+  }
+
+  return warnings;
+}
 
 /**
  * Audits a board against the constraints that were active when it was made
@@ -1475,17 +1645,7 @@ export function boardWarnings(
   const maxPips = options?.maxIntersectionPips ?? DEFAULT_MAX_PIPS;
   const avoidPortRes = options?.avoidPortOnResource ?? false;
 
-  const warnings: BoardWarning[] = [];
-
-  for (const { resource, combos } of resourceCombinations(board.hexes)) {
-    const expected = expectedCombos(variant, resource);
-    const low = expected * (1 - tolerance);
-    const high = expected * (1 + tolerance);
-
-    if (combos < low || combos > high) {
-      warnings.push({ kind: "resourceBalance", resource, combos, low, high });
-    }
-  }
+  const warnings = balanceWarnings(board, variant, tolerance);
 
   if (limitPips) {
     const pips = board.hexes.map(h =>

@@ -21,6 +21,7 @@ const full: ScenarioSpec = {
           numberTokens: [5],
           hidden: true,
           islands: [1, 2],
+          balanceTolerance: 15,
           ports: {
             slots: [{ q: 0, r: 0, dq: 0, dr: -1 }],
             types: ["wood"],
@@ -30,7 +31,12 @@ const full: ScenarioSpec = {
       statics: [{ cell: { q: 5, r: 3 }, terrain: "mountains", number: 9 }],
     },
   ],
-  options: { avoidReds: false, tolerancePct: 35, terrainN: 120 },
+  options: {
+    avoidReds: false,
+    tolerancePct: 35,
+    balanceZones: true,
+    terrainN: 120,
+  },
 };
 
 describe("scenarioSpecSchema", () => {

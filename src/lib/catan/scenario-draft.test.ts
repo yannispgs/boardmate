@@ -25,6 +25,7 @@ import {
   setTargetScore,
   setTerrainCount,
   setTokenCount,
+  setZoneBalance,
   setZoneHidden,
   setZoneIslands,
   stripFixedSea,
@@ -471,6 +472,15 @@ describe("zone options", () => {
     expect(zone(grown).islands).toEqual([2, 3]);
     expect(zone(setZoneIslands(grown, 0, 0, null))).not.toHaveProperty(
       "islands",
+    );
+  });
+
+  it("holds a zone to a margin of its own, then stops holding it", () => {
+    const held = setZoneBalance(painted(), 0, 0, 15);
+
+    expect(zone(held).balanceTolerance).toBe(15);
+    expect(zone(setZoneBalance(held, 0, 0, null))).not.toHaveProperty(
+      "balanceTolerance",
     );
   });
 });

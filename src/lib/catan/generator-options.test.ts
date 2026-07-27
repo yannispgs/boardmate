@@ -17,6 +17,7 @@ describe("toBoardOptions", () => {
       allowAdjacentDeserts: false,
       ignoreConstraints: false,
       balanceTolerance: 0.2,
+      balanceZones: false,
       avoidAdjacentReds: true,
       avoidAdjacentDuplicates: true,
       avoidResourceClusters: true,

@@ -812,3 +812,39 @@ describe("generateSpecBoard, on a hand-built spec", () => {
     }
   });
 });
+
+describe("zone balance", () => {
+  /** The archipelago, with a margin of its own asked for on its only zone. */
+  const HELD: ScenarioSpec = {
+    ...ARCHIPEL,
+    boards: [
+      {
+        ...ARCHIPEL_BOARD,
+        zones: [{ ...ARCHIPEL_BOARD.zones[0], balanceTolerance: 25 }],
+      },
+    ],
+  };
+
+  it("hands a zone's margin to its bag, under the scenario's setting", () => {
+    const [held] = generateSpecBoard(HELD, 3, 7, { balanceZones: true }).variant
+      .pools;
+
+    expect(held.balanceTolerance).toBeCloseTo(0.25);
+    expect(held.label).toBe("Archipel");
+  });
+
+  it("leaves the margin in the scenario while the setting is off", () => {
+    const [loose] = generateSpecBoard(HELD, 3, 7).variant.pools;
+
+    expect(loose).not.toHaveProperty("balanceTolerance");
+    expect(HELD.boards[0].zones[0].balanceTolerance).toBe(25);
+  });
+
+  it("holds no zone that asks for no margin of its own", () => {
+    const [free] = generateSpecBoard(ARCHIPEL, 3, 7, {
+      balanceZones: true,
+    }).variant.pools;
+
+    expect(free).not.toHaveProperty("balanceTolerance");
+  });
+});
