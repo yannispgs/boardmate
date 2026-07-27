@@ -25,6 +25,12 @@ export interface GeneratorOptions {
    */
   balanceZones: boolean;
   avoidReds: boolean;
+  /**
+   * Scenarios only: keep a 6 or an 8 off a face-up gold river, which pays the
+   * resource of its owner's choice. Meaningless on a base board, which has no
+   * gold river to put one on.
+   */
+  avoidGoldReds: boolean;
   avoidDuplicates: boolean;
   avoidClusters: boolean;
   balanceInter: boolean;
@@ -48,6 +54,7 @@ export const DEFAULT_GENERATOR_OPTIONS: GeneratorOptions = {
   tolerancePct: DEFAULT_TOLERANCE_PCT,
   balanceZones: false,
   avoidReds: true,
+  avoidGoldReds: true,
   avoidDuplicates: true,
   avoidClusters: true,
   balanceInter: true,
@@ -98,6 +105,7 @@ export function toBoardOptions(
     balanceTolerance: o.tolerancePct / 100,
     balanceZones: o.balanceZones,
     avoidAdjacentReds: o.avoidReds,
+    avoidRedOnGold: o.avoidGoldReds,
     avoidAdjacentDuplicates: o.avoidDuplicates,
     avoidResourceClusters: o.avoidClusters,
     balanceIntersections: o.balanceInter,

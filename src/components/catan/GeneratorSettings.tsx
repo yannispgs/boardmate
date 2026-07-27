@@ -74,11 +74,17 @@ export function GeneratorSettings({
   options,
   onChange,
   deserts,
+  goldRivers = false,
   zones,
 }: Readonly<{
   options: GeneratorOptions;
   onChange: (patch: Partial<GeneratorOptions>) => void;
   deserts: DesertRule;
+  /**
+   * Whether the board can hold a gold river at all. Only a scenario can, so the
+   * base board is not offered a rule about one.
+   */
+  goldRivers?: boolean;
   /**
    * The per-zone margins, shown under the board's own once zone balance is on.
    * Only a scenario has zones — the base board leaves this out and never offers
@@ -126,6 +132,13 @@ export function GeneratorSettings({
             checked={options.avoidReds}
             onChange={v => onChange({ avoidReds: v })}
           />
+          {goldRivers ? (
+            <Check
+              label="Pas de 6/8 sur les rivières d'or"
+              checked={options.avoidGoldReds}
+              onChange={v => onChange({ avoidGoldReds: v })}
+            />
+          ) : null}
           <Check
             label="Pas de nombres identiques adjacents"
             checked={options.avoidDuplicates}

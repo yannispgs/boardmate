@@ -19,6 +19,7 @@ describe("toBoardOptions", () => {
       balanceTolerance: 0.2,
       balanceZones: false,
       avoidAdjacentReds: true,
+      avoidRedOnGold: true,
       avoidAdjacentDuplicates: true,
       avoidResourceClusters: true,
       balanceIntersections: true,

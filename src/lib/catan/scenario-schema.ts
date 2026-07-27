@@ -96,6 +96,7 @@ const generatorOptionsSchema = z.object({
   tolerancePct: z.number().int().min(0).max(100).optional(),
   balanceZones: z.boolean().optional(),
   avoidReds: z.boolean().optional(),
+  avoidGoldReds: z.boolean().optional(),
   avoidDuplicates: z.boolean().optional(),
   avoidClusters: z.boolean().optional(),
   balanceInter: z.boolean().optional(),

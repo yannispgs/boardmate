@@ -348,6 +348,7 @@ export function ScenarioEditor({
                 options={generator}
                 onChange={patch => change(setGeneratorOptions(spec, patch))}
                 deserts="none"
+                goldRivers
                 zones={
                   <ZoneBalanceCardList
                     spec={spec}

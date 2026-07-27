@@ -101,7 +101,12 @@ export function MarinsScenarioBoard({
         sea
       />
 
-      <GeneratorSettings options={options} onChange={change} deserts="none" />
+      <GeneratorSettings
+        options={options}
+        onChange={change}
+        deserts="none"
+        goldRivers
+      />
 
       <PlacementRules
         title="Comment ce plateau est tiré"
@@ -114,9 +119,18 @@ export function MarinsScenarioBoard({
               pour {board.sea.length} de mer.
             </li>
             <li>
-              Les {board.ports.length} ports se répartissent sur les côtes, au
-              plus un par tuile — sauf ceux que le scénario épingle lui-même.
+              Les {board.ports.length} ports se répartissent le long des côtes —
+              sauf ceux que le scénario épingle lui-même.
             </li>
+            {options.avoidGoldReds ? (
+              <li>
+                Aucune rivière d&apos;or visible ne porte un{" "}
+                <span className="font-semibold text-red-600">6</span> ni un{" "}
+                <span className="font-semibold text-red-600">8</span> (celles
+                d&apos;une zone face cachée ne paient rien tant qu&apos;elles ne
+                sont pas retournées).
+              </li>
+            ) : null}
           </>
         }
         tail={

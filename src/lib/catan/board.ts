@@ -300,6 +300,12 @@ export interface BoardOptions {
   balanceZones?: boolean;
   /** Forbid two red numbers (6/8) on adjacent hexes (default `true`). */
   avoidAdjacentReds?: boolean;
+  /**
+   * Keep a red number (6/8) off a face-up gold river — the Seafarers rule
+   * (default `true`). Only a scenario has gold rivers, so it never bites on a
+   * base board.
+   */
+  avoidRedOnGold?: boolean;
   /** Forbid the same number on adjacent hexes (default `true`). */
   avoidAdjacentDuplicates?: boolean;
   /** Prefer terrains that avoid 3+ blobs of a resource (default `true`). */
@@ -1356,6 +1362,22 @@ function shufflePorts(
   return out;
 }
 
+/**
+ * The hexes no red number may land on. A gold river pays the resource of its
+ * owner's choice, so a 6 or an 8 on one out-produces everything else on the map
+ * — the Seafarers rules forbid it, and `avoid` is how a scenario says otherwise.
+ *
+ * Only where the tile can be **seen**: a face-down gold river (the fog island)
+ * is nobody's advantage until someone sails over and turns it up.
+ */
+function redFreeHexes(hexes: BoardHex[], avoid = true): ReadonlySet<number> {
+  return new Set(
+    avoid
+      ? hexes.filter(h => h.terrain === "gold" && !h.hidden).map(h => h.id)
+      : [],
+  );
+}
+
 /** An unconstrained shuffle of each pool's tokens onto its numbered hexes. */
 function randomNumbers(
   hexIds: number[],
@@ -1472,13 +1494,7 @@ export function generateCatanBoard(
     .filter(h => carriesNumber(h.terrain))
     .map(h => h.id);
 
-  // Seafarers: a gold river tile pays any resource, so a red number on one
-  // would out-produce everything else on the map — the rulebook forbids it.
-  // Only where the tile can be *seen*: a face-down gold river (the fog island)
-  // is no one's advantage until it is turned over.
-  const noReds = new Set(
-    hexes.filter(h => h.terrain === "gold" && !h.hidden).map(h => h.id),
-  );
+  const noReds = redFreeHexes(hexes, options?.avoidRedOnGold);
 
   // Numbers: an unconstrained shuffle when ignoring, else the balanced search.
   let best: Map<number, number>;

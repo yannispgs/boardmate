@@ -970,3 +970,75 @@ describe("zone balance", () => {
     ).toBe(false);
   });
 });
+
+describe("red numbers on a gold river", () => {
+  /**
+   * The base hexagon dealt as one bag, six gold rivers among the rest and four
+   * red tokens for nineteen spaces: left to itself the draw drops one on a gold
+   * river roughly every other board, which is what the rule is there to stop.
+   */
+  function goldBoard(hidden: boolean): CatanVariant {
+    const pool: TilePool = {
+      cellIds: HEX_CELLS.map(cell => cell.id),
+      terrainCounts: {
+        forest: 3,
+        pasture: 3,
+        fields: 3,
+        hills: 2,
+        mountains: 2,
+        gold: 6,
+        desert: 0,
+      },
+      numberTokens: [
+        2, 3, 3, 4, 4, 5, 5, 6, 6, 8, 8, 9, 9, 10, 10, 11, 11, 12, 2,
+      ],
+      hidden,
+    };
+
+    return buildCatanVariant({
+      id: "marins",
+      cells: HEX_CELLS,
+      terrainCounts: pool.terrainCounts,
+      numberTokens: pool.numberTokens,
+      portTypes: [],
+      pools: [pool],
+    });
+  }
+
+  /** How many gold rivers came out under a red token, over a run of draws. */
+  function redsOnGold(
+    variantSpec: CatanVariant,
+    avoidRedOnGold?: boolean,
+  ): number {
+    const options = {
+      variantSpec,
+      terrainCandidates: 4,
+      numberCandidates: 4,
+      ...(avoidRedOnGold === undefined ? {} : { avoidRedOnGold }),
+    };
+
+    let seen = 0;
+
+    for (let seed = 0; seed < 8; seed++) {
+      seen += generateCatanBoard(seed, options).hexes.filter(
+        h => h.terrain === "gold" && h.number !== null && isRedNumber(h.number),
+      ).length;
+    }
+
+    return seen;
+  }
+
+  it("never puts a 6 or an 8 on a gold river", () => {
+    expect(redsOnGold(goldBoard(false))).toBe(0);
+  });
+
+  it("lets one through when the rule is turned off", () => {
+    expect(redsOnGold(goldBoard(false), false)).toBeGreaterThan(0);
+  });
+
+  it("leaves a face-down gold river alone", () => {
+    // Nobody knows what it pays until it is turned over, so the rule has
+    // nothing to protect and the token placer keeps every space open.
+    expect(redsOnGold(goldBoard(true))).toBeGreaterThan(0);
+  });
+});
