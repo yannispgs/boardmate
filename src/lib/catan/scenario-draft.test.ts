@@ -449,6 +449,14 @@ describe("harbours", () => {
     expect(togglePortSlot(drawn, 0, slot)).toEqual(drawn);
   });
 
+  it("refuses a harbour on a zone laid face down", () => {
+    // Its bag is all land, so the space is certain — but a tile nobody has
+    // turned over yet shows no coast to print a harbour on.
+    const fog = setZoneHidden(painted(), 0, 0, true);
+
+    expect(togglePortSlot(fog, 0, slot)).toEqual(fog);
+  });
+
   it("refuses an edge facing another tile rather than the sea", () => {
     // (1,0) is the zone's other space, land in every draw: the edge between the
     // two is no coast, and a harbour trades across water or not at all.

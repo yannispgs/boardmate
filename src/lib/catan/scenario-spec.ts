@@ -273,6 +273,13 @@ type CellCertainty = "land" | "water" | "drawn";
 function bagCertainty(zone: ScenarioZone): CellCertainty {
   const sea = zone.terrainCounts.sea ?? 0;
 
+  // Face down, what a space holds is nobody's business until it is turned over:
+  // an island of fog is drawn on the night whatever its bag says, and no coast
+  // of it is printed on beforehand.
+  if (zone.hidden === true) {
+    return "drawn";
+  }
+
   if (sea === 0) {
     return "land";
   }
@@ -472,6 +479,7 @@ export type SpecIssue =
       types: number;
       slots: number;
     }
+  | { kind: "port-hidden"; board: number; zone: number; name: string }
   | { kind: "board-port-count"; board: number; types: number; slots: number }
   | { kind: "port-on-water"; board: number; cell: SpecCell }
   | { kind: "port-on-drawn"; board: number; cell: SpecCell }
@@ -733,6 +741,17 @@ function portIssues(board: ScenarioBoardSpec, index: number): SpecIssue[] {
     const slots = zone.ports?.slots ?? [];
     const types = zone.ports?.types.length ?? 0;
 
+    // A harbour is printed on a coast the players can see: a zone laid face
+    // down has none, neither to pin one on nor to draw one along.
+    if (zone.hidden === true && types + slots.length > 0) {
+      issues.push({
+        kind: "port-hidden",
+        board: index,
+        zone: z,
+        name: zone.name,
+      });
+    }
+
     if (slots.length > 0 && slots.length !== types) {
       issues.push({
         kind: "port-count",
@@ -863,6 +882,8 @@ export function specIssueText(issue: SpecIssue): string {
       return `La zone « ${issue.name} » a ${issue.reds} jetons rouges (6 et 8) pour ${issue.others} tuiles hors rivière d'or : au moins un finirait sur une rivière d'or visible.`;
     case "port-count":
       return `La zone « ${issue.name} » épingle ${issue.slots} emplacements de port pour ${issue.types} ports.`;
+    case "port-hidden":
+      return `La zone « ${issue.name} » est tirée face cachée : elle ne peut porter aucun port. Vide son sac de ports, ou décoche « Tuiles face cachée ».`;
     case "board-port-count":
       return `Les ${issue.types} ports hors zone demandent autant d'emplacements épinglés : il y en a ${issue.slots}.`;
     case "port-on-water":

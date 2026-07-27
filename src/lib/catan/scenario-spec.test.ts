@@ -136,6 +136,14 @@ describe("portEdges", () => {
     expect(portEdges(drawn, { q: 1, r: 0 })).toEqual([]);
   });
 
+  it("offers nothing on a space of a zone laid face down", () => {
+    // Nothing but land in the bag, so the space is certain — but nobody knows
+    // that until the tile is turned over, and no coast is printed on fog.
+    const fog = { ...board, zones: [zone({ hidden: true })] };
+
+    expect(portEdges(fog, { q: 1, r: 0 })).toEqual([]);
+  });
+
   it("offers nothing on a space the map never painted", () => {
     expect(portEdges(board, { q: 5, r: 5 })).toEqual([]);
   });
@@ -403,6 +411,16 @@ describe("validateScenarioSpec", () => {
         spec({ zones: [zone({ ports: { types: ["wood"] } })] }),
       ),
     ).toEqual([]);
+  });
+
+  it("refuses any harbour at all in a zone laid face down", () => {
+    expect(
+      kinds(
+        spec({
+          zones: [zone({ hidden: true, ports: { types: ["wood"] } })],
+        }),
+      ),
+    ).toEqual(["port-hidden"]);
   });
 
   it("flags a harbour bag with more slots than harbours", () => {
@@ -682,6 +700,7 @@ describe("specIssueText", () => {
     { kind: "port-touching", board: 0, cell, other: { q: 1, r: 1 } },
     { kind: "unassigned", board: 0, count: 1 },
     { kind: "unassigned", board: 0, count: 12 },
+    { kind: "port-hidden", ...shared },
   ];
 
   it("phrases every issue for the author, in French and without a blank", () => {

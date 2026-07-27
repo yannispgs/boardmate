@@ -35,10 +35,11 @@ function terrainColor(terrain: SpecTerrain): string {
 }
 
 /**
- * Everything about the zone being edited: its name, the bag of tiles and tokens
- * dealt into it, whether it is laid face down, how many islands its land should
- * form, and the harbours it carries. The spaces themselves are painted on the
- * canvas, not here.
+ * Everything about the zone being edited: its name, how it is drawn — face down,
+ * land gathered into islands — then the bag of tiles, tokens and harbours dealt
+ * into it. How it is drawn comes first because it governs the rest: a zone laid
+ * face down is no coast to print a harbour on. The spaces themselves are painted
+ * on the canvas, not here.
  */
 export function ZonePanel({
   spec,
@@ -89,72 +90,6 @@ export function ZonePanel({
           <TrashIcon />
         </button>
       </div>
-
-      <PanelBlock
-        title="Tuiles"
-        hint="Une tuile par case peinte, la mer comprise. Le tirage les mélange à l'intérieur de la zone."
-      >
-        <div className="flex flex-col gap-1">
-          {SPEC_TERRAIN_ORDER.map(terrain => (
-            <CountStepper
-              key={terrain}
-              label={SPEC_TERRAIN_NAME[terrain]}
-              color={terrainColor(terrain)}
-              value={current.terrainCounts[terrain] ?? 0}
-              onChange={count =>
-                onChange(setTerrainCount(spec, board, zone, terrain, count))
-              }
-            />
-          ))}
-        </div>
-        <Tally label="tuiles" have={tiles} need={current.cells.length} />
-      </PanelBlock>
-
-      <PanelBlock
-        title="Jetons"
-        hint="Un jeton par tuile qui en porte un : ni la mer ni le désert n'en reçoivent."
-      >
-        {/* Laid out across, not down: ten tokens as ten labelled lines ate the
-            panel. The whole run fits one row of a 320px aside once the columns
-            are kept tight, and reads 2, 3, 4… straight through. */}
-        <div className="grid grid-cols-10 gap-x-1">
-          {TOKEN_VALUES.map(token => (
-            <CountStepper
-              key={token}
-              label={String(token)}
-              layout="stack"
-              value={tokens.get(token) ?? 0}
-              onChange={count =>
-                onChange(setTokenCount(spec, board, zone, token, count))
-              }
-            />
-          ))}
-        </div>
-        <Tally
-          label="jetons"
-          have={current.numberTokens.length}
-          need={tokenBearingCount(current.terrainCounts)}
-        />
-      </PanelBlock>
-
-      <PanelBlock
-        title="Ports de la zone"
-        hint="Épingle les emplacements sur le plan, en mode « Ports », autant que de ports : chacun sur une case de terre certaine, le long d'une arête qui donne sur la mer. Ou n'en épingle aucun : ils seront tirés au hasard sur la côte de la zone, un par tuile."
-      >
-        <PortTypeFields
-          bag={current.ports}
-          onCount={(type, count) =>
-            onChange(setPortTypeCount(spec, board, zone, type, count))
-          }
-        />
-        {slots === 0 && portCount > 0 ? (
-          <span className="text-slate-500 text-xs dark:text-slate-400">
-            emplacements tirés au hasard sur la côte
-          </span>
-        ) : (
-          <Tally label="emplacements" have={slots} need={portCount} />
-        )}
-      </PanelBlock>
 
       <PanelBlock title="Tirage">
         <label className="flex items-center gap-2 text-sm">
@@ -210,6 +145,76 @@ export function ZonePanel({
             />
             <span className="text-zinc-500 dark:text-zinc-400">îles</span>
           </div>
+        )}
+      </PanelBlock>
+
+      <PanelBlock
+        title="Tuiles"
+        hint="Une tuile par case peinte, la mer comprise. Le tirage les mélange à l'intérieur de la zone."
+      >
+        <div className="flex flex-col gap-1">
+          {SPEC_TERRAIN_ORDER.map(terrain => (
+            <CountStepper
+              key={terrain}
+              label={SPEC_TERRAIN_NAME[terrain]}
+              color={terrainColor(terrain)}
+              value={current.terrainCounts[terrain] ?? 0}
+              onChange={count =>
+                onChange(setTerrainCount(spec, board, zone, terrain, count))
+              }
+            />
+          ))}
+        </div>
+        <Tally label="tuiles" have={tiles} need={current.cells.length} />
+      </PanelBlock>
+
+      <PanelBlock
+        title="Jetons"
+        hint="Un jeton par tuile qui en porte un : ni la mer ni le désert n'en reçoivent."
+      >
+        {/* Laid out across, not down: ten tokens as ten labelled lines ate the
+            panel. The whole run fits one row of a 320px aside once the columns
+            are kept tight, and reads 2, 3, 4… straight through. */}
+        <div className="grid grid-cols-10 gap-x-1">
+          {TOKEN_VALUES.map(token => (
+            <CountStepper
+              key={token}
+              label={String(token)}
+              layout="stack"
+              value={tokens.get(token) ?? 0}
+              onChange={count =>
+                onChange(setTokenCount(spec, board, zone, token, count))
+              }
+            />
+          ))}
+        </div>
+        <Tally
+          label="jetons"
+          have={current.numberTokens.length}
+          need={tokenBearingCount(current.terrainCounts)}
+        />
+      </PanelBlock>
+
+      <PanelBlock
+        title="Ports de la zone"
+        hint={
+          current.hidden === true
+            ? "Une zone tirée face cachée n'a pas de côte visible : elle ne peut porter aucun port."
+            : "Épingle les emplacements sur le plan, en mode « Ports », autant que de ports : chacun sur une case de terre certaine, le long d'une arête qui donne sur la mer. Ou n'en épingle aucun : ils seront tirés au hasard sur la côte de la zone, un par tuile."
+        }
+      >
+        <PortTypeFields
+          bag={current.ports}
+          onCount={(type, count) =>
+            onChange(setPortTypeCount(spec, board, zone, type, count))
+          }
+        />
+        {slots === 0 && portCount > 0 ? (
+          <span className="text-slate-500 text-xs dark:text-slate-400">
+            emplacements tirés au hasard sur la côte
+          </span>
+        ) : (
+          <Tally label="emplacements" have={slots} need={portCount} />
         )}
       </PanelBlock>
     </div>
