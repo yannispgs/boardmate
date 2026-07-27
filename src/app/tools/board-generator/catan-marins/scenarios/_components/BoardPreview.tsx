@@ -1,12 +1,10 @@
 "use client";
 
-import { useState } from "react";
-
 import { BoardWarnings } from "@/components/catan/BoardWarnings";
 import { CatanBoardSvg } from "@/components/catan/CatanBoardSvg";
 import { boardWarnings } from "@/lib/catan/board";
-import { generateSpecBoard } from "@/lib/catan/marins";
 import type { ScenarioSpec } from "@/lib/catan/scenario-spec";
+import { useScenarioDraw } from "@/lib/hooks/use-scenario-draw";
 
 /**
  * A real draw of the scenario being authored, for the player count on screen —
@@ -20,37 +18,28 @@ export function BoardPreview({
   spec: ScenarioSpec;
   players: number;
 }>) {
-  const [seed, setSeed] = useState(1);
+  const { draw, regenerate } = useScenarioDraw(spec, players);
 
-  let drawn: ReturnType<typeof generateSpecBoard> | null = null;
-  let failure: string | null = null;
-
-  try {
-    drawn = generateSpecBoard(spec, players, seed);
-  } catch (error) {
-    failure = error instanceof Error ? error.message : "Tirage impossible.";
-  }
-
-  if (drawn === null) {
+  if (!draw.ok) {
     return (
       <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-        {failure}
+        {draw.reason}
       </p>
     );
   }
 
-  const warnings = boardWarnings(drawn.board, drawn.options);
+  const warnings = boardWarnings(draw.drawn.board, draw.drawn.options);
 
   return (
     <div className="flex flex-col gap-3">
-      <CatanBoardSvg board={drawn.board} />
+      <CatanBoardSvg board={draw.drawn.board} />
 
       <button
         type="button"
-        onClick={() => setSeed(s => s + 1)}
+        onClick={regenerate}
         className="self-start rounded-lg border border-black/10 px-3 py-1.5 text-sm font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
       >
-        🎲 Retirer
+        🎲 Régénérer
       </button>
 
       {warnings.length > 0 ? (

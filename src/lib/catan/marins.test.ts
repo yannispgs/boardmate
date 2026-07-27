@@ -8,22 +8,70 @@ import {
 } from "./board";
 import {
   canvasCells,
-  generateMarinsBoard,
   generateSpecBoard,
   growIslands,
   islandSizes,
-  MARINS_SCENARIOS,
   marinsBoardFor,
   marinsPlayerGroups,
-  marinsScenario,
   pickPortSlots,
   playerGroupLabel,
+  trySpecBoard,
 } from "./marins";
 import type { ScenarioSpec, SpecCell } from "./scenario-spec";
-import { boardTotals, cellKey } from "./scenario-spec";
+import { boardOutline, boardTotals, cellKey } from "./scenario-spec";
 
-const NEW_WORLD = marinsScenario("new-world").spec;
-const NEW_WORLD_BOARD = NEW_WORLD.boards[0];
+const ARCHIPEL_WIDTH = 5;
+
+/**
+ * A full-size map to draw against. The generator ships with no scenario of its
+ * own — they are authored in the app and read back from the database — so the
+ * geometry tests bring their own: 44 spaces, 23 land tiles spread over 3 to 5
+ * islands, 21 of sea, 9 harbours in the bag.
+ */
+const ARCHIPEL: ScenarioSpec = {
+  name: "Archipel",
+  targetScore: 12,
+  boards: [
+    {
+      players: [3, 4],
+      width: ARCHIPEL_WIDTH,
+      zones: [
+        {
+          name: "Archipel",
+          cells: boardOutline(ARCHIPEL_WIDTH),
+          terrainCounts: {
+            fields: 5,
+            forest: 5,
+            pasture: 5,
+            hills: 4,
+            mountains: 4,
+            sea: 21,
+          },
+          numberTokens: [
+            2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 8, 8, 9, 9, 9, 10, 10, 10, 11,
+            11, 12,
+          ],
+          islands: [3, 5],
+          ports: {
+            types: [
+              "generic",
+              "generic",
+              "generic",
+              "generic",
+              "wood",
+              "brick",
+              "wool",
+              "grain",
+              "ore",
+            ],
+          },
+        },
+      ],
+    },
+  ],
+};
+
+const ARCHIPEL_BOARD = ARCHIPEL.boards[0];
 
 /** The land ids of `land`, grouped into connected islands. */
 function islandsOf(land: number[], neighbours: number[][]): number[][] {
@@ -56,36 +104,28 @@ function strip(length: number, r = 0): SpecCell[] {
   return canvasCells([[r, 0, length - 1]]);
 }
 
-describe("scenario catalogue", () => {
-  it("resolves a scenario key to its spec", () => {
-    const scenario = marinsScenario("new-world");
-
-    expect(scenario.spec.name).toBe("Le Nouveau Monde");
-    expect(scenario.spec.targetScore).toBe(12);
-    expect(MARINS_SCENARIOS).toContain(scenario);
-  });
-
-  it("ships 23 land tiles, 9 harbours and a 44-space map for Le Nouveau Monde", () => {
-    const totals = boardTotals(NEW_WORLD_BOARD);
+describe("scenario maps", () => {
+  it("counts the land, the sea and the harbours of a map", () => {
+    const totals = boardTotals(ARCHIPEL_BOARD);
 
     expect(totals.land).toBe(23);
     expect(totals.sea).toBe(21);
     expect(totals.ports).toBe(9);
-    expect(NEW_WORLD_BOARD.zones[0].cells).toHaveLength(44);
+    expect(ARCHIPEL_BOARD.zones[0].cells).toHaveLength(44);
     expect(totals.numberTokens.length).toBeGreaterThanOrEqual(totals.land);
   });
 
   it("groups the player counts that share one map", () => {
-    expect(marinsPlayerGroups(NEW_WORLD)).toEqual([[3, 4]]);
+    expect(marinsPlayerGroups(ARCHIPEL)).toEqual([[3, 4]]);
   });
 
   it("starts a new group per board and sorts each one", () => {
     const spec: ScenarioSpec = {
-      ...NEW_WORLD,
+      ...ARCHIPEL,
       boards: [
-        { ...NEW_WORLD_BOARD, players: [4, 3] },
-        { ...NEW_WORLD_BOARD, players: [5] },
-        { ...NEW_WORLD_BOARD, players: [6] },
+        { ...ARCHIPEL_BOARD, players: [4, 3] },
+        { ...ARCHIPEL_BOARD, players: [5] },
+        { ...ARCHIPEL_BOARD, players: [6] },
       ],
     };
 
@@ -99,8 +139,8 @@ describe("scenario catalogue", () => {
   });
 
   it("finds the map used at an exact player count", () => {
-    expect(marinsBoardFor(NEW_WORLD, 4)).toBe(NEW_WORLD_BOARD);
-    expect(marinsBoardFor(NEW_WORLD, 6)).toBeUndefined();
+    expect(marinsBoardFor(ARCHIPEL, 4)).toBe(ARCHIPEL_BOARD);
+    expect(marinsBoardFor(ARCHIPEL, 6)).toBeUndefined();
   });
 });
 
@@ -142,7 +182,7 @@ describe("growIslands", () => {
   const rng = mulberry32(3);
 
   it("keeps the islands apart on a real canvas", () => {
-    const cells = NEW_WORLD_BOARD.zones[0].cells.map((c, id) => ({ id, ...c }));
+    const cells = ARCHIPEL_BOARD.zones[0].cells.map((c, id) => ({ id, ...c }));
     const neighbours = buildNeighbours(cells);
     const land = growIslands(neighbours, 23, islandSizes(23, 4, rng), rng);
 
@@ -170,7 +210,7 @@ describe("pickPortSlots", () => {
   const rng = mulberry32(11);
 
   it("puts at most one harbour per tile, on an edge facing the sea", () => {
-    const canvas = NEW_WORLD_BOARD.zones[0].cells;
+    const canvas = ARCHIPEL_BOARD.zones[0].cells;
     const grown = growIslands(
       buildNeighbours(canvas.map((c, id) => ({ id, ...c }))),
       23,
@@ -239,21 +279,21 @@ describe("pickPortSlots", () => {
   });
 });
 
-describe("generateMarinsBoard", () => {
+describe("generateSpecBoard, on a whole map", () => {
   it("refuses a player count the scenario has no map for", () => {
-    expect(() => generateMarinsBoard("new-world", 6)).toThrow(
-      "« Le Nouveau Monde » n'a pas de plateau pour 6 joueurs.",
+    expect(() => generateSpecBoard(ARCHIPEL, 6)).toThrow(
+      "« Archipel » n'a pas de plateau pour 6 joueurs.",
     );
   });
 
   it("draws the scenario's land, sea and harbours", () => {
-    const { scenario, players, board, variant } = generateMarinsBoard(
-      "new-world",
+    const { spec, players, board, variant } = generateSpecBoard(
+      ARCHIPEL,
       3,
       42,
     );
 
-    expect(scenario.key).toBe("new-world");
+    expect(spec).toBe(ARCHIPEL_BOARD);
     expect(players).toBe(3);
     expect(board.variant).toBe("marins");
     expect(board.hexes).toHaveLength(23);
@@ -263,14 +303,14 @@ describe("generateMarinsBoard", () => {
   });
 
   it("gives every land tile a terrain and a number from the box", () => {
-    const { board } = generateMarinsBoard("new-world", 4, 8);
+    const { board } = generateSpecBoard(ARCHIPEL, 4, 8);
     const counts = {} as Record<CatanTerrain, number>;
 
     for (const hex of board.hexes) {
       counts[hex.terrain] = (counts[hex.terrain] ?? 0) + 1;
 
       expect(hex.number).not.toBeNull();
-      expect(NEW_WORLD_BOARD.zones[0].numberTokens).toContain(hex.number);
+      expect(ARCHIPEL_BOARD.zones[0].numberTokens).toContain(hex.number);
       expect(hex.hidden).toBe(false);
     }
 
@@ -284,33 +324,49 @@ describe("generateMarinsBoard", () => {
   });
 
   it("never puts land and sea on the same space", () => {
-    const { board } = generateMarinsBoard("new-world", 3, 5);
+    const { board } = generateSpecBoard(ARCHIPEL, 3, 5);
     const spaces = new Set([...board.hexes, ...board.sea].map(cellKey));
 
     expect(spaces.size).toBe(44);
   });
 
   it("honours the placement rules the base generator enforces", () => {
-    const { board, variant } = generateMarinsBoard("new-world", 3, 5);
+    const { board, variant } = generateSpecBoard(ARCHIPEL, 3, 5);
 
     expect(boardWarnings(board, { variantSpec: variant })).toEqual([]);
   });
 
   it("is deterministic for a given seed", () => {
-    expect(generateMarinsBoard("new-world", 3, 1234).board).toEqual(
-      generateMarinsBoard("new-world", 3, 1234).board,
+    expect(generateSpecBoard(ARCHIPEL, 3, 1234).board).toEqual(
+      generateSpecBoard(ARCHIPEL, 3, 1234).board,
     );
   });
 
   it("draws its own seed when none is given", () => {
-    const first = generateMarinsBoard("new-world", 3);
-    const second = generateMarinsBoard("new-world", 3);
+    const first = generateSpecBoard(ARCHIPEL, 3);
+    const second = generateSpecBoard(ARCHIPEL, 3);
 
     expect(first.board.seed).not.toBe(second.board.seed);
   });
 });
 
-describe("generateSpecBoard", () => {
+describe("trySpecBoard", () => {
+  it("hands the draw back when it comes out", () => {
+    expect(trySpecBoard(ARCHIPEL, 3, 42)).toEqual({
+      ok: true,
+      drawn: generateSpecBoard(ARCHIPEL, 3, 42),
+    });
+  });
+
+  it("hands the reason back instead of throwing", () => {
+    expect(trySpecBoard(ARCHIPEL, 6)).toEqual({
+      ok: false,
+      reason: "« Archipel » n'a pas de plateau pour 6 joueurs.",
+    });
+  });
+});
+
+describe("generateSpecBoard, on a hand-built spec", () => {
   it("refuses a scenario that does not add up", () => {
     const spec: ScenarioSpec = {
       name: "Bancal",

@@ -1,3 +1,6 @@
+/** The key the Marins extension is found by, whatever its name becomes. */
+export const MARINS_KEY = "catan-marins";
+
 /** Where the Catan - Marins scenarios are authored. */
 export const MARINS_SCENARIOS_HREF =
   "/tools/board-generator/catan-marins/scenarios";
@@ -8,7 +11,7 @@ export const MARINS_SCENARIOS_HREF =
  * what the editor produces, so the rest keep their scenarios read-only.
  */
 const EDITORS: Record<string, string> = {
-  "catan-marins": MARINS_SCENARIOS_HREF,
+  [MARINS_KEY]: MARINS_SCENARIOS_HREF,
 };
 
 /**

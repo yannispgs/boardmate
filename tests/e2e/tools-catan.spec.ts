@@ -1,8 +1,10 @@
 import { expect, test } from "@playwright/test";
 
+import { deleteScenarios, seedMarinsScenario } from "./utils/supabase";
+
 /**
  * The board generator: from the home menu → "Générer un plateau" → the list of
- * supported games → Catan, which renders a board and "Nouveau plateau" rolls a
+ * supported games → Catan, which renders a board and "Régénérer" rolls a
  * different one. No DB, no fixtures. Full-suite only (untagged).
  */
 test("generates and regenerates a Catan board", async ({ page }) => {
@@ -30,7 +32,7 @@ test("generates and regenerates a Catan board", async ({ page }) => {
 
   // Regenerating swaps the board for a different one (fresh random seed).
   const before = await board.textContent();
-  await page.getByRole("button", { name: "Nouveau plateau" }).click();
+  await page.getByRole("button", { name: "Régénérer" }).click();
   await expect(board).toBeVisible();
 
   await expect(async () => {
@@ -67,46 +69,54 @@ test("generates and regenerates a Catan board", async ({ page }) => {
 });
 
 /**
- * The Marins generator: same entry point, a scenario picker, and a board made
- * of islands, sea and coastal harbours. Full-suite only (untagged).
+ * The Marins generator: same entry point, but every scenario it offers is one
+ * authored in the app, so the test brings its own map. Full-suite only
+ * (untagged).
  */
 test("generates a Catan - Marins scenario board", async ({ page }) => {
-  await page.goto("/tools/board-generator");
+  const name = `E2E Archipel ${Date.now().toString(36)}`;
 
-  // The supported-games list offers the Marins generator next to the base one.
-  await page.getByRole("link", { name: "Catan - Marins" }).click();
+  await seedMarinsScenario(name);
 
-  await expect(
-    page.getByRole("heading", { name: "Catan - Marins" }),
-  ).toBeVisible();
+  try {
+    await page.goto("/tools/board-generator");
 
-  // The scenario picker, with its fixed score to reach.
-  const scenario = page.getByRole("button", { name: "Le Nouveau Monde" });
+    // The supported-games list offers the Marins generator next to the base one.
+    await page.getByRole("link", { name: "Catan - Marins" }).click();
 
-  await expect(scenario).toHaveAttribute("aria-pressed", "true");
-  await expect(scenario).toContainText("12 points");
+    await expect(
+      page.getByRole("heading", { name: "Catan - Marins" }),
+    ).toBeVisible();
 
-  // A single map for 3-4 players → a one-line recap instead of a picker.
-  await expect(
-    page.getByText("3-4 joueurs · 23 terres, 19 mers, 9 ports"),
-  ).toBeVisible();
+    // The scenario picker, with the score the scenario fixes.
+    const scenario = page.getByRole("button", { name });
 
-  const board = page.getByRole("img", { name: "Plateau de Catan généré" });
+    await scenario.click();
+    await expect(scenario).toHaveAttribute("aria-pressed", "true");
+    await expect(scenario).toContainText("11 points");
 
-  await expect(board).toBeVisible();
-  // The legend gains the sea and drops the desert (the scenario ships none).
-  await expect(page.getByText("Mer (navigation)")).toBeVisible();
-  await expect(page.getByText("Désert (voleur)")).toHaveCount(0);
-  await expect(page.getByText("Structure du plateau")).toBeVisible();
+    // A single map for 3-4 players → a one-line recap instead of a picker.
+    await expect(page.getByText("3-4 joueurs · 🎯 11 points")).toBeVisible();
 
-  // Regenerating draws different islands.
-  const before = await board.textContent();
-  await page.getByRole("button", { name: "Nouveau plateau" }).click();
-  await expect(board).toBeVisible();
+    const board = page.getByRole("img", { name: "Plateau de Catan généré" });
 
-  await expect(async () => {
-    expect(await board.textContent()).not.toBe(before);
-  }).toPass();
+    await expect(board).toBeVisible();
+    // The legend gains the sea and drops the desert (the scenario ships none).
+    await expect(page.getByText("Mer (navigation)")).toBeVisible();
+    await expect(page.getByText("Désert (voleur)")).toHaveCount(0);
+    await expect(page.getByText("Structure du plateau")).toBeVisible();
+
+    // Regenerating draws a different island.
+    const before = await board.textContent();
+    await page.getByRole("button", { name: "Régénérer" }).click();
+    await expect(board).toBeVisible();
+
+    await expect(async () => {
+      expect(await board.textContent()).not.toBe(before);
+    }).toPass();
+  } finally {
+    await deleteScenarios([name]);
+  }
 });
 
 test("switches to the 5-6 player board", async ({ page }) => {

@@ -44,7 +44,6 @@ import {
 } from "./board";
 import {
   bagLandCounts,
-  boardOutline,
   boardTotals,
   cellKey,
   portCorners,
@@ -57,88 +56,6 @@ import {
   specIssueText,
   validateScenarioSpec,
 } from "./scenario-spec";
-
-/** The scenarios this generator ships with. Keys match `board_key`. */
-export type MarinsScenarioKey = "new-world";
-
-/** A scenario the generator can draw, behind the key the app stores. */
-export interface MarinsScenario {
-  key: MarinsScenarioKey;
-  spec: ScenarioSpec;
-}
-
-/**
- * "Le Nouveau Monde" — 23 land tiles (no desert), 9 harbours, 12 points to win,
- * over the standard Marins outline five spaces wide (44 spaces).
- *
- * ⚠️ The scenario has **no printed map**: the players lay the frame out
- * themselves and everything is drawn, so the width below is **ours** and the UI
- * says so — the sea simply fills whatever the land leaves. Only the land and
- * harbour counts are the published ones; the token bag is trimmed to exactly one
- * per producing tile, since a bag has to hold as many tokens as tiles that carry
- * one.
- */
-const NEW_WORLD_WIDTH = 5;
-
-const NEW_WORLD: ScenarioSpec = {
-  name: "Le Nouveau Monde",
-  targetScore: 12,
-  boards: [
-    {
-      players: [3, 4],
-      width: NEW_WORLD_WIDTH,
-      zones: [
-        {
-          name: "Archipel",
-          cells: boardOutline(NEW_WORLD_WIDTH),
-          terrainCounts: {
-            fields: 5,
-            forest: 5,
-            pasture: 5,
-            hills: 4,
-            mountains: 4,
-            sea: 21,
-          },
-          numberTokens: [
-            2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 8, 8, 9, 9, 9, 10, 10, 10, 11,
-            11, 12,
-          ],
-          islands: [3, 5],
-          ports: {
-            types: [
-              "generic",
-              "generic",
-              "generic",
-              "generic",
-              "wood",
-              "brick",
-              "wool",
-              "grain",
-              "ore",
-            ],
-          },
-        },
-      ],
-    },
-  ],
-};
-
-/** Every scenario the generator ships with, in menu order. */
-export const MARINS_SCENARIOS: MarinsScenario[] = [
-  { key: "new-world", spec: NEW_WORLD },
-];
-
-/** The scenario behind a key. */
-export function marinsScenario(key: MarinsScenarioKey): MarinsScenario {
-  const found = MARINS_SCENARIOS.find(s => s.key === key);
-
-  /* c8 ignore next 3 -- unreachable: the key type only admits known scenarios */
-  if (found === undefined) {
-    throw new Error(`Scénario Marins inconnu : ${key}`);
-  }
-
-  return found;
-}
 
 /** A row of a canvas outline: its `r`, and the `q` range of its spaces. */
 export type CanvasRow = readonly [r: number, qStart: number, qEnd: number];
@@ -648,11 +565,6 @@ export interface SpecBoard {
   options: BoardOptions;
 }
 
-/** A generated board of one of the scenarios the generator ships with. */
-export interface MarinsBoard extends SpecBoard {
-  scenario: MarinsScenario;
-}
-
 /**
  * Draws an authored scenario's map for an exact player count — the entry point
  * the editor previews with and the one a scenario read back from the database
@@ -718,17 +630,33 @@ export function generateSpecBoard(
   };
 }
 
-/** Draws one of the built-in scenarios, behind the key the app stores. */
-export function generateMarinsBoard(
-  key: MarinsScenarioKey,
+/** A draw that came out, or the reason it could not. */
+export type SpecDraw =
+  | { ok: true; drawn: SpecBoard }
+  | { ok: false; reason: string };
+
+/**
+ * {@link generateSpecBoard} with the throw turned into an answer. A scenario
+ * read back from the database is only checked for *shape* on the way in, so a
+ * screen that draws one has to be ready to be told no — by a map authored
+ * before a rule existed, or asked for a player count it was never drawn for.
+ */
+export function trySpecBoard(
+  scenario: ScenarioSpec,
   players: number,
   seed?: number,
   options?: BoardOptions,
-): MarinsBoard {
-  const scenario = marinsScenario(key);
-
-  return {
-    scenario,
-    ...generateSpecBoard(scenario.spec, players, seed, options),
-  };
+): SpecDraw {
+  try {
+    return {
+      ok: true,
+      drawn: generateSpecBoard(scenario, players, seed, options),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      /* c8 ignore next -- defensive: the draw only ever throws an Error */
+      reason: error instanceof Error ? error.message : "Tirage impossible.",
+    };
+  }
 }

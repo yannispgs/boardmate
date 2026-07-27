@@ -6,13 +6,11 @@ import { StickyActionBar } from "@/components/StickyActionBar";
 import { useConfirm } from "@/components/use-confirm";
 import { emptyScenario } from "@/lib/catan/scenario-draft";
 import type { ExtensionScenario } from "@/lib/domain";
+import { MARINS_KEY } from "@/lib/game/scenario-editor";
 import { type ScenarioDraft, useScenarios } from "@/lib/hooks/use-extensions";
 import { ScenarioInUseError } from "@/lib/repositories/errors";
 import { AuthoredScenarioCardList } from "./AuthoredScenarioCardList";
 import { ScenarioEditor } from "./ScenarioEditor";
-
-/** The key the Marins extension is found by, whatever its name becomes. */
-const MARINS_KEY = "catan-marins";
 
 /** The draft the editor opens on for an existing scenario. */
 function draftOf(scenario: ExtensionScenario): ScenarioDraft {

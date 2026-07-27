@@ -197,7 +197,7 @@ export function CatanBoardGenerator() {
           onClick={() => regen()}
           className="rounded-lg bg-indigo-600 px-5 py-2.5 font-medium text-white transition hover:bg-indigo-500"
         >
-          🎲 Nouveau plateau
+          🎲 Régénérer
         </button>
 
         {isExtension ? (
