@@ -3,28 +3,20 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { PlayerCountFilter } from "@/components/catan/PlayerCountFilter";
 import {
-  type SegmentedOption,
-  SegmentedPicker,
-} from "@/components/catan/SegmentedPicker";
-import { PencilIcon } from "@/components/icons";
-import { iconButtonClass } from "@/components/ui";
-import { marinsPlayerGroups, playerGroupLabel } from "@/lib/catan/marins";
-import type { ScenarioSpec } from "@/lib/catan/scenario-spec";
-import type { ExtensionScenario, ExtensionScenarioId } from "@/lib/domain";
+  matchesPlayers,
+  type PlayerFilter,
+  playerCountsOf,
+} from "@/lib/catan/scenario-listing";
+import type { ExtensionScenario } from "@/lib/domain";
 import {
   extensionScenariosHref,
   MARINS_KEY,
   MARINS_ORIGIN,
 } from "@/lib/game/scenario-editor";
 import { useScenarios } from "@/lib/hooks/use-extensions";
-import { MarinsScenarioBoard } from "./MarinsScenarioBoard";
-
-/** A scenario that has a map, so the generator can actually draw it. */
-interface Drawable {
-  scenario: ExtensionScenario;
-  spec: ScenarioSpec;
-}
+import { type Drawable, MarinsScenarioDraw } from "./MarinsScenarioDraw";
 
 /** The scenarios of the extension that carry a map, in menu order. */
 function drawableOf(scenarios: ExtensionScenario[]): Drawable[] {
@@ -40,10 +32,10 @@ function drawableOf(scenarios: ExtensionScenario[]): Drawable[] {
  */
 export function MarinsBoardGenerator() {
   const { scenarios, baseGameId, loading } = useScenarios(MARINS_KEY);
-  const [picked, setPicked] = useState<ExtensionScenarioId | null>(null);
-  const [seats, setSeats] = useState<number | null>(null);
+  const [filter, setFilter] = useState<PlayerFilter>("all");
 
   const drawable = drawableOf(scenarios);
+  const shown = drawable.filter(d => matchesPlayers(d.spec, filter));
 
   // Scenarios are authored on the game they extend, not here: this generator
   // only draws what it finds.
@@ -79,72 +71,28 @@ export function MarinsBoardGenerator() {
     );
   }
 
-  // A scenario deleted from another tab, or simply none picked yet, falls back
-  // to the first of the list rather than to an empty screen.
-  const current = drawable.find(d => d.scenario.id === picked) ?? drawable[0];
-
-  const options: SegmentedOption<ExtensionScenarioId>[] = drawable.map(d => ({
-    value: d.scenario.id,
-    label: d.scenario.name,
-    hint:
-      d.scenario.targetScore === null
-        ? undefined
-        : `🎯 ${d.scenario.targetScore} points`,
-  }));
-
-  // The player counts this scenario has a map for. A count the previous
-  // scenario served is kept when this one serves it too, dropped otherwise.
-  const groups = marinsPlayerGroups(current.spec);
-  const group = groups.find(g => g.includes(seats ?? -1)) ?? groups[0];
-  const players = group?.[0] ?? 0;
-
   return (
     <div className="flex flex-col items-center gap-6">
-      <SegmentedPicker
-        label="Scénario"
-        options={options}
-        value={current.scenario.id}
-        onChange={id => {
-          setPicked(id);
-          setSeats(null);
-        }}
-        action={
-          manageHref === null ? null : (
-            <Link
-              href={manageHref}
-              title="Gérer les scénarios"
-              className={iconButtonClass}
-            >
-              <PencilIcon />
-            </Link>
-          )
-        }
+      <PlayerCountFilter
+        counts={playerCountsOf(drawable.map(d => d.spec))}
+        value={filter}
+        onChange={setFilter}
       />
 
-      {groups.length > 1 ? (
-        <SegmentedPicker
-          label="Nombre de joueurs"
-          options={groups.map(g => ({
-            value: g[0],
-            label: playerGroupLabel(g),
-          }))}
-          value={players}
-          onChange={setSeats}
-        />
-      ) : (
+      {shown.length === 0 ? (
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          {group === undefined ? "Aucun plateau" : playerGroupLabel(group)}
-          {current.scenario.targetScore === null
-            ? null
-            : ` · 🎯 ${current.scenario.targetScore} points`}
+          Aucun scénario n&apos;a de plateau pour ce nombre de joueurs.
         </p>
+      ) : (
+        // Filtering on a count is also choosing which map to draw: the draw
+        // starts over on it rather than staying on the board shown before.
+        <MarinsScenarioDraw
+          key={filter}
+          drawable={shown}
+          seats={filter === "all" ? null : filter}
+          manageHref={manageHref}
+        />
       )}
-
-      <MarinsScenarioBoard
-        key={current.scenario.id}
-        spec={current.spec}
-        players={players}
-      />
     </div>
   );
 }

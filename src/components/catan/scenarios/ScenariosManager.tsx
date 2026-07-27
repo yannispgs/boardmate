@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { PlayerCountFilter } from "@/components/catan/PlayerCountFilter";
 import { sectionHeadingClass } from "@/components/ui";
 import { useConfirm } from "@/components/use-confirm";
 import {
@@ -10,6 +11,11 @@ import {
   pruneStrandedPorts,
   stripFixedSea,
 } from "@/lib/catan/scenario-draft";
+import {
+  matchesPlayers,
+  type PlayerFilter,
+  playerCountsOf,
+} from "@/lib/catan/scenario-listing";
 import type { Extension, ExtensionScenario } from "@/lib/domain";
 import { type ScenarioDraft, useScenarios } from "@/lib/hooks/use-extensions";
 import { ScenarioInUseError } from "@/lib/repositories/errors";
@@ -61,7 +67,17 @@ export function ScenariosManager({
   );
   const [editing, setEditing] = useState<ScenarioDraft | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [players, setPlayers] = useState<PlayerFilter>("all");
   const { requestConfirm, confirmDialog } = useConfirm();
+
+  // A scenario with no map yet seats nobody, so it is never filtered out: it is
+  // precisely the one still waiting to be drawn.
+  const specs = scenarios.flatMap(s =>
+    s.boardSpec === null ? [] : [s.boardSpec],
+  );
+  const shown = scenarios.filter(
+    s => s.boardSpec === null || matchesPlayers(s.boardSpec, players),
+  );
 
   async function deleteScenario(scenario: ExtensionScenario) {
     setError(null);
@@ -98,7 +114,7 @@ export function ScenariosManager({
 
   return (
     <section className="flex flex-col gap-3">
-      <h3 className={sectionHeadingClass}>Scénarios · {scenarios.length}</h3>
+      <h3 className={sectionHeadingClass}>Scénarios · {shown.length}</h3>
 
       {error ? (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
@@ -109,11 +125,26 @@ export function ScenariosManager({
       {loading ? (
         <p className="text-sm text-zinc-500">Chargement…</p>
       ) : (
-        <AuthoredScenarioCardList
-          scenarios={scenarios}
-          onEdit={scenario => setEditing(draftOf(scenario))}
-          onDelete={confirmDelete}
-        />
+        <>
+          <div className="self-start">
+            <PlayerCountFilter
+              counts={playerCountsOf(specs)}
+              value={players}
+              onChange={setPlayers}
+            />
+          </div>
+
+          <AuthoredScenarioCardList
+            scenarios={shown}
+            onEdit={scenario => setEditing(draftOf(scenario))}
+            onDelete={confirmDelete}
+            empty={
+              players === "all"
+                ? "Aucun scénario pour l'instant."
+                : `Aucun scénario jouable à ${players} joueurs.`
+            }
+          />
+        </>
       )}
 
       <button
