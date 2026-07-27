@@ -54,7 +54,7 @@ function hexCorners(cx: number, cy: number): Point[] {
 }
 
 /** What a tile laid face down shows of itself: a question mark, and that's all. */
-function Unknown({ centre }: { centre: Point }) {
+function Unknown({ centre }: Readonly<{ centre: Point }>) {
   return (
     <text
       x={centre.x}
