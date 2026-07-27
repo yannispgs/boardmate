@@ -6,6 +6,7 @@ import { BoardStructure } from "@/components/catan/BoardStructure";
 import { BoardWarnings, WarningsBadge } from "@/components/catan/BoardWarnings";
 import { CatanBoardSvg } from "@/components/catan/CatanBoardSvg";
 import { GeneratorSettings } from "@/components/catan/GeneratorSettings";
+import { HiddenMaterial } from "@/components/catan/HiddenMaterial";
 import { PlacementRules } from "@/components/catan/PlacementRules";
 import { TerrainLegend } from "@/components/catan/TerrainLegend";
 import type { CatanTerrain } from "@/lib/catan/board";
@@ -14,6 +15,7 @@ import {
   type GeneratorOptions,
   scenarioOptions,
 } from "@/lib/catan/generator-options";
+import { hiddenMaterial } from "@/lib/catan/hidden-material";
 import { boardTotals, type ScenarioSpec } from "@/lib/catan/scenario-spec";
 import { useScenarioDraw } from "@/lib/hooks/use-scenario-draw";
 
@@ -51,6 +53,7 @@ export function MarinsScenarioBoard({
   players: number;
 }>) {
   const [showWarnings, setShowWarnings] = useState(false);
+  const [showMaterial, setShowMaterial] = useState(false);
   const [options, setOptions] = useState<GeneratorOptions>(() =>
     scenarioOptions(spec.options),
   );
@@ -71,6 +74,7 @@ export function MarinsScenarioBoard({
   const { board } = draw.drawn;
   const totals = boardTotals(draw.drawn.spec);
   const warnings = boardWarnings(board, draw.drawn.options);
+  const fog = hiddenMaterial(draw.drawn.spec);
 
   return (
     <>
@@ -86,13 +90,29 @@ export function MarinsScenarioBoard({
         <BoardWarnings warnings={warnings} className={sectionClass} />
       ) : null}
 
-      <button
-        type="button"
-        onClick={regenerate}
-        className="rounded-lg bg-indigo-600 px-5 py-2.5 font-medium text-white transition hover:bg-indigo-500"
-      >
-        🎲 Régénérer
-      </button>
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        <button
+          type="button"
+          onClick={regenerate}
+          className="rounded-lg bg-indigo-600 px-5 py-2.5 font-medium text-white transition hover:bg-indigo-500"
+        >
+          🎲 Régénérer
+        </button>
+
+        {fog.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => setShowMaterial(v => !v)}
+            className="rounded-lg border border-black/10 px-5 py-2.5 font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/10"
+          >
+            🌫️ {showMaterial ? "Masquer le matériel" : "Matériel à préparer"}
+          </button>
+        ) : null}
+      </div>
+
+      {fog.length > 0 && showMaterial ? (
+        <HiddenMaterial zones={fog} className={sectionClass} />
+      ) : null}
 
       <BoardStructure board={board} />
 

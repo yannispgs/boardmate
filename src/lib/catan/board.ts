@@ -156,6 +156,16 @@ export interface HexCell {
 }
 
 /**
+ * A sea space of a Marins map. It is `hidden` when it came out of a face-down
+ * zone's bag: the water is part of what the players sail out to discover, so
+ * the board must not give away where it is any more than it gives away a
+ * face-down island.
+ */
+export interface SeaCell extends HexCell {
+  hidden: boolean;
+}
+
+/**
  * A harbour slot: the coastal hex it hugs and the off-board direction its edge
  * faces (`dq`/`dr`), enough for the UI to place it on the coastline. Positions
  * are fixed; only the port TYPE is randomised.
@@ -194,7 +204,7 @@ export interface CatanBoard {
    * base boards, where the sea is just the space around the hexagon. Purely
    * positional: they carry no terrain and no number.
    */
-  sea: HexCell[];
+  sea: SeaCell[];
   seed: number;
 }
 
@@ -235,7 +245,7 @@ export interface CatanVariant {
   /** The land tiles — the only ones that get a terrain and a number. */
   cells: HexCell[];
   /** The sea tiles framing them (empty on the base boards). */
-  seaCells: HexCell[];
+  seaCells: SeaCell[];
   /** For each hex id, the ids of its on-board neighbours. */
   neighbours: number[][];
   /** Triples of mutually-adjacent hexes — the interior intersections. */
@@ -557,7 +567,7 @@ export interface VariantContents {
   numberTokens: number[];
   portTypes: CatanPortType[];
   /** Sea tiles framing the land — none on the base boards. */
-  seaCells?: HexCell[];
+  seaCells?: SeaCell[];
   /**
    * Where the harbours sit. Omitted on the base boards, whose slots are spread
    * evenly around the coastline; a Marins scenario picks its own.

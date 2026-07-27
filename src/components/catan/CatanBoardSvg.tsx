@@ -53,6 +53,23 @@ function hexCorners(cx: number, cy: number): Point[] {
   return cornersOf(cx, cy, SIZE);
 }
 
+/** What a tile laid face down shows of itself: a question mark, and that's all. */
+function Unknown({ centre }: { centre: Point }) {
+  return (
+    <text
+      x={centre.x}
+      y={centre.y + 7}
+      textAnchor="middle"
+      fontSize={22}
+      fontWeight="700"
+      fill="#ffffff"
+      opacity={0.7}
+    >
+      ?
+    </text>
+  );
+}
+
 /** Small probability dots under a number token (5 = most likely). */
 function Pips({ cx, cy, n }: { cx: number; cy: number; n: number }) {
   const count = pipCount(n);
@@ -173,16 +190,24 @@ export function CatanBoardSvg({
       aria-label="Plateau de Catan généré"
       className="h-auto w-full max-w-md"
     >
-      {board.sea.map((s, i) => (
-        <polygon
-          key={s.id}
-          points={polygonPoints(seaCorners[i])}
-          fill={SEA_STYLE.fill}
-          stroke={SEA_STYLE.stroke}
-          strokeWidth={2}
-          strokeLinejoin="round"
-        />
-      ))}
+      {board.sea.map((s, i) => {
+        const t = s.hidden ? HIDDEN_STYLE : SEA_STYLE;
+
+        return (
+          <g key={s.id}>
+            <polygon
+              points={polygonPoints(seaCorners[i])}
+              fill={t.fill}
+              stroke={t.stroke}
+              strokeWidth={2}
+              strokeLinejoin="round"
+            />
+            {s.hidden ? (
+              <Unknown centre={tf(axialToPixel(s.q, s.r, SIZE))} />
+            ) : null}
+          </g>
+        );
+      })}
 
       {board.hexes.map(h => {
         const c = centres[h.id];
@@ -199,17 +224,7 @@ export function CatanBoardSvg({
               strokeLinejoin="round"
             />
             {h.hidden ? (
-              <text
-                x={c.x}
-                y={c.y + 7}
-                textAnchor="middle"
-                fontSize={22}
-                fontWeight="700"
-                fill="#ffffff"
-                opacity={0.7}
-              >
-                ?
-              </text>
+              <Unknown centre={c} />
             ) : h.number === null ? (
               <circle cx={c.x} cy={c.y} r={7} fill="#4b5563" opacity={0.85} />
             ) : (

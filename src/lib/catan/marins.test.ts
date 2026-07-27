@@ -650,6 +650,40 @@ describe("generateSpecBoard, on a hand-built spec", () => {
     expect(board.hexes.filter(h => h.terrain === "gold")).toHaveLength(1);
   });
 
+  it("lays the sea of a hidden zone face down too", () => {
+    const spec: ScenarioSpec = {
+      name: "Brume",
+      targetScore: 10,
+      boards: [
+        {
+          players: [3],
+          zones: [
+            {
+              name: "Connue",
+              cells: strip(2, 0),
+              terrainCounts: { sea: 1, forest: 1 },
+              numberTokens: [4],
+            },
+            {
+              name: "Brume",
+              cells: strip(3, 4),
+              terrainCounts: { sea: 2, forest: 1 },
+              numberTokens: [9],
+              hidden: true,
+            },
+          ],
+        },
+      ],
+    };
+    const { board } = generateSpecBoard(spec, 3, 5);
+
+    // The fog would be mapped for free otherwise: an open space is water, a
+    // face-down one is land. Only the fog's two sea tiles are turned over —
+    // the known zone's one and the middle row's two fixed spaces stay open.
+    expect(board.sea.filter(s => s.hidden)).toHaveLength(2);
+    expect(board.sea.filter(s => !s.hidden)).toHaveLength(3);
+  });
+
   it("pins a static tile's space, terrain and token", () => {
     const spec: ScenarioSpec = {
       name: "Statiques",

@@ -38,6 +38,7 @@ import {
   type HexCell,
   mulberry32,
   type PortSlot,
+  type SeaCell,
   shuffle,
   type TilePool,
   withIds,
@@ -411,7 +412,7 @@ function resolveZone(
 /** The map once the draw has settled: where the land, the sea and the bags are. */
 interface ResolvedMap {
   cells: HexCell[];
-  seaCells: HexCell[];
+  seaCells: SeaCell[];
   pools: TilePool[];
   /** Zone index → the land cell ids it ended up with (empty for statics). */
   zoneCells: number[][];
@@ -430,7 +431,7 @@ function resolveMap(
   balanceZones: boolean,
 ): ResolvedMap {
   const cells: HexCell[] = [];
-  const seaCells: HexCell[] = [];
+  const seaCells: SeaCell[] = [];
   const pools: TilePool[] = [];
   const zoneCells: number[][] = [];
 
@@ -439,8 +440,8 @@ function resolveMap(
 
     return cells.length - 1;
   };
-  const addSea = (cell: SpecCell): void => {
-    seaCells.push({ id: seaCells.length, q: cell.q, r: cell.r });
+  const addSea = (cell: SpecCell, hidden = false): void => {
+    seaCells.push({ id: seaCells.length, q: cell.q, r: cell.r, hidden });
   };
 
   // The board's own sea, laid before anything else and never drawn for: a map
@@ -448,14 +449,21 @@ function resolveMap(
   const fixed = new Set(fixedSeaCells(boardWidth(board)).map(cellKey));
   const drawn = (cell: SpecCell): boolean => !fixed.has(cellKey(cell));
 
-  fixedSeaCells(boardWidth(board)).forEach(addSea);
+  fixedSeaCells(boardWidth(board)).forEach(cell => {
+    addSea(cell);
+  });
 
   for (const zone of board.zones) {
     const { land, sea } = resolveZone(zone, rng);
     const ids = land.filter(drawn).map(addLand);
 
     zoneCells.push(ids);
-    sea.filter(drawn).forEach(addSea);
+
+    // A face-down zone hands out face-down water: telling the players where the
+    // sea is would map the fog for them, one space at a time.
+    sea.filter(drawn).forEach(cell => {
+      addSea(cell, zone.hidden ?? false);
+    });
 
     const pool: TilePool = {
       cellIds: ids,
