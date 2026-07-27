@@ -36,6 +36,7 @@ import {
   type SpecPortBag,
   type SpecTerrain,
   type StaticTile,
+  strandedPorts,
 } from "./scenario-spec";
 
 /** The tokens a bag may hold, in the order the editor lists them. */
@@ -138,7 +139,15 @@ export function emptyScenario(): ScenarioSpec {
   };
 }
 
-/** Replaces one board of a scenario with what `change` makes of it. */
+/**
+ * Replaces one board of a scenario with what `change` makes of it, then lifts
+ * off the harbours that change stranded.
+ *
+ * Every edit of a board goes through here, so no tool has to remember that
+ * painting a space can leave a harbour three spaces away hugging nothing: a
+ * harbour is only a harbour while it has a coast, and one that has lost it is
+ * taken off the map instead of being drawn in the middle of an island.
+ */
 function withBoard(
   spec: ScenarioSpec,
   index: number,
@@ -147,9 +156,24 @@ function withBoard(
   return {
     ...spec,
     boards: spec.boards.map((board, i) =>
-      i === index ? change(board) : board,
+      i === index ? prunePorts(change(board)) : board,
     ),
   };
+}
+
+/** The same board with every harbour it no longer has a coast for unpinned. */
+function prunePorts(board: ScenarioBoardSpec): ScenarioBoardSpec {
+  return strandedPorts(board).reduce(withoutSlot, board);
+}
+
+/**
+ * The same scenario with its stranded harbours unpinned, board by board. Run
+ * when a scenario is opened: a map authored before this rule — or painted over
+ * in a version that let a harbour stay behind — comes back with harbours inland,
+ * which nothing in the editor could then take off but the space they sit on.
+ */
+export function pruneStrandedPorts(spec: ScenarioSpec): ScenarioSpec {
+  return { ...spec, boards: spec.boards.map(prunePorts) };
 }
 
 /** Replaces one zone of one board with what `change` makes of it. */

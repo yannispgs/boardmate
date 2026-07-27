@@ -18,6 +18,7 @@ import {
   type ScenarioZone,
   type SpecIssue,
   specIssueText,
+  strandedPorts,
   tokenBearingCount,
   validateScenarioDraft,
   validateScenarioSpec,
@@ -167,6 +168,69 @@ describe("portEdges", () => {
       { q: 1, r: 0, dq: -1, dr: 1 },
       { q: 1, r: 0, dq: 0, dr: 1 },
     ]);
+  });
+});
+
+describe("strandedPorts", () => {
+  /** The row of `zone()` with a harbour trading north off its middle space. */
+  function pinned(...zones: ScenarioZone[]): ScenarioBoardSpec {
+    return {
+      players: [3],
+      zones: [
+        zone({
+          ports: { slots: [{ q: 1, r: 0, dq: 0, dr: -1 }], types: ["wood"] },
+        }),
+        ...zones,
+      ],
+    };
+  }
+
+  it("leaves a harbour hugging its coast alone", () => {
+    expect(strandedPorts(pinned())).toEqual([]);
+  });
+
+  it("reports the one whose water was painted over", () => {
+    const filled = zone({
+      name: "Continent",
+      cells: [{ q: 1, r: -1 }],
+      terrainCounts: { forest: 1 },
+      numberTokens: [6],
+    });
+
+    expect(strandedPorts(pinned(filled))).toEqual([
+      { q: 1, r: 0, dq: 0, dr: -1 },
+    ]);
+  });
+
+  it("reports the one whose own space stopped being certain land", () => {
+    const board = pinned();
+    const drawn = {
+      ...board,
+      zones: [{ ...board.zones[0], terrainCounts: { forest: 2, sea: 1 } }],
+    };
+
+    expect(strandedPorts(drawn)).toEqual([{ q: 1, r: 0, dq: 0, dr: -1 }]);
+  });
+
+  it("keeps the two harbours meeting at a corner", () => {
+    // Both still have a coast: which of them to lift off is the author's call,
+    // and `touchingIssues` is what tells him about it.
+    const touching: ScenarioBoardSpec = {
+      players: [3],
+      zones: [
+        zone({
+          ports: {
+            slots: [
+              { q: 0, r: 0, dq: 1, dr: -1 },
+              { q: 1, r: 0, dq: 0, dr: -1 },
+            ],
+            types: ["wood", "ore"],
+          },
+        }),
+      ],
+    };
+
+    expect(strandedPorts(touching)).toEqual([]);
   });
 });
 
@@ -374,6 +438,23 @@ describe("validateScenarioSpec", () => {
         }),
       ),
     ).toEqual(["forced-gold-red"]);
+  });
+
+  it("says nothing about gold rivers when the scenario allows reds on them", () => {
+    const loose: ScenarioSpec = {
+      ...spec({
+        statics: [{ cell: { q: 0, r: 1 }, terrain: "gold", number: 6 }],
+        zones: [
+          zone({
+            terrainCounts: { forest: 1, gold: 2 },
+            numberTokens: [6, 8, 5],
+          }),
+        ],
+      }),
+      options: { avoidGoldReds: false },
+    };
+
+    expect(validateScenarioSpec(loose)).toEqual([]);
   });
 
   it("accepts reds a zone can keep off its gold rivers", () => {

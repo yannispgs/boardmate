@@ -12,6 +12,7 @@ import {
   narrowestWidth,
   paintCell,
   portTypeCounts,
+  pruneStrandedPorts,
   removeBoard,
   removeZone,
   renameZone,
@@ -609,6 +610,41 @@ describe("harbours", () => {
     });
 
     expect(erased.boards[0].ports?.slots).toEqual([]);
+  });
+
+  it("unpins a harbour whose water was painted over", () => {
+    // (0,-1) was the open sea the harbour traded across; painting it into the
+    // zone leaves the harbour hugging land on both sides.
+    const pinned = togglePortSlot(painted(), 0, slot);
+    const filled = paintCell(pinned, 0, 0, { q: 0, r: -1 });
+
+    expect(zone(filled).ports?.slots).toEqual([]);
+  });
+
+  it("unpins a harbour whose space stopped being certain land", () => {
+    const pinned = togglePortSlot(painted(), 0, slot);
+
+    expect(zone(setTerrainCount(pinned, 0, 0, "sea", 1)).ports?.slots).toEqual(
+      [],
+    );
+    expect(zone(setZoneHidden(pinned, 0, 0, true)).ports?.slots).toEqual([]);
+  });
+
+  it("takes the stranded harbours off a scenario read back from storage", () => {
+    // A map painted over before harbours were lifted off comes back with them
+    // inland, where nothing in the editor could reach them.
+    const pinned = togglePortSlot(painted(), 0, slot);
+    const broken: ScenarioSpec = {
+      ...pinned,
+      boards: [
+        {
+          ...pinned.boards[0],
+          statics: [{ cell: { q: 0, r: -1 }, terrain: "hills" }],
+        },
+      ],
+    };
+
+    expect(zone(pruneStrandedPorts(broken)).ports?.slots).toEqual([]);
   });
 
   it("fills the board's own bag by type", () => {

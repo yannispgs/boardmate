@@ -426,13 +426,6 @@ export function portEdges(
   cell: SpecCell,
 ): SpecPort[] {
   const certainty = certaintyMap(board);
-  const at = (space: SpecCell): CellCertainty =>
-    certainty.get(cellKey(space)) ?? "water";
-
-  if (at(cell) !== "land") {
-    return [];
-  }
-
   const taken = new Set(pinnedSlots(board).flatMap(portCorners));
 
   return DIRECTIONS.map(([dq, dr]) => ({
@@ -442,9 +435,40 @@ export function portEdges(
     dr,
   })).filter(
     port =>
-      at({ q: port.q + port.dq, r: port.r + port.dr }) === "water" &&
+      onCoast(certainty, port) &&
       !portCorners(port).some(corner => taken.has(corner)),
   );
+}
+
+/** Whether both sides of a harbour's edge are settled: land here, water across. */
+function onCoast(
+  certainty: Map<string, CellCertainty>,
+  port: SpecPort,
+): boolean {
+  const at = (space: SpecCell): CellCertainty =>
+    certainty.get(cellKey(space)) ?? "water";
+
+  return (
+    at(port) === "land" &&
+    at({ q: port.q + port.dq, r: port.r + port.dr }) === "water"
+  );
+}
+
+/**
+ * The pinned harbours a board no longer has a coast for. Painting moves what a
+ * space holds under harbours pinned long before: the one they hug can turn into
+ * sea, or into something the draw decides, and the water they traded across can
+ * turn into land. This is {@link portEdges} read the other way round — over the
+ * harbours already there rather than over the edges still free.
+ *
+ * Two harbours meeting at a corner are **not** in here: they are only ever
+ * pinned that way on purpose, and which of the two to lift off is the author's
+ * call, not ours ({@link touchingIssues} reports them instead).
+ */
+export function strandedPorts(board: ScenarioBoardSpec): SpecPort[] {
+  const certainty = certaintyMap(board);
+
+  return pinnedSlots(board).filter(slot => !onCoast(certainty, slot));
 }
 
 /** What a board adds up to, for the recap and for the generator's own totals. */
@@ -554,8 +578,17 @@ export function cellKey(cell: SpecCell): string {
   return `${cell.q},${cell.r}`;
 }
 
-/** Collects the issues of one board of a scenario. */
-function boardIssues(board: ScenarioBoardSpec, index: number): SpecIssue[] {
+/**
+ * Collects the issues of one board of a scenario. `goldReds` is the scenario's
+ * own setting: an author who turned the gold-river rule off is not held to it
+ * here either, or the editor would refuse to save a map the generator is
+ * perfectly willing to draw.
+ */
+function boardIssues(
+  board: ScenarioBoardSpec,
+  index: number,
+  goldReds: boolean,
+): SpecIssue[] {
   const issues: SpecIssue[] = [];
   const claimed = new Set<string>();
 
@@ -621,7 +654,7 @@ function boardIssues(board: ScenarioBoardSpec, index: number): SpecIssue[] {
       }
     }
 
-    issues.push(...goldIssues(zone, shared));
+    issues.push(...(goldReds ? goldIssues(zone, shared) : []));
   });
 
   for (const tile of board.statics ?? []) {
@@ -650,7 +683,7 @@ function boardIssues(board: ScenarioBoardSpec, index: number): SpecIssue[] {
       issues.push({ kind: "static-token", board: index, cell: tile.cell });
     }
 
-    if (tile.terrain === "gold" && isRedNumber(tile.number)) {
+    if (goldReds && tile.terrain === "gold" && isRedNumber(tile.number)) {
       issues.push({ kind: "static-gold-red", board: index, cell: tile.cell });
     }
   }
@@ -827,6 +860,7 @@ function portIssues(board: ScenarioBoardSpec, index: number): SpecIssue[] {
  */
 export function validateScenarioSpec(spec: ScenarioSpec): SpecIssue[] {
   const issues: SpecIssue[] = [];
+  const goldReds = spec.options?.avoidGoldReds ?? true;
 
   if (spec.boards.length === 0) {
     issues.push({ kind: "no-boards" });
@@ -843,7 +877,7 @@ export function validateScenarioSpec(spec: ScenarioSpec): SpecIssue[] {
       seen.set(players, index);
     }
 
-    issues.push(...boardIssues(board, index));
+    issues.push(...boardIssues(board, index, goldReds));
   });
 
   return issues;

@@ -7,6 +7,7 @@ import { useConfirm } from "@/components/use-confirm";
 import {
   DEFAULT_TARGET_SCORE,
   emptyScenario,
+  pruneStrandedPorts,
   stripFixedSea,
 } from "@/lib/catan/scenario-draft";
 import type { Extension, ExtensionScenario } from "@/lib/domain";
@@ -22,15 +23,18 @@ import { ScenarioEditor } from "./ScenarioEditor";
  *
  * A map drawn before the ends of the middle row were fixed to the open sea may
  * still paint over them; it is lifted off on the way in, since the author can no
- * longer reach those spaces to do it himself.
+ * longer reach those spaces to do it himself. So are the harbours left inland by
+ * a map painted over in a version that did not take them off.
  */
 function draftOf(scenario: ExtensionScenario): ScenarioDraft {
-  const boardSpec = stripFixedSea(
-    scenario.boardSpec ?? {
-      ...emptyScenario(),
-      name: scenario.name,
-      targetScore: scenario.targetScore ?? DEFAULT_TARGET_SCORE,
-    },
+  const boardSpec = pruneStrandedPorts(
+    stripFixedSea(
+      scenario.boardSpec ?? {
+        ...emptyScenario(),
+        name: scenario.name,
+        targetScore: scenario.targetScore ?? DEFAULT_TARGET_SCORE,
+      },
+    ),
   );
 
   return {
