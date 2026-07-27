@@ -1,15 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
+import { GeneratorSettings } from "@/components/catan/GeneratorSettings";
 import { EraserIcon } from "@/components/icons";
 import { StickyActionBar } from "@/components/StickyActionBar";
 import { fieldClass, sectionHeadingClass } from "@/components/ui";
 import { useConfirm } from "@/components/use-confirm";
+import { scenarioOptions } from "@/lib/catan/generator-options";
 import { playerGroupLabel } from "@/lib/catan/marins";
 import {
   eraseCell,
   paintCell,
+  setGeneratorOptions,
   setScenarioName,
   setStaticTile,
   setTargetScore,
@@ -108,6 +111,12 @@ export function ScenarioEditor({
   const issues = validateScenarioDraft(spec);
   const labels = spec.boards.map(b => boardLabel(b.players));
   const width = boardWidth(board);
+  // Kept identical between two paint strokes: the preview redraws on it, and a
+  // fresh object every keystroke would have it redraw for nothing.
+  const generator = useMemo(
+    () => scenarioOptions(spec.options),
+    [spec.options],
+  );
 
   function change(next: ScenarioSpec) {
     setSpec(next);
@@ -327,20 +336,37 @@ export function ScenarioEditor({
               <SpecIssueList issues={issues} boardLabels={labels} />
             </section>
 
-            {issues.length === 0 && board.players.length > 0 ? (
-              <section className="flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPreview(v => !v)}
-                  className="self-start rounded-lg border border-black/10 px-3 py-1.5 text-sm font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
-                >
-                  {preview ? "Masquer l'aperçu" : "Aperçu du tirage"}
-                </button>
-                {preview ? (
-                  <BoardPreview spec={spec} players={board.players[0]} />
-                ) : null}
-              </section>
-            ) : null}
+            {/* The settings sit against the preview rather than up with the
+                name and the score: they are set by looking at what they do to
+                the map, not typed in once. They belong to the scenario all the
+                same — the generator starts every draw of it from here. */}
+            <section className="flex flex-col gap-2">
+              <h3 className={sectionHeadingClass}>Tirage</h3>
+              <GeneratorSettings
+                options={generator}
+                onChange={patch => change(setGeneratorOptions(spec, patch))}
+                deserts="none"
+              />
+
+              {issues.length === 0 && board.players.length > 0 ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setPreview(v => !v)}
+                    className="self-start rounded-lg border border-black/10 px-3 py-1.5 text-sm font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+                  >
+                    {preview ? "Masquer l'aperçu" : "Aperçu du tirage"}
+                  </button>
+                  {preview ? (
+                    <BoardPreview
+                      spec={spec}
+                      players={board.players[0]}
+                      options={generator}
+                    />
+                  ) : null}
+                </>
+              ) : null}
+            </section>
           </div>
         </div>
       </div>

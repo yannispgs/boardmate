@@ -29,6 +29,7 @@ import {
   DIRECTIONS,
   isRedNumber,
 } from "./board";
+import type { GeneratorOptions } from "./generator-options";
 
 /** Every scenario board is seven rows deep; only its width changes. */
 export const BOARD_ROWS = 7;
@@ -205,6 +206,15 @@ export interface ScenarioSpec {
   /** The scenario's score to reach — independent of the player count. */
   targetScore: number;
   boards: ScenarioBoardSpec[];
+  /**
+   * How this scenario wants to be drawn: the generator settings its author
+   * saved, over the Marins defaults for the rest. A map is authored with a
+   * balance in mind — how tightly the resources are spread, how strong an
+   * opening spot may be — so the settings belong to it rather than to whoever
+   * opens the generator. Players still tune them for one draw; nothing they
+   * change there comes back here.
+   */
+  options?: Partial<GeneratorOptions>;
 }
 
 /** Tokens a bag may hold: 2–12, never 7. */

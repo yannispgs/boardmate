@@ -22,6 +22,8 @@ const MAX_BOARDS = 8;
 const MAX_ZONES = 64;
 const MAX_CELLS = 512;
 const MAX_TILES = 512;
+const MAX_PIPS = 60;
+const MAX_CANDIDATES = 1000;
 
 const terrainSchema = z.enum([
   "forest",
@@ -79,6 +81,30 @@ const staticSchema = z.object({
   number: z.number().int().optional(),
 });
 
+/**
+ * The settings a scenario saves. Every field is optional — what an author never
+ * touched falls back to the Marins default — and every number is bounded: the
+ * candidate counts are how many boards the generator draws before keeping one,
+ * so an unbounded blob would be a free way to make the browser chew forever.
+ */
+const generatorOptionsSchema = z.object({
+  desertInner: z.boolean().optional(),
+  desertOuter: z.boolean().optional(),
+  allowAdjacentDeserts: z.boolean().optional(),
+  ignore: z.boolean().optional(),
+  tolerancePct: z.number().int().min(0).max(100).optional(),
+  avoidReds: z.boolean().optional(),
+  avoidDuplicates: z.boolean().optional(),
+  avoidClusters: z.boolean().optional(),
+  balanceInter: z.boolean().optional(),
+  penalizeVariance: z.boolean().optional(),
+  limitInterPips: z.boolean().optional(),
+  maxInterPips: z.number().int().min(0).max(MAX_PIPS).optional(),
+  avoidPortRes: z.boolean().optional(),
+  terrainN: z.number().int().min(1).max(MAX_CANDIDATES).optional(),
+  numberN: z.number().int().min(1).max(MAX_CANDIDATES).optional(),
+});
+
 const boardSchema = z.object({
   players: z.array(z.number().int()).max(MAX_BOARDS),
   width: z.number().int().min(MIN_WIDTH).max(MAX_WIDTH).optional(),
@@ -95,6 +121,7 @@ export const scenarioSpecSchema: z.ZodType<ScenarioSpec> = z.object({
   name: z.string().max(MAX_NAME),
   targetScore: z.number().int(),
   boards: z.array(boardSchema).max(MAX_BOARDS),
+  options: generatorOptionsSchema.optional(),
 });
 
 /**

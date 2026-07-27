@@ -13,6 +13,7 @@
  */
 
 import type { CatanPortType } from "./board";
+import { type GeneratorOptions, scenarioOptions } from "./generator-options";
 import {
   boardOutline,
   cellKey,
@@ -162,6 +163,19 @@ export function setTargetScore(
   targetScore: number,
 ): ScenarioSpec {
   return { ...spec, targetScore };
+}
+
+/**
+ * Changes some of the generator settings the scenario is drawn under, leaving
+ * the rest as they were. Saved whole rather than as the difference from the
+ * defaults: what an author sees in the panel is what the scenario keeps, even
+ * if a default moves under it in a later version.
+ */
+export function setGeneratorOptions(
+  spec: ScenarioSpec,
+  patch: Partial<GeneratorOptions>,
+): ScenarioSpec {
+  return { ...spec, options: { ...scenarioOptions(spec.options), ...patch } };
 }
 
 /** Adds an empty board for another player count. */

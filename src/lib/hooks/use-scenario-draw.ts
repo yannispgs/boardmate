@@ -2,6 +2,10 @@
 
 import { useMemo, useState } from "react";
 
+import {
+  type GeneratorOptions,
+  toBoardOptions,
+} from "@/lib/catan/generator-options";
 import { type SpecDraw, trySpecBoard } from "@/lib/catan/marins";
 import type { ScenarioSpec } from "@/lib/catan/scenario-spec";
 
@@ -18,16 +22,26 @@ export interface ScenarioDraw {
  * which to play, is looking at an illustration, and an illustration that
  * changes under them tells them nothing. "Régénérer" is what asks the hazard
  * a fresh question.
+ *
+ * Changing a generator setting redraws on the **same** seed, so what moves on
+ * the board is what that setting decides — which is the point of touching it.
  */
 export function useScenarioDraw(
   spec: ScenarioSpec,
   players: number,
+  options?: GeneratorOptions,
 ): ScenarioDraw {
   const [seed, setSeed] = useState(1);
 
   const draw = useMemo(
-    () => trySpecBoard(spec, players, seed),
-    [spec, players, seed],
+    () =>
+      trySpecBoard(
+        spec,
+        players,
+        seed,
+        options === undefined ? undefined : toBoardOptions(options),
+      ),
+    [spec, players, seed, options],
   );
 
   return { draw, regenerate: () => setSeed(s => s + 1) };

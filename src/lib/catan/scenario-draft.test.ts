@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { scenarioOptions } from "./generator-options";
 import {
   addBoard,
   addZone,
@@ -17,6 +18,7 @@ import {
   setBoardPlayers,
   setBoardPortTypeCount,
   setBoardWidth,
+  setGeneratorOptions,
   setPortTypeCount,
   setScenarioName,
   setStaticTile,
@@ -192,6 +194,20 @@ describe("the scenario itself", () => {
 
     expect(spec.name).toBe("Les quatre îles");
     expect(spec.targetScore).toBe(13);
+  });
+
+  it("carries the generator settings it is drawn under", () => {
+    const spec = setGeneratorOptions(
+      setGeneratorOptions(emptyScenario(), { avoidReds: false }),
+      { tolerancePct: 40 },
+    );
+
+    expect(spec.options?.avoidReds).toBe(false);
+    expect(spec.options?.tolerancePct).toBe(40);
+    // Saved whole, so a default that moves later doesn't move the scenario.
+    expect(spec.options).toEqual(
+      scenarioOptions({ avoidReds: false, tolerancePct: 40 }),
+    );
   });
 });
 

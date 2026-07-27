@@ -3,22 +3,26 @@
 import { BoardWarnings } from "@/components/catan/BoardWarnings";
 import { CatanBoardSvg } from "@/components/catan/CatanBoardSvg";
 import { boardWarnings } from "@/lib/catan/board";
+import type { GeneratorOptions } from "@/lib/catan/generator-options";
 import type { ScenarioSpec } from "@/lib/catan/scenario-spec";
 import { useScenarioDraw } from "@/lib/hooks/use-scenario-draw";
 
 /**
  * A real draw of the scenario being authored, for the player count on screen —
  * the only way to tell a map that adds up from a map that plays well. Redrawing
- * shows how much the scenario actually leaves to chance.
+ * shows how much the scenario actually leaves to chance, and the settings it is
+ * drawn under are the scenario's own, so changing one is answered here.
  */
 export function BoardPreview({
   spec,
   players,
+  options,
 }: Readonly<{
   spec: ScenarioSpec;
   players: number;
+  options: GeneratorOptions;
 }>) {
-  const { draw, regenerate } = useScenarioDraw(spec, players);
+  const { draw, regenerate } = useScenarioDraw(spec, players, options);
 
   if (!draw.ok) {
     return (

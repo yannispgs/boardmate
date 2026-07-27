@@ -30,6 +30,7 @@ const full: ScenarioSpec = {
       statics: [{ cell: { q: 5, r: 3 }, terrain: "mountains", number: 9 }],
     },
   ],
+  options: { avoidReds: false, tolerancePct: 35, terrainN: 120 },
 };
 
 describe("scenarioSpecSchema", () => {
@@ -126,6 +127,11 @@ describe("parseScenarioSpec", () => {
           },
         ],
       }),
+    ).toBeNull();
+
+    // Every candidate is a whole board drawn and scored before one is kept.
+    expect(
+      parseScenarioSpec({ ...full, options: { numberN: 10_000_000 } }),
     ).toBeNull();
   });
 });
