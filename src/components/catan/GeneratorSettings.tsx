@@ -194,7 +194,7 @@ export function GeneratorSettings({
           />
           {options.limitInterPips ? (
             <label className="flex items-center gap-1.5 pl-6 text-sm">
-              Maximum
+              <span>Maximum</span>
               <input
                 type="number"
                 min={3}
@@ -206,7 +206,7 @@ export function GeneratorSettings({
                 aria-label="Pips maximum par intersection"
                 className={numField}
               />
-              pastilles
+              <span>pastilles</span>
             </label>
           ) : null}
           <span className="pl-6 text-[11px] text-zinc-400">
@@ -221,7 +221,7 @@ export function GeneratorSettings({
             Candidats évalués (qualité ↔ variété)
           </span>
           <label className="flex items-center justify-between gap-2 text-sm">
-            Terrains
+            <span>Terrains</span>
             <input
               type="number"
               min={1}
@@ -235,7 +235,7 @@ export function GeneratorSettings({
             />
           </label>
           <label className="flex items-center justify-between gap-2 text-sm">
-            Nombres
+            <span>Nombres</span>
             <input
               type="number"
               min={1}
@@ -258,7 +258,7 @@ export function GeneratorSettings({
           onChange={e => onChange({ ignore: e.target.checked })}
           className="h-4 w-4 shrink-0 accent-indigo-600"
         />
-        Ignorer toutes les contraintes de placement
+        <span>Ignorer toutes les contraintes de placement</span>
       </label>
     </section>
   );
