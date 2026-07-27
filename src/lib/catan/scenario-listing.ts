@@ -52,7 +52,7 @@ function runs(counts: number[]): number[][] {
   for (const count of counts) {
     const last = out.at(-1);
 
-    if (last !== undefined && last[last.length - 1] === count - 1) {
+    if (last?.at(-1) === count - 1) {
       last.push(count);
     } else {
       out.push([count]);
@@ -69,11 +69,13 @@ export function playerCountsLabel(counts: number[]): string {
   }
 
   const parts = runs(counts).map(run =>
-    run.length > 1 ? `${run[0]}-${run[run.length - 1]}` : `${run[0]}`,
+    run.length > 1 ? `${run[0]}-${run.at(-1)}` : `${run[0]}`,
   );
-  const last = counts[counts.length - 1];
 
-  return `${parts.join(", ")} joueur${last > 1 ? "s" : ""}`;
+  // Ascending, so anything above one player means the last one is.
+  const plural = counts.some(count => count > 1) ? "s" : "";
+
+  return `${parts.join(", ")} joueur${plural}`;
 }
 
 /** The face-down tiles of a board — the fog someone has to sail into. */
