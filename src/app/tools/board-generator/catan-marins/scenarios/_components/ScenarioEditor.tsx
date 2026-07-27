@@ -193,38 +193,30 @@ export function ScenarioEditor({
           the canvas they ate close to half a phone screen, for two fields set
           once and never looked at again. */}
       <div className="flex flex-1 flex-col gap-6 pb-4">
-        <label className="flex max-w-md flex-col gap-1 text-sm">
-          <span className={sectionHeadingClass}>Nom du scénario</span>
-          <input
-            value={spec.name}
-            onChange={e => change(setScenarioName(spec, e.target.value))}
-            placeholder="Les quatre îles"
-            className={fieldClass}
-          />
-        </label>
-
-        {/* Which maps the scenario is made of, and who each is played by, is
-            scenario-wide like the name above: it says nothing about what is
-            painted on them, so it reads with the rest of the heading. */}
-        <BoardTabs
-          spec={spec}
-          board={boardIndex}
-          labels={labels}
-          onChange={change}
-          onPick={pickBoard}
-        />
-
-        <label className="flex w-32 flex-col gap-1 text-sm">
-          <span className={sectionHeadingClass}>Score à atteindre</span>
-          <input
-            type="number"
-            min={1}
-            max={30}
-            value={spec.targetScore}
-            onChange={e => change(setTargetScore(spec, Number(e.target.value)))}
-            className={fieldClass}
-          />
-        </label>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex min-w-60 flex-1 flex-col gap-1 text-sm">
+            <span className={sectionHeadingClass}>Nom du scénario</span>
+            <input
+              value={spec.name}
+              onChange={e => change(setScenarioName(spec, e.target.value))}
+              placeholder="Les quatre îles"
+              className={fieldClass}
+            />
+          </label>
+          <label className="flex w-32 flex-col gap-1 text-sm">
+            <span className={sectionHeadingClass}>Score à atteindre</span>
+            <input
+              type="number"
+              min={1}
+              max={30}
+              value={spec.targetScore}
+              onChange={e =>
+                change(setTargetScore(spec, Number(e.target.value)))
+              }
+              className={fieldClass}
+            />
+          </label>
+        </div>
 
         <div className="flex flex-col gap-6 lg:flex-row">
           <aside className="flex shrink-0 flex-col gap-5 lg:w-80">
@@ -276,43 +268,59 @@ export function ScenarioEditor({
           </aside>
 
           <div className="flex min-w-0 flex-1 flex-col gap-4">
-            {/* The eraser sits on the map rather than among the tools: it is
-                reached where it is used, in the corner the outline leaves
-                empty, and it toggles — off, painting takes over again. */}
-            <div className="relative rounded-xl border border-black/10 p-3 dark:border-white/10">
-              <button
-                type="button"
-                onClick={() => {
-                  setTool(current => (current === "erase" ? "paint" : "erase"));
-                  setSelected(null);
-                }}
-                title={ERASE_HINT}
-                aria-label="Gomme"
-                className={`absolute top-2 right-2 rounded-lg border p-2 transition ${
-                  tool === "erase"
-                    ? "border-indigo-600 bg-indigo-600 text-white"
-                    : "border-black/10 bg-white/70 text-zinc-600 hover:bg-black/5 dark:border-white/15 dark:bg-zinc-900/70 dark:text-zinc-300 dark:hover:bg-white/10"
-                }`}
-              >
-                <EraserIcon />
-              </button>
-              <ScenarioCanvas
-                board={board}
+            {/* One frame around everything that is about this board: which one
+                it is and who plays it, the map itself, and how wide it is cut.
+                What sits outside — the tool, the zone, the checks — is either
+                about the scenario or about what is painted on the map. */}
+            <div className="flex flex-col gap-4 rounded-xl border border-black/10 p-3 dark:border-white/10">
+              <BoardTabs
+                spec={spec}
+                board={boardIndex}
+                labels={labels}
+                onChange={change}
+                onPick={pickBoard}
+              />
+
+              {/* The eraser sits on the map rather than among the tools: it is
+                  reached where it is used, in the corner the outline leaves
+                  empty, and it toggles — off, painting takes over again. */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTool(current =>
+                      current === "erase" ? "paint" : "erase",
+                    );
+                    setSelected(null);
+                  }}
+                  title={ERASE_HINT}
+                  aria-label="Gomme"
+                  className={`absolute top-2 right-2 rounded-lg border p-2 transition ${
+                    tool === "erase"
+                      ? "border-indigo-600 bg-indigo-600 text-white"
+                      : "border-black/10 bg-white/70 text-zinc-600 hover:bg-black/5 dark:border-white/15 dark:bg-zinc-900/70 dark:text-zinc-300 dark:hover:bg-white/10"
+                  }`}
+                >
+                  <EraserIcon />
+                </button>
+                <ScenarioCanvas
+                  board={board}
+                  width={width}
+                  activeZone={zone}
+                  tool={tool}
+                  selected={selected}
+                  onCell={handleCell}
+                  onPort={handlePort}
+                />
+              </div>
+
+              <WidthStepper
+                spec={spec}
+                board={boardIndex}
                 width={width}
-                activeZone={zone}
-                tool={tool}
-                selected={selected}
-                onCell={handleCell}
-                onPort={handlePort}
+                onChange={change}
               />
             </div>
-
-            <WidthStepper
-              spec={spec}
-              board={boardIndex}
-              width={width}
-              onChange={change}
-            />
 
             <section className="flex flex-col gap-2">
               <h3 className={sectionHeadingClass}>Vérifications</h3>
