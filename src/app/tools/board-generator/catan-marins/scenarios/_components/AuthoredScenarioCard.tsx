@@ -8,7 +8,7 @@ import type { ExtensionScenario } from "@/lib/domain";
 /** What the scenario's maps add up to, in one line. */
 function summary(scenario: ExtensionScenario): string {
   if (scenario.boardSpec === null) {
-    return "Plateau intégré à l'application";
+    return "Aucun plateau dessiné";
   }
 
   const boards = scenario.boardSpec.boards;
@@ -23,8 +23,9 @@ function summary(scenario: ExtensionScenario): string {
 
 /**
  * One authored scenario: what it holds, the score it is played to, and the two
- * things that can be done to it. A scenario shipped in code has no map of its
- * own in the database, so it can only be read.
+ * things that can be done to it. A scenario with no map yet — one seeded from
+ * the rulebook, waiting to be drawn — opens on an empty board like a new one:
+ * nothing is shipped in code any more, so nothing is read-only.
  */
 export function AuthoredScenarioCard({
   scenario,
@@ -35,8 +36,6 @@ export function AuthoredScenarioCard({
   onEdit: (scenario: ExtensionScenario) => void;
   onDelete: (scenario: ExtensionScenario) => void;
 }>) {
-  const editable = scenario.boardSpec !== null;
-
   return (
     <li className="flex items-center gap-3 rounded-xl border border-black/10 bg-white px-4 py-3 dark:border-white/10 dark:bg-zinc-900">
       <div className="flex min-w-0 flex-1 flex-col">
@@ -53,20 +52,18 @@ export function AuthoredScenarioCard({
       <button
         type="button"
         onClick={() => onEdit(scenario)}
-        disabled={!editable}
         aria-label={`Modifier ${scenario.name}`}
-        title={editable ? "Modifier" : "Scénario intégré à l'application"}
-        className={`${iconButtonClass} disabled:opacity-30`}
+        title="Modifier"
+        className={iconButtonClass}
       >
         <PencilIcon />
       </button>
       <button
         type="button"
         onClick={() => onDelete(scenario)}
-        disabled={!editable}
         aria-label={`Supprimer ${scenario.name}`}
         title="Supprimer"
-        className={`${dangerIconButtonClass} disabled:opacity-30`}
+        className={dangerIconButtonClass}
       >
         <TrashIcon />
       </button>

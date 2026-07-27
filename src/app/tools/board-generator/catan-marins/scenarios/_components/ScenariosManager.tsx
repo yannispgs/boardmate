@@ -4,7 +4,10 @@ import { useState } from "react";
 
 import { StickyActionBar } from "@/components/StickyActionBar";
 import { useConfirm } from "@/components/use-confirm";
-import { emptyScenario } from "@/lib/catan/scenario-draft";
+import {
+  DEFAULT_TARGET_SCORE,
+  emptyScenario,
+} from "@/lib/catan/scenario-draft";
 import type { ExtensionScenario } from "@/lib/domain";
 import { MARINS_KEY } from "@/lib/game/scenario-editor";
 import { type ScenarioDraft, useScenarios } from "@/lib/hooks/use-extensions";
@@ -12,15 +15,23 @@ import { ScenarioInUseError } from "@/lib/repositories/errors";
 import { AuthoredScenarioCardList } from "./AuthoredScenarioCardList";
 import { ScenarioEditor } from "./ScenarioEditor";
 
-/** The draft the editor opens on for an existing scenario. */
+/**
+ * The draft the editor opens on for an existing scenario. A scenario seeded
+ * from the rulebook carries no map yet: it opens on an empty board — but under
+ * its own name and score, which the editor saves back from the spec itself.
+ */
 function draftOf(scenario: ExtensionScenario): ScenarioDraft {
+  const boardSpec = scenario.boardSpec ?? {
+    ...emptyScenario(),
+    name: scenario.name,
+    targetScore: scenario.targetScore ?? DEFAULT_TARGET_SCORE,
+  };
+
   return {
     id: scenario.id,
-    name: scenario.name,
-    targetScore: scenario.targetScore,
-    // Only scenarios with a map of their own can be opened; the fallback is
-    // there for the type, not for a case the list allows.
-    boardSpec: scenario.boardSpec ?? emptyScenario(),
+    name: boardSpec.name,
+    targetScore: boardSpec.targetScore,
+    boardSpec,
   };
 }
 

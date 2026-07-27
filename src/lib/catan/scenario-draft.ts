@@ -108,9 +108,19 @@ export function emptyBoard(players: number[]): ScenarioBoardSpec {
   return { players, width: DEFAULT_WIDTH, zones: [] };
 }
 
+/**
+ * The score a scenario is played to until its author says otherwise — the one
+ * the shortest Marins scenarios use.
+ */
+export const DEFAULT_TARGET_SCORE = 12;
+
 /** A blank scenario: one board for three players, nothing painted. */
 export function emptyScenario(): ScenarioSpec {
-  return { name: "", targetScore: 12, boards: [emptyBoard([3])] };
+  return {
+    name: "",
+    targetScore: DEFAULT_TARGET_SCORE,
+    boards: [emptyBoard([3])],
+  };
 }
 
 /** Replaces one board of a scenario with what `change` makes of it. */
