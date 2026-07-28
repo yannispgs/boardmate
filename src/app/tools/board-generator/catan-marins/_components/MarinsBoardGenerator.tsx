@@ -5,25 +5,18 @@ import { useState } from "react";
 
 import { PlayerCountFilter } from "@/components/catan/PlayerCountFilter";
 import {
+  drawableOf,
   matchesPlayers,
   type PlayerFilter,
   playerCountsOf,
 } from "@/lib/catan/scenario-listing";
-import type { ExtensionScenario } from "@/lib/domain";
 import {
   extensionScenariosHref,
   MARINS_KEY,
   MARINS_ORIGIN,
 } from "@/lib/game/scenario-editor";
 import { useScenarios } from "@/lib/hooks/use-extensions";
-import { type Drawable, MarinsScenarioDraw } from "./MarinsScenarioDraw";
-
-/** The scenarios of the extension that carry a map, in menu order. */
-function drawableOf(scenarios: ExtensionScenario[]): Drawable[] {
-  return scenarios.flatMap(scenario =>
-    scenario.boardSpec === null ? [] : [{ scenario, spec: scenario.boardSpec }],
-  );
-}
+import { MarinsScenarioDraw } from "./MarinsScenarioDraw";
 
 /**
  * Interactive **Catan - Marins** board generator. Every scenario it offers is

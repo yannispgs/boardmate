@@ -31,10 +31,13 @@ const STYLE: Record<
   }>
 > = {
   segmented: {
-    root: "flex flex-col items-center gap-1.5",
+    root: "flex max-w-full flex-col items-center gap-1.5",
     label: sectionHeadingClass,
-    list: "flex rounded-lg border border-black/10 p-1 dark:border-white/10",
-    option: "rounded-md px-4 py-1.5 font-medium",
+    // A bar wider than the screen scrolls, rather than hanging off both sides
+    // with no way back to what it holds. It stays a control for a handful of
+    // short choices all the same: a long list belongs in a picker of its own.
+    list: "flex max-w-full overflow-x-auto rounded-lg border border-black/10 p-1 dark:border-white/10",
+    option: "shrink-0 rounded-md px-4 py-1.5 font-medium",
     active: "bg-indigo-600 text-white",
     idle: "text-zinc-600 hover:bg-black/5 dark:text-zinc-300 dark:hover:bg-white/5",
     activeHint: "text-white/80",

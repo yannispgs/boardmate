@@ -9,11 +9,29 @@
  * sea says nothing anyone picks a scenario on.
  */
 
+import type { ExtensionScenario } from "@/lib/domain";
 import {
   boardTotals,
   type ScenarioBoardSpec,
   type ScenarioSpec,
 } from "./scenario-spec";
+
+/** A scenario that has a map, so the generator can actually draw it. */
+export interface Drawable {
+  scenario: ExtensionScenario;
+  spec: ScenarioSpec;
+}
+
+/**
+ * The scenarios of an extension the generator has something to draw, in menu
+ * order. One still waiting for its map is not offered: there would be nothing
+ * behind its name.
+ */
+export function drawableOf(scenarios: ExtensionScenario[]): Drawable[] {
+  return scenarios.flatMap(scenario =>
+    scenario.boardSpec === null ? [] : [{ scenario, spec: scenario.boardSpec }],
+  );
+}
 
 /** Every player count a scenario has a map for, ascending and without repeats. */
 export function scenarioPlayers(spec: ScenarioSpec): number[] {

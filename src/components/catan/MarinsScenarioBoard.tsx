@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { type DeckNav, SwipeDeck } from "@/components/SwipeDeck";
 import { boardWarnings } from "@/lib/catan/board";
 import {
   type GeneratorOptions,
@@ -39,9 +40,16 @@ const fogButtonClass =
 export function MarinsScenarioBoard({
   spec,
   players,
+  browse = null,
 }: Readonly<{
   spec: ScenarioSpec;
   players: number;
+  /**
+   * Flipping to the neighbouring scenario from the map itself. It is offered on
+   * the map and nowhere else on the screen: everything under it is settings, and
+   * a drag across a slider must stay a drag across a slider.
+   */
+  browse?: DeckNav | null;
 }>) {
   const [showWarnings, setShowWarnings] = useState(false);
   const [options, setOptions] = useState<GeneratorOptions>(() =>
@@ -74,13 +82,13 @@ export function MarinsScenarioBoard({
 
   return (
     <>
-      <div className="relative w-full max-w-md">
+      <SwipeDeck nav={browse} className="w-full max-w-md">
         <CatanBoardSvg board={board} />
 
         {warnings.length > 0 ? (
           <WarningsBadge onClick={() => setShowWarnings(v => !v)} />
         ) : null}
-      </div>
+      </SwipeDeck>
 
       {warnings.length > 0 && showWarnings ? (
         <BoardWarnings warnings={warnings} className={sectionClass} />

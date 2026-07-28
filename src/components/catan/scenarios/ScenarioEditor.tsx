@@ -167,12 +167,16 @@ export function ScenarioEditor({
   async function save() {
     setError(null);
     setSaving(true);
+    // A stray space around the name is not part of it: kept, it sorts the
+    // scenario apart from where it reads and indents it in every list.
+    const named = { ...spec, name: spec.name.trim() };
+
     try {
       await onSave({
         id: draft.id,
-        name: spec.name,
-        targetScore: spec.targetScore,
-        boardSpec: spec,
+        name: named.name,
+        targetScore: named.targetScore,
+        boardSpec: named,
       });
       onClose();
     } catch {

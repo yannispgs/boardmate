@@ -5,16 +5,77 @@ import { useState } from "react";
 
 import { MarinsScenarioBoard } from "@/components/catan/MarinsScenarioBoard";
 import { PencilIcon } from "@/components/icons";
-import { OptionPicker, type PickerOption } from "@/components/OptionPicker";
-import { iconButtonClass } from "@/components/ui";
+import { OptionPicker } from "@/components/OptionPicker";
+import { iconButtonClass, sectionHeadingClass } from "@/components/ui";
 import { marinsPlayerGroups, playerGroupLabel } from "@/lib/catan/marins";
-import type { ScenarioSpec } from "@/lib/catan/scenario-spec";
-import type { ExtensionScenario, ExtensionScenarioId } from "@/lib/domain";
+import type { Drawable } from "@/lib/catan/scenario-listing";
+import type { ExtensionScenarioId } from "@/lib/domain";
+import { stepIndex } from "@/lib/ui/carousel";
+import { ScenarioPickerSheet } from "./ScenarioPickerSheet";
 
-/** A scenario that has a map, so the generator can actually draw it. */
-export interface Drawable {
-  scenario: ExtensionScenario;
-  spec: ScenarioSpec;
+/**
+ * The scenario being looked at, and the way to another one: tap the name to see
+ * them all at once, or walk the list from the map itself. A row of names was
+ * enough for three scenarios and unreadable at fifteen — and a name is not what
+ * one chooses a map on anyway.
+ */
+function ScenarioBar({
+  scenario,
+  at,
+  total,
+  manageHref,
+  onOpen,
+}: Readonly<{
+  scenario: Drawable["scenario"];
+  /** 1-based position in the list, for « 2 / 7 ». */
+  at: number;
+  total: number;
+  manageHref: string | null;
+  onOpen: () => void;
+}>) {
+  return (
+    <div className="flex w-full max-w-md flex-col items-center gap-1.5">
+      <div className="flex items-center gap-2">
+        <span className={sectionHeadingClass}>Scénario</span>
+
+        {manageHref === null ? null : (
+          <Link
+            href={manageHref}
+            title="Gérer les scénarios"
+            className={iconButtonClass}
+          >
+            <PencilIcon />
+          </Link>
+        )}
+      </div>
+
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={`Scénario : ${scenario.name}. Choisir un autre scénario`}
+        className="flex w-full items-center gap-3 rounded-lg border border-black/10 px-4 py-2.5 text-left transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+      >
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate font-medium">{scenario.name}</span>
+          {scenario.targetScore === null ? null : (
+            <span className="text-xs text-zinc-500">
+              🎯 {scenario.targetScore} points
+            </span>
+          )}
+        </span>
+
+        {total > 1 ? (
+          <span className="shrink-0 rounded-full bg-indigo-600/10 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-indigo-600 dark:bg-indigo-400/15 dark:text-indigo-300">
+            {at} / {total}
+          </span>
+        ) : null}
+
+        <span aria-hidden className="shrink-0 text-zinc-400">
+          ▾
+        </span>
+      </button>
+    </div>
+  );
 }
 
 /**
@@ -36,23 +97,28 @@ export function MarinsScenarioDraw({
 }>) {
   const [picked, setPicked] = useState<ExtensionScenarioId | null>(null);
   const [group, setGroup] = useState<number | null>(seats);
+  const [listing, setListing] = useState(false);
 
   // A scenario deleted from another tab, or simply none picked yet, falls back
   // to the first of the list rather than to an empty screen.
-  const current = drawable.find(d => d.scenario.id === picked) ?? drawable[0];
+  const found = drawable.findIndex(d => d.scenario.id === picked);
+  const at = found === -1 ? 0 : found;
+  const current = drawable[at];
 
   if (current === undefined) {
     return null;
   }
 
-  const options: PickerOption<ExtensionScenarioId>[] = drawable.map(d => ({
-    value: d.scenario.id,
-    label: d.scenario.name,
-    hint:
-      d.scenario.targetScore === null
-        ? undefined
-        : `🎯 ${d.scenario.targetScore} points`,
-  }));
+  /** Shows a scenario, back on the seat count the list was filtered on. */
+  function show(id: ExtensionScenarioId) {
+    setPicked(id);
+    setGroup(seats);
+  }
+
+  /** Walks the list, wrapping round both ends. */
+  function step(delta: number) {
+    show(drawable[stepIndex(at, delta, drawable.length)].scenario.id);
+  }
 
   // The player counts this scenario has a map for. A count the previous
   // scenario served is kept when this one serves it too, dropped otherwise.
@@ -62,26 +128,12 @@ export function MarinsScenarioDraw({
 
   return (
     <>
-      <OptionPicker
-        variant="segmented"
-        label="Scénario"
-        options={options}
-        value={current.scenario.id}
-        onChange={id => {
-          setPicked(id);
-          setGroup(seats);
-        }}
-        action={
-          manageHref === null ? null : (
-            <Link
-              href={manageHref}
-              title="Gérer les scénarios"
-              className={iconButtonClass}
-            >
-              <PencilIcon />
-            </Link>
-          )
-        }
+      <ScenarioBar
+        scenario={current.scenario}
+        at={at + 1}
+        total={drawable.length}
+        manageHref={manageHref}
+        onOpen={() => setListing(true)}
       />
 
       {groups.length > 1 ? (
@@ -98,17 +150,27 @@ export function MarinsScenarioDraw({
       ) : (
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
           {served === undefined ? "Aucun plateau" : playerGroupLabel(served)}
-          {current.scenario.targetScore === null
-            ? null
-            : ` · 🎯 ${current.scenario.targetScore} points`}
         </p>
       )}
 
+      {/* Keyed so flipping to another scenario draws its own first board rather
+          than inheriting the seed and the settings of the one before it. */}
       <MarinsScenarioBoard
         key={current.scenario.id}
         spec={current.spec}
         players={players}
+        browse={{ count: drawable.length, onStep: step, itemLabel: "Scénario" }}
       />
+
+      {listing ? (
+        <ScenarioPickerSheet
+          drawable={drawable}
+          currentId={current.scenario.id}
+          seats={seats}
+          onPick={show}
+          onClose={() => setListing(false)}
+        />
+      ) : null}
     </>
   );
 }

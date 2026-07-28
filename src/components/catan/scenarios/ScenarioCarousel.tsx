@@ -1,44 +1,13 @@
 "use client";
 
-import { type PointerEvent, useRef, useState } from "react";
+import { useState } from "react";
 
 import { Modal } from "@/components/Modal";
+import { SwipeDeck } from "@/components/SwipeDeck";
 import { modalCardClass } from "@/components/ui";
 import type { ExtensionScenario, ExtensionScenarioId } from "@/lib/domain";
-import { stepIndex, swipeStep } from "@/lib/ui/carousel";
+import { stepIndex } from "@/lib/ui/carousel";
 import { ScenarioSlide } from "./ScenarioSlide";
-
-/**
- * One of the two arrows leading to the next board. They are pinned to the sides
- * of the slide rather than laid under it, so they hold the same spot whatever
- * the board being read is doing — swiped across, or scrolled past its frame.
- * Only the arrow itself takes a tap: the column around it lets a swipe through
- * to the slide underneath.
- */
-function StepArrow({
-  side,
-  onClick,
-}: Readonly<{ side: "previous" | "next"; onClick: () => void }>) {
-  const label = side === "previous" ? "Plateau précédent" : "Plateau suivant";
-
-  return (
-    <div
-      className={`pointer-events-none absolute inset-y-0 flex w-11 items-center justify-center ${
-        side === "previous" ? "left-0" : "right-0"
-      }`}
-    >
-      <button
-        type="button"
-        onClick={onClick}
-        aria-label={label}
-        title={label}
-        className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full bg-white/85 text-lg shadow ring-1 ring-black/10 backdrop-blur transition hover:bg-white dark:bg-zinc-800/85 dark:ring-white/15 dark:hover:bg-zinc-800"
-      >
-        {side === "previous" ? "‹" : "›"}
-      </button>
-    </div>
-  );
-}
 
 /**
  * The scenarios of an extension, one board at a time, over the launch form:
@@ -67,40 +36,10 @@ export function ScenarioCarousel({
 
     return at === -1 ? 0 : at;
   });
-  const from = useRef<{ x: number; y: number } | null>(null);
-
   const current = scenarios[index];
 
   function step(delta: number) {
     setIndex(at => stepIndex(at, delta, scenarios.length));
-  }
-
-  function startDrag(event: PointerEvent<HTMLDivElement>) {
-    from.current = { x: event.clientX, y: event.clientY };
-  }
-
-  function endDrag(event: PointerEvent<HTMLDivElement>) {
-    const start = from.current;
-
-    from.current = null;
-
-    if (start === null) {
-      return;
-    }
-
-    const delta = swipeStep(event.clientX - start.x, event.clientY - start.y);
-
-    if (delta !== 0) {
-      step(delta);
-    }
-  }
-
-  /**
-   * The browser has taken the gesture over — a vertical scroll of the board,
-   * which `touch-pan-y` still leaves it — so no swipe is read out of it.
-   */
-  function cancelDrag() {
-    from.current = null;
   }
 
   function choose() {
@@ -135,33 +74,17 @@ export function ScenarioCarousel({
       {/* `overflow-hidden` keeps whatever the slide unfolds — the fog's material
           list, a long board — inside this row: the arrows make the row a
           positioned box, which would otherwise paint over the footer under it
-          however tall the slide grew. */}
-      <div className="relative flex min-h-0 flex-1 overflow-hidden">
-        {/* `touch-pan-y` keeps the sideways drag for the carousel and leaves the
-            up-and-down one to the board; `overscroll-contain` stops a board
-            scrolled to its end from carrying on into the page behind. */}
-        <div
-          onPointerDown={startDrag}
-          onPointerUp={endDrag}
-          onPointerCancel={cancelDrag}
-          className="flex-1 touch-pan-y overflow-y-auto overscroll-contain px-11 py-4"
-        >
-          {/* Keyed so flipping to another scenario draws its own first board
-              rather than inheriting the seed of the one before it. */}
-          <ScenarioSlide
-            key={current.id}
-            scenario={current}
-            players={players}
-          />
-        </div>
-
-        {scenarios.length > 1 ? (
-          <>
-            <StepArrow side="previous" onClick={() => step(-1)} />
-            <StepArrow side="next" onClick={() => step(1)} />
-          </>
-        ) : null}
-      </div>
+          however tall the slide grew. `overscroll-contain` stops a board
+          scrolled to its end from carrying on into the page behind. */}
+      <SwipeDeck
+        nav={{ count: scenarios.length, onStep: step, itemLabel: "Plateau" }}
+        className="flex min-h-0 flex-1 overflow-hidden"
+        contentClassName="flex-1 overflow-y-auto overscroll-contain px-11 py-4"
+      >
+        {/* Keyed so flipping to another scenario draws its own first board
+            rather than inheriting the seed of the one before it. */}
+        <ScenarioSlide key={current.id} scenario={current} players={players} />
+      </SwipeDeck>
 
       <div className="relative z-10 border-t border-black/10 p-3 dark:border-white/10">
         <button

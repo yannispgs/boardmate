@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import type {
+  ExtensionId,
+  ExtensionScenario,
+  ExtensionScenarioId,
+} from "@/lib/domain";
 import {
+  drawableOf,
   matchesPlayers,
   playerCountsLabel,
   playerCountsOf,
@@ -41,6 +47,40 @@ function spec(...boards: Partial<ScenarioBoardSpec>[]): ScenarioSpec {
     })),
   };
 }
+
+/** A saved scenario, with or without the map someone has drawn for it. */
+function saved(
+  name: string,
+  boardSpec: ScenarioSpec | null,
+): ExtensionScenario {
+  return {
+    id: name as ExtensionScenarioId,
+    extensionId: "marins" as ExtensionId,
+    name,
+    targetScore: 14,
+    isOfficial: true,
+    boardSpec,
+    sortOrder: 0,
+  };
+}
+
+describe("drawableOf", () => {
+  it("offers the scenarios that have a map, in the order they came in", () => {
+    const archipel = saved("L'archipel", spec({ players: [3] }));
+    const oceanie = saved("Océanie", spec({ players: [4] }));
+
+    const drawable = drawableOf([archipel, saved("À dessiner", null), oceanie]);
+
+    expect(drawable).toEqual([
+      { scenario: archipel, spec: archipel.boardSpec },
+      { scenario: oceanie, spec: oceanie.boardSpec },
+    ]);
+  });
+
+  it("has nothing to draw while no scenario has been drawn", () => {
+    expect(drawableOf([saved("À dessiner", null)])).toEqual([]);
+  });
+});
 
 describe("scenarioPlayers", () => {
   it("gathers the counts of every board, in order and without repeats", () => {
