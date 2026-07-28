@@ -6,21 +6,23 @@ import { BoardStructure } from "@/components/catan/BoardStructure";
 import { BoardWarnings, WarningsBadge } from "@/components/catan/BoardWarnings";
 import { CatanBoardSvg } from "@/components/catan/CatanBoardSvg";
 import { GeneratorSettings } from "@/components/catan/GeneratorSettings";
-import { HiddenMaterial } from "@/components/catan/HiddenMaterial";
 import { PlacementRules } from "@/components/catan/PlacementRules";
 import { TerrainLegend } from "@/components/catan/TerrainLegend";
 import { TERRAIN_ORDER } from "@/components/catan/terrain-labels";
+import { useFogMaterial } from "@/components/catan/use-fog-material";
 import { boardWarnings } from "@/lib/catan/board";
 import {
   type GeneratorOptions,
   scenarioOptions,
 } from "@/lib/catan/generator-options";
-import { hiddenMaterial } from "@/lib/catan/hidden-material";
 import { boardTotals, type ScenarioSpec } from "@/lib/catan/scenario-spec";
 import { useScenarioDraw } from "@/lib/hooks/use-scenario-draw";
 
 const sectionClass =
   "flex w-full max-w-md flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10";
+
+const fogButtonClass =
+  "rounded-lg border border-black/10 px-5 py-2.5 font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/10";
 
 /**
  * One scenario drawn for one player count: the map, the settings it was drawn
@@ -42,11 +44,17 @@ export function MarinsScenarioBoard({
   players: number;
 }>) {
   const [showWarnings, setShowWarnings] = useState(false);
-  const [showMaterial, setShowMaterial] = useState(false);
   const [options, setOptions] = useState<GeneratorOptions>(() =>
     scenarioOptions(spec.options),
   );
   const { draw, regenerate } = useScenarioDraw(spec, players, options);
+  const { fogButton, fogPanel } = useFogMaterial(
+    draw.ok ? draw.drawn.spec : null,
+    {
+      buttonClass: fogButtonClass,
+      panelClass: sectionClass,
+    },
+  );
 
   function change(patch: Partial<GeneratorOptions>) {
     setOptions(current => ({ ...current, ...patch }));
@@ -63,7 +71,6 @@ export function MarinsScenarioBoard({
   const { board } = draw.drawn;
   const totals = boardTotals(draw.drawn.spec);
   const warnings = boardWarnings(board, draw.drawn.options);
-  const fog = hiddenMaterial(draw.drawn.spec);
 
   return (
     <>
@@ -88,20 +95,10 @@ export function MarinsScenarioBoard({
           🎲 Régénérer
         </button>
 
-        {fog.length > 0 ? (
-          <button
-            type="button"
-            onClick={() => setShowMaterial(v => !v)}
-            className="rounded-lg border border-black/10 px-5 py-2.5 font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/10"
-          >
-            🌫️ {showMaterial ? "Masquer le matériel" : "Matériel à préparer"}
-          </button>
-        ) : null}
+        {fogButton}
       </div>
 
-      {fog.length > 0 && showMaterial ? (
-        <HiddenMaterial zones={fog} className={sectionClass} />
-      ) : null}
+      {fogPanel}
 
       <BoardStructure board={board} />
 
