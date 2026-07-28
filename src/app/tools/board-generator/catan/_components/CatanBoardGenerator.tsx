@@ -14,11 +14,11 @@ import {
   SegmentedPicker,
 } from "@/components/catan/SegmentedPicker";
 import { TerrainLegend } from "@/components/catan/TerrainLegend";
+import { TERRAIN_ORDER } from "@/components/catan/terrain-labels";
 import { MoveHorizontalIcon, MoveVerticalIcon } from "@/components/icons";
 import {
   boardWarnings,
   type CatanBoard,
-  type CatanTerrain,
   type CatanVariantId,
   generateCatanBoard,
 } from "@/lib/catan/board";
@@ -28,15 +28,8 @@ import {
   toBoardOptions,
 } from "@/lib/catan/generator-options";
 
-/** Every terrain the base game ships, in legend order. */
-const TERRAINS: CatanTerrain[] = [
-  "forest",
-  "pasture",
-  "fields",
-  "hills",
-  "mountains",
-  "desert",
-];
+/** Every terrain the base game ships: all of them but the Marins gold river. */
+const TERRAINS = TERRAIN_ORDER.filter(t => t !== "gold");
 
 const sectionClass =
   "flex w-full max-w-md flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10";

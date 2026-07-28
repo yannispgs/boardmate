@@ -1,13 +1,7 @@
 import { isRedNumber } from "@/lib/catan/board";
 import type { HiddenZoneMaterial } from "@/lib/catan/hidden-material";
-import type { SpecTerrain } from "@/lib/catan/scenario-spec";
-import { SEA_STYLE, TERRAIN_STYLE } from "./CatanBoardSvg";
 import { SPEC_TERRAIN_NAME, SPEC_TERRAIN_ORDER } from "./terrain-labels";
-
-/** The colour that terrain is drawn in on the board, the sea included. */
-function terrainColor(terrain: SpecTerrain): string {
-  return terrain === "sea" ? SEA_STYLE.fill : TERRAIN_STYLE[terrain].fill;
-}
+import { terrainSwatch } from "./terrain-swatch";
 
 /**
  * The tokens as distinct entries: a bag holding two 5s is two tokens to take
@@ -51,7 +45,7 @@ export function HiddenZoneCard({
             <span
               aria-hidden
               className="h-3.5 w-3.5 shrink-0 rounded-sm border border-black/10"
-              style={{ backgroundColor: terrainColor(terrain) }}
+              style={{ background: terrainSwatch(terrain) }}
             />
             <span>
               {SPEC_TERRAIN_NAME[terrain]}{" "}

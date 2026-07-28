@@ -1,10 +1,10 @@
 "use client";
 
-import { SEA_STYLE, TERRAIN_STYLE } from "@/components/catan/CatanBoardSvg";
 import {
   SPEC_TERRAIN_NAME,
   SPEC_TERRAIN_ORDER,
 } from "@/components/catan/terrain-labels";
+import { terrainSwatch } from "@/components/catan/terrain-swatch";
 import { TrashIcon } from "@/components/icons";
 import { dangerIconButtonClass } from "@/components/ui";
 import {
@@ -21,18 +21,12 @@ import {
 import {
   bagTileCount,
   type ScenarioSpec,
-  type SpecTerrain,
   tokenBearingCount,
 } from "@/lib/catan/scenario-spec";
 import { CountStepper } from "./CountStepper";
 import { PanelBlock } from "./PanelBlock";
 import { PortTypeFields } from "./PortTypeFields";
 import { Tally } from "./Tally";
-
-/** The colour a terrain's counter is chipped with. */
-function terrainColor(terrain: SpecTerrain): string {
-  return terrain === "sea" ? SEA_STYLE.fill : TERRAIN_STYLE[terrain].fill;
-}
 
 /**
  * Everything about the zone being edited: its name, how it is drawn — face down,
@@ -157,7 +151,7 @@ export function ZonePanel({
             <CountStepper
               key={terrain}
               label={SPEC_TERRAIN_NAME[terrain]}
-              color={terrainColor(terrain)}
+              swatch={terrainSwatch(terrain)}
               value={current.terrainCounts[terrain] ?? 0}
               onChange={count =>
                 onChange(setTerrainCount(spec, board, zone, terrain, count))

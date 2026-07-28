@@ -7,15 +7,18 @@
  */
 export function CountStepper({
   label,
-  color,
+  swatch,
   value,
   onChange,
   max = 99,
   layout = "row",
 }: Readonly<{
   label: string;
-  /** Colour chip in front of the label, when the thing counted has one. */
-  color?: string;
+  /**
+   * Chip in front of the label, when the thing counted has one — any CSS
+   * background, so a gold river can be the gradient it is drawn as elsewhere.
+   */
+  swatch?: string;
   value: number;
   onChange: (value: number) => void;
   max?: number;
@@ -80,11 +83,11 @@ export function CountStepper({
 
   return (
     <div className="flex items-center gap-2 text-sm">
-      {color === undefined ? null : (
+      {swatch === undefined ? null : (
         <span
           aria-hidden
           className="h-3.5 w-3.5 shrink-0 rounded-sm border border-black/10"
-          style={{ backgroundColor: color }}
+          style={{ background: swatch }}
         />
       )}
       <span className="min-w-0 flex-1 truncate">{label}</span>

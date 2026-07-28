@@ -9,7 +9,7 @@ import { GeneratorSettings } from "@/components/catan/GeneratorSettings";
 import { HiddenMaterial } from "@/components/catan/HiddenMaterial";
 import { PlacementRules } from "@/components/catan/PlacementRules";
 import { TerrainLegend } from "@/components/catan/TerrainLegend";
-import type { CatanTerrain } from "@/lib/catan/board";
+import { TERRAIN_ORDER } from "@/components/catan/terrain-labels";
 import { boardWarnings } from "@/lib/catan/board";
 import {
   type GeneratorOptions,
@@ -18,17 +18,6 @@ import {
 import { hiddenMaterial } from "@/lib/catan/hidden-material";
 import { boardTotals, type ScenarioSpec } from "@/lib/catan/scenario-spec";
 import { useScenarioDraw } from "@/lib/hooks/use-scenario-draw";
-
-/** Legend order — the terrains a scenario doesn't ship are filtered out. */
-const TERRAIN_ORDER: CatanTerrain[] = [
-  "forest",
-  "pasture",
-  "fields",
-  "hills",
-  "mountains",
-  "gold",
-  "desert",
-];
 
 const sectionClass =
   "flex w-full max-w-md flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10";

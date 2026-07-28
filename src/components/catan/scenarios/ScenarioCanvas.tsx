@@ -2,7 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { SEA_STYLE, TERRAIN_STYLE } from "@/components/catan/CatanBoardSvg";
+import {
+  GoldRiver,
+  SEA_STYLE,
+  TERRAIN_STYLE,
+} from "@/components/catan/CatanBoardSvg";
 import { axialToPixel } from "@/lib/catan/board";
 import {
   hexCorners,
@@ -47,11 +51,11 @@ function cellFill(
   board: ScenarioBoardSpec,
   cell: SpecCell,
   activeZone: number,
-): { fill: string; opacity: number; label: string | null } {
+): { fill: string; opacity: number; label: string | null; river: boolean } {
   const owner = cellOwner(board, cell);
 
   if (owner === null) {
-    return { fill: "#94a3b8", opacity: 0.16, label: null };
+    return { fill: "#94a3b8", opacity: 0.16, label: null, river: false };
   }
 
   if (owner.kind === "static") {
@@ -64,6 +68,7 @@ function cellFill(
       fill: style.fill,
       opacity: 1,
       label: owner.tile.number === undefined ? "·" : String(owner.tile.number),
+      river: owner.tile.terrain === "gold",
     };
   }
 
@@ -72,6 +77,7 @@ function cellFill(
     // The zone being edited stands out; the others stay readable behind it.
     opacity: owner.zone === activeZone ? 0.95 : 0.4,
     label: board.zones[owner.zone].hidden ? "?" : String(owner.zone + 1),
+    river: false,
   };
 }
 
@@ -212,7 +218,11 @@ export function ScenarioCanvas({
           return null;
         }
 
-        const { fill, opacity, label } = cellFill(board, cell, activeZone);
+        const { fill, opacity, label, river } = cellFill(
+          board,
+          cell,
+          activeZone,
+        );
         const isSelected =
           selected !== null && cellKey(selected) === cellKey(cell);
         // A space with no coastal edge left to offer — every one of them inland,
@@ -237,6 +247,7 @@ export function ScenarioCanvas({
                 }
               }}
             />
+            {river ? <GoldRiver centre={centre} size={SIZE} /> : null}
             {label === null ? null : (
               <text
                 x={centre.x}

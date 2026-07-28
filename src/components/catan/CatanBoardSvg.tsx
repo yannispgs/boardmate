@@ -27,9 +27,16 @@ export const TERRAIN_STYLE: Record<
   fields: { fill: "#e5b731", stroke: "#b98f1f" },
   hills: { fill: "#c1673b", stroke: "#9a4f2b" },
   mountains: { fill: "#8a929c", stroke: "#69707a" },
-  gold: { fill: "#f0c020", stroke: "#b8860b" },
+  gold: { fill: "#7a8490", stroke: "#5f6975" },
   desert: { fill: "#e0cfa3", stroke: "#c3ac79" },
 };
+
+/**
+ * The gold running through a gold-river tile. The tile itself is grey rock, as
+ * on the printed one: only the river is gold, so a field — yellow from edge to
+ * edge — can no longer be taken for it.
+ */
+export const GOLD_RIVER = "#f0c020";
 
 /** Marins sea tiles: plain water, no terrain and no number. */
 export const SEA_STYLE = { fill: "#2b6ca3", stroke: "#1d4f79" };
@@ -67,6 +74,29 @@ function Unknown({ centre }: Readonly<{ centre: Point }>) {
     >
       ?
     </text>
+  );
+}
+
+/**
+ * The band of gold crossing a gold-river tile, drawn straight across the middle
+ * from one side to the other. Its half-width stops just inside the hex whichever
+ * way the board is laid out, so the river reaches both edges without ever
+ * spilling past them — and the number token, drawn after it, sits on top like
+ * the printed tile's does.
+ */
+export function GoldRiver({
+  centre,
+  size,
+}: Readonly<{ centre: Point; size: number }>) {
+  return (
+    <rect
+      x={centre.x - size * 0.86}
+      y={centre.y - size * 0.21}
+      width={size * 1.72}
+      height={size * 0.42}
+      fill={GOLD_RIVER}
+      className="pointer-events-none"
+    />
   );
 }
 
@@ -223,6 +253,9 @@ export function CatanBoardSvg({
               strokeWidth={2}
               strokeLinejoin="round"
             />
+            {h.terrain === "gold" && !h.hidden ? (
+              <GoldRiver centre={c} size={SIZE} />
+            ) : null}
             {h.hidden ? (
               <Unknown centre={c} />
             ) : h.number === null ? (

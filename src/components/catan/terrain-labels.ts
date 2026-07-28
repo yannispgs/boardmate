@@ -6,7 +6,7 @@ import type { SpecTerrain } from "@/lib/catan/scenario-spec";
 
 export const TERRAIN_NAME: Record<CatanTerrain, string> = {
   forest: "Forêt",
-  pasture: "Prairie",
+  pasture: "Pré",
   fields: "Champs",
   hills: "Collines",
   mountains: "Montagnes",
@@ -21,16 +21,23 @@ export const SPEC_TERRAIN_NAME: Record<SpecTerrain, string> = {
 };
 
 /**
- * The order terrains are offered in, sea first — a Marins map is mostly water,
- * whether it is being poured into a bag or fixed one tile at a time.
+ * The order tiles are listed in, top to bottom, in the scenario booklets. Every
+ * list in the app follows it — legends, bags, tile pickers — so counting the
+ * tiles of a printed scenario into the editor is a matter of reading down both
+ * columns at once.
  */
-export const SPEC_TERRAIN_ORDER: SpecTerrain[] = [
-  "sea",
-  "forest",
-  "pasture",
+export const TERRAIN_ORDER: CatanTerrain[] = [
+  "desert",
+  "gold",
   "fields",
   "hills",
   "mountains",
-  "gold",
-  "desert",
+  "pasture",
+  "forest",
 ];
+
+/**
+ * The same, sea first — a Marins map is mostly water, whether it is being
+ * poured into a bag or fixed one tile at a time.
+ */
+export const SPEC_TERRAIN_ORDER: SpecTerrain[] = ["sea", ...TERRAIN_ORDER];
