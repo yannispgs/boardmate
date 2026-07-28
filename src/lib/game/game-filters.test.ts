@@ -11,6 +11,7 @@ import {
   activeFilterCount,
   filterablePlayers,
   filterGameList,
+  localDay,
   matchesGameFilter,
   NO_GAME_FILTER,
   playedBoardgames,
@@ -213,5 +214,24 @@ describe("filterablePlayers", () => {
     expect(filterablePlayers(all, ["p2" as PlayerId]).map(p => p.name)).toEqual(
       ["Amélie", "Zoé"],
     );
+  });
+});
+
+describe("localDay", () => {
+  // Every instant here is built from local parts, so the day asserted is the
+  // one on the reader's own calendar whatever timezone the tests run in.
+  it("files an instant under the day it is where the reader is", () => {
+    const lateEvening = new Date(2026, 6, 20, 23, 30);
+
+    expect(localDay(lateEvening.toISOString())).toBe("2026-07-20");
+  });
+
+  it("pads the month and the day out to two figures", () => {
+    expect(localDay(new Date(2026, 0, 3, 12).toISOString())).toBe("2026-01-03");
+  });
+
+  it("files an instant it cannot read under no day at all", () => {
+    expect(localDay("")).toBe("");
+    expect(localDay("hier soir")).toBe("");
   });
 });

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import type { Boardgame, Player, PlayerId } from "@/lib/domain";
+import { localDay } from "@/lib/game/game-filters";
 import {
   leaderByScore,
   rankByTotal,
@@ -20,9 +21,9 @@ import {
   gridValues,
 } from "../../_components/CategoryScoreGrid";
 
-/** Local date (YYYY-MM-DD) for the default end-date field. */
+/** Today where the reader is, for the default end-date field. */
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localDay(new Date().toISOString());
 }
 
 const sectionClass =

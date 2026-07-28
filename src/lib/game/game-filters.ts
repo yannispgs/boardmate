@@ -41,6 +41,28 @@ export interface FilterableGame {
   status: GameStatus;
 }
 
+/**
+ * The day an instant falls on **where the reader is**, `YYYY-MM-DD`.
+ *
+ * Games are stamped in UTC, and the ends of a period are picked on a calendar
+ * that knows nothing of it: a game played at 1 a.m. in Paris is stamped the day
+ * before, and was filed under it — so asking for "today" left it out, and the
+ * day counts in the statistics were off by that game. An instant that cannot be
+ * read at all is filed under no day, like a game that has no date yet.
+ */
+export function localDay(instant: string): string {
+  const at = new Date(instant);
+
+  if (Number.isNaN(at.getTime())) {
+    return "";
+  }
+
+  const month = String(at.getMonth() + 1).padStart(2, "0");
+  const day = String(at.getDate()).padStart(2, "0");
+
+  return `${at.getFullYear()}-${month}-${day}`;
+}
+
 /** The filter that keeps everything — the state the screens open in. */
 export const NO_GAME_FILTER: GameFilter = {
   boardgameIds: [],
@@ -111,7 +133,7 @@ export function filterGameList(
       {
         boardgameId: game.boardgameId,
         playerIds: game.players.map(p => p.id),
-        day: game.startedAt.slice(0, 10),
+        day: localDay(game.startedAt),
         status: game.status,
       },
       filter,
