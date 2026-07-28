@@ -38,6 +38,7 @@ function game(
     // A game played past midnight ends on the NEXT day — which is what makes
     // "filed under the day it started" an assertion and not a coincidence.
     endedAt: status === "ended" ? "2026-07-21T01:00:00.000Z" : null,
+    tieBreak: null,
     players: players.map(([playerId, name]) => ({
       id: playerId as PlayerId,
       name,

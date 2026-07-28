@@ -1,4 +1,5 @@
 import type { BoardgameId } from "./ids";
+import type { TieBreakRule } from "./tie-break";
 
 /**
  * v1 only handles `competitive` games, but the field exists so cooperative /
@@ -120,6 +121,12 @@ export interface ScoringSpec {
   minScore?: number;
   /** The scoresheet, present when `entry` is `categories`. */
   sheet?: ScoreSheetItem[];
+  /**
+   * The game's own secondary rules, applied in order to separate players tied
+   * on the final score. Omitted / empty means the rulebook has none: a tie is a
+   * shared victory. See {@link resolveTieBreak}.
+   */
+  tieBreak?: TieBreakRule[];
 }
 
 /**

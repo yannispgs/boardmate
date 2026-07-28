@@ -6,6 +6,7 @@ import type { PlayerId, PopulatedGame } from "@/lib/domain";
 import { finalStandings, winnerDirection } from "@/lib/game/scoring";
 import { CategoryBreakdownFill } from "./CategoryBreakdownFill";
 import { FinalScoreTable } from "./FinalScoreTable";
+import { TieBreakRecap } from "./TieBreakRecap";
 
 /**
  * The finished game's final score, shown in the right slide-over. Players are
@@ -36,8 +37,9 @@ export function EndScorePanel({
     isWinner: p.isWinner,
   }));
 
-  // A competitive game keeps a single rank 1 (the recorded winner); co-leaders
-  // on the same score are 2nd. Shared ranks resume from 2nd place down.
+  // The recorded winners take rank 1 (several on a shared victory); co-leaders
+  // on the same score who lost the tie-break are 2nd. Shared ranks resume from
+  // 2nd place down.
   const ranking = finalStandings(
     players.map(p => ({
       playerId: p.id,
@@ -103,6 +105,13 @@ export function EndScorePanel({
           );
         })}
       </ol>
+
+      {game.tieBreak ? (
+        <TieBreakRecap
+          record={game.tieBreak}
+          nameOf={id => players.find(p => p.id === id)?.name ?? "Joueur"}
+        />
+      ) : null}
 
       {hasDetail ? (
         <div className="flex flex-col gap-3">

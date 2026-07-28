@@ -67,12 +67,20 @@ export function CategoryBreakdownFill({
     setBusy(true);
     setError(null);
 
-    const winnerId =
-      rankByTotal(
-        ids.map(id => ({ playerId: id, total: scored[id]?.total ?? 0 })),
-      )[0]?.playerId ?? null;
+    // The categories have to reconstruct the totals already recorded, so the
+    // leaders can't change: keep whoever was marked winner then (a shared
+    // victory, or a tie the rules settled) and only re-derive when none was.
+    const recorded = game.players.filter(p => p.isWinner).map(p => p.playerId);
+    const winnerIds =
+      recorded.length > 0
+        ? recorded
+        : rankByTotal(
+            ids.map(id => ({ playerId: id, total: scored[id]?.total ?? 0 })),
+          )
+            .filter(r => r.rank === 1)
+            .map(r => r.playerId);
 
-    if (winnerId === null) {
+    if (winnerIds.length === 0) {
       setBusy(false);
 
       return;
@@ -81,12 +89,13 @@ export function CategoryBreakdownFill({
     try {
       await getGameRepository().setBreakdown(
         game.id,
-        winnerId,
+        winnerIds,
         ids.map(id => ({
           playerId: id,
           score: scored[id]?.total ?? 0,
           breakdown: values[id] ?? {},
         })),
+        game.tieBreak,
       );
       onSaved();
     } catch {

@@ -112,13 +112,17 @@ describe("games adapter — creation & population", () => {
     gameIds.push(game.id);
 
     // First ended with player 0 as the winner…
-    await repo().end(game.id, playerIds[0]);
+    await repo().end(game.id, [playerIds[0]]);
     // …then the category detail is filled, making player 1 the top total.
-    await repo().setBreakdown(game.id, playerIds[1], [
-      { playerId: playerIds[0], score: 8, breakdown: { a: 3, b: 5 } },
-      { playerId: playerIds[1], score: 12, breakdown: { a: 7, b: 5 } },
-      { playerId: playerIds[2], score: 4, breakdown: { a: 1, b: 3 } },
-    ]);
+    await repo().setBreakdown(
+      game.id,
+      [playerIds[1]],
+      [
+        { playerId: playerIds[0], score: 8, breakdown: { a: 3, b: 5 } },
+        { playerId: playerIds[1], score: 12, breakdown: { a: 7, b: 5 } },
+        { playerId: playerIds[2], score: 4, breakdown: { a: 1, b: 3 } },
+      ],
+    );
 
     const populated = await repo().getPopulated(game.id);
     const byId = new Map(populated?.players.map(p => [p.playerId, p]));
@@ -412,7 +416,7 @@ describe("games adapter — listing & ending", () => {
     );
     expect(populated?.scoreEvents.map(e => e.round).sort()).toEqual([3, 4]);
 
-    await repo().end(game.id, playerIds[1]); // scores already persisted
+    await repo().end(game.id, [playerIds[1]]); // scores already persisted
 
     const stillOngoing = await repo().list();
     expect(stillOngoing.some(g => g.id === game.id)).toBe(false);
@@ -445,9 +449,11 @@ describe("games adapter — listing & ending", () => {
     await repo().advanceTurn(game.id, 30, 0, 0, 4);
     await repo().addDiceRoll(game.id, 8);
     await repo().addDiceRoll(game.id, 6);
-    await repo().end(game.id, playerIds[0], [
-      { playerId: playerIds[0], score: 12 },
-    ]);
+    await repo().end(
+      game.id,
+      [playerIds[0]],
+      [{ playerId: playerIds[0], score: 12 }],
+    );
 
     const records = await repo().listStats();
     const record = records.find(r => r.gameId === game.id);
@@ -497,7 +503,7 @@ describe("games adapter — listing & ending", () => {
       playerIds,
     });
     gameIds.push(noDice.id);
-    await repo().end(noDice.id, playerIds[0]);
+    await repo().end(noDice.id, [playerIds[0]]);
 
     const noDiceRecord = (await repo().listStats()).find(
       r => r.gameId === noDice.id,
@@ -522,11 +528,15 @@ describe("games adapter — listing & ending", () => {
     });
     gameIds.push(game.id);
 
-    await repo().end(game.id, playerIds[0], [
-      { playerId: playerIds[0], score: 104 },
-      { playerId: playerIds[1], score: 92 },
-      { playerId: playerIds[2], score: 87 },
-    ]);
+    await repo().end(
+      game.id,
+      [playerIds[0]],
+      [
+        { playerId: playerIds[0], score: 104 },
+        { playerId: playerIds[1], score: 92 },
+        { playerId: playerIds[2], score: 87 },
+      ],
+    );
 
     const populated = await repo().getPopulated(game.id);
     expect(
@@ -545,10 +555,22 @@ describe("games adapter — listing & ending", () => {
     });
     gameIds.push(game.id);
 
-    await repo().end(game.id, playerIds[0], [
-      { playerId: playerIds[0], score: 27, breakdown: { ours: 12, foret: 15 } },
-      { playerId: playerIds[1], score: 20, breakdown: { ours: 8, foret: 12 } },
-    ]);
+    await repo().end(
+      game.id,
+      [playerIds[0]],
+      [
+        {
+          playerId: playerIds[0],
+          score: 27,
+          breakdown: { ours: 12, foret: 15 },
+        },
+        {
+          playerId: playerIds[1],
+          score: 20,
+          breakdown: { ours: 8, foret: 12 },
+        },
+      ],
+    );
 
     const populated = await repo().getPopulated(game.id);
     const p0 = populated?.players.find(p => p.playerId === playerIds[0]);
@@ -647,7 +669,7 @@ describe("games adapter — listing & ending", () => {
     });
     gameIds.push(game.id);
 
-    await repo().end(game.id, playerIds[0]); // no scores passed
+    await repo().end(game.id, [playerIds[0]]); // no scores passed
 
     const populated = await repo().getPopulated(game.id);
     expect(populated?.status).toBe("ended");
@@ -655,6 +677,47 @@ describe("games adapter — listing & ending", () => {
       playerIds[0],
     );
     expect(populated?.players.every(p => p.score === null)).toBe(true);
+  });
+
+  it("ends on a shared victory, storing every winner and the tie-break trail", async () => {
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    await repo().end(
+      game.id,
+      [playerIds[0], playerIds[1]],
+      [
+        { playerId: playerIds[0], score: 10 },
+        { playerId: playerIds[1], score: 10 },
+        { playerId: playerIds[2], score: 6 },
+      ],
+      {
+        tied: [playerIds[0], playerIds[1]],
+        steps: [
+          {
+            key: "natureTokens",
+            label: "Jetons nature",
+            values: { [playerIds[0]]: 3, [playerIds[1]]: 3 },
+            survivors: [playerIds[0], playerIds[1]],
+          },
+        ],
+        shared: true,
+      },
+    );
+
+    const populated = await repo().getPopulated(game.id);
+
+    expect(
+      populated?.players.filter(p => p.isWinner).map(p => p.playerId),
+    ).toEqual(expect.arrayContaining([playerIds[0], playerIds[1]]));
+    expect(populated?.players.filter(p => p.isWinner)).toHaveLength(2);
+    expect(populated?.tieBreak?.shared).toBe(true);
+    expect(populated?.tieBreak?.tied).toEqual([playerIds[0], playerIds[1]]);
+    expect(populated?.tieBreak?.steps[0]?.key).toBe("natureTokens");
   });
 
   it("endCoop marks every player a winner on a shared victory", async () => {
@@ -702,7 +765,7 @@ describe("games adapter — error mapping", () => {
     ).rejects.toThrow();
 
     await expect(
-      repo().end(BAD_UUID as GameId, playerIds[0]),
+      repo().end(BAD_UUID as GameId, [playerIds[0]]),
     ).rejects.toThrow();
 
     await expect(repo().endCoop(BAD_UUID as GameId, true)).rejects.toThrow();
@@ -725,7 +788,7 @@ describe("games adapter — recording a finished game", () => {
     const game = await repo().createFinished({
       boardgameId: CATAN_ID,
       endedAt,
-      winnerId: playerIds[1],
+      winnerIds: [playerIds[1]],
       players: [
         { playerId: playerIds[0], seatOrder: 0, score: 8, breakdown: null },
         {
@@ -767,7 +830,7 @@ describe("games adapter — recording a finished game", () => {
     const game = await repo().createFinished({
       boardgameId: CATAN_ID,
       endedAt: new Date().toISOString(),
-      winnerId: playerIds[0],
+      winnerIds: [playerIds[0]],
       players: playerIds.map((id, i) => ({
         playerId: id,
         seatOrder: i,
@@ -782,6 +845,30 @@ describe("games adapter — recording a finished game", () => {
 
     expect(winner?.isWinner).toBe(true);
     expect(winner?.score).toBeNull();
+    // A single winner is no ex æquo: nothing to explain in the recap.
+    expect(populated?.tieBreak).toBeNull();
+  });
+
+  it("stores a finished game with a shared victory (several winners)", async () => {
+    const game = await repo().createFinished({
+      boardgameId: CATAN_ID,
+      endedAt: new Date().toISOString(),
+      winnerIds: [playerIds[0], playerIds[2]],
+      players: playerIds.map((id, i) => ({
+        playerId: id,
+        seatOrder: i,
+        score: i === 1 ? 5 : 9,
+        breakdown: null,
+      })),
+    });
+    gameIds.push(game.id);
+
+    const populated = await repo().getPopulated(game.id);
+
+    expect(populated?.players.filter(p => p.isWinner)).toHaveLength(2);
+    expect(populated?.tieBreak?.shared).toBe(true);
+    expect(populated?.tieBreak?.tied).toEqual([playerIds[0], playerIds[2]]);
+    expect(populated?.tieBreak?.steps).toEqual([]);
   });
 
   it("rejects a bad boardgame id, then an unknown player (FK violations)", async () => {
@@ -789,7 +876,7 @@ describe("games adapter — recording a finished game", () => {
       repo().createFinished({
         boardgameId: "not-a-uuid" as BoardgameId,
         endedAt: new Date().toISOString(),
-        winnerId: playerIds[0],
+        winnerIds: [playerIds[0]],
         players: [
           {
             playerId: playerIds[0],
@@ -811,7 +898,7 @@ describe("games adapter — recording a finished game", () => {
       repo().createFinished({
         boardgameId: CATAN_ID,
         endedAt: new Date().toISOString(),
-        winnerId: playerIds[0],
+        winnerIds: [playerIds[0]],
         players: [
           { playerId: playerIds[0], seatOrder: 0, score: 1, breakdown: null },
           { playerId: bad, seatOrder: 1, score: 2, breakdown: null },

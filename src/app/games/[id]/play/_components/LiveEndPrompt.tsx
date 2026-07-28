@@ -3,31 +3,42 @@
 import { useState } from "react";
 
 import { Modal } from "@/components/Modal";
-import type { PlayerId } from "@/lib/domain";
+import type { PlayerId, TieBreakRecord } from "@/lib/domain";
 
 /**
  * Shown when a live threshold game reaches (or overshoots) its target. The
- * winner is pre-selected as the top scorer, but the objective can be reached or
- * exceeded by several players at once, so the winner is confirmable/overridable
- * before ending. "Continuer la partie" dismisses (e.g. a mis-tap or a score
- * correction).
+ * winner is pre-selected from the scores — several of them when the table ended
+ * level and the game's own rule (Catan: whoever holds the turn) didn't separate
+ * them. The objective can be reached or exceeded by several players at once, so
+ * the selection stays confirmable and modifiable: tapping a name adds or removes
+ * a winner. "Continuer la partie" dismisses (e.g. a mis-tap or a correction).
  */
 export function LiveEndPrompt({
   players,
   scores,
-  defaultWinnerId,
+  defaultWinnerIds,
+  tieBreak,
   onEnd,
   onCancel,
   disabled,
-}: {
+}: Readonly<{
   players: { id: PlayerId; name: string }[];
   scores: Record<string, number>;
-  defaultWinnerId: PlayerId | null;
-  onEnd: (winnerId: PlayerId) => void;
+  defaultWinnerIds: PlayerId[];
+  /** What settled the tie, when the game ended level. Null otherwise. */
+  tieBreak: TieBreakRecord | null;
+  onEnd: (winnerIds: PlayerId[]) => void;
   onCancel: () => void;
   disabled: boolean;
-}) {
-  const [winnerId, setWinnerId] = useState<PlayerId | null>(defaultWinnerId);
+}>) {
+  const [winnerIds, setWinnerIds] = useState<PlayerId[]>(defaultWinnerIds);
+
+  const toggle = (id: PlayerId) => {
+    setWinnerIds(ids =>
+      ids.includes(id) ? ids.filter(w => w !== id) : [...ids, id],
+    );
+  };
+  const appliedRule = tieBreak?.steps.at(-1)?.label ?? null;
 
   return (
     <Modal
@@ -40,15 +51,26 @@ export function LiveEndPrompt({
         L&apos;objectif est atteint. Confirme le gagnant.
       </p>
 
+      {tieBreak?.shared ? (
+        <p className="mt-3 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+          Égalité qu&apos;aucune règle ne départage : victoire partagée.
+        </p>
+      ) : null}
+      {appliedRule && !tieBreak?.shared ? (
+        <p className="mt-3 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+          Égalité départagée : {appliedRule.toLowerCase()}.
+        </p>
+      ) : null}
+
       <ul className="mt-4 flex flex-col gap-2">
         {players.map(p => {
-          const isWinner = winnerId === p.id;
+          const isWinner = winnerIds.includes(p.id);
 
           return (
             <li key={p.id}>
               <button
                 type="button"
-                onClick={() => setWinnerId(p.id)}
+                onClick={() => toggle(p.id)}
                 className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition ${
                   isWinner
                     ? "border-amber-500 bg-amber-500/10 font-semibold"
@@ -78,12 +100,8 @@ export function LiveEndPrompt({
         </button>
         <button
           type="button"
-          disabled={disabled || winnerId === null}
-          onClick={() => {
-            if (winnerId !== null) {
-              onEnd(winnerId);
-            }
-          }}
+          disabled={disabled || winnerIds.length === 0}
+          onClick={() => onEnd(winnerIds)}
           className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
         >
           Terminer

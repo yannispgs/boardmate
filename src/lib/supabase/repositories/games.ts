@@ -19,6 +19,7 @@ import type {
   Player,
   PlayerId,
   PopulatedGame,
+  TieBreakRecord,
   TurnMode,
 } from "@/lib/domain";
 import {
@@ -58,6 +59,7 @@ function toGame(row: GameRow): Game {
     currentPlayerId: (row.current_player_id as PlayerId | null) ?? null,
     startedAt: row.started_at,
     endedAt: row.ended_at,
+    tieBreak: (row.tie_break as TieBreakRecord | null) ?? null,
   };
 }
 
@@ -426,6 +428,11 @@ export function createGameRepository(
           turn: 1,
           status: "ended",
           ended_at: input.endedAt,
+          // A shared victory entered after the fact has no rule trail, but the
+          // score recap still needs to know the game ended on an ex æquo.
+          tie_break: (input.winnerIds.length > 1
+            ? { tied: input.winnerIds, steps: [], shared: true }
+            : null) as Json,
         })
         .select("*")
         .single();
@@ -437,7 +444,7 @@ export function createGameRepository(
         game_id: game.id,
         player_id: p.playerId,
         seat_order: p.seatOrder,
-        is_winner: p.playerId === input.winnerId,
+        is_winner: input.winnerIds.includes(p.playerId),
         score: p.score === null ? null : Math.round(p.score),
         score_breakdown: (p.breakdown ?? null) as Json,
       }));
@@ -577,9 +584,13 @@ export function createGameRepository(
       }
     },
 
-    async end(id: GameId, winnerId: PlayerId, scores) {
+    async end(id: GameId, winnerIds: PlayerId[], scores, tieBreak) {
       const { error } = await games()
-        .update({ status: "ended", ended_at: new Date().toISOString() })
+        .update({
+          status: "ended",
+          ended_at: new Date().toISOString(),
+          tie_break: (tieBreak ?? null) as Json,
+        })
         .eq("id", id);
       if (error) {
         throw new Error(`Fin de la partie: ${error.message}`);
@@ -602,18 +613,19 @@ export function createGameRepository(
         }
       }
 
+      // Several winners on a shared victory the tie-break rules couldn't split.
       const { error: winnerError } = await supabase
         .from("game_players")
         .update({ is_winner: true })
         .eq("game_id", id)
-        .eq("player_id", winnerId);
+        .in("player_id", winnerIds);
       /* c8 ignore next 3 -- defensive guard: update errors surface via e2e */
       if (winnerError) {
         throw new Error(`Enregistrement du gagnant: ${winnerError.message}`);
       }
     },
 
-    async setBreakdown(id: GameId, winnerId: PlayerId, scores) {
+    async setBreakdown(id: GameId, winnerIds: PlayerId[], scores, tieBreak) {
       for (const { playerId, score, breakdown } of scores) {
         const { error } = await supabase
           .from("game_players")
@@ -643,10 +655,18 @@ export function createGameRepository(
         .from("game_players")
         .update({ is_winner: true })
         .eq("game_id", id)
-        .eq("player_id", winnerId);
+        .in("player_id", winnerIds);
       /* c8 ignore next 3 -- defensive guard: update errors surface via e2e */
       if (winnerError) {
         throw new Error(`Enregistrement du gagnant: ${winnerError.message}`);
+      }
+
+      const { error: tieError } = await games()
+        .update({ tie_break: (tieBreak ?? null) as Json })
+        .eq("id", id);
+      /* c8 ignore next 3 -- defensive guard: update errors surface via e2e */
+      if (tieError) {
+        throw new Error(`Enregistrement du départage: ${tieError.message}`);
       }
     },
 

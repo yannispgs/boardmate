@@ -7,19 +7,20 @@ import type {
   GameId,
   PlayerId,
   PopulatedGame,
+  TieBreakRecord,
   WinCondition,
 } from "@/lib/domain";
 import { countdownColor } from "@/lib/game/colors";
 import { diceStats, diceValues } from "@/lib/game/dice";
 import {
   clampScore,
-  leaderByScore,
   type Ranked,
   rankByTotal,
   scoreCategories,
   winnerDirection,
 } from "@/lib/game/scoring";
 import { liveTimeHog } from "@/lib/game/stats";
+import { resolveTieBreak, tieBreakRecord } from "@/lib/game/tie-break";
 import { isFinalTurn, turnsPerRound } from "@/lib/game/turn";
 import { turnDurationForRound } from "@/lib/game/turn-schedule";
 import { useTurnTimer } from "@/lib/hooks/use-turn-timer";
@@ -33,6 +34,7 @@ import { LiveEndPrompt } from "./LiveEndPrompt";
 import { RankingReveal } from "./RankingReveal";
 import { ScorePanel } from "./ScorePanel";
 import { StatsPanel } from "./StatsPanel";
+import { TieBreakPrompt } from "./TieBreakPrompt";
 import { TurnFlow } from "./turn-flow";
 import { WaitPicker } from "./WaitPicker";
 
@@ -40,6 +42,20 @@ import { WaitPicker } from "./WaitPicker";
 interface CategoryResult {
   values: Record<string, Record<string, number>>;
   ranking: Ranked[];
+}
+
+/** Final scores about to be persisted, with the breakdown when there is one. */
+type FinalScores = Array<{
+  playerId: PlayerId;
+  score: number;
+  breakdown?: Record<string, number>;
+}>;
+
+/** A game that ended level, held while the table settles who actually won. */
+interface PendingTie {
+  scores: FinalScores;
+  /** The category outcome to reveal once the winners are settled, if any. */
+  category: CategoryResult | null;
 }
 
 export function PlayScreen({ gameId }: { gameId: GameId }) {
@@ -72,6 +88,9 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   const [catOpen, setCatOpen] = useState(false);
   const [phase, setPhase] = useState<"play" | "reveal" | "table">("play");
   const [result, setResult] = useState<CategoryResult | null>(null);
+  // Set when the final scores came out level: the tie-break prompt then applies
+  // the game's own rules and asks the table to confirm who won.
+  const [tie, setTie] = useState<PendingTie | null>(null);
   // Live running scores, seeded once from the loaded game then owned here so
   // they survive turn reloads and feed both the score panel and the end prompt.
   const [scores, setScores] = useState<Record<string, number> | null>(null);
@@ -221,21 +240,59 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   }
 
   async function handleEnd(
-    winnerId: PlayerId,
-    scores?: Array<{ playerId: PlayerId; score: number }>,
+    winnerIds: PlayerId[],
+    scores?: FinalScores,
+    tieBreak?: TieBreakRecord | null,
   ) {
     if (!game || busy) {
       return;
     }
     setBusy(true);
     try {
-      await repo.end(game.id, winnerId, scores);
+      await repo.end(game.id, winnerIds, scores, tieBreak ?? null);
       await load();
     } catch {
       setError("Impossible de terminer la partie.");
     } finally {
       setBusy(false);
     }
+  }
+
+  // Ends a scored game once the winners are settled — after the tie-break
+  // prompt when the table finished level, straight away otherwise. A category
+  // game then runs its reveal instead of falling back to the play screen.
+  async function finishScored(
+    winnerIds: PlayerId[],
+    scores: FinalScores,
+    tieBreak: TieBreakRecord | null,
+    category: CategoryResult | null,
+  ) {
+    if (!game || busy) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await repo.end(game.id, winnerIds, scores, tieBreak);
+    } catch {
+      setError("Impossible de terminer la partie.");
+      setBusy(false);
+
+      return;
+    }
+
+    setBusy(false);
+    setTie(null);
+    setEndOpen(false);
+
+    if (category) {
+      setCatOpen(false);
+      setResult(category);
+      setPhase("reveal");
+
+      return;
+    }
+
+    await load();
   }
 
   // Cooperative games end on a shared outcome (all win, or none).
@@ -331,21 +388,51 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
       score: scored[p.playerId]?.total ?? 0,
       breakdown: values[p.playerId] ?? {},
     }));
+    const category = { values, ranking };
+    // A category sheet is always summed highest-first, so the leaders are the
+    // players sharing rank 1.
+    const outcome = resolveTieBreak(scores, "highest", [], {});
 
-    setBusy(true);
-    try {
-      await repo.end(game.id, ranking[0].playerId, scores);
-    } catch {
-      setError("Impossible de terminer la partie.");
-      setBusy(false);
+    if (outcome.tied.length > 1) {
+      setTie({ scores, category });
 
       return;
     }
 
-    setBusy(false);
-    setCatOpen(false);
-    setResult({ values, ranking });
-    setPhase("reveal");
+    await finishScored(outcome.winners, scores, null, category);
+  }
+
+  /**
+   * A game scored on a final total: the leader wins, unless the table named
+   * someone else by hand (`override`) or several players finished level — the
+   * tie-break prompt then applies the game's own rules.
+   */
+  async function handleFinalScores(
+    scores: Array<{ playerId: PlayerId; score: number }>,
+    override: PlayerId | null,
+  ) {
+    if (!game) {
+      return;
+    }
+
+    if (override) {
+      await finishScored([override], scores, null, null);
+
+      return;
+    }
+
+    const direction = game.boardgame.scoring
+      ? winnerDirection(game.boardgame.scoring.winCondition)
+      : "highest";
+    const outcome = resolveTieBreak(scores, direction, [], {});
+
+    if (outcome.tied.length > 1) {
+      setTie({ scores, category: null });
+
+      return;
+    }
+
+    await finishScored(outcome.winners, scores, null, null);
   }
 
   if (loading) {
@@ -405,6 +492,20 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
 
   // Dice tracking (Catan): a one-tap histogram sharing the screen with a
   // slimmed-down timer.
+  // The boardgame's own secondary rules, for a game that ends level.
+  const tieRules = game.boardgame.scoring?.tieBreak ?? [];
+  // Live scoring: who the target-reached prompt proposes as winner, already
+  // resolved through those rules (Catan hands the tie to whoever holds the turn).
+  const liveOutcome = resolveTieBreak(
+    game.players.map(p => ({
+      playerId: p.playerId,
+      score: scores?.[p.playerId] ?? 0,
+    })),
+    "highest",
+    tieRules,
+    { currentPlayerId: game.currentPlayerId },
+  );
+
   const dice = game.boardgame.dice;
   const rollValues = rolls ?? [];
   const diceRange = dice ? diceValues(dice) : [];
@@ -549,7 +650,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
             <ScoreEntry
               players={game.players.map(p => p.player)}
               winCondition={game.boardgame.scoring.winCondition}
-              onEnd={handleEnd}
+              onEnd={handleFinalScores}
               disabled={busy}
               open={endFormOpen}
               onOpenChange={setEndFormOpen}
@@ -558,7 +659,17 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         ) : (
           <WinnerPicker
             players={game.players.map(p => p.player)}
-            onPick={handleEnd}
+            onPick={winnerIds => {
+              // Picked by hand: several names is a shared victory the table
+              // decided on, with no score to explain it.
+              handleEnd(
+                winnerIds,
+                undefined,
+                winnerIds.length > 1
+                  ? { tied: winnerIds, steps: [], shared: true }
+                  : null,
+              );
+            }}
             disabled={busy}
             open={endFormOpen}
             onOpenChange={setEndFormOpen}
@@ -568,31 +679,45 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
 
       {endOpen && scores ? (
         <LiveEndPrompt
-          players={game.players.map(p => ({
-            id: p.playerId,
-            name: p.player.name,
-          }))}
+          players={namedPlayers}
           scores={scores}
-          defaultWinnerId={leaderByScore(
-            game.players.map(p => ({
-              playerId: p.playerId,
-              score: scores[p.playerId] ?? 0,
-            })),
-            "highest",
-          )}
-          onEnd={winnerId => {
+          defaultWinnerIds={liveOutcome.winners}
+          tieBreak={tieBreakRecord(liveOutcome)}
+          onEnd={winnerIds => {
             setEndOpen(false);
             // Persist every player's live score, not just the winner's, so no
             // one is left unscored in the finished game.
             handleEnd(
-              winnerId,
+              winnerIds,
               game.players.map(p => ({
                 playerId: p.playerId,
                 score: scores[p.playerId] ?? 0,
               })),
+              tieBreakRecord(liveOutcome),
             );
           }}
           onCancel={() => setEndOpen(false)}
+          disabled={busy}
+        />
+      ) : null}
+
+      {tie ? (
+        <TieBreakPrompt
+          players={namedPlayers}
+          scores={Object.fromEntries(
+            tie.scores.map(s => [s.playerId, s.score]),
+          )}
+          direction={
+            game.boardgame.scoring
+              ? winnerDirection(game.boardgame.scoring.winCondition)
+              : "highest"
+          }
+          rules={tieRules}
+          currentPlayerId={game.currentPlayerId}
+          onConfirm={(winnerIds, record) => {
+            finishScored(winnerIds, tie.scores, record, tie.category);
+          }}
+          onCancel={() => setTie(null)}
           disabled={busy}
         />
       ) : null}
@@ -847,13 +972,21 @@ function WinnerPicker({
   disabled,
   open,
   onOpenChange,
-}: {
+}: Readonly<{
   players: { id: PlayerId; name: string }[];
-  onPick: (id: PlayerId) => void;
+  onPick: (ids: PlayerId[]) => void;
   disabled: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}) {
+}>) {
+  const [picked, setPicked] = useState<PlayerId[]>([]);
+
+  const toggle = (id: PlayerId) => {
+    setPicked(ids =>
+      ids.includes(id) ? ids.filter(w => w !== id) : [...ids, id],
+    );
+  };
+
   if (!open) {
     return (
       <button
@@ -869,17 +1002,37 @@ function WinnerPicker({
   return (
     <div className="flex w-full max-w-xs flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10">
       <p className="text-sm font-semibold">Qui a gagné ?</p>
-      {players.map(p => (
-        <button
-          key={p.id}
-          type="button"
-          disabled={disabled}
-          onClick={() => onPick(p.id)}
-          className="rounded-lg border border-black/10 px-3 py-2 text-left transition hover:border-indigo-400 disabled:opacity-60 dark:border-white/10"
-        >
-          {p.name}
-        </button>
-      ))}
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+        Plusieurs noms = victoire partagée.
+      </p>
+      {players.map(p => {
+        const isWinner = picked.includes(p.id);
+
+        return (
+          <button
+            key={p.id}
+            type="button"
+            disabled={disabled}
+            onClick={() => toggle(p.id)}
+            className={`rounded-lg border px-3 py-2 text-left transition disabled:opacity-60 ${
+              isWinner
+                ? "border-amber-500 bg-amber-500/10 font-semibold"
+                : "border-black/10 hover:border-indigo-400 dark:border-white/10"
+            }`}
+          >
+            {isWinner ? "🏆 " : ""}
+            {p.name}
+          </button>
+        );
+      })}
+      <button
+        type="button"
+        disabled={disabled || picked.length === 0}
+        onClick={() => onPick(picked)}
+        className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
+      >
+        Terminer
+      </button>
       <button
         type="button"
         onClick={() => onOpenChange(false)}
@@ -953,8 +1106,9 @@ function CoopEnd({
 /**
  * End-of-game score entry for a game scored at the end (final total). Each
  * player gets a number; the leader (by the win condition's direction) is
- * proposed as winner and can be overridden by tapping a name (ties, house
- * rules). Ends once every score is in.
+ * proposed as winner — several of them while the table is level, which the
+ * tie-break prompt settles afterwards. Tapping a name names that player winner
+ * outright (house rules). Ends once every score is in.
  */
 function ScoreEntry({
   players,
@@ -963,17 +1117,17 @@ function ScoreEntry({
   disabled,
   open,
   onOpenChange,
-}: {
+}: Readonly<{
   players: { id: PlayerId; name: string }[];
   winCondition: WinCondition;
   onEnd: (
-    winnerId: PlayerId,
     scores: Array<{ playerId: PlayerId; score: number }>,
+    override: PlayerId | null,
   ) => void;
   disabled: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}) {
+}>) {
   const [raw, setRaw] = useState<Record<string, string>>({});
   const [override, setOverride] = useState<PlayerId | null>(null);
 
@@ -987,8 +1141,16 @@ function ScoreEntry({
     };
   });
   const allEntered = entries.every(e => e.score !== null);
-  const winnerId =
-    override ?? leaderByScore(entries, winnerDirection(winCondition));
+  // While a score is missing the leaders can't be trusted, so highlight nobody.
+  const leaders = allEntered
+    ? resolveTieBreak(
+        entries.map(e => ({ playerId: e.playerId, score: e.score ?? 0 })),
+        winnerDirection(winCondition),
+        [],
+        {},
+      ).tied
+    : [];
+  const highlighted = override === null ? leaders : [override];
 
   if (!open) {
     return (
@@ -1006,7 +1168,7 @@ function ScoreEntry({
     <div className="flex w-full max-w-xs flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10">
       <p className="text-sm font-semibold">Scores de fin</p>
       {players.map(p => {
-        const isWinner = winnerId === p.id;
+        const isWinner = highlighted.includes(p.id);
 
         return (
           <div key={p.id} className="flex items-center justify-between gap-2">
@@ -1035,14 +1197,12 @@ function ScoreEntry({
       })}
       <button
         type="button"
-        disabled={disabled || !allEntered || !winnerId}
+        disabled={disabled || !allEntered}
         onClick={() => {
-          if (winnerId) {
-            onEnd(
-              winnerId,
-              entries.map(e => ({ playerId: e.playerId, score: e.score ?? 0 })),
-            );
-          }
+          onEnd(
+            entries.map(e => ({ playerId: e.playerId, score: e.score ?? 0 })),
+            override,
+          );
         }}
         className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
       >
