@@ -14,6 +14,18 @@ export const sectionHeadingClass =
 export const fieldClass =
   "rounded-lg border border-black/10 px-3 py-2 text-sm dark:border-white/15";
 
+/**
+ * A modal card: a column that never outgrows the **visible** viewport, so its
+ * header and its footer are always reachable and its body scrolls between them.
+ * Add the width it wants (`max-w-md`…).
+ *
+ * `dvh` and not `lvh`: the large viewport is the phone's screen **with the
+ * browser bars hidden**, so a card measured on it hangs under the toolbar and
+ * takes its own footer with it.
+ */
+export const modalCardClass =
+  "flex max-h-[90dvh] w-full flex-col rounded-xl border border-black/10 bg-white shadow-xl dark:border-white/10 dark:bg-zinc-900";
+
 /** A pill-shaped choice, filled in when it is the one in force. */
 export const chipClass = (active: boolean) =>
   `rounded-full border px-3 py-1 text-sm transition ${

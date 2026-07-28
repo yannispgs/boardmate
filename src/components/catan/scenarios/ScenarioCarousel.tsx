@@ -3,6 +3,7 @@
 import { type PointerEvent, useRef, useState } from "react";
 
 import { Modal } from "@/components/Modal";
+import { modalCardClass } from "@/components/ui";
 import type { ExtensionScenario, ExtensionScenarioId } from "@/lib/domain";
 import { stepIndex, swipeStep } from "@/lib/ui/carousel";
 import { ScenarioSlide } from "./ScenarioSlide";
@@ -111,9 +112,9 @@ export function ScenarioCarousel({
     <Modal
       onClose={onClose}
       label="Plateaux des scénarios"
-      className="flex max-h-[90lvh] w-full max-w-md flex-col rounded-xl border border-black/10 bg-white shadow-xl dark:border-white/10 dark:bg-zinc-900"
+      className={`${modalCardClass} max-w-md`}
     >
-      <div className="flex items-center justify-between gap-3 border-b border-black/10 p-4 dark:border-white/10">
+      <div className="relative z-10 flex items-center justify-between gap-3 border-b border-black/10 p-4 dark:border-white/10">
         <h2 className="text-base font-semibold">Plateaux</h2>
 
         {scenarios.length > 1 ? (
@@ -131,7 +132,11 @@ export function ScenarioCarousel({
         </button>
       </div>
 
-      <div className="relative min-h-0 flex-1">
+      {/* `overflow-hidden` keeps whatever the slide unfolds — the fog's material
+          list, a long board — inside this row: the arrows make the row a
+          positioned box, which would otherwise paint over the footer under it
+          however tall the slide grew. */}
+      <div className="relative flex min-h-0 flex-1 overflow-hidden">
         {/* `touch-pan-y` keeps the sideways drag for the carousel and leaves the
             up-and-down one to the board; `overscroll-contain` stops a board
             scrolled to its end from carrying on into the page behind. */}
@@ -139,7 +144,7 @@ export function ScenarioCarousel({
           onPointerDown={startDrag}
           onPointerUp={endDrag}
           onPointerCancel={cancelDrag}
-          className="h-full touch-pan-y overflow-y-auto overscroll-contain px-11 py-4"
+          className="flex-1 touch-pan-y overflow-y-auto overscroll-contain px-11 py-4"
         >
           {/* Keyed so flipping to another scenario draws its own first board
               rather than inheriting the seed of the one before it. */}
@@ -158,7 +163,7 @@ export function ScenarioCarousel({
         ) : null}
       </div>
 
-      <div className="border-t border-black/10 p-3 dark:border-white/10">
+      <div className="relative z-10 border-t border-black/10 p-3 dark:border-white/10">
         <button
           type="button"
           onClick={choose}

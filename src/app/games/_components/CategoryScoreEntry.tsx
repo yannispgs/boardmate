@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { Modal } from "@/components/Modal";
+import { modalCardClass } from "@/components/ui";
 import type { PlayerId, ScoreSheetItem } from "@/lib/domain";
 import {
   type CategoryRaw,
@@ -46,7 +47,7 @@ export function CategoryScoreEntry({
       onClose={onCancel}
       dismissable={false}
       label="Comptage des points"
-      className="flex max-h-[90lvh] w-full max-w-md flex-col rounded-xl border border-black/10 bg-white shadow-xl dark:border-white/10 dark:bg-zinc-900"
+      className={`${modalCardClass} max-w-md`}
     >
       <div className="flex items-center justify-between border-b border-black/10 p-4 dark:border-white/10">
         <h2 className="text-base font-semibold">Comptage des points</h2>

@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { Modal } from "@/components/Modal";
 import { StatTile } from "@/components/StatTile";
+import { modalCardClass } from "@/components/ui";
 import type { DiceSpec, GamePlayer, GameTurn, Player } from "@/lib/domain";
 import { formatDuration } from "@/lib/game/format-time";
 import { computeGameStats, liveTimeHog } from "@/lib/game/stats";
@@ -63,7 +64,7 @@ export function StatsPanel({
         <Modal
           onClose={() => setOpen(false)}
           label="Statistiques en direct"
-          className="flex max-h-[85lvh] w-full max-w-sm flex-col rounded-xl border border-black/10 bg-white shadow-xl dark:border-white/10 dark:bg-zinc-900"
+          className={`${modalCardClass} max-w-sm`}
         >
           <div className="flex items-center justify-between border-b border-black/10 p-4 dark:border-white/10">
             <h2 className="text-base font-semibold">Stats en direct</h2>
