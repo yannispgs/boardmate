@@ -9,13 +9,17 @@ import {
 } from "./utils/supabase";
 
 /**
- * Selecting a Catan extension + scenario in the launch recap (full-suite only —
- * untagged). The scenario imposes a fixed, read-only win target, and the game is
- * recorded with its active extension + scenario.
+ * Selecting a Catan extension + scenario in the launch recap. The scenario
+ * imposes a fixed, read-only win target, and the game is recorded with its
+ * active extension + scenario.
+ *
+ * Gating: an extension silently dropped on launch is a game played under the
+ * wrong rules, and nothing later in the app can tell — so this one runs per-PR
+ * rather than only in the full sweep.
  */
-test("launches a Catan game with the Marins extension and a scenario", async ({
-  page,
-}) => {
+test("launches a Catan game with the Marins extension and a scenario", {
+  tag: "@critical",
+}, async ({ page }) => {
   const names = await seedPlayers(3);
   const admin = adminClient();
   let gameId: string | undefined;
