@@ -349,6 +349,9 @@ function RecapStep({
   // and the confirmation is the last moment anyone reads before playing.
   const fogZones =
     board?.kind === "scenario" ? hiddenMaterial(board.board) : [];
+  // A board to draw means one more step before the game actually starts.
+  const launchLabel =
+    board === null ? "Lancer la partie" : "Choisis le plateau →";
 
   // Prefill the form from the selected config over the (composed) template
   // defaults, so every attribute shows a value tweakable for this game only.
@@ -560,11 +563,7 @@ function RecapStep({
               onClick={handleLaunch}
               className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
             >
-              {creating
-                ? "Création…"
-                : board === null
-                  ? "Lancer la partie"
-                  : "Choisis le plateau →"}
+              {creating ? "Création…" : launchLabel}
             </button>
           </>
         )

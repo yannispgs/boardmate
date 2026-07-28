@@ -575,7 +575,7 @@ export function BoardgameForm({
       </label>
 
       <label className="flex flex-col gap-1 text-xs text-zinc-500">
-        Générateur de plateau
+        <span>Générateur de plateau</span>
         <select
           value={form.boardGenerator}
           onChange={e =>
