@@ -28,6 +28,7 @@ import { useConfigs } from "@/lib/hooks/use-configs";
 import { useExtensions } from "@/lib/hooks/use-extensions";
 import { useGames } from "@/lib/hooks/use-games";
 import { usePlayers } from "@/lib/hooks/use-players";
+import { ExtensionPicker } from "./ExtensionPicker";
 import { FirstPlayerWheel } from "./FirstPlayerWheel";
 import { PlayerPickCardList } from "./PlayerPickCardList";
 import { tileClass } from "./tile-class";
@@ -410,6 +411,10 @@ function RecapStep({
       : null;
   const editableFields = composedFields.filter(f => f.key !== thresholdField);
 
+  function pickScenario(extension: ExtensionId, id: ExtensionScenarioId) {
+    setScenarioByExt(prev => ({ ...prev, [extension]: id }));
+  }
+
   function toggleExtension(id: ExtensionId) {
     setSelectedExt(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id],
@@ -594,60 +599,14 @@ function RecapStep({
           ) : null}
 
           {extensions.length > 0 ? (
-            <div className="flex flex-col gap-3 rounded-xl border border-black/10 p-4 dark:border-white/10">
-              <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-                Extensions
-              </h3>
-              {extensions.map(e => {
-                const on = selectedExt.includes(e.id);
-
-                return (
-                  <div key={e.id} className="flex flex-col gap-2">
-                    <label className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={on}
-                        onChange={() => toggleExtension(e.id)}
-                        className="h-4 w-4 shrink-0 accent-indigo-600"
-                      />
-                      {e.name}
-                    </label>
-                    {on && e.hasScenarios ? (
-                      <div className="flex flex-col gap-1 pl-6">
-                        <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                          Scénario
-                        </span>
-                        {e.scenarios.map(s => (
-                          <label
-                            key={s.id}
-                            className="flex items-center gap-2 text-sm"
-                          >
-                            <input
-                              type="radio"
-                              name={`scenario-${e.id}`}
-                              checked={scenarioByExt[e.id] === s.id}
-                              onChange={() =>
-                                setScenarioByExt(prev => ({
-                                  ...prev,
-                                  [e.id]: s.id,
-                                }))
-                              }
-                              className="h-4 w-4 shrink-0 accent-indigo-600"
-                            />
-                            {s.name}
-                            {s.targetScore !== null ? (
-                              <span className="text-zinc-400">
-                                · 🎯 {s.targetScore}
-                              </span>
-                            ) : null}
-                          </label>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
+            <ExtensionPicker
+              extensions={extensions}
+              selected={selectedExt}
+              scenarioByExtension={scenarioByExt}
+              players={players.length}
+              onToggle={toggleExtension}
+              onPickScenario={pickScenario}
+            />
           ) : null}
 
           {editableFields.length > 0 ? (

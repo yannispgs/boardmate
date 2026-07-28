@@ -8,19 +8,25 @@ import type { ScenarioSpec } from "@/lib/catan/scenario-spec";
 import { useScenarioDraw } from "@/lib/hooks/use-scenario-draw";
 
 /**
- * A real draw of the scenario being authored, for the player count on screen —
- * the only way to tell a map that adds up from a map that plays well. Redrawing
- * shows how much the scenario actually leaves to chance, and the settings it is
- * drawn under are the scenario's own, so changing one is answered here.
+ * A real draw of a scenario, for the player count on screen — the only way to
+ * tell a map that adds up from a map that plays well. Redrawing shows how much
+ * the scenario actually leaves to chance, and the settings it is drawn under
+ * are the scenario's own, so changing one is answered here.
+ *
+ * `showWarnings` is for the author: what the placement rules had to give up on
+ * is his to correct. A player leafing through the scenarios before a game is
+ * looking at an illustration of one, and has nothing to do with the complaint.
  */
 export function BoardPreview({
   spec,
   players,
   options,
+  showWarnings = false,
 }: Readonly<{
   spec: ScenarioSpec;
   players: number;
   options: GeneratorOptions;
+  showWarnings?: boolean;
 }>) {
   const { draw, regenerate } = useScenarioDraw(spec, players, options);
 
@@ -32,7 +38,9 @@ export function BoardPreview({
     );
   }
 
-  const warnings = boardWarnings(draw.drawn.board, draw.drawn.options);
+  const warnings = showWarnings
+    ? boardWarnings(draw.drawn.board, draw.drawn.options)
+    : [];
 
   return (
     <div className="flex flex-col gap-3">

@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-import { adminClient, CATAN_NAME, seedPlayers } from "./utils/supabase";
+import {
+  adminClient,
+  CATAN_NAME,
+  deleteScenarios,
+  seedMarinsScenario,
+  seedPlayers,
+} from "./utils/supabase";
 
 /**
  * Selecting a Catan extension + scenario in the launch recap (full-suite only —
@@ -81,4 +87,50 @@ test("browses the Catan extensions from the games list", async ({ page }) => {
   // Each scenario shows its rulebook target (Four Islands = 13).
   await expect(page.getByText("Les quatre îles")).toBeVisible();
   await expect(page.getByText("🎯 13 pts")).toBeVisible();
+});
+
+/**
+ * Previewing the scenario boards from the launch recap (full-suite only —
+ * untagged): the carousel draws each scenario for the players already seated,
+ * and picking one there ticks it in the form.
+ */
+test("previews the scenario boards before launching", async ({ page }) => {
+  const names = await seedPlayers(3);
+  const scenario = "E2E aperçu";
+
+  await seedMarinsScenario(scenario);
+  try {
+    await page.goto("/games/new");
+    await page.getByRole("button", { name: CATAN_NAME, exact: true }).click();
+    await page
+      .getByRole("button", { name: "Sans configuration", exact: true })
+      .click();
+    for (const name of names) {
+      await page.getByRole("button", { name, exact: true }).click();
+    }
+    await page.getByRole("button", { name: "Continuer →" }).click();
+
+    await page.getByRole("checkbox", { name: "Catan - Marins" }).check();
+    await page.getByRole("button", { name: /Voir les plateaux/ }).click();
+
+    // The dots are named after their scenario, so the seeded one is reachable
+    // without counting slides.
+    const dialog = page.getByRole("dialog");
+
+    await expect(dialog).toBeVisible();
+    await dialog.getByTitle(scenario).click();
+    await expect(dialog.getByRole("heading", { name: scenario })).toBeVisible();
+    await expect(dialog.locator("svg")).toBeVisible();
+
+    // Choosing in the carousel closes it and answers the form behind it.
+    await dialog.getByRole("button", { name: "Choisir ce scénario" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(
+      page.getByRole("radio", { name: new RegExp(scenario) }),
+    ).toBeChecked();
+    await expect(page.getByText(/Imposé par le scénario/)).toBeVisible();
+  } finally {
+    await deleteScenarios([scenario]);
+    await adminClient().from("players").delete().in("name", names);
+  }
 });

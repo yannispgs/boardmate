@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 
+import { BoardPreview } from "@/components/catan/BoardPreview";
 import { GeneratorSettings } from "@/components/catan/GeneratorSettings";
 import { EraserIcon } from "@/components/icons";
 import { StickyActionBar } from "@/components/StickyActionBar";
@@ -30,7 +31,6 @@ import {
 } from "@/lib/catan/scenario-spec";
 import type { ScenarioDraft } from "@/lib/hooks/use-extensions";
 import { BoardPortsPanel } from "./BoardPortsPanel";
-import { BoardPreview } from "./BoardPreview";
 import { BoardTabs } from "./BoardTabs";
 import { type CanvasTool, ScenarioCanvas } from "./ScenarioCanvas";
 import { SpecIssueList } from "./SpecIssueList";
@@ -374,6 +374,7 @@ export function ScenarioEditor({
                       spec={spec}
                       players={board.players[0]}
                       options={generator}
+                      showWarnings
                     />
                   ) : null}
                 </>
