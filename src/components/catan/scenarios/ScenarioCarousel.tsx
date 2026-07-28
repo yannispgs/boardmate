@@ -75,9 +75,6 @@ export function ScenarioCarousel({
   }
 
   function startDrag(event: PointerEvent<HTMLDivElement>) {
-    // The finger keeps reporting to this element even once it has slid off it,
-    // so a swipe that ends over the arrows — or past the card — still counts.
-    event.currentTarget.setPointerCapture(event.pointerId);
     from.current = { x: event.clientX, y: event.clientY };
   }
 
