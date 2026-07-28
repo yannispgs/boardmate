@@ -126,6 +126,13 @@ export function GameCard({
   const winnerScore = winners[0]?.score ?? null;
   // Cooperative games win or lose as a group (some player `isWinner`, or none).
   const coopWon = game.players.some(p => p.isWinner);
+  // How a finished game opens its line: the table's shared result on a
+  // cooperative game, else the winner(s) and their score.
+  const scoreLabel = winnerScore === null ? "" : ` (${winnerScore} pts)`;
+  const winnerOutcome =
+    winners.length === 0 ? "" : `🏆 ${winnerLabel}${scoreLabel}`;
+  const coopOutcome = coopWon ? "🎉 Victoire" : "😔 Défaite";
+  const outcome = coop ? coopOutcome : winnerOutcome;
   // A finished game has no "current" player to emphasise.
   const highlightId = ended ? null : game.currentPlayerId;
 
@@ -178,13 +185,7 @@ export function GameCard({
             </span>
             {ended ? (
               <span className="mt-0.5 text-xs font-medium text-amber-600 dark:text-amber-500">
-                {coop
-                  ? `${coopWon ? "🎉 Victoire" : "😔 Défaite"} · `
-                  : winners.length > 0
-                    ? `🏆 ${winnerLabel}${
-                        winnerScore !== null ? ` (${winnerScore} pts)` : ""
-                      } · `
-                    : ""}
+                {outcome === "" ? null : `${outcome} · `}
                 {game.round} tour{game.round > 1 ? "s" : ""}
               </span>
             ) : currentPlayer ? (

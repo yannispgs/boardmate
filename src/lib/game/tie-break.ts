@@ -45,7 +45,7 @@ export function formatNames(names: string[]): string {
     return names.join("");
   }
 
-  return `${names.slice(0, -1).join(", ")} et ${names[names.length - 1]}`;
+  return `${names.slice(0, -1).join(", ")} et ${names.at(-1)}`;
 }
 
 /** The players sharing the best score, in input order. */

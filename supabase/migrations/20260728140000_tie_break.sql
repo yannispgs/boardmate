@@ -15,55 +15,20 @@ alter table public.games add column if not exists tie_break jsonb;
 -- The rules themselves, from each game's rulebook. `source` says where the
 -- value comes from: `currentTurn` = the app already knows it, `ask` = the table
 -- enters one number per tied player at game end.
-
+--
 -- Catan: the rulebook has no real tie-break — reaching the target on your own
 -- turn is what wins, so the player holding the turn takes it.
-update public.boardgames
-set scoring = scoring || jsonb_build_object('tieBreak', '[
-    {
-      "key": "currentTurn",
-      "label": "Celui dont c''est le tour",
-      "source": "currentTurn"
-    }
-  ]'::jsonb)
-where name = 'Catan' and scoring is not null;
-
--- Cascadia: most nature tokens left.
-update public.boardgames
-set scoring = scoring || jsonb_build_object('tieBreak', '[
-    {
-      "key": "natureTokens",
-      "label": "Le plus de jetons nature",
-      "source": "ask",
-      "help": "Jetons nature restants en fin de partie"
-    }
-  ]'::jsonb)
-where name = 'Cascadia' and scoring is not null;
-
--- Wingspan: most unused food tokens left in the personal supply.
-update public.boardgames
-set scoring = scoring || jsonb_build_object('tieBreak', '[
-    {
-      "key": "foodTokens",
-      "label": "Le plus de jetons nourriture inutilisés",
-      "source": "ask",
-      "help": "Nourriture restant dans la réserve personnelle"
-    }
-  ]'::jsonb)
-where name = 'Wingspan' and scoring is not null;
-
--- Splito: fewest Splito cards across the player's two piles.
-update public.boardgames
-set scoring = scoring || jsonb_build_object('tieBreak', '[
-    {
-      "key": "splitoCards",
-      "label": "Le moins de cartes Splito",
-      "direction": "lowest",
-      "source": "ask",
-      "help": "Total des cartes Splito des deux piles"
-    }
-  ]'::jsonb)
-where name = 'Splito' and scoring is not null;
-
--- Forêt Mixte has no tie-break rule at all: an ex æquo is a shared victory.
--- Nothing to author — the empty list is the absence of the key.
+-- Cascadia: most nature tokens left. Wingspan: most unused food tokens.
+-- Splito: FEWEST Splito cards across the player's two piles.
+-- Forêt Mixte has no rule at all: an ex æquo there is a shared victory, and the
+-- absence of the key is what says so.
+update public.boardgames as b
+set scoring = b.scoring || jsonb_build_object('tieBreak', r.rules)
+from (
+  values
+    ('Catan', '[{"key":"currentTurn","label":"Celui dont c''est le tour","source":"currentTurn"}]'::jsonb),
+    ('Cascadia', '[{"key":"natureTokens","label":"Le plus de jetons nature","source":"ask","help":"Jetons nature restants en fin de partie"}]'::jsonb),
+    ('Wingspan', '[{"key":"foodTokens","label":"Le plus de jetons nourriture inutilisés","source":"ask","help":"Nourriture restant dans la réserve personnelle"}]'::jsonb),
+    ('Splito', '[{"key":"splitoCards","label":"Le moins de cartes Splito","direction":"lowest","source":"ask","help":"Total des cartes Splito des deux piles"}]'::jsonb)
+) as r(game_name, rules)
+where b.name = r.game_name and b.scoring is not null;
