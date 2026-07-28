@@ -2,14 +2,6 @@
 
 import { useState } from "react";
 
-import { BoardStructure } from "@/components/catan/BoardStructure";
-import { BoardWarnings, WarningsBadge } from "@/components/catan/BoardWarnings";
-import { CatanBoardSvg } from "@/components/catan/CatanBoardSvg";
-import { GeneratorSettings } from "@/components/catan/GeneratorSettings";
-import { PlacementRules } from "@/components/catan/PlacementRules";
-import { TerrainLegend } from "@/components/catan/TerrainLegend";
-import { TERRAIN_ORDER } from "@/components/catan/terrain-labels";
-import { useFogMaterial } from "@/components/catan/use-fog-material";
 import { boardWarnings } from "@/lib/catan/board";
 import {
   type GeneratorOptions,
@@ -17,6 +9,14 @@ import {
 } from "@/lib/catan/generator-options";
 import { boardTotals, type ScenarioSpec } from "@/lib/catan/scenario-spec";
 import { useScenarioDraw } from "@/lib/hooks/use-scenario-draw";
+import { BoardStructure } from "./BoardStructure";
+import { BoardWarnings, WarningsBadge } from "./BoardWarnings";
+import { CatanBoardSvg } from "./CatanBoardSvg";
+import { GeneratorSettings } from "./GeneratorSettings";
+import { PlacementRules } from "./PlacementRules";
+import { TerrainLegend } from "./TerrainLegend";
+import { TERRAIN_ORDER } from "./terrain-labels";
+import { useFogMaterial } from "./use-fog-material";
 
 const sectionClass =
   "flex w-full max-w-md flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10";

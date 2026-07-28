@@ -9,15 +9,17 @@ import {
 } from "react";
 import { InfoTip } from "@/components/InfoTip";
 import { ChevronRightIcon, PencilIcon, UploadIcon } from "@/components/icons";
-import type {
-  Boardgame,
-  BoardgameId,
-  BoardgameKind,
-  NewBoardgame,
-  ScoreSheetItem,
-  ScoringSpec,
-  TurnMode,
-  WinCondition,
+import {
+  BOARD_GENERATORS,
+  type BoardGeneratorId,
+  type Boardgame,
+  type BoardgameId,
+  type BoardgameKind,
+  type NewBoardgame,
+  type ScoreSheetItem,
+  type ScoringSpec,
+  type TurnMode,
+  type WinCondition,
 } from "@/lib/domain";
 import { ScoreSheetEditor } from "./ScoreSheetEditor";
 
@@ -36,6 +38,8 @@ interface FormState {
   kind: BoardgameKind;
   // Break the stats down by turn order (first / middle / last to play).
   trackSeatStats: boolean;
+  // The generator that draws this game's board ("" = played on no such board).
+  boardGenerator: BoardGeneratorId | "";
   // Dice tracking (e.g. Catan's 2×d6): when on, `diceCount` × d`diceSides`.
   diceTracked: boolean;
   diceCount: string;
@@ -62,6 +66,7 @@ const EMPTY: FormState = {
   turnMode: "sequential",
   kind: "competitive",
   trackSeatStats: false,
+  boardGenerator: "",
   diceTracked: false,
   diceCount: "",
   diceSides: "",
@@ -88,6 +93,7 @@ function fromBoardgame(b: Boardgame): FormState {
     turnMode: b.turnMode,
     kind: b.kind,
     trackSeatStats: b.trackSeatStats,
+    boardGenerator: b.boardGenerator ?? "",
     diceTracked: b.dice !== null,
     diceCount: b.dice?.count?.toString() ?? "",
     diceSides: b.dice?.sides?.toString() ?? "",
@@ -184,6 +190,7 @@ function toInput(
     turnMode: form.turnMode,
     kind: form.kind,
     trackSeatStats: form.trackSeatStats,
+    boardGenerator: form.boardGenerator === "" ? null : form.boardGenerator,
     dice: form.diceTracked
       ? {
           count: toNum(form.diceCount) ?? 2,
@@ -565,6 +572,31 @@ export function BoardgameForm({
           </p>
           <p>Sans effet sur le déroulé d&apos;une partie.</p>
         </InfoTip>
+      </label>
+
+      <label className="flex flex-col gap-1 text-xs text-zinc-500">
+        Générateur de plateau
+        <select
+          value={form.boardGenerator}
+          onChange={e =>
+            setForm({
+              ...form,
+              boardGenerator: e.target.value as BoardGeneratorId | "",
+            })
+          }
+          className={field}
+        >
+          <option value="">Aucun</option>
+          {BOARD_GENERATORS.map(g => (
+            <option key={g.id} value={g.id}>
+              {g.name}
+            </option>
+          ))}
+        </select>
+        <span className="text-[11px] text-zinc-400">
+          Ajoute une étape en fin de création de partie : le plateau est tiré au
+          sort avant de lancer, en tenant compte des extensions actives.
+        </span>
       </label>
 
       <fieldset className="flex flex-col gap-2 rounded-lg border border-black/10 p-3 dark:border-white/10">

@@ -64,6 +64,7 @@ export type Database = {
       boardgames: {
         Row: {
           avg_duration_min: number | null
+          board_generator: string | null
           created_at: string
           dice: Json | null
           has_games: boolean
@@ -84,6 +85,7 @@ export type Database = {
         }
         Insert: {
           avg_duration_min?: number | null
+          board_generator?: string | null
           created_at?: string
           dice?: Json | null
           has_games?: boolean
@@ -104,6 +106,7 @@ export type Database = {
         }
         Update: {
           avg_duration_min?: number | null
+          board_generator?: string | null
           created_at?: string
           dice?: Json | null
           has_games?: boolean

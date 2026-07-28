@@ -16,6 +16,7 @@ export function useConfirm() {
     <ConfirmDialog
       message={confirm.message}
       confirmLabel={confirm.confirmLabel}
+      details={confirm.details}
       onCancel={() => setConfirm(null)}
       onConfirm={() => {
         const run = confirm.onConfirm;

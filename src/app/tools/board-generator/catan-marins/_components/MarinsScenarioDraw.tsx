@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { MarinsScenarioBoard } from "@/components/catan/MarinsScenarioBoard";
 import { PencilIcon } from "@/components/icons";
 import { OptionPicker, type PickerOption } from "@/components/OptionPicker";
 import { iconButtonClass } from "@/components/ui";
 import { marinsPlayerGroups, playerGroupLabel } from "@/lib/catan/marins";
 import type { ScenarioSpec } from "@/lib/catan/scenario-spec";
 import type { ExtensionScenario, ExtensionScenarioId } from "@/lib/domain";
-import { MarinsScenarioBoard } from "./MarinsScenarioBoard";
 
 /** A scenario that has a map, so the generator can actually draw it. */
 export interface Drawable {

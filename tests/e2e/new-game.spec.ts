@@ -95,7 +95,8 @@ test("tweaks the win target at the recap and it takes effect", async ({
     await expect(target).toBeVisible();
     await target.fill("5");
 
-    await page.getByRole("button", { name: "Lancer la partie" }).click();
+    await page.getByRole("button", { name: "Choisis le plateau →" }).click();
+    await page.getByRole("button", { name: "Valider ce plateau" }).click();
     await page
       .getByRole("dialog")
       .getByRole("button", { name: "Lancer", exact: true })
@@ -158,7 +159,8 @@ test("raises the win target when the harbour-master bonus is on", async ({
       page.getByText(/Maître du port.*→.*6.*points à/),
     ).toBeVisible();
 
-    await page.getByRole("button", { name: "Lancer la partie" }).click();
+    await page.getByRole("button", { name: "Choisis le plateau →" }).click();
+    await page.getByRole("button", { name: "Valider ce plateau" }).click();
     await page
       .getByRole("dialog")
       .getByRole("button", { name: "Lancer", exact: true })

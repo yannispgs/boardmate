@@ -43,6 +43,8 @@ test("launches a Catan game with the Marins extension and a scenario", {
     await expect(page.getByText(/Imposé par le scénario/)).toBeVisible();
     await expect(page.getByText("13", { exact: true })).toBeVisible();
 
+    // The scenario owns the board but ships no map, so the funnel skips the
+    // board step rather than drawing one under the wrong rules.
     await page.getByRole("button", { name: "Lancer la partie" }).click();
     await page.getByRole("button", { name: "Lancer", exact: true }).click();
 
