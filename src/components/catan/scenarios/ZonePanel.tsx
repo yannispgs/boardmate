@@ -1,5 +1,6 @@
 "use client";
 
+import { IslandRange } from "@/components/catan/IslandRange";
 import {
   SPEC_TERRAIN_NAME,
   SPEC_TERRAIN_ORDER,
@@ -55,10 +56,6 @@ export function ZonePanel({
   const slots = current.ports?.slots?.length ?? 0;
   const portCount = current.ports?.types.length ?? 0;
   const islands = current.islands ?? null;
-
-  function setIslands(min: number, max: number) {
-    onChange(setZoneIslands(spec, board, zone, [min, Math.max(min, max)]));
-  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -118,26 +115,13 @@ export function ZonePanel({
         </label>
 
         {islands === null ? null : (
-          <div className="flex items-center gap-2 pl-6 text-sm">
-            <span className="text-zinc-500 dark:text-zinc-400">de</span>
-            <input
-              type="number"
-              min={1}
-              max={12}
-              value={islands[0]}
-              onChange={e => setIslands(Number(e.target.value), islands[1])}
-              className="w-16 rounded-lg border border-black/10 px-2 py-1 text-sm dark:border-white/15"
+          <div className="pl-6">
+            <IslandRange
+              value={islands}
+              onChange={range =>
+                onChange(setZoneIslands(spec, board, zone, range))
+              }
             />
-            <span className="text-zinc-500 dark:text-zinc-400">à</span>
-            <input
-              type="number"
-              min={1}
-              max={12}
-              value={islands[1]}
-              onChange={e => setIslands(islands[0], Number(e.target.value))}
-              className="w-16 rounded-lg border border-black/10 px-2 py-1 text-sm dark:border-white/15"
-            />
-            <span className="text-zinc-500 dark:text-zinc-400">îles</span>
           </div>
         )}
       </PanelBlock>

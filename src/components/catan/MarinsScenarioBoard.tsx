@@ -8,6 +8,8 @@ import {
   type GeneratorOptions,
   scenarioOptions,
 } from "@/lib/catan/generator-options";
+import { marinsBoardIndex } from "@/lib/catan/marins";
+import { setZoneIslands } from "@/lib/catan/scenario-draft";
 import { boardTotals, type ScenarioSpec } from "@/lib/catan/scenario-spec";
 import { useScenarioDraw } from "@/lib/hooks/use-scenario-draw";
 import { BoardStructure } from "./BoardStructure";
@@ -18,6 +20,7 @@ import { PlacementRules } from "./PlacementRules";
 import { TerrainLegend } from "./TerrainLegend";
 import { TERRAIN_ORDER } from "./terrain-labels";
 import { useFogMaterial } from "./use-fog-material";
+import { ZoneIslandsCardList } from "./ZoneIslandsCardList";
 
 const sectionClass =
   "flex w-full max-w-md flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10";
@@ -35,10 +38,11 @@ const fogButtonClass =
  * The settings start from the ones the scenario's author saved, and go back to
  * them when another scenario is picked — the screen remounts this component per
  * scenario, so each one is drawn the way it was authored rather than the way
- * the one before it was left.
+ * the one before it was left. The island counts asked of a zone are held the
+ * same way: they belong to the visit, and the scenario is never rewritten.
  */
 export function MarinsScenarioBoard({
-  spec,
+  spec: authored,
   players,
   browse = null,
 }: Readonly<{
@@ -52,8 +56,12 @@ export function MarinsScenarioBoard({
   browse?: DeckNav | null;
 }>) {
   const [showWarnings, setShowWarnings] = useState(false);
+  // The scenario as this visit asks for it. Only the shape of the draw is
+  // tunable here, and nothing goes back to the database: what is saved stays
+  // the author's.
+  const [spec, setSpec] = useState(authored);
   const [options, setOptions] = useState<GeneratorOptions>(() =>
-    scenarioOptions(spec.options),
+    scenarioOptions(authored.options),
   );
   const { draw, regenerate } = useScenarioDraw(spec, players, options);
   const { fogButton, fogPanel } = useFogMaterial(
@@ -64,8 +72,15 @@ export function MarinsScenarioBoard({
     },
   );
 
+  const boardIndex = marinsBoardIndex(spec, players);
+
   function change(patch: Partial<GeneratorOptions>) {
     setOptions(current => ({ ...current, ...patch }));
+  }
+
+  /** How many islands one zone of the board on screen should be cut into. */
+  function cutInto(zone: number, islands: [number, number]) {
+    setSpec(current => setZoneIslands(current, boardIndex, zone, islands));
   }
 
   if (!draw.ok) {
@@ -120,6 +135,13 @@ export function MarinsScenarioBoard({
         onChange={change}
         deserts="none"
         goldRivers
+        structure={
+          <ZoneIslandsCardList
+            spec={spec}
+            board={boardIndex}
+            onChange={cutInto}
+          />
+        }
       />
 
       <PlacementRules

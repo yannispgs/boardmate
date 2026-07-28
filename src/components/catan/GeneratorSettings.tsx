@@ -75,11 +75,18 @@ export function GeneratorSettings({
   onChange,
   deserts,
   goldRivers = false,
+  structure,
   zones,
 }: Readonly<{
   options: GeneratorOptions;
   onChange: (patch: Partial<GeneratorOptions>) => void;
   deserts: DesertRule;
+  /**
+   * How the map itself is cut up, above the rules that fill it. It sits outside
+   * the fieldset on purpose: the shape of the land is settled before a single
+   * tile is laid, so "ignore every placement rule" has nothing to say about it.
+   */
+  structure?: ReactNode;
   /**
    * Whether the board can hold a gold river at all. Only a scenario can, so the
    * base board is not offered a rule about one.
@@ -118,6 +125,8 @@ export function GeneratorSettings({
           Masquer
         </button>
       </div>
+
+      {structure}
 
       <fieldset
         disabled={options.ignore}

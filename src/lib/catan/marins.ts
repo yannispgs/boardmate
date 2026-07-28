@@ -90,12 +90,21 @@ export function playerGroupLabel(group: number[]): string {
     : `${group[0]} joueur${group[0] > 1 ? "s" : ""}`;
 }
 
+/**
+ * Where a scenario keeps the map it uses at an exact player count, or `-1` when
+ * it has none. The index, not the map: an edit names the board it changes by
+ * its place in the scenario.
+ */
+export function marinsBoardIndex(spec: ScenarioSpec, players: number): number {
+  return spec.boards.findIndex(board => board.players.includes(players));
+}
+
 /** The map a scenario uses at an exact player count. */
 export function marinsBoardFor(
   spec: ScenarioSpec,
   players: number,
 ): ScenarioBoardSpec | undefined {
-  return spec.boards.find(board => board.players.includes(players));
+  return spec.boards[marinsBoardIndex(spec, players)];
 }
 
 /** Smallest island the generator will lay down — a lone tile is no island. */

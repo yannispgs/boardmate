@@ -12,6 +12,7 @@ import {
   growIslands,
   islandSizes,
   marinsBoardFor,
+  marinsBoardIndex,
   marinsPlayerGroups,
   pickPortSlots,
   playerGroupLabel,
@@ -156,6 +157,19 @@ describe("scenario maps", () => {
   it("finds the map used at an exact player count", () => {
     expect(marinsBoardFor(ARCHIPEL, 4)).toBe(ARCHIPEL_BOARD);
     expect(marinsBoardFor(ARCHIPEL, 6)).toBeUndefined();
+  });
+
+  it("says where that map sits, so an edit can name it", () => {
+    const spec: ScenarioSpec = {
+      ...ARCHIPEL,
+      boards: [
+        { ...ARCHIPEL_BOARD, players: [3] },
+        { ...ARCHIPEL_BOARD, players: [5] },
+      ],
+    };
+
+    expect(marinsBoardIndex(spec, 5)).toBe(1);
+    expect(marinsBoardIndex(spec, 6)).toBe(-1);
   });
 });
 
