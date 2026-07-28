@@ -3,11 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import {
-  type SegmentedOption,
-  SegmentedPicker,
-} from "@/components/catan/SegmentedPicker";
 import { PencilIcon } from "@/components/icons";
+import { OptionPicker, type PickerOption } from "@/components/OptionPicker";
 import { iconButtonClass } from "@/components/ui";
 import { marinsPlayerGroups, playerGroupLabel } from "@/lib/catan/marins";
 import type { ScenarioSpec } from "@/lib/catan/scenario-spec";
@@ -48,7 +45,7 @@ export function MarinsScenarioDraw({
     return null;
   }
 
-  const options: SegmentedOption<ExtensionScenarioId>[] = drawable.map(d => ({
+  const options: PickerOption<ExtensionScenarioId>[] = drawable.map(d => ({
     value: d.scenario.id,
     label: d.scenario.name,
     hint:
@@ -65,7 +62,8 @@ export function MarinsScenarioDraw({
 
   return (
     <>
-      <SegmentedPicker
+      <OptionPicker
+        variant="segmented"
         label="Scénario"
         options={options}
         value={current.scenario.id}
@@ -87,7 +85,8 @@ export function MarinsScenarioDraw({
       />
 
       {groups.length > 1 ? (
-        <SegmentedPicker
+        <OptionPicker
+          variant="segmented"
           label="Nombre de joueurs"
           options={groups.map(g => ({
             value: g[0],

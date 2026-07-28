@@ -1,6 +1,6 @@
 "use client";
 
-import { SegmentedPicker } from "@/components/catan/SegmentedPicker";
+import { OptionPicker } from "@/components/OptionPicker";
 import type { PlayerFilter } from "@/lib/catan/scenario-listing";
 
 /**
@@ -26,7 +26,8 @@ export function PlayerCountFilter({
   }
 
   return (
-    <SegmentedPicker<PlayerFilter>
+    <OptionPicker<PlayerFilter>
+      variant="segmented"
       label="Filtrer par joueurs"
       options={[
         { value: "all", label: "Tous" },

@@ -9,13 +9,10 @@ import {
 } from "@/components/catan/CatanBoardSvg";
 import { GeneratorSettings } from "@/components/catan/GeneratorSettings";
 import { PlacementRules } from "@/components/catan/PlacementRules";
-import {
-  type SegmentedOption,
-  SegmentedPicker,
-} from "@/components/catan/SegmentedPicker";
 import { TerrainLegend } from "@/components/catan/TerrainLegend";
 import { TERRAIN_ORDER } from "@/components/catan/terrain-labels";
 import { MoveHorizontalIcon, MoveVerticalIcon } from "@/components/icons";
+import { OptionPicker, type PickerOption } from "@/components/OptionPicker";
 import {
   boardWarnings,
   type CatanBoard,
@@ -35,7 +32,7 @@ const sectionClass =
   "flex w-full max-w-md flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10";
 
 /** Board sizes offered by the selector. */
-const VARIANTS: SegmentedOption<CatanVariantId>[] = [
+const VARIANTS: PickerOption<CatanVariantId>[] = [
   { value: "base", label: "3-4 joueurs", hint: "19 tuiles" },
   { value: "extension", label: "5-6 joueurs", hint: "30 tuiles" },
 ];
@@ -107,7 +104,8 @@ export function CatanBoardGenerator() {
 
   return (
     <div className="flex flex-col items-center gap-6">
-      <SegmentedPicker
+      <OptionPicker
+        variant="segmented"
         label="Taille du plateau"
         options={VARIANTS}
         value={opts.variant}

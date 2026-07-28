@@ -1,8 +1,8 @@
 "use client";
 
-import { ChipPicker } from "@/components/ChipPicker";
 import { DateWindow } from "@/components/DateWindow";
 import { MultiSelectField } from "@/components/MultiSelectField";
+import { OptionPicker, type PickerOption } from "@/components/OptionPicker";
 import type { BoardgameId, GameListItem, GameStatus } from "@/lib/domain";
 import {
   filterablePlayers,
@@ -12,10 +12,10 @@ import {
 } from "@/lib/game/game-filters";
 
 /** "Toutes" is the absence of a status criterion, spelled as a chip. */
-const STATUS_OPTIONS: Array<{ id: GameStatus | "all"; name: string }> = [
-  { id: "all", name: "Toutes" },
-  { id: "ongoing", name: "En cours" },
-  { id: "ended", name: "Terminées" },
+const STATUS_OPTIONS: PickerOption<GameStatus | "all">[] = [
+  { value: "all", label: "Toutes" },
+  { value: "ongoing", label: "En cours" },
+  { value: "ended", label: "Terminées" },
 ];
 
 /**
@@ -46,12 +46,13 @@ export function GameFilterPanel({
 
   return (
     <div className="mt-3 flex flex-col gap-4 rounded-xl border border-black/10 p-4 dark:border-white/10">
-      <ChipPicker
+      <OptionPicker
+        variant="chips"
         label="Statut"
         options={STATUS_OPTIONS}
-        selected={filter.status ?? "all"}
-        onSelect={id =>
-          onChange({ ...filter, status: id === "all" ? null : id })
+        value={filter.status ?? "all"}
+        onChange={status =>
+          onChange({ ...filter, status: status === "all" ? null : status })
         }
       />
 
