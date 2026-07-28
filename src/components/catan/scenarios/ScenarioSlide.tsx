@@ -12,17 +12,16 @@ import type { ExtensionScenario } from "@/lib/domain";
  * you to score, and a board drawn from it for the players already seated. The
  * board is an illustration — the one played is drawn in the generator — so what
  * matters here is the shape of the map, not this particular hand of it.
+ *
+ * Choosing it is the carousel's own button, kept in reach at the bottom of the
+ * modal rather than scrolled past with the map.
  */
 export function ScenarioSlide({
   scenario,
   players,
-  selected,
-  onChoose,
 }: Readonly<{
   scenario: ExtensionScenario;
   players: number;
-  selected: boolean;
-  onChoose: () => void;
 }>) {
   const spec = scenario.boardSpec;
   const options = useMemo(() => scenarioOptions(spec?.options), [spec]);
@@ -46,18 +45,6 @@ export function ScenarioSlide({
       ) : (
         <BoardPreview spec={spec} players={players} options={options} />
       )}
-
-      <button
-        type="button"
-        onClick={onChoose}
-        className={`rounded-lg px-4 py-2 font-medium transition ${
-          selected
-            ? "border border-indigo-500/40 text-indigo-600 dark:text-indigo-400"
-            : "bg-indigo-600 text-white hover:bg-indigo-500"
-        }`}
-      >
-        {selected ? "✓ Scénario choisi" : "Choisir ce scénario"}
-      </button>
     </div>
   );
 }

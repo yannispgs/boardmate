@@ -113,13 +113,17 @@ test("previews the scenario boards before launching", async ({ page }) => {
     await page.getByRole("checkbox", { name: "Catan - Marins" }).check();
     await page.getByRole("button", { name: /Voir les plateaux/ }).click();
 
-    // The dots are named after their scenario, so the seeded one is reachable
-    // without counting slides.
     const dialog = page.getByRole("dialog");
+    const heading = dialog.getByRole("heading", { name: scenario });
 
     await expect(dialog).toBeVisible();
-    await dialog.getByTitle(scenario).click();
-    await expect(dialog.getByRole("heading", { name: scenario })).toBeVisible();
+
+    // The carousel loops, so stepping through it reaches the seeded scenario
+    // wherever the list happens to put it.
+    while (!(await heading.isVisible())) {
+      await dialog.getByRole("button", { name: "Plateau suivant" }).click();
+    }
+
     await expect(dialog.locator("svg")).toBeVisible();
 
     // Choosing in the carousel closes it and answers the form behind it.
