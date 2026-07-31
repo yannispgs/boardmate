@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { PlayerCountFilter } from "@/components/catan/PlayerCountFilter";
+import { UploadIcon } from "@/components/icons";
 import { sectionHeadingClass } from "@/components/ui";
 import { useConfirm } from "@/components/use-confirm";
 import {
@@ -16,11 +17,14 @@ import {
   type PlayerFilter,
   playerCountsOf,
 } from "@/lib/catan/scenario-listing";
+import type { ScenarioSpec } from "@/lib/catan/scenario-spec";
+import { freeName, serialiseScenario } from "@/lib/catan/scenario-transfer";
 import type { Extension, ExtensionScenario } from "@/lib/domain";
 import { type ScenarioDraft, useScenarios } from "@/lib/hooks/use-extensions";
 import { ScenarioInUseError } from "@/lib/repositories/errors";
 import { AuthoredScenarioCardList } from "./AuthoredScenarioCardList";
 import { ScenarioEditor } from "./ScenarioEditor";
+import { ScenarioImportSheet } from "./ScenarioImportSheet";
 
 /**
  * The draft the editor opens on for an existing scenario. A scenario seeded
@@ -66,7 +70,9 @@ export function ScenariosManager({
     extension,
   );
   const [editing, setEditing] = useState<ScenarioDraft | null>(null);
+  const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [players, setPlayers] = useState<PlayerFilter>("all");
   const { requestConfirm, confirmDialog } = useConfirm();
 
@@ -78,6 +84,48 @@ export function ScenariosManager({
   const shown = scenarios.filter(
     s => s.boardSpec === null || matchesPlayers(s.boardSpec, players),
   );
+
+  /** Says what just happened, then gets out of the way on its own. */
+  function flash(message: string) {
+    setNotice(message);
+    window.setTimeout(() => setNotice(null), 3000);
+  }
+
+  async function exportScenario(spec: ScenarioSpec) {
+    setError(null);
+
+    try {
+      await navigator.clipboard.writeText(serialiseScenario(spec));
+      flash(`« ${spec.name} » copié : colle-le où tu veux le remettre.`);
+    } catch {
+      setError("Copie impossible depuis ce navigateur.");
+    }
+  }
+
+  /**
+   * A scenario read back in. It comes in under a free name, so importing the
+   * same map twice makes a variant of it instead of a second one to tell apart.
+   */
+  async function importScenario(spec: ScenarioSpec) {
+    setError(null);
+
+    const name = freeName(
+      spec.name,
+      scenarios.map(s => s.name),
+    );
+
+    try {
+      await save({
+        id: null,
+        name,
+        targetScore: spec.targetScore,
+        boardSpec: { ...spec, name },
+      });
+      flash(`« ${name} » importé.`);
+    } catch {
+      setError("Import impossible. Réessaie.");
+    }
+  }
 
   async function deleteScenario(scenario: ExtensionScenario) {
     setError(null);
@@ -122,6 +170,12 @@ export function ScenariosManager({
         </p>
       ) : null}
 
+      {notice === null ? null : (
+        <p className="text-sm text-emerald-700 dark:text-emerald-400">
+          {notice}
+        </p>
+      )}
+
       {loading ? (
         <p className="text-sm text-zinc-500">Chargement…</p>
       ) : (
@@ -137,6 +191,7 @@ export function ScenariosManager({
           <AuthoredScenarioCardList
             scenarios={shown}
             onEdit={scenario => setEditing(draftOf(scenario))}
+            onExport={exportScenario}
             onDelete={confirmDelete}
             empty={
               players === "all"
@@ -147,20 +202,38 @@ export function ScenariosManager({
         </>
       )}
 
-      <button
-        type="button"
-        onClick={() =>
-          setEditing({
-            id: null,
-            name: "",
-            targetScore: null,
-            boardSpec: emptyScenario(),
-          })
-        }
-        className="self-start rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
-      >
-        + Créer un scénario
-      </button>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() =>
+            setEditing({
+              id: null,
+              name: "",
+              targetScore: null,
+              boardSpec: emptyScenario(),
+            })
+          }
+          className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
+        >
+          + Créer un scénario
+        </button>
+        <button
+          type="button"
+          onClick={() => setImporting(true)}
+          title="Coller un scénario copié ailleurs"
+          className="flex items-center gap-2 rounded-lg border border-black/10 px-4 py-2 font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+        >
+          <UploadIcon />
+          Importer
+        </button>
+      </div>
+
+      {importing ? (
+        <ScenarioImportSheet
+          onImport={importScenario}
+          onClose={() => setImporting(false)}
+        />
+      ) : null}
 
       {confirmDialog}
     </section>
