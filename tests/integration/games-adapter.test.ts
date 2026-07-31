@@ -861,6 +861,14 @@ describe("games adapter — extensions", () => {
     // Four Islands imposes 13, overriding Catan's editable pointsToWin (10),
     // with no extension modifier.
     expect(populated?.winThreshold).toBe(13);
+
+    // The list carries it too: the history is where a Marins game has to stop
+    // looking like any other game of Catan.
+    const listed = (await repo().list()).find(g => g.id === game.id);
+
+    expect(listed?.extensions).toEqual([
+      { name: "Catan - Marins", scenarioName: "Les quatre îles" },
+    ]);
   });
 
   it("without a scenario, keeps the base game's configured win target", async () => {
@@ -886,6 +894,12 @@ describe("games adapter — extensions", () => {
     expect(populated?.extensions[0].scenarioId).toBeNull();
     // No scenario → the win target falls back to the config template default (10).
     expect(populated?.winThreshold).toBe(10);
+
+    const listed = (await repo().list()).find(g => g.id === game.id);
+
+    expect(listed?.extensions).toEqual([
+      { name: "Catan - Marins", scenarioName: null },
+    ]);
   });
 
   it("rejects an unknown extension id (FK violation)", async () => {

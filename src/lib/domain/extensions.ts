@@ -27,6 +27,17 @@ export interface ExtensionScenario {
   sortOrder: number;
 }
 
+/**
+ * An extension as it reads on a game already played with it: its name and, when
+ * it is organised in scenarios, the one played. Everything else about it — its
+ * config fields, its scoring — was folded into the game at launch and has no
+ * business in a list.
+ */
+export interface PlayedExtension {
+  name: string;
+  scenarioName: string | null;
+}
+
 /** A scenario the editor creates: everything but the id the database mints. */
 export interface NewExtensionScenario {
   extensionId: ExtensionId;

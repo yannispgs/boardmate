@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 
 import { Drawer } from "@/components/Drawer";
+import { ExtensionBadgeList } from "@/components/games/ExtensionBadgeList";
 import type { PopulatedGame } from "@/lib/domain";
+import { playedExtensions } from "@/lib/game/extensions";
 
 import { EndScorePanel } from "./EndScorePanel";
 import { GameStats } from "./GameStats";
@@ -54,6 +56,19 @@ export function EndedGame({
           </span>
           <div className="flex flex-col gap-1">
             <h2 className="text-2xl font-bold">Partie terminée !</h2>
+
+            {/* Nothing on this screen named the game being finished, so the
+                extension had nothing to hang off either. */}
+            <div className="flex flex-col items-center">
+              <span className="text-sm text-zinc-500 dark:text-zinc-400">
+                {game.boardgame.name}
+              </span>
+              <ExtensionBadgeList
+                extensions={playedExtensions(game.extensions)}
+                baseName={game.boardgame.name}
+              />
+            </div>
+
             {coop ? (
               <p className="text-zinc-500 dark:text-zinc-400">
                 {coopWon ? (

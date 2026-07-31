@@ -2,6 +2,7 @@ import type {
   Extension,
   ExtensionScenarioId,
   FieldSpec,
+  PlayedExtension,
   ScoringSpec,
 } from "@/lib/domain";
 
@@ -46,6 +47,50 @@ export function extensionEffects(ext: Extension): string[] {
   }
 
   return effects;
+}
+
+/**
+ * How an extension reads where the base game is already named: « Catan -
+ * Marins » under a card headed « Catan » says Catan twice. The prefix is only
+ * dropped when the name actually carries it, so an extension named on its own
+ * (« Villes & Chevaliers ») is left exactly as it was written.
+ */
+export function extensionShortName(name: string, baseName: string): string {
+  const prefix = `${baseName} - `;
+
+  return name.startsWith(prefix) ? name.slice(prefix.length) : name;
+}
+
+/**
+ * Puts what a game was played with in the order the extensions apply — the same
+ * order they composed in, so a game reads the way it was built. Kept here rather
+ * than in the adapter: it is the one rule, and the games list reaches it from
+ * rows that never carry a whole `Extension`.
+ */
+export function orderPlayed(
+  items: Array<PlayedExtension & { sortOrder: number }>,
+): PlayedExtension[] {
+  return [...items]
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map(({ name, scenarioName }) => ({ name, scenarioName }));
+}
+
+/**
+ * The extensions a game was played with, reduced to what is worth showing next
+ * to it afterwards: the extension, and the scenario played when it has any.
+ * Everything else was folded into the game at launch — the config it merged,
+ * the score categories it added — and reads there, not here.
+ */
+export function playedExtensions(
+  exts: Array<Extension & { scenarioId: ExtensionScenarioId | null }>,
+): PlayedExtension[] {
+  return orderPlayed(
+    exts.map(e => ({
+      name: e.name,
+      scenarioName: e.scenarios.find(s => s.id === e.scenarioId)?.name ?? null,
+      sortOrder: e.sortOrder,
+    })),
+  );
 }
 
 /**

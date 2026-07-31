@@ -1,6 +1,6 @@
 import type { Boardgame, DiceSpec } from "./boardgame";
 import type { Config, ConfigValues } from "./config";
-import type { Extension } from "./extensions";
+import type { Extension, PlayedExtension } from "./extensions";
 import type {
   BoardgameId,
   ConfigId,
@@ -45,6 +45,8 @@ export interface GameListItem extends Game {
     isWinner: boolean;
     score: number | null;
   }>;
+  /** Extensions this game was played with, in application order (often empty). */
+  extensions: PlayedExtension[];
 }
 
 /**

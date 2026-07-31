@@ -44,6 +44,7 @@ function game(
       isWinner: false,
       score: null,
     })),
+    extensions: [],
   };
 }
 

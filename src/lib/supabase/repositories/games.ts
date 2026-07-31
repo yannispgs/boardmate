@@ -23,6 +23,7 @@ import type {
 } from "@/lib/domain";
 import {
   composeScoring,
+  orderPlayed,
   scenarioTarget,
   winTargetWithModifiers,
 } from "@/lib/game/extensions";
@@ -69,6 +70,10 @@ type GameListRow = GameRow & {
     score: number | null;
     player: { id: string; name: string };
   }>;
+  game_extensions: Array<{
+    extension: { name: string; sort_order: number };
+    scenario: { name: string } | null;
+  }>;
 };
 
 function toGameListItem(row: GameListRow): GameListItem {
@@ -80,8 +85,17 @@ function toGameListItem(row: GameListRow): GameListItem {
       isWinner: gp.is_winner,
       score: gp.score,
     }));
+  // Only the two names are pulled here: the list says what a game was played
+  // with, it doesn't replay what the extension did to it.
+  const extensions = orderPlayed(
+    row.game_extensions.map(ge => ({
+      name: ge.extension.name,
+      scenarioName: ge.scenario?.name ?? null,
+      sortOrder: ge.extension.sort_order,
+    })),
+  );
 
-  return { ...toGame(row), players };
+  return { ...toGame(row), players, extensions };
 }
 
 function toGameTurn(row: GameTurnRow): GameTurn {
@@ -218,7 +232,9 @@ export function createGameRepository(
       const status = filter?.status ?? "ongoing";
       const { data, error } = await games()
         .select(
-          "*, game_players(seat_order, is_winner, score, player:players(id, name))",
+          "*, game_players(seat_order, is_winner, score, player:players(id, name))" +
+            ", game_extensions(extension:extensions(name, sort_order)" +
+            ", scenario:extension_scenarios(name))",
         )
         .eq("status", status)
         .order("started_at", { ascending: false });
