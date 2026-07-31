@@ -37,7 +37,12 @@ export function ScenarioPickerSheet({
     >
       <ModalHeader
         title="Scénarios"
-        hint={`${drawable.length} à tirer${seats === null ? "" : ` · ${seats} joueurs`}`}
+        hint={
+          <>
+            {drawable.length} à tirer
+            {seats === null ? "" : ` · ${seats} joueurs`}
+          </>
+        }
         onClose={onClose}
       />
 
