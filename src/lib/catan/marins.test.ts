@@ -15,7 +15,6 @@ import {
   marinsBoardIndex,
   marinsPlayerGroups,
   pickPortSlots,
-  playerGroupLabel,
   trySpecBoard,
 } from "./marins";
 import type { ScenarioSpec, SpecCell } from "./scenario-spec";
@@ -146,12 +145,6 @@ describe("scenario maps", () => {
     };
 
     expect(marinsPlayerGroups(spec)).toEqual([[3, 4], [5], [6]]);
-  });
-
-  it("labels a player group", () => {
-    expect(playerGroupLabel([3, 4])).toBe("3-4 joueurs");
-    expect(playerGroupLabel([5])).toBe("5 joueurs");
-    expect(playerGroupLabel([1])).toBe("1 joueur");
   });
 
   it("finds the map used at an exact player count", () => {

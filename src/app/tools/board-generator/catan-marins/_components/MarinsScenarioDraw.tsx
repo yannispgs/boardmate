@@ -7,8 +7,8 @@ import { MarinsScenarioBoard } from "@/components/catan/MarinsScenarioBoard";
 import { PencilIcon } from "@/components/icons";
 import { OptionPicker } from "@/components/OptionPicker";
 import { iconButtonClass, sectionHeadingClass } from "@/components/ui";
-import { marinsPlayerGroups, playerGroupLabel } from "@/lib/catan/marins";
-import type { Drawable } from "@/lib/catan/scenario-listing";
+import { marinsPlayerGroups } from "@/lib/catan/marins";
+import { type Drawable, playerCountsLabel } from "@/lib/catan/scenario-listing";
 import type { ExtensionScenarioId } from "@/lib/domain";
 import { stepIndex } from "@/lib/ui/carousel";
 import { ScenarioPickerSheet } from "./ScenarioPickerSheet";
@@ -142,14 +142,14 @@ export function MarinsScenarioDraw({
           label="Nombre de joueurs"
           options={groups.map(g => ({
             value: g[0],
-            label: playerGroupLabel(g),
+            label: playerCountsLabel(g),
           }))}
           value={players}
           onChange={setGroup}
         />
       ) : (
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          {served === undefined ? "Aucun plateau" : playerGroupLabel(served)}
+          {playerCountsLabel(served ?? [])}
         </p>
       )}
 

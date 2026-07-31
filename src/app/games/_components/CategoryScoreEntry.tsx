@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { Modal } from "@/components/Modal";
+import { ModalHeader } from "@/components/ModalHeader";
 import { modalCardClass } from "@/components/ui";
 import type { PlayerId, ScoreSheetItem } from "@/lib/domain";
 import {
@@ -49,16 +50,7 @@ export function CategoryScoreEntry({
       label="Comptage des points"
       className={`${modalCardClass} max-w-md`}
     >
-      <div className="flex items-center justify-between border-b border-black/10 p-4 dark:border-white/10">
-        <h2 className="text-base font-semibold">Comptage des points</h2>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-lg border border-black/10 px-3 py-1 text-sm transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
-        >
-          Fermer
-        </button>
-      </div>
+      <ModalHeader title="Comptage des points" onClose={onCancel} />
 
       <div className="min-h-0 flex-1 overflow-auto p-3">
         <CategoryScoreGrid

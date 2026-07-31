@@ -81,15 +81,6 @@ export function marinsPlayerGroups(spec: ScenarioSpec): number[][] {
   return spec.boards.map(board => [...board.players].sort((a, b) => a - b));
 }
 
-/** `3-4 joueurs` / `5 joueurs` — a player group, labelled for the picker. */
-export function playerGroupLabel(group: number[]): string {
-  const last = group.at(-1);
-
-  return group.length > 1
-    ? `${group[0]}-${last} joueurs`
-    : `${group[0]} joueur${group[0] > 1 ? "s" : ""}`;
-}
-
 /**
  * Where a scenario keeps the map it uses at an exact player count, or `-1` when
  * it has none. The index, not the map: an edit names the board it changes by

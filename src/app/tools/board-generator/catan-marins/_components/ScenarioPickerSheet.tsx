@@ -1,6 +1,7 @@
 "use client";
 
 import { Modal } from "@/components/Modal";
+import { ModalHeader } from "@/components/ModalHeader";
 import { modalCardClass } from "@/components/ui";
 import type { Drawable } from "@/lib/catan/scenario-listing";
 import type { ExtensionScenarioId } from "@/lib/domain";
@@ -34,23 +35,11 @@ export function ScenarioPickerSheet({
       label="Scénarios"
       className={`${modalCardClass} max-w-md`}
     >
-      <div className="flex items-center justify-between gap-3 border-b border-black/10 p-4 dark:border-white/10">
-        <div className="flex min-w-0 flex-col">
-          <h2 className="text-base font-semibold">Scénarios</h2>
-          <span className="text-xs text-zinc-500">
-            {drawable.length} à tirer
-            {seats === null ? "" : ` · ${seats} joueurs`}
-          </span>
-        </div>
-
-        <button
-          type="button"
-          onClick={onClose}
-          className="shrink-0 rounded-lg px-2 py-1 text-sm text-zinc-500 transition hover:bg-black/5 dark:hover:bg-white/10"
-        >
-          Fermer
-        </button>
-      </div>
+      <ModalHeader
+        title="Scénarios"
+        hint={`${drawable.length} à tirer${seats === null ? "" : ` · ${seats} joueurs`}`}
+        onClose={onClose}
+      />
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
         <DrawableScenarioCardList

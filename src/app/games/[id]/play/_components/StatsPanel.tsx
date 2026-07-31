@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { Modal } from "@/components/Modal";
+import { ModalHeader } from "@/components/ModalHeader";
 import { StatTile } from "@/components/StatTile";
 import { modalCardClass } from "@/components/ui";
 import type { DiceSpec, GamePlayer, GameTurn, Player } from "@/lib/domain";
@@ -66,17 +67,7 @@ export function StatsPanel({
           label="Statistiques en direct"
           className={`${modalCardClass} max-w-sm`}
         >
-          <div className="flex items-center justify-between border-b border-black/10 p-4 dark:border-white/10">
-            <h2 className="text-base font-semibold">Stats en direct</h2>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              aria-label="Fermer"
-              className="rounded-lg border border-black/10 px-3 py-1 text-sm transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
-            >
-              Fermer
-            </button>
-          </div>
+          <ModalHeader title="Stats en direct" onClose={() => setOpen(false)} />
 
           <div className="flex flex-col gap-4 overflow-y-auto p-4">
             {dice && dice.rolls.length > 0 ? (

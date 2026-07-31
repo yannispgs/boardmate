@@ -1,5 +1,6 @@
 "use client";
 
+import { ScenarioTarget } from "@/components/catan/ScenarioTarget";
 import { type Drawable, scenarioSummary } from "@/lib/catan/scenario-listing";
 
 /**
@@ -38,11 +39,7 @@ export function DrawableScenarioCard({
           </span>
         </span>
 
-        {scenario.targetScore === null ? null : (
-          <span className="shrink-0 text-sm font-semibold tabular-nums text-zinc-500">
-            🎯 {scenario.targetScore}
-          </span>
-        )}
+        <ScenarioTarget targetScore={scenario.targetScore} />
 
         {current ? (
           <span aria-hidden className="shrink-0 text-indigo-500">

@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { Modal } from "@/components/Modal";
+import { ModalHeader } from "@/components/ModalHeader";
 import { SwipeDeck } from "@/components/SwipeDeck";
 import { modalCardClass } from "@/components/ui";
 import type { ExtensionScenario, ExtensionScenarioId } from "@/lib/domain";
@@ -53,23 +54,15 @@ export function ScenarioCarousel({
       label="Plateaux des scénarios"
       className={`${modalCardClass} max-w-md`}
     >
-      <div className="relative z-10 flex items-center justify-between gap-3 border-b border-black/10 p-4 dark:border-white/10">
-        <h2 className="text-base font-semibold">Plateaux</h2>
-
-        {scenarios.length > 1 ? (
-          <span className="rounded-full bg-indigo-600/10 px-3 py-1 font-semibold text-indigo-600 text-sm tabular-nums dark:bg-indigo-400/15 dark:text-indigo-300">
-            {index + 1} / {scenarios.length}
-          </span>
-        ) : null}
-
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-lg px-2 py-1 text-sm text-zinc-500 transition hover:bg-black/5 dark:hover:bg-white/10"
-        >
-          Fermer
-        </button>
-      </div>
+      <ModalHeader
+        title="Plateaux"
+        badge={
+          scenarios.length > 1
+            ? `${index + 1} / ${scenarios.length}`
+            : undefined
+        }
+        onClose={onClose}
+      />
 
       {/* `overflow-hidden` keeps whatever the slide unfolds — the fog's material
           list, a long board — inside this row: the arrows make the row a

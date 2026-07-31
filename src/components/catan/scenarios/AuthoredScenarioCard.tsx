@@ -1,6 +1,7 @@
 "use client";
 
 import { ScenarioOriginBadge } from "@/components/catan/ScenarioOriginBadge";
+import { ScenarioTarget } from "@/components/catan/ScenarioTarget";
 import { PencilIcon, TrashIcon } from "@/components/icons";
 import { dangerIconButtonClass, iconButtonClass } from "@/components/ui";
 import { scenarioSummary } from "@/lib/catan/scenario-listing";
@@ -51,11 +52,7 @@ export function AuthoredScenarioCard({
         </span>
       </div>
 
-      {scenario.targetScore === null ? null : (
-        <span className="shrink-0 text-sm font-semibold tabular-nums text-zinc-500">
-          🎯 {scenario.targetScore}
-        </span>
-      )}
+      <ScenarioTarget targetScore={scenario.targetScore} />
 
       <button
         type="button"

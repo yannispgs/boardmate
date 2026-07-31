@@ -9,7 +9,6 @@ import { StickyActionBar } from "@/components/StickyActionBar";
 import { fieldClass, sectionHeadingClass } from "@/components/ui";
 import { useConfirm } from "@/components/use-confirm";
 import { scenarioOptions } from "@/lib/catan/generator-options";
-import { playerGroupLabel } from "@/lib/catan/marins";
 import {
   eraseCell,
   paintCell,
@@ -20,6 +19,7 @@ import {
   setZoneBalance,
   togglePortSlot,
 } from "@/lib/catan/scenario-draft";
+import { playerCountsLabel } from "@/lib/catan/scenario-listing";
 import {
   bearsToken,
   boardWidth,
@@ -78,7 +78,7 @@ const toolButtonClass = (active: boolean) =>
 
 /** How a board is named, from the player counts it serves. */
 function boardLabel(players: number[]): string {
-  return players.length === 0 ? "Sans joueurs" : playerGroupLabel(players);
+  return players.length === 0 ? "Sans joueurs" : playerCountsLabel(players);
 }
 
 /**
