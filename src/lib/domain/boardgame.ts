@@ -17,6 +17,32 @@ export type BoardgameKind = "competitive" | "cooperative" | "hybrid";
 export type TurnMode = "sequential" | "simultaneous";
 
 /**
+ * The board generators the app ships, named after the game they draw for. A
+ * generator is written code — the rules of what a legal board looks like — so a
+ * game can only point at one that exists.
+ */
+export type BoardGeneratorId = "catan";
+
+/** What the board-generator picker offers, in the order it offers them. */
+export const BOARD_GENERATORS: ReadonlyArray<{
+  id: BoardGeneratorId;
+  name: string;
+}> = [{ id: "catan", name: "Catan" }];
+
+/**
+ * Reads a board generator out of a stored value. Anything the app cannot draw —
+ * a generator dropped since, a hand-edited row — is no generator at all rather
+ * than a step that would lead nowhere.
+ */
+export function toBoardGenerator(
+  value: string | null,
+): BoardGeneratorId | null {
+  return BOARD_GENERATORS.some(g => g.id === value)
+    ? (value as BoardGeneratorId)
+    : null;
+}
+
+/**
  * How the winner is decided by score:
  * - `highest` / `lowest`: best total wins (Cascadia/Wingspan ; Skyjo/Papayoo).
  * - `threshold`: first to reach a target wins (Catan). The target is the value
@@ -139,6 +165,11 @@ export interface Boardgame {
    */
   trackSeatStats: boolean;
   /**
+   * The generator that draws a board for this game, offered as a step of the
+   * new-game funnel; `null` for a game played on no generated board.
+   */
+  boardGenerator: BoardGeneratorId | null;
+  /**
    * When false, the boardgame is hidden from selection lists but kept in the
    * database. Deactivate (instead of delete) once it has games, to preserve
    * history.
@@ -172,6 +203,8 @@ export interface NewBoardgame {
   dice?: DiceSpec | null;
   /** Break the stats down by turn order (first / middle / last). */
   trackSeatStats?: boolean;
+  /** The generator that draws this game's board, or `null` for none. */
+  boardGenerator?: BoardGeneratorId | null;
 }
 
 export type BoardgameUpdate = Partial<NewBoardgame>;

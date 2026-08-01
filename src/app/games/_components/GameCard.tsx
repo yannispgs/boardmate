@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { ExtensionBadgeList } from "@/components/games/ExtensionBadgeList";
 import { TrashIcon } from "@/components/icons";
 import { Tooltip } from "@/components/Tooltip";
 import type { GameListItem, PlayerId } from "@/lib/domain";
@@ -150,7 +151,11 @@ export function GameCard({
           )}
           <div className="flex min-w-0 flex-col">
             <span className="truncate font-medium">{boardgameName}</span>
-            <span className="text-xs text-zinc-500">
+            <ExtensionBadgeList
+              extensions={game.extensions}
+              baseName={boardgameName}
+            />
+            <span className="mt-0.5 text-xs text-zinc-500">
               {ended ? null : <>Tour {game.round} · </>}
               <Tooltip label={fullStart(game.startedAt)}>
                 {new Date(game.startedAt).toLocaleDateString("fr-FR")}

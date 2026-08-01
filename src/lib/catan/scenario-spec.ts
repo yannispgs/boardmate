@@ -2,8 +2,12 @@
  * The **authored** description of a Catan - Marins scenario — what the scenario
  * editor produces and the generator draws from.
  *
- * A scenario board is a canvas seven rows deep (the rulebook's map frames all
- * share that thickness; only their length changes) on which the author paints:
+ * A scenario board is always the same shape: seven rows holding `N`, `N+1`,
+ * `N+2`, `N+3`, `N+2`, `N+1`, `N` spaces, centred on one another. Only `N`
+ * changes from one scenario or player count to the next. The author never
+ * draws that outline, only paints inside it — bar the two spaces at the ends of
+ * the widest row, which are the open sea on every published map and so belong to
+ * the board rather than to whoever paints on it ({@link fixedSeaCells}):
  *
  *  - **zones** — a set of spaces plus the bag that fills them. One notion covers
  *    the three the rulebook uses: a bag of nothing but `sea` freezes a stretch of
@@ -13,21 +17,139 @@
  *    down (the fog island).
  *  - **static tiles** — one space, one terrain, optionally one token, identical
  *    in every game.
+ *  - **harbours** — a bag on the zone whose coast they follow, or one on the
+ *    board itself for those a printed map sets along a coast of static tiles.
  *
  * The format is deliberately declarative: everything the generator needs is
  * data, so a new scenario is authored rather than coded. Whatever the author
  * paints must still add up — see {@link validateScenarioSpec}.
  */
 
-import type { CatanPortType, CatanTerrain } from "./board";
+import {
+  type CatanPortType,
+  type CatanTerrain,
+  DIRECTIONS,
+  isRedNumber,
+} from "./board";
+import type { GeneratorOptions } from "./generator-options";
 
-/** Every scenario board is seven rows deep; only its length changes. */
+/** Every scenario board is seven rows deep; only its width changes. */
 export const BOARD_ROWS = 7;
+
+/** Spaces each row holds beyond the board's width, top row first. */
+const ROW_BULGE = [0, 1, 2, 3, 2, 1, 0];
+
+/** The widest row of a board — the one the two fixed sea spaces sit at. */
+const MIDDLE_ROW = (BOARD_ROWS - 1) / 2;
+
+/**
+ * How narrow and how wide a map gets. The smallest published Marins maps — the
+ * three-player ones — sit at 4, and the floor is one below so a two-player
+ * variant has somewhere to go. That floor lands on a real board: at 3 the
+ * outline is 3-4-5-6-5-4-3, the base game's 5–6 player extension exactly (see
+ * `buildExtensionCells` in `board.ts`). The base 3–4 player board is *not*
+ * reachable — same 3 tiles on its end rows, but five rows rather than seven.
+ * The ceiling is the largest Marins map with a little room to spare.
+ */
+export const MIN_WIDTH = 3;
+export const MAX_WIDTH = 10;
+
+/** The width a board is drawn at when it does not say. */
+export const DEFAULT_WIDTH = 6;
 
 /** A space on the canvas, in axial coordinates (`r` = row, `q` = column). */
 export interface SpecCell {
   q: number;
   r: number;
+}
+
+/** The width a board is drawn at. */
+export function boardWidth(board: ScenarioBoardSpec): number {
+  return board.width ?? DEFAULT_WIDTH;
+}
+
+/** Where row `r` starts and how many spaces it holds, on a board `width` wide. */
+export function rowSpan(
+  width: number,
+  r: number,
+): { start: number; count: number } {
+  // Each row is pushed half a space left of the one above by the hex grid
+  // itself, and the bulging rows need half of their extra spaces back on the
+  // left to stay centred. Subtracted rather than negated: `-0` would travel
+  // into the stored spec. `r + ROW_BULGE[r]` is always even, so this is whole.
+  const start = 0 - (r + ROW_BULGE[r]) / 2;
+
+  return { start, count: width + ROW_BULGE[r] };
+}
+
+/** Every space of a board `width` wide, row by row. */
+export function boardOutline(width: number): SpecCell[] {
+  const cells: SpecCell[] = [];
+
+  for (let r = 0; r < BOARD_ROWS; r++) {
+    const { start, count } = rowSpan(width, r);
+
+    for (let q = start; q < start + count; q++) {
+      cells.push({ q, r });
+    }
+  }
+
+  return cells;
+}
+
+/**
+ * The two spaces a board is open sea at whatever its author paints: the ends of
+ * its widest row. Every published Marins map leaves them to the ocean — they are
+ * the two corners a hexagonal board sticks out furthest at — so they are drawn
+ * on the map and taken out of the author's hands.
+ */
+export function fixedSeaCells(width: number): SpecCell[] {
+  const { start, count } = rowSpan(width, MIDDLE_ROW);
+
+  return [
+    { q: start, r: MIDDLE_ROW },
+    { q: start + count - 1, r: MIDDLE_ROW },
+  ];
+}
+
+/** Whether a space is one of the two a board fixes to open sea. */
+export function isFixedSea(width: number, cell: SpecCell): boolean {
+  return fixedSeaCells(width).some(sea => cellKey(sea) === cellKey(cell));
+}
+
+/** Whether a space falls on a board `width` wide. */
+export function isInsideBoard(width: number, cell: SpecCell): boolean {
+  if (cell.r < 0 || cell.r >= BOARD_ROWS) {
+    return false;
+  }
+
+  const { start, count } = rowSpan(width, cell.r);
+
+  return cell.q >= start && cell.q < start + count;
+}
+
+/**
+ * The narrowest board that still holds everything painted on this one — the
+ * spaces it fixes to the open sea included, since those hold nothing.
+ */
+export function minimumWidth(cells: SpecCell[]): number {
+  let width = MIN_WIDTH;
+
+  for (const cell of cells) {
+    if (cell.r < 0 || cell.r >= BOARD_ROWS) {
+      continue;
+    }
+
+    const { start } = rowSpan(0, cell.r);
+    // One column more on the middle row: its last space is the open sea the
+    // board fixes, so a board that narrow would rub out what is painted there.
+    const room = cell.r === MIDDLE_ROW ? 1 : 0;
+
+    // How wide row `r` must be for `q` to fall in it, undoing the bulge.
+    width = Math.max(width, cell.q - start + 1 - ROW_BULGE[cell.r] + room);
+  }
+
+  return Math.min(width, MAX_WIDTH);
 }
 
 /** What a space can hold: a land tile, or open sea. */
@@ -42,13 +164,18 @@ export interface SpecPort extends SpecCell {
   dr: number;
 }
 
-/** A bag of harbours: where they sit, and which ones are in the box. */
+/**
+ * A bag of harbours: where they sit, and which ones are in the box.
+ *
+ * A harbour hugs a land space and faces the water across one of its edges, so
+ * pinning one only means something where the draw can turn over neither side —
+ * see {@link certaintyMap}.
+ */
 export interface SpecPortBag {
   /**
-   * The edges they sit on — the author's call, never the players'. A harbour
-   * needs a coast, so pinning one **forces its space to be land**, even in a
-   * zone that otherwise draws its sea. Left empty only on a scenario with no
-   * printed map, where the harbours follow whatever coast the game rolls.
+   * The edges they sit on — the author's call, never the players'. Left empty on
+   * a zone whose harbours follow whatever coast the game rolls; a board's own
+   * bag has no coastline to draw on, so it pins every one of them.
    */
   slots?: SpecPort[];
   types: CatanPortType[];
@@ -73,6 +200,15 @@ export interface ScenarioZone {
    * generator grows proper islands instead of a scattering of lone tiles.
    */
   islands?: readonly [min: number, max: number];
+  /**
+   * Allowed deviation from each resource's balanced share **inside the zone**,
+   * in percent — the board's own band read over these spaces alone, so that a
+   * starting continent stands on its own instead of being balanced on average
+   * with islands nobody can reach at first. Absent on a zone that only has to
+   * serve the board's overall balance, and only applied when the scenario's
+   * settings turn zone balance on (`balanceZones`).
+   */
+  balanceTolerance?: number;
   ports?: SpecPortBag;
 }
 
@@ -88,8 +224,20 @@ export interface StaticTile {
 export interface ScenarioBoardSpec {
   /** The exact player counts this map is used at (the rulebook groups them). */
   players: number[];
+  /**
+   * `N`, the width of the map's narrowest rows — the only thing that changes
+   * from one map to the next. Absent on a board authored before the outline
+   * was fixed, which reads as {@link DEFAULT_WIDTH}.
+   */
+  width?: number;
   zones: ScenarioZone[];
   statics?: StaticTile[];
+  /**
+   * The harbours that belong to no zone — the ones a printed map sets along a
+   * coast the scenario fixes, static tile by static tile. Every one of them is
+   * pinned: the board has no bag of spaces of its own to draw a coast from.
+   */
+  ports?: SpecPortBag;
 }
 
 /** A scenario: its name, its fixed score to reach, and a map per player count. */
@@ -98,6 +246,15 @@ export interface ScenarioSpec {
   /** The scenario's score to reach — independent of the player count. */
   targetScore: number;
   boards: ScenarioBoardSpec[];
+  /**
+   * How this scenario wants to be drawn: the generator settings its author
+   * saved, over the Marins defaults for the rest. A map is authored with a
+   * balance in mind — how tightly the resources are spread, how strong an
+   * opening spot may be — so the settings belong to it rather than to whoever
+   * opens the generator. Players still tune them for one draw; nothing they
+   * change there comes back here.
+   */
+  options?: Partial<GeneratorOptions>;
 }
 
 /** Tokens a bag may hold: 2–12, never 7. */
@@ -110,6 +267,15 @@ export function bagTileCount(
   terrainCounts: Partial<Record<SpecTerrain, number>>,
 ): number {
   return Object.values(terrainCounts).reduce((sum, n) => sum + (n ?? 0), 0);
+}
+
+/**
+ * Whether a tile of that terrain carries a number token. Nothing is ever rolled
+ * for the sea or for a desert, so neither takes one — every other terrain does,
+ * the gold river included.
+ */
+export function bearsToken(terrain: SpecTerrain): boolean {
+  return terrain !== "sea" && terrain !== "desert";
 }
 
 /**
@@ -147,6 +313,164 @@ export function bagLandCounts(
   return land;
 }
 
+/**
+ * What a space is bound to hold once the draw has run: `land` or `water` when
+ * nothing can change it, `drawn` when a zone's bag decides on the night.
+ */
+type CellCertainty = "land" | "water" | "drawn";
+
+/** What a zone's bag makes of every space it holds. */
+function bagCertainty(zone: ScenarioZone): CellCertainty {
+  const sea = zone.terrainCounts.sea ?? 0;
+
+  // Face down, what a space holds is nobody's business until it is turned over:
+  // an island of fog is drawn on the night whatever its bag says, and no coast
+  // of it is printed on beforehand.
+  if (zone.hidden === true) {
+    return "drawn";
+  }
+
+  if (sea === 0) {
+    return "land";
+  }
+
+  if (sea >= zone.cells.length) {
+    return "water";
+  }
+
+  return "drawn";
+}
+
+/**
+ * What each space of a board is bound to hold. A space the map never mentions is
+ * absent from the result and reads as `water`: an unpainted space is the open sea
+ * the map floats in, and so is everything past its edge.
+ */
+function certaintyMap(board: ScenarioBoardSpec): Map<string, CellCertainty> {
+  const map = new Map<string, CellCertainty>();
+
+  for (const zone of board.zones) {
+    const certainty = bagCertainty(zone);
+
+    for (const cell of zone.cells) {
+      map.set(cellKey(cell), certainty);
+    }
+  }
+
+  for (const tile of board.statics ?? []) {
+    map.set(cellKey(tile.cell), tile.terrain === "sea" ? "water" : "land");
+  }
+
+  // Last, and over everything: the two spaces the board itself fixes to the open
+  // sea. Nothing an older scenario left there changes what they hold.
+  for (const cell of fixedSeaCells(boardWidth(board))) {
+    map.set(cellKey(cell), "water");
+  }
+
+  return map;
+}
+
+/** Every harbour a board pins, whichever bag holds it — a zone's, or its own. */
+export function pinnedSlots(board: ScenarioBoardSpec): SpecPort[] {
+  return [board.ports, ...board.zones.map(zone => zone.ports)].flatMap(
+    bag => bag?.slots ?? [],
+  );
+}
+
+/** The six spaces touching one, in the order {@link DIRECTIONS} names them. */
+function ring(cell: SpecCell): SpecCell[] {
+  return DIRECTIONS.map(([dq, dr]) => ({ q: cell.q + dq, r: cell.r + dr }));
+}
+
+/**
+ * The two corners of the edge a harbour sits on, each named by the three spaces
+ * meeting there — the two the edge separates, plus the one closing the corner.
+ * Two harbours touch exactly when a name comes up twice, whichever of their own
+ * spaces each is read from.
+ */
+export function portCorners(port: SpecPort): string[] {
+  const here = { q: port.q, r: port.r };
+  const across = { q: port.q + port.dq, r: port.r + port.dr };
+  const beside = new Set(ring(across).map(cellKey));
+
+  return ring(here)
+    .map(cellKey)
+    .filter(key => beside.has(key))
+    .map(key =>
+      // Sorted so the three spaces name their corner the same way whichever of
+      // them it is read from; which order they land in does not matter.
+      [cellKey(here), cellKey(across), key]
+        .sort((a, b) => a.localeCompare(b))
+        .join("|"),
+    );
+}
+
+/**
+ * The edges of a space a harbour may be pinned on — none at all unless the space
+ * itself is land whatever the draw does.
+ *
+ * A harbour is printed on a land tile and trades across the water it faces, so
+ * **both sides have to be certain**: a space a bag could turn into sea is no
+ * place for one, and neither is an edge facing anything but open water. Two of
+ * them never **touch** either — a printed board always leaves a free corner
+ * between two harbours, so an edge sharing one with a harbour already pinned is
+ * not offered. One tile may carry two all the same, as a published Marins map
+ * does: what is asked of them is a free corner, not a tile each.
+ *
+ * What the editor offers is this and nothing more, so nothing that can be pinned
+ * is ever reported afterwards; the same rules are enforced on any spec in
+ * {@link slotIssues} and {@link touchingIssues}.
+ */
+export function portEdges(
+  board: ScenarioBoardSpec,
+  cell: SpecCell,
+): SpecPort[] {
+  const certainty = certaintyMap(board);
+  const taken = new Set(pinnedSlots(board).flatMap(portCorners));
+
+  return DIRECTIONS.map(([dq, dr]) => ({
+    q: cell.q,
+    r: cell.r,
+    dq,
+    dr,
+  })).filter(
+    port =>
+      onCoast(certainty, port) &&
+      !portCorners(port).some(corner => taken.has(corner)),
+  );
+}
+
+/** Whether both sides of a harbour's edge are settled: land here, water across. */
+function onCoast(
+  certainty: Map<string, CellCertainty>,
+  port: SpecPort,
+): boolean {
+  const at = (space: SpecCell): CellCertainty =>
+    certainty.get(cellKey(space)) ?? "water";
+
+  return (
+    at(port) === "land" &&
+    at({ q: port.q + port.dq, r: port.r + port.dr }) === "water"
+  );
+}
+
+/**
+ * The pinned harbours a board no longer has a coast for. Painting moves what a
+ * space holds under harbours pinned long before: the one they hug can turn into
+ * sea, or into something the draw decides, and the water they traded across can
+ * turn into land. This is {@link portEdges} read the other way round — over the
+ * harbours already there rather than over the edges still free.
+ *
+ * Two harbours meeting at a corner are **not** in here: they are only ever
+ * pinned that way on purpose, and which of the two to lift off is the author's
+ * call, not ours ({@link touchingIssues} reports them instead).
+ */
+export function strandedPorts(board: ScenarioBoardSpec): SpecPort[] {
+  const certainty = certaintyMap(board);
+
+  return pinnedSlots(board).filter(slot => !onCoast(certainty, slot));
+}
+
 /** What a board adds up to, for the recap and for the generator's own totals. */
 export function boardTotals(board: ScenarioBoardSpec): {
   land: number;
@@ -172,6 +496,8 @@ export function boardTotals(board: ScenarioBoardSpec): {
     numberTokens.push(...zone.numberTokens);
   }
 
+  ports += board.ports?.types.length ?? 0;
+
   for (const tile of board.statics ?? []) {
     if (tile.terrain === "sea") {
       sea += 1;
@@ -195,7 +521,8 @@ export type SpecIssue =
   | { kind: "no-players"; board: number }
   | { kind: "duplicate-players"; board: number; players: number }
   | { kind: "empty-zone"; board: number; zone: number; name: string }
-  | { kind: "row-out-of-range"; board: number; cell: SpecCell }
+  | { kind: "unassigned"; board: number; count: number }
+  | { kind: "off-board"; board: number; cell: SpecCell }
   | { kind: "overlap"; board: number; cell: SpecCell }
   | {
       kind: "tile-count";
@@ -215,6 +542,16 @@ export type SpecIssue =
     }
   | { kind: "bad-token"; board: number; where: string; token: number }
   | { kind: "static-token"; board: number; cell: SpecCell }
+  | { kind: "static-no-token"; board: number; cell: SpecCell }
+  | { kind: "static-gold-red"; board: number; cell: SpecCell }
+  | {
+      kind: "forced-gold-red";
+      board: number;
+      zone: number;
+      name: string;
+      reds: number;
+      others: number;
+    }
   | {
       kind: "port-count";
       board: number;
@@ -223,20 +560,17 @@ export type SpecIssue =
       types: number;
       slots: number;
     }
+  | { kind: "port-hidden"; board: number; zone: number; name: string }
+  | { kind: "board-port-count"; board: number; types: number; slots: number }
+  | { kind: "port-on-water"; board: number; cell: SpecCell }
+  | { kind: "port-on-drawn"; board: number; cell: SpecCell }
+  | { kind: "port-touching"; board: number; cell: SpecCell; other: SpecCell }
   | {
-      kind: "port-over-land";
+      kind: "port-inland";
       board: number;
-      zone: number;
-      name: string;
-      spaces: number;
-      land: number;
-    }
-  | {
-      kind: "port-off-zone";
-      board: number;
-      zone: number;
-      name: string;
       cell: SpecCell;
+      /** The space across the harbour's edge — the one that has to be sea. */
+      across: SpecCell;
     };
 
 /** `q,r` — the key a space is indexed by. */
@@ -244,8 +578,17 @@ export function cellKey(cell: SpecCell): string {
   return `${cell.q},${cell.r}`;
 }
 
-/** Collects the issues of one board of a scenario. */
-function boardIssues(board: ScenarioBoardSpec, index: number): SpecIssue[] {
+/**
+ * Collects the issues of one board of a scenario. `goldReds` is the scenario's
+ * own setting: an author who turned the gold-river rule off is not held to it
+ * here either, or the editor would refuse to save a map the generator is
+ * perfectly willing to draw.
+ */
+function boardIssues(
+  board: ScenarioBoardSpec,
+  index: number,
+  goldReds: boolean,
+): SpecIssue[] {
   const issues: SpecIssue[] = [];
   const claimed = new Set<string>();
 
@@ -253,9 +596,11 @@ function boardIssues(board: ScenarioBoardSpec, index: number): SpecIssue[] {
     issues.push({ kind: "no-players", board: index });
   }
 
+  const width = boardWidth(board);
+
   const claim = (cell: SpecCell): void => {
-    if (cell.r < 0 || cell.r >= BOARD_ROWS) {
-      issues.push({ kind: "row-out-of-range", board: index, cell });
+    if (!isInsideBoard(width, cell)) {
+      issues.push({ kind: "off-board", board: index, cell });
     }
 
     if (claimed.has(cellKey(cell))) {
@@ -309,13 +654,19 @@ function boardIssues(board: ScenarioBoardSpec, index: number): SpecIssue[] {
       }
     }
 
-    issues.push(...portIssues(zone, shared));
+    issues.push(...(goldReds ? goldIssues(zone, shared) : []));
   });
 
   for (const tile of board.statics ?? []) {
     claim(tile.cell);
 
     if (tile.number === undefined) {
+      // Every land but the desert is rolled for: a fixed tile of one without a
+      // token would produce nothing all game, which is a desert drawn wrong.
+      if (bearsToken(tile.terrain)) {
+        issues.push({ kind: "static-no-token", board: index, cell: tile.cell });
+      }
+
       continue;
     }
 
@@ -328,8 +679,76 @@ function boardIssues(board: ScenarioBoardSpec, index: number): SpecIssue[] {
       });
     }
 
-    if (tile.terrain === "sea" || tile.terrain === "desert") {
+    if (!bearsToken(tile.terrain)) {
       issues.push({ kind: "static-token", board: index, cell: tile.cell });
+    }
+
+    if (goldReds && tile.terrain === "gold" && isRedNumber(tile.number)) {
+      issues.push({ kind: "static-gold-red", board: index, cell: tile.cell });
+    }
+  }
+
+  issues.push(...portIssues(board, index));
+
+  return issues;
+}
+
+/**
+ * The Seafarers rule on gold rivers: no 6 and no 8 on one that is face up. The
+ * generator honours it while laying the tokens, so all the author can do wrong
+ * is leave it *no way out* — a bag holding more red tokens than it has non-gold
+ * tiles to put them on. A face-down zone is exempt: the fog island's gold pays
+ * nothing until someone sails over and turns it up.
+ */
+function goldIssues(
+  zone: ScenarioZone,
+  shared: { board: number; zone: number; name: string },
+): SpecIssue[] {
+  if (zone.hidden) {
+    return [];
+  }
+
+  const reds = zone.numberTokens.filter(isRedNumber).length;
+  const others =
+    tokenBearingCount(zone.terrainCounts) - (zone.terrainCounts.gold ?? 0);
+
+  if (reds <= others) {
+    return [];
+  }
+
+  return [{ kind: "forced-gold-red", ...shared, reds, others }];
+}
+
+/**
+ * Where every pinned harbour of one bag sits, judged against the whole board: a
+ * harbour hugs the land space it is pinned on and trades across the edge it
+ * faces, so **both sides have to be certain**. Anything the draw could turn over
+ * is refused — a harbour whose space comes up as sea, or whose edge ends up
+ * facing a tile, is not a harbour.
+ */
+function slotIssues(
+  index: number,
+  certainty: Map<string, CellCertainty>,
+  slots: SpecPort[],
+): SpecIssue[] {
+  const issues: SpecIssue[] = [];
+
+  for (const slot of slots) {
+    const host = certainty.get(cellKey(slot)) ?? "water";
+    const across = { q: slot.q + slot.dq, r: slot.r + slot.dr };
+
+    if (host === "drawn") {
+      issues.push({ kind: "port-on-drawn", board: index, cell: slot });
+      continue;
+    }
+
+    if (host === "water") {
+      issues.push({ kind: "port-on-water", board: index, cell: slot });
+      continue;
+    }
+
+    if ((certainty.get(cellKey(across)) ?? "water") !== "water") {
+      issues.push({ kind: "port-inland", board: index, cell: slot, across });
     }
   }
 
@@ -337,52 +756,98 @@ function boardIssues(board: ScenarioBoardSpec, index: number): SpecIssue[] {
 }
 
 /**
- * The harbour bag of a zone: one slot per harbour, all of them inside the zone,
- * and never more coast pinned than the zone has land to give — a pinned harbour
- * forces its space to be land, so it competes with the zone's sea.
+ * The harbours pinned corner to corner, counted across every bag: a printed
+ * board always leaves a free corner between two of them, so two edges meeting
+ * at one are two harbours a player would settle between with nothing in
+ * between.
+ *
+ * One space may well carry two — a published Marins map does — as long as they
+ * are not on neighbouring edges of it, which is the very same rule read on a
+ * single tile.
  */
-function portIssues(
-  zone: ScenarioZone,
-  shared: { board: number; zone: number; name: string },
-): SpecIssue[] {
-  const slots = zone.ports?.slots ?? [];
-  const types = zone.ports?.types ?? [];
+function touchingIssues(index: number, slots: SpecPort[]): SpecIssue[] {
   const issues: SpecIssue[] = [];
+  const held = new Map<string, SpecCell>();
 
-  if (slots.length === 0) {
-    return issues;
+  for (const slot of slots) {
+    const cell = { q: slot.q, r: slot.r };
+
+    for (const corner of portCorners(slot)) {
+      const other = held.get(corner);
+
+      if (other === undefined) {
+        held.set(corner, cell);
+        continue;
+      }
+
+      issues.push({ kind: "port-touching", board: index, cell, other });
+    }
   }
 
-  if (slots.length !== types.length) {
+  return issues;
+}
+
+/**
+ * The harbour bags of a board: as many slots pinned as the bag holds harbours,
+ * and every one of them on a proper coast ({@link slotIssues}).
+ *
+ * A zone may pin none at all and have its own coast drawn instead. The board's
+ * own bag — the harbours a printed map sets on a fixed coast, outside every
+ * zone — has no coast to draw from, so it pins all of them.
+ */
+function portIssues(board: ScenarioBoardSpec, index: number): SpecIssue[] {
+  const issues: SpecIssue[] = [];
+  const certainty = certaintyMap(board);
+
+  board.zones.forEach((zone, z) => {
+    const slots = zone.ports?.slots ?? [];
+    const types = zone.ports?.types.length ?? 0;
+
+    // A harbour is printed on a coast the players can see: a zone laid face
+    // down has none, neither to pin one on nor to draw one along.
+    if (zone.hidden === true && types + slots.length > 0) {
+      issues.push({
+        kind: "port-hidden",
+        board: index,
+        zone: z,
+        name: zone.name,
+      });
+    }
+
+    if (slots.length > 0 && slots.length !== types) {
+      issues.push({
+        kind: "port-count",
+        board: index,
+        zone: z,
+        name: zone.name,
+        types,
+        slots: slots.length,
+      });
+    }
+
+    issues.push(...slotIssues(index, certainty, slots));
+  });
+
+  const slots = board.ports?.slots ?? [];
+  const types = board.ports?.types.length ?? 0;
+
+  if (slots.length !== types) {
     issues.push({
-      kind: "port-count",
-      ...shared,
-      types: types.length,
+      kind: "board-port-count",
+      board: index,
+      types,
       slots: slots.length,
     });
   }
 
-  const own = new Set(zone.cells.map(cellKey));
-  const hosts = new Set<string>();
+  // Judged across every bag at once: two harbours sharing a corner are two of
+  // them meeting, wherever each is held.
+  const every = pinnedSlots(board);
 
-  for (const slot of slots) {
-    hosts.add(cellKey(slot));
-
-    if (!own.has(cellKey(slot))) {
-      issues.push({ kind: "port-off-zone", ...shared, cell: slot });
-    }
-  }
-
-  const land = zone.cells.length - (zone.terrainCounts.sea ?? 0);
-
-  if (hosts.size > land) {
-    issues.push({
-      kind: "port-over-land",
-      ...shared,
-      spaces: hosts.size,
-      land,
-    });
-  }
+  issues.push(
+    ...slotIssues(index, certainty, slots),
+    ...touchingIssues(index, every),
+  );
 
   return issues;
 }
@@ -395,6 +860,7 @@ function portIssues(
  */
 export function validateScenarioSpec(spec: ScenarioSpec): SpecIssue[] {
   const issues: SpecIssue[] = [];
+  const goldReds = spec.options?.avoidGoldReds ?? true;
 
   if (spec.boards.length === 0) {
     issues.push({ kind: "no-boards" });
@@ -411,7 +877,33 @@ export function validateScenarioSpec(spec: ScenarioSpec): SpecIssue[] {
       seen.set(players, index);
     }
 
-    issues.push(...boardIssues(board, index));
+    issues.push(...boardIssues(board, index, goldReds));
+  });
+
+  return issues;
+}
+
+/**
+ * Everything an author has left to do before saving: what the draw needs, plus
+ * a map drawn to its edges. The draw itself is happy with a half-painted board —
+ * it lays out what it is given and leaves the rest empty — but a scenario put
+ * away that way would come back out with holes in it.
+ */
+export function validateScenarioDraft(spec: ScenarioSpec): SpecIssue[] {
+  const issues = validateScenarioSpec(spec);
+
+  spec.boards.forEach((board, index) => {
+    const held = certaintyMap(board);
+
+    // Reported as a count rather than one line per space: a board barely
+    // started has forty of them, and the list would say nothing else.
+    const missing = boardOutline(boardWidth(board)).filter(
+      cell => !held.has(cellKey(cell)),
+    ).length;
+
+    if (missing > 0) {
+      issues.push({ kind: "unassigned", board: index, count: missing });
+    }
   });
 
   return issues;
@@ -428,8 +920,12 @@ export function specIssueText(issue: SpecIssue): string {
       return `${issue.players} joueurs sont déjà servis par un autre plateau.`;
     case "empty-zone":
       return `La zone « ${issue.name} » ne contient aucune case.`;
-    case "row-out-of-range":
-      return `La case ${cellKey(issue.cell)} sort des ${BOARD_ROWS} rangées du plateau.`;
+    case "unassigned":
+      return issue.count === 1
+        ? "Une case du plateau n'est assignée à rien : chaque case rejoint une zone ou devient une tuile fixe."
+        : `${issue.count} cases du plateau ne sont assignées à rien : chaque case rejoint une zone ou devient une tuile fixe.`;
+    case "off-board":
+      return `La case ${cellKey(issue.cell)} sort du plateau : réduis la zone ou élargis le plateau.`;
     case "overlap":
       return `La case ${cellKey(issue.cell)} est occupée deux fois.`;
     case "tile-count":
@@ -440,11 +936,27 @@ export function specIssueText(issue: SpecIssue): string {
       return `Jeton ${issue.token} impossible (${issue.where}) : les jetons vont de 2 à 12, sans le 7.`;
     case "static-token":
       return `La case ${cellKey(issue.cell)} ne peut pas porter de jeton : ni la mer ni le désert n'en reçoivent.`;
+    case "static-no-token":
+      return `La case ${cellKey(issue.cell)} doit porter un jeton : seuls la mer et le désert n'en reçoivent pas.`;
+    case "static-gold-red":
+      return `La case ${cellKey(issue.cell)} est une rivière d'or : elle ne peut porter ni 6 ni 8.`;
+    case "forced-gold-red":
+      return `La zone « ${issue.name} » a ${issue.reds} jetons rouges (6 et 8) pour ${issue.others} tuiles hors rivière d'or : au moins un finirait sur une rivière d'or visible.`;
     case "port-count":
       return `La zone « ${issue.name} » épingle ${issue.slots} emplacements de port pour ${issue.types} ports.`;
-    case "port-over-land":
-      return `La zone « ${issue.name} » épingle des ports sur ${issue.spaces} cases alors qu'elle ne compte que ${issue.land} tuiles de terre.`;
+    case "port-hidden":
+      return `La zone « ${issue.name} » est tirée face cachée : elle ne peut porter aucun port. Vide son sac de ports, ou décoche « Tuiles face cachée ».`;
+    case "board-port-count":
+      return `Les ${issue.types} ports hors zone demandent autant d'emplacements épinglés : il y en a ${issue.slots}.`;
+    case "port-on-water":
+      return `Le port épinglé en ${cellKey(issue.cell)} n'est sur aucune terre : un port se pose sur la case de terre qu'il borde, jamais sur la mer.`;
+    case "port-touching":
+      return cellKey(issue.other) === cellKey(issue.cell)
+        ? `La case ${cellKey(issue.cell)} porte deux ports sur des arêtes voisines : il faut au moins un sommet libre entre deux ports.`
+        : `Les ports des cases ${cellKey(issue.other)} et ${cellKey(issue.cell)} se touchent : il faut au moins un sommet libre entre deux ports.`;
+    case "port-on-drawn":
+      return `Le port épinglé en ${cellKey(issue.cell)} est sur une case tirée au sort : pose-le sur une tuile fixe de terre, ou dans une zone dont le sac ne contient pas de mer.`;
     default:
-      return `Le port épinglé en ${cellKey(issue.cell)} n'est pas dans la zone « ${issue.name} ».`;
+      return `Le port épinglé en ${cellKey(issue.cell)} ne donne pas sur la mer : la case ${cellKey(issue.across)} en face doit être de la mer à chaque partie, ou hors du plateau.`;
   }
 }

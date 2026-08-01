@@ -20,6 +20,14 @@ export class PlayerInUseError extends Error {
   }
 }
 
+/** A scenario can't be deleted because a played game still refers to it. */
+export class ScenarioInUseError extends Error {
+  constructor(message = "Ce scénario a déjà été joué.") {
+    super(message);
+    this.name = "ScenarioInUseError";
+  }
+}
+
 /** A boardgame can't be deleted because it already has games. */
 export class BoardgameInUseError extends Error {
   constructor(message = "Ce jeu a déjà des parties enregistrées.") {

@@ -2,10 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-
 import { ConfigField } from "@/components/ConfigField";
-import { StickyActionBar } from "@/components/StickyActionBar";
+import { HiddenMaterial } from "@/components/catan/HiddenMaterial";
 import { useConfirm } from "@/components/use-confirm";
+import { hiddenMaterial } from "@/lib/catan/hidden-material";
 import { buildDefaults, validateConfigValues } from "@/lib/config/validation";
 import type {
   Boardgame,
@@ -22,16 +22,25 @@ import {
   scenarioTarget,
   winTargetWithModifiers,
 } from "@/lib/game/extensions";
+import { funnelBoard } from "@/lib/game/funnel-board";
 import { initialScoreFor, optionTargetModifier } from "@/lib/game/scoring";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useConfigs } from "@/lib/hooks/use-configs";
 import { useExtensions } from "@/lib/hooks/use-extensions";
 import { useGames } from "@/lib/hooks/use-games";
 import { usePlayers } from "@/lib/hooks/use-players";
+import { BoardStep } from "./BoardStep";
+import { ExtensionPicker } from "./ExtensionPicker";
 import { FirstPlayerWheel } from "./FirstPlayerWheel";
+import { FunnelStep } from "./FunnelStep";
 import { PlayerPickCardList } from "./PlayerPickCardList";
+import { RecapSummary } from "./RecapSummary";
 import { tileClass } from "./tile-class";
 import { WinTargetBar } from "./WinTargetBar";
+
+/** The fog's preparation list, framed to sit inside the launch confirmation. */
+const fogDetailsClass =
+  "flex flex-col gap-3 rounded-lg border border-black/10 p-3 text-left dark:border-white/10";
 
 export function NewGameFunnel() {
   const router = useRouter();
@@ -75,7 +84,7 @@ export function NewGameFunnel() {
 
   if (step === 1) {
     return (
-      <Step title="1 · Choisis un jeu">
+      <FunnelStep title="1 · Choisis un jeu">
         {loading ? (
           <p className="text-sm text-zinc-500">Chargement…</p>
         ) : boardgames.length === 0 ? (
@@ -102,7 +111,7 @@ export function NewGameFunnel() {
             ))}
           </ul>
         )}
-      </Step>
+      </FunnelStep>
     );
   }
 
@@ -153,52 +162,6 @@ export function NewGameFunnel() {
   return null;
 }
 
-/**
- * One screen of the funnel: a fixed heading, a body that scrolls on its own,
- * and — when the step gives one — a footer pinned to the bottom of the screen,
- * so a long list never pushes the step's action out of reach.
- */
-function Step({
-  title,
-  children,
-  onBack,
-  footer,
-}: {
-  title: string;
-  children: React.ReactNode;
-  onBack?: () => void;
-  footer?: React.ReactNode;
-}) {
-  return (
-    <section className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="flex shrink-0 items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
-          {title}
-        </h2>
-        {onBack ? (
-          <button
-            type="button"
-            onClick={onBack}
-            className="text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
-          >
-            ← Retour
-          </button>
-        ) : null}
-      </div>
-
-      {/* Scrolling on one axis clips the other too, which would shave the ring
-          off a selected card at the left, right and top edges. The padding
-          gives the ring room and the negative margin puts the content back
-          where it was, flush with the page's column. */}
-      <div className="-mx-1 -mt-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 pt-1 pb-6">
-        {children}
-      </div>
-
-      {footer ? <StickyActionBar>{footer}</StickyActionBar> : null}
-    </section>
-  );
-}
-
 function ConfigStep({
   boardgameId,
   onPick,
@@ -211,7 +174,7 @@ function ConfigStep({
   const { configs, loading } = useConfigs(boardgameId);
 
   return (
-    <Step title="2 · Choisis une configuration" onBack={onBack}>
+    <FunnelStep title="2 · Choisis une configuration" onBack={onBack}>
       <ul className="flex flex-col gap-2">
         <li>
           <button
@@ -238,7 +201,7 @@ function ConfigStep({
           ))
         )}
       </ul>
-    </Step>
+    </FunnelStep>
   );
 }
 
@@ -282,7 +245,7 @@ function PlayersStep({
   const listed = [...picked, ...active.filter(p => !selected.includes(p.id))];
 
   return (
-    <Step
+    <FunnelStep
       title={
         simultaneous
           ? "3 · Choisis les joueurs"
@@ -328,7 +291,7 @@ function PlayersStep({
           onToggle={toggle}
         />
       )}
-    </Step>
+    </FunnelStep>
   );
 }
 
@@ -361,6 +324,11 @@ function RecapStep({
   const [values, setValues] = useState<ConfigValues | null>(null);
   const [invalid, setInvalid] = useState<string | null>(null);
   const [wheelOpen, setWheelOpen] = useState(false);
+  // Set once the recap checks out, holding the values it validated: from there
+  // the launch is one board away, and going back gives the recap as it was.
+  const [ready, setReady] = useState<{ values: ConfigValues | null } | null>(
+    null,
+  );
   // Selected extensions and, per scenario-based one, the chosen scenario.
   const [selectedExt, setSelectedExt] = useState<ExtensionId[]>([]);
   const [scenarioByExt, setScenarioByExt] = useState<
@@ -372,6 +340,18 @@ function RecapStep({
   const active = extensions.filter(e => selectedExt.includes(e.id));
   // Config fields composed with the active extensions (fields merged by key).
   const composedFields = composeConfigFields(template?.fields ?? [], active);
+
+  // The board this game will be set up on, once it is settled enough to draw
+  // one — null for a game the app has no board to offer, which launches from
+  // the recap as it always did.
+  const board = funnelBoard(boardgame, active, scenarioByExt, players.length);
+  // A map that keeps tiles face down needs a pile taken out of the box first,
+  // and the confirmation is the last moment anyone reads before playing.
+  const fogZones =
+    board?.kind === "scenario" ? hiddenMaterial(board.board) : [];
+  // A board to draw means one more step before the game actually starts.
+  const launchLabel =
+    board === null ? "Lancer la partie" : "Choisis le plateau →";
 
   // Prefill the form from the selected config over the (composed) template
   // defaults, so every attribute shows a value tweakable for this game only.
@@ -410,6 +390,10 @@ function RecapStep({
       : null;
   const editableFields = composedFields.filter(f => f.key !== thresholdField);
 
+  function pickScenario(extension: ExtensionId, id: ExtensionScenarioId) {
+    setScenarioByExt(prev => ({ ...prev, [extension]: id }));
+  }
+
   function toggleExtension(id: ExtensionId) {
     setSelectedExt(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id],
@@ -431,8 +415,26 @@ function RecapStep({
     requestConfirm({
       message: "Tout est prêt ? La partie va démarrer.",
       confirmLabel: "Lancer",
+      details:
+        fogZones.length > 0 ? (
+          <HiddenMaterial zones={fogZones} className={fogDetailsClass} />
+        ) : undefined,
       onConfirm: () => onLaunch(snapshot, selectedExt, scenarioByExt),
     });
+  }
+
+  /**
+   * What a checked-out recap leads to: the board to set up when the game is
+   * played on one, the confirmation itself otherwise.
+   */
+  function proceed(snapshot: ConfigValues | null) {
+    if (board === null) {
+      confirmLaunch(snapshot);
+
+      return;
+    }
+
+    setReady({ values: snapshot });
   }
 
   function handleLaunch() {
@@ -445,9 +447,9 @@ function RecapStep({
       return;
     }
 
-    // No template → nothing to snapshot; launch straight from the confirmation.
+    // No template → nothing to snapshot; carry on with no values at all.
     if (!template) {
-      confirmLaunch(null);
+      proceed(null);
 
       return;
     }
@@ -460,7 +462,7 @@ function RecapStep({
     }
 
     setInvalid(null);
-    confirmLaunch(parsed.data);
+    proceed(parsed.data);
   }
 
   const targetValue =
@@ -488,9 +490,28 @@ function RecapStep({
       : null;
   const showTarget = lockedTarget !== null || thresholdSpec !== null;
 
+  if (ready !== null && board !== null) {
+    return (
+      <>
+        <BoardStep
+          board={board}
+          creating={creating}
+          error={error}
+          onBack={() => setReady(null)}
+          onValidate={() => confirmLaunch(ready.values)}
+        />
+        {confirmDialog}
+      </>
+    );
+  }
+
   return (
-    <Step
-      title="4 · Vérifie et lance la partie"
+    <FunnelStep
+      title={
+        board === null
+          ? "4 · Vérifie et lance la partie"
+          : "4 · Vérifie la partie"
+      }
       onBack={onBack}
       footer={
         loading ? null : (
@@ -542,7 +563,7 @@ function RecapStep({
               onClick={handleLaunch}
               className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
             >
-              {creating ? "Création…" : "Lancer la partie"}
+              {creating ? "Création…" : launchLabel}
             </button>
           </>
         )
@@ -552,102 +573,23 @@ function RecapStep({
         <p className="text-sm text-zinc-500">Chargement…</p>
       ) : (
         <>
-          <dl className="flex flex-col gap-2 rounded-xl border border-black/10 bg-black/[0.02] p-4 text-sm dark:border-white/10 dark:bg-white/[0.02]">
-            <div className="flex justify-between gap-3">
-              <dt className="text-zinc-500 dark:text-zinc-400">Jeu</dt>
-              <dd className="font-medium">{boardgame.name}</dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-zinc-500 dark:text-zinc-400">
-                Configuration
-              </dt>
-              <dd className="font-medium">
-                {config ? config.name : "Configuration par défaut"}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-zinc-500 dark:text-zinc-400">Joueurs</dt>
-              <dd className="text-right font-medium">
-                {simultaneous
-                  ? players.map(p => p.name).join(", ")
-                  : players.map((p, i) => `${i + 1}. ${p.name}`).join(" · ")}
-              </dd>
-            </div>
-          </dl>
-
-          {!simultaneous && players.length >= 2 ? (
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-black/10 bg-black/[0.02] p-4 text-sm dark:border-white/10 dark:bg-white/[0.02]">
-              <span>
-                <span className="text-zinc-500 dark:text-zinc-400">
-                  Premier joueur ·{" "}
-                </span>
-                <span className="font-medium">{players[0]?.name}</span>
-              </span>
-              <button
-                type="button"
-                onClick={() => setWheelOpen(true)}
-                className="rounded-lg border border-indigo-500/40 px-3 py-1.5 font-medium text-indigo-600 transition hover:bg-indigo-500/10 dark:text-indigo-400"
-              >
-                🎡 Tirer au sort
-              </button>
-            </div>
-          ) : null}
+          <RecapSummary
+            boardgameName={boardgame.name}
+            config={config}
+            players={players}
+            simultaneous={simultaneous}
+            onDrawFirstPlayer={() => setWheelOpen(true)}
+          />
 
           {extensions.length > 0 ? (
-            <div className="flex flex-col gap-3 rounded-xl border border-black/10 p-4 dark:border-white/10">
-              <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-                Extensions
-              </h3>
-              {extensions.map(e => {
-                const on = selectedExt.includes(e.id);
-
-                return (
-                  <div key={e.id} className="flex flex-col gap-2">
-                    <label className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={on}
-                        onChange={() => toggleExtension(e.id)}
-                        className="h-4 w-4 shrink-0 accent-indigo-600"
-                      />
-                      {e.name}
-                    </label>
-                    {on && e.hasScenarios ? (
-                      <div className="flex flex-col gap-1 pl-6">
-                        <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                          Scénario
-                        </span>
-                        {e.scenarios.map(s => (
-                          <label
-                            key={s.id}
-                            className="flex items-center gap-2 text-sm"
-                          >
-                            <input
-                              type="radio"
-                              name={`scenario-${e.id}`}
-                              checked={scenarioByExt[e.id] === s.id}
-                              onChange={() =>
-                                setScenarioByExt(prev => ({
-                                  ...prev,
-                                  [e.id]: s.id,
-                                }))
-                              }
-                              className="h-4 w-4 shrink-0 accent-indigo-600"
-                            />
-                            {s.name}
-                            {s.targetScore !== null ? (
-                              <span className="text-zinc-400">
-                                · 🎯 {s.targetScore}
-                              </span>
-                            ) : null}
-                          </label>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
+            <ExtensionPicker
+              extensions={extensions}
+              selected={selectedExt}
+              scenarioByExtension={scenarioByExt}
+              players={players.length}
+              onToggle={toggleExtension}
+              onPickScenario={pickScenario}
+            />
           ) : null}
 
           {editableFields.length > 0 ? (
@@ -679,6 +621,6 @@ function RecapStep({
           ) : null}
         </>
       )}
-    </Step>
+    </FunnelStep>
   );
 }

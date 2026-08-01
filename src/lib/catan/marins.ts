@@ -26,6 +26,7 @@
  */
 
 import {
+  axialToPixel,
   type BoardOptions,
   buildCatanVariant,
   buildNeighbours,
@@ -37,6 +38,7 @@ import {
   type HexCell,
   mulberry32,
   type PortSlot,
+  type SeaCell,
   shuffle,
   type TilePool,
   withIds,
@@ -44,99 +46,19 @@ import {
 import {
   bagLandCounts,
   boardTotals,
+  boardWidth,
   cellKey,
+  fixedSeaCells,
+  portCorners,
   type ScenarioBoardSpec,
   type ScenarioSpec,
   type ScenarioZone,
   type SpecCell,
+  type SpecPort,
+  type SpecPortBag,
   specIssueText,
   validateScenarioSpec,
 } from "./scenario-spec";
-
-/** The scenarios this generator ships with. Keys match `board_key`. */
-export type MarinsScenarioKey = "new-world";
-
-/** A scenario the generator can draw, behind the key the app stores. */
-export interface MarinsScenario {
-  key: MarinsScenarioKey;
-  spec: ScenarioSpec;
-}
-
-/**
- * "Le Nouveau Monde" — 23 land tiles (no desert), 19 sea tiles, 9 harbours,
- * 12 points to win, over a 42-space canvas of 6-7-8-8-7-6.
- *
- * ⚠️ The scenario has **no printed map**: the players lay the frame out
- * themselves and everything is drawn, so the outline below is **ours** and the
- * UI says so. Only the tile and harbour counts are the published ones; the token
- * bag is trimmed to exactly one per producing tile, since a bag has to hold as
- * many tokens as tiles that carry one.
- */
-const NEW_WORLD: ScenarioSpec = {
-  name: "Le Nouveau Monde",
-  targetScore: 12,
-  boards: [
-    {
-      players: [3, 4],
-      zones: [
-        {
-          name: "Archipel",
-          cells: canvasCells([
-            [0, -1, 4],
-            [1, -2, 4],
-            [2, -3, 4],
-            [3, -4, 3],
-            [4, -4, 2],
-            [5, -4, 1],
-          ]),
-          terrainCounts: {
-            fields: 5,
-            forest: 5,
-            pasture: 5,
-            hills: 4,
-            mountains: 4,
-            sea: 19,
-          },
-          numberTokens: [
-            2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 8, 8, 9, 9, 9, 10, 10, 10, 11,
-            11, 12,
-          ],
-          islands: [3, 5],
-          ports: {
-            types: [
-              "generic",
-              "generic",
-              "generic",
-              "generic",
-              "wood",
-              "brick",
-              "wool",
-              "grain",
-              "ore",
-            ],
-          },
-        },
-      ],
-    },
-  ],
-};
-
-/** Every scenario the generator ships with, in menu order. */
-export const MARINS_SCENARIOS: MarinsScenario[] = [
-  { key: "new-world", spec: NEW_WORLD },
-];
-
-/** The scenario behind a key. */
-export function marinsScenario(key: MarinsScenarioKey): MarinsScenario {
-  const found = MARINS_SCENARIOS.find(s => s.key === key);
-
-  /* c8 ignore next 3 -- unreachable: the key type only admits known scenarios */
-  if (found === undefined) {
-    throw new Error(`Scénario Marins inconnu : ${key}`);
-  }
-
-  return found;
-}
 
 /** A row of a canvas outline: its `r`, and the `q` range of its spaces. */
 export type CanvasRow = readonly [r: number, qStart: number, qEnd: number];
@@ -159,13 +81,13 @@ export function marinsPlayerGroups(spec: ScenarioSpec): number[][] {
   return spec.boards.map(board => [...board.players].sort((a, b) => a - b));
 }
 
-/** `3-4 joueurs` / `5 joueurs` — a player group, labelled for the picker. */
-export function playerGroupLabel(group: number[]): string {
-  const last = group.at(-1);
-
-  return group.length > 1
-    ? `${group[0]}-${last} joueurs`
-    : `${group[0]} joueur${group[0] > 1 ? "s" : ""}`;
+/**
+ * Where a scenario keeps the map it uses at an exact player count, or `-1` when
+ * it has none. The index, not the map: an edit names the board it changes by
+ * its place in the scenario.
+ */
+export function marinsBoardIndex(spec: ScenarioSpec, players: number): number {
+  return spec.boards.findIndex(board => board.players.includes(players));
 }
 
 /** The map a scenario uses at an exact player count. */
@@ -173,7 +95,7 @@ export function marinsBoardFor(
   spec: ScenarioSpec,
   players: number,
 ): ScenarioBoardSpec | undefined {
-  return spec.boards.find(board => board.players.includes(players));
+  return spec.boards[marinsBoardIndex(spec, players)];
 }
 
 /** Smallest island the generator will lay down — a lone tile is no island. */
@@ -247,7 +169,6 @@ export function growIslands(
   total: number,
   sizes: number[],
   rng: () => number,
-  seeded: number[] = [],
 ): number[] {
   const spaces = neighbours.map((_, id) => id);
   const owner = new Map<number, number>();
@@ -255,17 +176,7 @@ export function growIslands(
   const taken = (id: number): boolean => owner.has(id);
   const grown: number[] = [];
 
-  // Spaces the scenario pins as land (a harbour's coast) are laid before
-  // anything is drawn, as the first island — the rest grows around them.
-  if (seeded.length > 0) {
-    for (const id of seeded) {
-      owner.set(id, 0);
-    }
-
-    grown.push(seeded.length);
-  }
-
-  for (const _size of sizes.slice(grown.length)) {
+  for (const _size of sizes) {
     if (owner.size >= total) {
       break;
     }
@@ -333,10 +244,22 @@ export function growIslands(
 
 /**
  * Spreads `count` harbours over the coastline of `cells`: every edge of theirs
- * that faces a space without land is a candidate, and at most one harbour lands
- * on a given tile. Falls back to doubling up on a tile only when the coast has
- * fewer tiles than harbours. `land` holds every land space of the whole board,
- * so a zone's coast is measured against its neighbours too.
+ * that faces a space without land is a candidate, and `land` holds every land
+ * space of the whole board, so a zone's coast is measured against its
+ * neighbours too.
+ *
+ * The draw **keeps them apart**, the way the printed boards space theirs around
+ * the island: an edge touching a harbour already placed comes last of all — a
+ * printed board leaves a free corner between two of them, and the editor
+ * refuses to pin them any closer — and among the rest the candidate lying
+ * furthest from every harbour placed wins. The first is taken at random. A pure
+ * shuffle clumps three of them on one headland often enough to be worth
+ * avoiding, and spacing is the one thing a real board never leaves to chance.
+ *
+ * Nothing stops one tile carrying two, as a published map does: keeping them
+ * apart already does that wherever the coast has room. And spacing is a
+ * preference, not a rule — a coast too short for what the bag holds keeps its
+ * harbours rather than losing them.
  */
 export function pickPortSlots(
   cells: HexCell[],
@@ -344,35 +267,108 @@ export function pickPortSlots(
   count: number,
   rng: () => number,
 ): PortSlot[] {
-  const candidates: PortSlot[] = [];
+  const candidates: Array<{
+    slot: PortSlot;
+    x: number;
+    y: number;
+    corners: string[];
+  }> = [];
 
   for (const cell of cells) {
     for (const [dq, dr] of DIRECTIONS) {
-      if (!land.has(cellKey({ q: cell.q + dq, r: cell.r + dr }))) {
-        candidates.push({ hexId: cell.id, dq, dr });
+      if (land.has(cellKey({ q: cell.q + dq, r: cell.r + dr }))) {
+        continue;
+      }
+
+      const from = axialToPixel(cell.q, cell.r, 1);
+      const to = axialToPixel(cell.q + dq, cell.r + dr, 1);
+
+      candidates.push({
+        slot: { hexId: cell.id, dq, dr },
+        x: (from.x + to.x) / 2,
+        y: (from.y + to.y) / 2,
+        corners: portCorners({ q: cell.q, r: cell.r, dq, dr }),
+      });
+    }
+  }
+
+  // Shuffled so that the opening pick — every candidate still infinitely far
+  // from a harbour that does not exist yet — is a random one.
+  const pool = shuffle(candidates, rng);
+  const nearest = pool.map(() => Number.POSITIVE_INFINITY);
+  const taken = new Set<number>();
+  const corners = new Set<string>();
+  const picked: PortSlot[] = [];
+
+  /** Whether candidate `i` would end up corner to corner with one already placed. */
+  const touching = (i: number): boolean => {
+    return pool[i].corners.some(corner => corners.has(corner));
+  };
+
+  /** Free of a neighbour's corner first, then furthest from every harbour. */
+  const better = (i: number, best: number): boolean => {
+    if (touching(i) !== touching(best)) {
+      return !touching(i);
+    }
+
+    return nearest[i] > nearest[best];
+  };
+
+  /** The best of the candidates still free, or -1 when none of them is. */
+  const nextPick = (): number => {
+    let best = -1;
+
+    for (let i = 0; i < pool.length; i++) {
+      if (taken.has(i)) {
+        continue;
+      }
+
+      if (best === -1 || better(i, best)) {
+        best = i;
       }
     }
-  }
 
-  const used = new Set<number>();
-  const picked: PortSlot[] = [];
-  const spare: PortSlot[] = [];
+    return best;
+  };
 
-  for (const slot of shuffle(candidates, rng)) {
-    if (picked.length < count && !used.has(slot.hexId)) {
-      used.add(slot.hexId);
-      picked.push(slot);
-    } else {
-      spare.push(slot);
+  /** Takes a candidate, then measures the rest of the coast against it. */
+  const place = (best: number): void => {
+    taken.add(best);
+    picked.push(pool[best].slot);
+
+    for (const corner of pool[best].corners) {
+      corners.add(corner);
     }
+
+    for (let i = 0; i < pool.length; i++) {
+      const away = Math.hypot(
+        pool[i].x - pool[best].x,
+        pool[i].y - pool[best].y,
+      );
+
+      nearest[i] = Math.min(nearest[i], away);
+    }
+  };
+
+  while (picked.length < count) {
+    const best = nextPick();
+
+    // Not one coastal edge left: the zone keeps fewer harbours than it asked
+    // for rather than printing two on the same edge.
+    if (best === -1) {
+      break;
+    }
+
+    place(best);
   }
 
-  return [...picked, ...spare.slice(0, count - picked.length)];
+  return picked;
 }
 
 /**
- * Which spaces of a zone end up as land, and which as sea. A harbour pinned by
- * the scenario needs a coast to sit on, so its space is land whatever the draw.
+ * Which spaces of a zone end up as land, and which as sea. Nothing is held back
+ * for the harbours: a zone whose sea is drawn can pin none, since a harbour needs
+ * a coast that is there in every game (see `certaintyMap`).
  */
 function resolveZone(
   zone: ScenarioZone,
@@ -385,17 +381,14 @@ function resolveZone(
   }
 
   const landCount = zone.cells.length - seaCount;
-  const pinned = new Set((zone.ports?.slots ?? []).map(cellKey));
 
   if (zone.islands === undefined) {
-    const held = zone.cells.filter(c => pinned.has(cellKey(c)));
-    const drawn = shuffle(
-      zone.cells.filter(c => !pinned.has(cellKey(c))),
-      rng,
-    );
-    const free = landCount - held.length;
+    const drawn = shuffle(zone.cells, rng);
 
-    return { land: [...held, ...drawn.slice(0, free)], sea: drawn.slice(free) };
+    return {
+      land: drawn.slice(0, landCount),
+      sea: drawn.slice(landCount),
+    };
   }
 
   const spaces = withIds(zone.cells.map(c => ({ id: 0, q: c.q, r: c.r })));
@@ -407,7 +400,6 @@ function resolveZone(
       landCount,
       islandSizes(landCount, islands, rng),
       rng,
-      spaces.filter(c => pinned.has(cellKey(c))).map(c => c.id),
     ),
   );
 
@@ -420,16 +412,26 @@ function resolveZone(
 /** The map once the draw has settled: where the land, the sea and the bags are. */
 interface ResolvedMap {
   cells: HexCell[];
-  seaCells: HexCell[];
+  seaCells: SeaCell[];
   pools: TilePool[];
   /** Zone index → the land cell ids it ended up with (empty for statics). */
   zoneCells: number[][];
 }
 
-/** Runs the draw: every zone's sea, then the static tiles on their own spaces. */
-function resolveMap(board: ScenarioBoardSpec, rng: () => number): ResolvedMap {
+/**
+ * Runs the draw: every zone's sea, then the static tiles on their own spaces.
+ * `balanceZones` is the scenario's master switch: with it on, a zone the author
+ * gave a margin to hands it to its own bag, so the draw holds that zone in
+ * balance as well as the whole board. With it off the margins stay in the spec,
+ * unused — the setting is turned back on and they are all there again.
+ */
+function resolveMap(
+  board: ScenarioBoardSpec,
+  rng: () => number,
+  balanceZones: boolean,
+): ResolvedMap {
   const cells: HexCell[] = [];
-  const seaCells: HexCell[] = [];
+  const seaCells: SeaCell[] = [];
   const pools: TilePool[] = [];
   const zoneCells: number[][] = [];
 
@@ -438,27 +440,53 @@ function resolveMap(board: ScenarioBoardSpec, rng: () => number): ResolvedMap {
 
     return cells.length - 1;
   };
-  const addSea = (cell: SpecCell): void => {
-    seaCells.push({ id: seaCells.length, q: cell.q, r: cell.r });
+  const addSea = (cell: SpecCell, hidden = false): void => {
+    seaCells.push({ id: seaCells.length, q: cell.q, r: cell.r, hidden });
   };
+
+  // The board's own sea, laid before anything else and never drawn for: a map
+  // authored before those two spaces were fixed keeps them out of its draw.
+  const fixed = new Set(fixedSeaCells(boardWidth(board)).map(cellKey));
+  const drawn = (cell: SpecCell): boolean => !fixed.has(cellKey(cell));
+
+  fixedSeaCells(boardWidth(board)).forEach(cell => {
+    addSea(cell);
+  });
 
   for (const zone of board.zones) {
     const { land, sea } = resolveZone(zone, rng);
-    const ids = land.map(addLand);
+    const ids = land.filter(drawn).map(addLand);
 
     zoneCells.push(ids);
-    sea.forEach(addSea);
-    pools.push({
+
+    // A face-down zone hands out face-down water: telling the players where the
+    // sea is would map the fog for them, one space at a time.
+    sea.filter(drawn).forEach(cell => {
+      addSea(cell, zone.hidden ?? false);
+    });
+
+    const pool: TilePool = {
       cellIds: ids,
       terrainCounts: bagLandCounts(zone.terrainCounts),
       numberTokens: zone.numberTokens,
       hidden: zone.hidden ?? false,
-    });
+    };
+
+    if (balanceZones && zone.balanceTolerance !== undefined) {
+      pool.balanceTolerance = zone.balanceTolerance / 100;
+      pool.label = zone.name;
+    }
+
+    pools.push(pool);
   }
 
   // A static tile is a bag of one: one space, one tile, at most one token — so
   // it needs no special case downstream, it simply has nothing to shuffle.
   for (const tile of board.statics ?? []) {
+    if (!drawn(tile.cell)) {
+      continue;
+    }
+
     if (tile.terrain === "sea") {
       addSea(tile.cell);
       continue;
@@ -475,7 +503,11 @@ function resolveMap(board: ScenarioBoardSpec, rng: () => number): ResolvedMap {
   return { cells, seaCells, pools, zoneCells };
 }
 
-/** The harbours of every zone: pinned where authored, drawn on the coast else. */
+/**
+ * The harbours of a board: those of a zone, pinned where authored and drawn on
+ * the zone's own coast otherwise, plus the board's own bag — the ones a printed
+ * map sets outside every zone, always pinned.
+ */
 function resolvePorts(
   board: ScenarioBoardSpec,
   map: ResolvedMap,
@@ -487,6 +519,24 @@ function resolvePorts(
   const types: CatanPortType[] = [];
   const poolOf: number[] = [];
 
+  // A validated spec pins a harbour on land that is land in every draw, so the
+  // space it hugs is always one of the map's tiles.
+  const pinned = (slot: SpecPort): PortSlot => ({
+    hexId: idAt.get(cellKey(slot)) as number,
+    dq: slot.dq,
+    dr: slot.dr,
+  });
+
+  /** One bag's harbours, kept in a pool of their own so their types stay put. */
+  const take = (bag: SpecPortBag, drawn: PortSlot[], pool: number): void => {
+    for (const slot of drawn) {
+      slots.push(slot);
+      poolOf.push(pool);
+    }
+
+    types.push(...bag.types);
+  };
+
   board.zones.forEach((zone, z) => {
     const bag = zone.ports;
 
@@ -494,31 +544,42 @@ function resolvePorts(
       return;
     }
 
-    const pinned = bag.slots ?? [];
-    const drawn =
-      pinned.length > 0
-        ? pinned.map(slot => ({
-            hexId: idAt.get(cellKey(slot)) as number,
-            dq: slot.dq,
-            dr: slot.dr,
-          }))
+    const pins = bag.slots ?? [];
+
+    take(
+      bag,
+      pins.length > 0
+        ? pins.map(pinned)
         : pickPortSlots(
             map.zoneCells[z].map(id => map.cells[id]),
             land,
             bag.types.length,
             rng,
-          );
-
-    for (const slot of drawn) {
-      slots.push(slot);
-      poolOf.push(z);
-    }
-
-    types.push(...bag.types);
+          ),
+      z,
+    );
   });
+
+  if (board.ports !== undefined) {
+    // Its own pool, past the last zone's, so a fixed coast's harbours are never
+    // shuffled into a zone's.
+    take(
+      board.ports,
+      (board.ports.slots ?? []).map(pinned),
+      board.zones.length,
+    );
+  }
 
   return { slots, types, poolOf };
 }
+
+/**
+ * What a Marins board is drawn under unless its caller says otherwise. The base
+ * generator hides the harbour rule behind a toggle because its board comes with
+ * its harbours printed on; a scenario's are dealt from a bag, so a 2:1 harbour
+ * landing on the coast of the very resource it trades is ours to avoid.
+ */
+export const MARINS_OPTIONS: BoardOptions = { avoidPortOnResource: true };
 
 /** A board drawn from an authored spec, plus the layout it was drawn on. */
 export interface SpecBoard {
@@ -526,13 +587,13 @@ export interface SpecBoard {
   /** The authored map this was drawn from. */
   spec: ScenarioBoardSpec;
   board: CatanBoard;
-  /** Pass this back to `boardWarnings` to audit the board. */
   variant: CatanVariant;
-}
-
-/** A generated board of one of the scenarios the generator ships with. */
-export interface MarinsBoard extends SpecBoard {
-  scenario: MarinsScenario;
+  /**
+   * The options it was actually drawn under, `variantSpec` included. Pass them
+   * straight to `boardWarnings`: audit a board against anything else and the
+   * rules it was held to and the rules it is judged by drift apart.
+   */
+  options: BoardOptions;
 }
 
 /**
@@ -569,7 +630,7 @@ export function generateSpecBoard(
   const actualSeed = seed ?? crypto.getRandomValues(new Uint32Array(1))[0];
   const rng = mulberry32(actualSeed);
 
-  const map = resolveMap(spec, rng);
+  const map = resolveMap(spec, rng, options?.balanceZones ?? false);
   const ports = resolvePorts(spec, map, rng);
   const totals = boardTotals(spec);
 
@@ -585,25 +646,48 @@ export function generateSpecBoard(
     portPoolOf: ports.poolOf,
   });
 
+  const drawnUnder: BoardOptions = {
+    ...MARINS_OPTIONS,
+    ...options,
+    variantSpec: variant,
+  };
+
   return {
     players,
     spec,
     variant,
-    board: generateCatanBoard(actualSeed, { ...options, variantSpec: variant }),
+    options: drawnUnder,
+    board: generateCatanBoard(actualSeed, drawnUnder),
   };
 }
 
-/** Draws one of the built-in scenarios, behind the key the app stores. */
-export function generateMarinsBoard(
-  key: MarinsScenarioKey,
+/** A draw that came out, or the reason it could not. */
+export type SpecDraw =
+  | { ok: true; drawn: SpecBoard }
+  | { ok: false; reason: string };
+
+/**
+ * {@link generateSpecBoard} with the throw turned into an answer. A scenario
+ * read back from the database is only checked for *shape* on the way in, so a
+ * screen that draws one has to be ready to be told no — by a map authored
+ * before a rule existed, or asked for a player count it was never drawn for.
+ */
+export function trySpecBoard(
+  scenario: ScenarioSpec,
   players: number,
   seed?: number,
   options?: BoardOptions,
-): MarinsBoard {
-  const scenario = marinsScenario(key);
-
-  return {
-    scenario,
-    ...generateSpecBoard(scenario.spec, players, seed, options),
-  };
+): SpecDraw {
+  try {
+    return {
+      ok: true,
+      drawn: generateSpecBoard(scenario, players, seed, options),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      /* c8 ignore next -- defensive: the draw only ever throws an Error */
+      reason: error instanceof Error ? error.message : "Tirage impossible.",
+    };
+  }
 }

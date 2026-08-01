@@ -1,3 +1,5 @@
+import type { ScenarioSpec } from "@/lib/catan/scenario-spec";
+
 import type { ScoreSheetItem } from "./boardgame";
 import type { FieldSpec } from "./config";
 import type { BoardgameId, ExtensionId, ExtensionScenarioId } from "./ids";
@@ -14,9 +16,42 @@ export interface ExtensionScenario {
   name: string;
   /** Hard-coded base score to reach (read-only in the app), or null. */
   targetScore: number | null;
-  /** Key the board generator reads to build this scenario's board. */
-  boardKey: string | null;
+  /**
+   * Printed in the rulebook, as opposed to invented in the scenario editor. Its
+   * map can be drawn and corrected like any other, but the scenario belongs to
+   * the rules: the app never deletes it.
+   */
+  isOfficial: boolean;
+  /** The board the scenario is drawn from, once someone has drawn it. */
+  boardSpec: ScenarioSpec | null;
   sortOrder: number;
+}
+
+/**
+ * An extension as it reads on a game already played with it: its name and, when
+ * it is organised in scenarios, the one played. Everything else about it — its
+ * config fields, its scoring — was folded into the game at launch and has no
+ * business in a list.
+ */
+export interface PlayedExtension {
+  name: string;
+  scenarioName: string | null;
+}
+
+/** A scenario the editor creates: everything but the id the database mints. */
+export interface NewExtensionScenario {
+  extensionId: ExtensionId;
+  name: string;
+  targetScore: number | null;
+  boardSpec: ScenarioSpec;
+  sortOrder: number;
+}
+
+/** What the editor may change on an existing scenario. */
+export interface ExtensionScenarioUpdate {
+  name: string;
+  targetScore: number | null;
+  boardSpec: ScenarioSpec;
 }
 
 /**
@@ -29,6 +64,12 @@ export interface ExtensionScenario {
 export interface Extension {
   id: ExtensionId;
   baseGameId: BoardgameId;
+  /**
+   * Stable handle for the extensions the code has to recognise by itself — the
+   * board generator draws `catan-marins` scenarios. Null on the rest, which are
+   * pure data the app never names.
+   */
+  key: string | null;
   name: string;
   configFields: FieldSpec[];
   scoringDelta: ScoringDelta | null;

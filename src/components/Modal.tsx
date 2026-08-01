@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 
 /**
  * Full-screen modal shell: dims the page, centres its card, and (by default)
@@ -25,6 +25,19 @@ export function Modal({
   className?: string;
   children: ReactNode;
 }) {
+  // The page underneath is pinned while the modal is up: a drag that starts
+  // anywhere but on a scrollable part of the card would otherwise scroll it,
+  // which reads as the modal ignoring the gesture entirely.
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, []);
+
   return (
     <div
       role="dialog"

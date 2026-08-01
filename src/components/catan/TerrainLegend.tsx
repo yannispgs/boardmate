@@ -1,16 +1,7 @@
 import { type CatanTerrain, TERRAIN_RESOURCE } from "@/lib/catan/board";
 import { RESOURCE_LABEL } from "@/lib/catan/warnings";
-import { SEA_STYLE, TERRAIN_STYLE } from "./CatanBoardSvg";
-
-const TERRAIN_NAME: Record<CatanTerrain, string> = {
-  forest: "Forêt",
-  pasture: "Prairie",
-  fields: "Champs",
-  hills: "Collines",
-  mountains: "Montagnes",
-  gold: "Rivière d'or",
-  desert: "Désert",
-};
+import { TERRAIN_NAME } from "./terrain-labels";
+import { terrainSwatch } from "./terrain-swatch";
 
 /** What a tile pays: its resource, or what it does instead of producing one. */
 function terrainHint(terrain: CatanTerrain): string {
@@ -39,7 +30,7 @@ export function TerrainLegend({
     key: terrain as string,
     label: TERRAIN_NAME[terrain],
     hint: terrainHint(terrain),
-    color: TERRAIN_STYLE[terrain].fill,
+    swatch: terrainSwatch(terrain),
   }));
 
   if (sea) {
@@ -47,7 +38,7 @@ export function TerrainLegend({
       key: "sea",
       label: "Mer",
       hint: "navigation",
-      color: SEA_STYLE.fill,
+      swatch: terrainSwatch("sea"),
     });
   }
 
@@ -59,7 +50,7 @@ export function TerrainLegend({
             <span
               aria-hidden
               className="h-3.5 w-3.5 shrink-0 rounded-sm border border-black/10"
-              style={{ backgroundColor: item.color }}
+              style={{ background: item.swatch }}
             />
             <span>
               {item.label}{" "}

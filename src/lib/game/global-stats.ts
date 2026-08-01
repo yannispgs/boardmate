@@ -5,7 +5,7 @@
  * player presence, date window). Pure: no network, no vendor types, unit-tested.
  */
 import type { BoardgameId, GameStatsRecord, PlayerId } from "@/lib/domain";
-import { matchesGameFilter } from "./game-filters";
+import { localDay, matchesGameFilter } from "./game-filters";
 
 export interface GlobalStatsFilters {
   /** Keep only games of these boardgames (empty = all). */
@@ -202,8 +202,9 @@ export function filterRecords(
         boardgameId: g.boardgameId,
         playerIds: g.players.map(p => p.playerId),
         // Statistics are about games that are over, so a record is filed under
-        // the day it ended; one without an end date matches no window at all.
-        day: g.endedAt?.slice(0, 10) ?? "",
+        // the day it ended — the day it ended where it was played; one without
+        // an end date matches no window at all.
+        day: g.endedAt === null ? "" : localDay(g.endedAt),
         // A statistics record only ever describes a game that is over, so the
         // status criterion has nothing left to sort out here.
         status: "ended",

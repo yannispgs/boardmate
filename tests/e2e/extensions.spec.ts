@@ -1,15 +1,25 @@
 import { expect, test } from "@playwright/test";
 
-import { adminClient, CATAN_NAME, seedPlayers } from "./utils/supabase";
+import {
+  adminClient,
+  CATAN_NAME,
+  deleteScenarios,
+  seedMarinsScenario,
+  seedPlayers,
+} from "./utils/supabase";
 
 /**
- * Selecting a Catan extension + scenario in the launch recap (full-suite only —
- * untagged). The scenario imposes a fixed, read-only win target, and the game is
- * recorded with its active extension + scenario.
+ * Selecting a Catan extension + scenario in the launch recap. The scenario
+ * imposes a fixed, read-only win target, and the game is recorded with its
+ * active extension + scenario.
+ *
+ * Gating: an extension silently dropped on launch is a game played under the
+ * wrong rules, and nothing later in the app can tell — so this one runs per-PR
+ * rather than only in the full sweep.
  */
-test("launches a Catan game with the Marins extension and a scenario", async ({
-  page,
-}) => {
+test("launches a Catan game with the Marins extension and a scenario", {
+  tag: "@critical",
+}, async ({ page }) => {
   const names = await seedPlayers(3);
   const admin = adminClient();
   let gameId: string | undefined;
@@ -33,6 +43,8 @@ test("launches a Catan game with the Marins extension and a scenario", async ({
     await expect(page.getByText(/Imposé par le scénario/)).toBeVisible();
     await expect(page.getByText("13", { exact: true })).toBeVisible();
 
+    // The scenario owns the board but ships no map, so the funnel skips the
+    // board step rather than drawing one under the wrong rules.
     await page.getByRole("button", { name: "Lancer la partie" }).click();
     await page.getByRole("button", { name: "Lancer", exact: true }).click();
 
@@ -81,4 +93,54 @@ test("browses the Catan extensions from the games list", async ({ page }) => {
   // Each scenario shows its rulebook target (Four Islands = 13).
   await expect(page.getByText("Les quatre îles")).toBeVisible();
   await expect(page.getByText("🎯 13 pts")).toBeVisible();
+});
+
+/**
+ * Previewing the scenario boards from the launch recap (full-suite only —
+ * untagged): the carousel draws each scenario for the players already seated,
+ * and picking one there ticks it in the form.
+ */
+test("previews the scenario boards before launching", async ({ page }) => {
+  const names = await seedPlayers(3);
+  const scenario = "E2E aperçu";
+
+  await seedMarinsScenario(scenario);
+  try {
+    await page.goto("/games/new");
+    await page.getByRole("button", { name: CATAN_NAME, exact: true }).click();
+    await page
+      .getByRole("button", { name: "Sans configuration", exact: true })
+      .click();
+    for (const name of names) {
+      await page.getByRole("button", { name, exact: true }).click();
+    }
+    await page.getByRole("button", { name: "Continuer →" }).click();
+
+    await page.getByRole("checkbox", { name: "Catan - Marins" }).check();
+    await page.getByRole("button", { name: /Voir les plateaux/ }).click();
+
+    const dialog = page.getByRole("dialog");
+    const heading = dialog.getByRole("heading", { name: scenario });
+
+    await expect(dialog).toBeVisible();
+
+    // The carousel loops, so stepping through it reaches the seeded scenario
+    // wherever the list happens to put it.
+    while (!(await heading.isVisible())) {
+      await dialog.getByRole("button", { name: "Plateau suivant" }).click();
+    }
+
+    await expect(dialog.locator("svg")).toBeVisible();
+
+    // Choosing in the carousel closes it and answers the form behind it.
+    await dialog.getByRole("button", { name: "Choisir ce scénario" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(
+      page.getByRole("radio", { name: new RegExp(scenario) }),
+    ).toBeChecked();
+    await expect(page.getByText(/Imposé par le scénario/)).toBeVisible();
+  } finally {
+    await deleteScenarios([scenario]);
+    await adminClient().from("players").delete().in("name", names);
+  }
 });

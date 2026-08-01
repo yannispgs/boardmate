@@ -1,0 +1,200 @@
+"use client";
+
+import { IslandRange } from "@/components/catan/IslandRange";
+import {
+  SPEC_TERRAIN_NAME,
+  SPEC_TERRAIN_ORDER,
+} from "@/components/catan/terrain-labels";
+import { terrainSwatch } from "@/components/catan/terrain-swatch";
+import { TrashIcon } from "@/components/icons";
+import { dangerIconButtonClass } from "@/components/ui";
+import {
+  removeZone,
+  renameZone,
+  setPortTypeCount,
+  setTerrainCount,
+  setTokenCount,
+  setZoneHidden,
+  setZoneIslands,
+  TOKEN_VALUES,
+  tokenCounts,
+} from "@/lib/catan/scenario-draft";
+import {
+  bagTileCount,
+  type ScenarioSpec,
+  tokenBearingCount,
+} from "@/lib/catan/scenario-spec";
+import { CountStepper } from "./CountStepper";
+import { PanelBlock } from "./PanelBlock";
+import { PortTypeFields } from "./PortTypeFields";
+import { Tally } from "./Tally";
+
+/**
+ * Everything about the zone being edited: its name, how it is drawn — face down,
+ * land gathered into islands — then the bag of tiles, tokens and harbours dealt
+ * into it. How it is drawn comes first because it governs the rest: a zone laid
+ * face down is no coast to print a harbour on. The spaces themselves are painted
+ * on the canvas, not here.
+ */
+export function ZonePanel({
+  spec,
+  board,
+  zone,
+  onChange,
+  onRemoved,
+}: Readonly<{
+  spec: ScenarioSpec;
+  board: number;
+  zone: number;
+  onChange: (spec: ScenarioSpec) => void;
+  /** Called after the zone is dropped, so the editor can select another. */
+  onRemoved: () => void;
+}>) {
+  const current = spec.boards[board].zones[zone];
+  const tiles = bagTileCount(current.terrainCounts);
+  const tokens = tokenCounts(current.numberTokens);
+  const slots = current.ports?.slots?.length ?? 0;
+  const portCount = current.ports?.types.length ?? 0;
+  const islands = current.islands ?? null;
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex items-center gap-2">
+        <input
+          value={current.name}
+          onChange={e =>
+            onChange(renameZone(spec, board, zone, e.target.value))
+          }
+          placeholder="Nom de la zone"
+          className="min-w-0 flex-1 rounded-lg border border-black/10 px-3 py-2 text-sm dark:border-white/15"
+        />
+        <button
+          type="button"
+          onClick={() => {
+            onChange(removeZone(spec, board, zone));
+            onRemoved();
+          }}
+          aria-label="Supprimer la zone"
+          title="Supprimer la zone"
+          className={dangerIconButtonClass}
+        >
+          <TrashIcon />
+        </button>
+      </div>
+
+      <PanelBlock title="Tirage">
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={current.hidden === true}
+            onChange={e =>
+              onChange(setZoneHidden(spec, board, zone, e.target.checked))
+            }
+            className="h-4 w-4"
+          />
+          <span>Tuiles face cachée (île de brume)</span>
+        </label>
+
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={islands !== null}
+            onChange={e =>
+              onChange(
+                setZoneIslands(
+                  spec,
+                  board,
+                  zone,
+                  e.target.checked ? [1, 3] : null,
+                ),
+              )
+            }
+            className="h-4 w-4"
+          />
+          <span>Regrouper la terre en îles</span>
+        </label>
+
+        {islands === null ? null : (
+          <div className="pl-6">
+            <IslandRange
+              value={islands}
+              onChange={range =>
+                onChange(setZoneIslands(spec, board, zone, range))
+              }
+            />
+          </div>
+        )}
+      </PanelBlock>
+
+      <PanelBlock
+        title="Tuiles"
+        hint="Une tuile par case peinte, la mer comprise. Le tirage les mélange à l'intérieur de la zone."
+      >
+        <div className="flex flex-col gap-1">
+          {SPEC_TERRAIN_ORDER.map(terrain => (
+            <CountStepper
+              key={terrain}
+              label={SPEC_TERRAIN_NAME[terrain]}
+              swatch={terrainSwatch(terrain)}
+              value={current.terrainCounts[terrain] ?? 0}
+              onChange={count =>
+                onChange(setTerrainCount(spec, board, zone, terrain, count))
+              }
+            />
+          ))}
+        </div>
+        <Tally label="tuiles" have={tiles} need={current.cells.length} />
+      </PanelBlock>
+
+      <PanelBlock
+        title="Jetons"
+        hint="Un jeton par tuile qui en porte un : ni la mer ni le désert n'en reçoivent."
+      >
+        {/* Laid out across, not down: ten tokens as ten labelled lines ate the
+            panel. The whole run fits one row of a 320px aside once the columns
+            are kept tight, and reads 2, 3, 4… straight through. */}
+        <div className="grid grid-cols-10 gap-x-1">
+          {TOKEN_VALUES.map(token => (
+            <CountStepper
+              key={token}
+              label={String(token)}
+              layout="stack"
+              value={tokens.get(token) ?? 0}
+              onChange={count =>
+                onChange(setTokenCount(spec, board, zone, token, count))
+              }
+            />
+          ))}
+        </div>
+        <Tally
+          label="jetons"
+          have={current.numberTokens.length}
+          need={tokenBearingCount(current.terrainCounts)}
+        />
+      </PanelBlock>
+
+      <PanelBlock
+        title="Ports de la zone"
+        hint={
+          current.hidden === true
+            ? "Une zone tirée face cachée n'a pas de côte visible : elle ne peut porter aucun port."
+            : "Épingle les emplacements sur le plan, en mode « Ports », autant que de ports : chacun sur une case de terre certaine, le long d'une arête qui donne sur la mer. Ou n'en épingle aucun : ils seront tirés au hasard sur la côte de la zone, un par tuile."
+        }
+      >
+        <PortTypeFields
+          bag={current.ports}
+          onCount={(type, count) =>
+            onChange(setPortTypeCount(spec, board, zone, type, count))
+          }
+        />
+        {slots === 0 && portCount > 0 ? (
+          <span className="text-slate-500 text-xs dark:text-slate-400">
+            emplacements tirés au hasard sur la côte
+          </span>
+        ) : (
+          <Tally label="emplacements" have={slots} need={portCount} />
+        )}
+      </PanelBlock>
+    </div>
+  );
+}

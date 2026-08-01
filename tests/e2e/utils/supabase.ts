@@ -69,3 +69,70 @@ export async function seedCatanConfig(name: string): Promise<string> {
 export async function deleteConfigs(names: string[]): Promise<void> {
   await adminClient().from("configs").delete().in("name", names);
 }
+
+/**
+ * A small but complete Marins map: one strip of six spaces holding four land
+ * tiles, two of sea and two harbours. Enough for the generator to draw an
+ * island, a coast and a legend, without transcribing a real scenario.
+ */
+const E2E_BOARD_SPEC = {
+  boards: [
+    {
+      players: [3, 4],
+      zones: [
+        {
+          name: "Archipel",
+          cells: [
+            { q: 0, r: 0 },
+            { q: 1, r: 0 },
+            { q: 2, r: 0 },
+            { q: 3, r: 0 },
+            { q: 4, r: 0 },
+            { q: 5, r: 0 },
+          ],
+          terrainCounts: {
+            forest: 1,
+            pasture: 1,
+            hills: 1,
+            mountains: 1,
+            sea: 2,
+          },
+          numberTokens: [4, 5, 6, 9],
+          ports: { types: ["generic", "wood"] },
+        },
+      ],
+    },
+  ],
+};
+
+/**
+ * Inserts a Marins scenario carrying a map (service role) and returns its name,
+ * so the Marins generator has something to draw — it ships with no scenario of
+ * its own.
+ */
+export async function seedMarinsScenario(name: string): Promise<string> {
+  const admin = adminClient();
+  const { data: extension } = await admin
+    .from("extensions")
+    .select("id")
+    .eq("key", "catan-marins")
+    .single();
+
+  const { error } = await admin.from("extension_scenarios").insert({
+    extension_id: extension?.id,
+    name,
+    target_score: 11,
+    sort_order: 99,
+    board_spec: { name, targetScore: 11, ...E2E_BOARD_SPEC },
+  });
+  if (error) {
+    throw new Error(`Failed to seed scenario: ${error.message}`);
+  }
+
+  return name;
+}
+
+/** Removes seeded scenarios by name (service role) — call in a `finally`. */
+export async function deleteScenarios(names: string[]): Promise<void> {
+  await adminClient().from("extension_scenarios").delete().in("name", names);
+}

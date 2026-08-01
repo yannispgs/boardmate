@@ -1,17 +1,26 @@
 import { describe, expect, it } from "vitest";
 
+import { EXTENSION_VARIANT } from "./board";
 import {
   bagLandCounts,
   bagTileCount,
+  boardOutline,
   boardTotals,
   cellKey,
+  DEFAULT_WIDTH,
+  fixedSeaCells,
+  isFixedSea,
   isValidToken,
+  MIN_WIDTH,
+  portEdges,
   type ScenarioBoardSpec,
   type ScenarioSpec,
   type ScenarioZone,
   type SpecIssue,
   specIssueText,
+  strandedPorts,
   tokenBearingCount,
+  validateScenarioDraft,
   validateScenarioSpec,
 } from "./scenario-spec";
 
@@ -96,6 +105,135 @@ describe("bagLandCounts", () => {
   });
 });
 
+describe("boardOutline", () => {
+  it("is the 5–6 player board at its narrowest", () => {
+    // The extension board was laid out long before this format existed, so it
+    // pins the outline's arithmetic against something independent: at width 3
+    // the seven rows are 3-4-5-6-5-4-3, that board exactly, down to the offsets.
+    const extension = EXTENSION_VARIANT.cells
+      .map(cell => cellKey({ q: cell.q, r: cell.r + 3 }))
+      .sort();
+
+    expect(boardOutline(MIN_WIDTH).map(cellKey).sort()).toEqual(extension);
+  });
+});
+
+describe("portEdges", () => {
+  /** The three spaces of `zone()`, in a row, with the sea all around them. */
+  const board: ScenarioBoardSpec = { players: [3], zones: [zone()] };
+
+  it("offers the coastal edges of a space, and only those", () => {
+    // (1,0) sits between its two neighbours: four of its six edges face the
+    // open sea, the two along the row face land.
+    expect(portEdges(board, { q: 1, r: 0 })).toEqual([
+      { q: 1, r: 0, dq: 1, dr: -1 },
+      { q: 1, r: 0, dq: 0, dr: -1 },
+      { q: 1, r: 0, dq: -1, dr: 1 },
+      { q: 1, r: 0, dq: 0, dr: 1 },
+    ]);
+  });
+
+  it("offers nothing on a space the draw could turn into sea", () => {
+    const drawn = { ...board, zones: [zone({ terrainCounts: { sea: 1 } })] };
+
+    expect(portEdges(drawn, { q: 1, r: 0 })).toEqual([]);
+  });
+
+  it("offers nothing on a space of a zone laid face down", () => {
+    // Nothing but land in the bag, so the space is certain — but nobody knows
+    // that until the tile is turned over, and no coast is printed on fog.
+    const fog = { ...board, zones: [zone({ hidden: true })] };
+
+    expect(portEdges(fog, { q: 1, r: 0 })).toEqual([]);
+  });
+
+  it("offers nothing on a space the map never painted", () => {
+    expect(portEdges(board, { q: 5, r: 5 })).toEqual([]);
+  });
+
+  it("drops the edges touching a harbour already pinned", () => {
+    // The harbour on (0,0) runs onto (1,-1) and ends at the corner the two
+    // spaces share, which is where the north-west edge of (1,0) starts.
+    const pinned = {
+      ...board,
+      zones: [
+        zone({
+          ports: { slots: [{ q: 0, r: 0, dq: 1, dr: -1 }], types: ["wood"] },
+        }),
+      ],
+    };
+
+    expect(portEdges(pinned, { q: 1, r: 0 })).toEqual([
+      { q: 1, r: 0, dq: 1, dr: -1 },
+      { q: 1, r: 0, dq: -1, dr: 1 },
+      { q: 1, r: 0, dq: 0, dr: 1 },
+    ]);
+  });
+});
+
+describe("strandedPorts", () => {
+  /** The row of `zone()` with a harbour trading north off its middle space. */
+  function pinned(...zones: ScenarioZone[]): ScenarioBoardSpec {
+    return {
+      players: [3],
+      zones: [
+        zone({
+          ports: { slots: [{ q: 1, r: 0, dq: 0, dr: -1 }], types: ["wood"] },
+        }),
+        ...zones,
+      ],
+    };
+  }
+
+  it("leaves a harbour hugging its coast alone", () => {
+    expect(strandedPorts(pinned())).toEqual([]);
+  });
+
+  it("reports the one whose water was painted over", () => {
+    const filled = zone({
+      name: "Continent",
+      cells: [{ q: 1, r: -1 }],
+      terrainCounts: { forest: 1 },
+      numberTokens: [6],
+    });
+
+    expect(strandedPorts(pinned(filled))).toEqual([
+      { q: 1, r: 0, dq: 0, dr: -1 },
+    ]);
+  });
+
+  it("reports the one whose own space stopped being certain land", () => {
+    const board = pinned();
+    const drawn = {
+      ...board,
+      zones: [{ ...board.zones[0], terrainCounts: { forest: 2, sea: 1 } }],
+    };
+
+    expect(strandedPorts(drawn)).toEqual([{ q: 1, r: 0, dq: 0, dr: -1 }]);
+  });
+
+  it("keeps the two harbours meeting at a corner", () => {
+    // Both still have a coast: which of them to lift off is the author's call,
+    // and `touchingIssues` is what tells him about it.
+    const touching: ScenarioBoardSpec = {
+      players: [3],
+      zones: [
+        zone({
+          ports: {
+            slots: [
+              { q: 0, r: 0, dq: 1, dr: -1 },
+              { q: 1, r: 0, dq: 0, dr: -1 },
+            ],
+            types: ["wood", "ore"],
+          },
+        }),
+      ],
+    };
+
+    expect(strandedPorts(touching)).toEqual([]);
+  });
+});
+
 describe("boardTotals", () => {
   it("sums the zones and the static tiles of a board", () => {
     const totals = boardTotals({
@@ -161,7 +299,7 @@ describe("validateScenarioSpec", () => {
     ).toEqual(["empty-zone", "token-count"]);
   });
 
-  it("flags a space outside the seven rows", () => {
+  it("flags a space outside the board's outline", () => {
     expect(
       kinds(
         spec({
@@ -176,7 +314,18 @@ describe("validateScenarioSpec", () => {
           ],
         }),
       ),
-    ).toEqual(["row-out-of-range", "row-out-of-range"]);
+    ).toEqual(["off-board", "off-board"]);
+  });
+
+  it("lets a wider board hold a space a narrower one cannot", () => {
+    const cells = [
+      { q: 6, r: 0 },
+      { q: 1, r: 0 },
+      { q: 2, r: 0 },
+    ];
+
+    expect(kinds(spec({ zones: [zone({ cells })] }))).toEqual(["off-board"]);
+    expect(kinds(spec({ width: 7, zones: [zone({ cells })] }))).toEqual([]);
   });
 
   it("flags a space claimed twice, whatever claims it", () => {
@@ -217,10 +366,23 @@ describe("validateScenarioSpec", () => {
     ).toEqual(["bad-token"]);
   });
 
-  it("accepts a static tile left without a token", () => {
+  it("flags a static tile of a rolled terrain left without a token", () => {
+    expect(
+      kinds(
+        spec({ statics: [{ cell: { q: 0, r: 1 }, terrain: "mountains" }] }),
+      ),
+    ).toEqual(["static-no-token"]);
+  });
+
+  it("accepts the sea and the desert left without a token", () => {
     expect(
       validateScenarioSpec(
-        spec({ statics: [{ cell: { q: 0, r: 1 }, terrain: "mountains" }] }),
+        spec({
+          statics: [
+            { cell: { q: 0, r: 1 }, terrain: "sea" },
+            { cell: { q: 1, r: 1 }, terrain: "desert" },
+          ],
+        }),
       ),
     ).toEqual([]);
   });
@@ -238,12 +400,110 @@ describe("validateScenarioSpec", () => {
     ).toEqual(["static-token", "static-token"]);
   });
 
+  it("flags a red number pinned on a gold river", () => {
+    expect(
+      kinds(
+        spec({
+          statics: [
+            { cell: { q: 0, r: 1 }, terrain: "gold", number: 6 },
+            { cell: { q: 1, r: 1 }, terrain: "gold", number: 8 },
+          ],
+        }),
+      ),
+    ).toEqual(["static-gold-red", "static-gold-red"]);
+  });
+
+  it("accepts a gold river pinned with anything but a red", () => {
+    expect(
+      validateScenarioSpec(
+        spec({
+          statics: [{ cell: { q: 0, r: 1 }, terrain: "gold", number: 9 }],
+        }),
+      ),
+    ).toEqual([]);
+  });
+
+  it("flags a bag with nowhere left to put its reds but a gold river", () => {
+    // Three tiles carry a token, two of them gold — so a single non-gold tile
+    // for two reds. One of the 6 and the 8 has to land on a gold river.
+    expect(
+      kinds(
+        spec({
+          zones: [
+            zone({
+              terrainCounts: { forest: 1, gold: 2 },
+              numberTokens: [6, 8, 5],
+            }),
+          ],
+        }),
+      ),
+    ).toEqual(["forced-gold-red"]);
+  });
+
+  it("says nothing about gold rivers when the scenario allows reds on them", () => {
+    const loose: ScenarioSpec = {
+      ...spec({
+        statics: [{ cell: { q: 0, r: 1 }, terrain: "gold", number: 6 }],
+        zones: [
+          zone({
+            terrainCounts: { forest: 1, gold: 2 },
+            numberTokens: [6, 8, 5],
+          }),
+        ],
+      }),
+      options: { avoidGoldReds: false },
+    };
+
+    expect(validateScenarioSpec(loose)).toEqual([]);
+  });
+
+  it("accepts reds a zone can keep off its gold rivers", () => {
+    expect(
+      validateScenarioSpec(
+        spec({
+          zones: [
+            zone({
+              terrainCounts: { forest: 2, gold: 1 },
+              numberTokens: [6, 8, 5],
+            }),
+          ],
+        }),
+      ),
+    ).toEqual([]);
+  });
+
+  it("lets a face-down zone hold reds it could not place face up", () => {
+    expect(
+      validateScenarioSpec(
+        spec({
+          zones: [
+            zone({
+              hidden: true,
+              terrainCounts: { forest: 1, gold: 2 },
+              numberTokens: [6, 8, 5],
+            }),
+          ],
+        }),
+      ),
+    ).toEqual([]);
+  });
+
   it("accepts a harbour bag with no pinned slot", () => {
     expect(
       validateScenarioSpec(
         spec({ zones: [zone({ ports: { types: ["wood"] } })] }),
       ),
     ).toEqual([]);
+  });
+
+  it("refuses any harbour at all in a zone laid face down", () => {
+    expect(
+      kinds(
+        spec({
+          zones: [zone({ hidden: true, ports: { types: ["wood"] } })],
+        }),
+      ),
+    ).toEqual(["port-hidden"]);
   });
 
   it("flags a harbour bag with more slots than harbours", () => {
@@ -266,11 +526,10 @@ describe("validateScenarioSpec", () => {
     ).toEqual(["port-count"]);
   });
 
-  it("accepts a harbour pinned on a zone whose sea is drawn", () => {
-    // The scenario always fixes where a harbour sits; pinning one simply makes
-    // that space land whatever the draw.
+  it("refuses a harbour pinned where the sea is drawn", () => {
+    // Its space could come up as sea: a harbour needs land in every draw.
     expect(
-      validateScenarioSpec(
+      kinds(
         spec({
           zones: [
             zone({
@@ -284,20 +543,132 @@ describe("validateScenarioSpec", () => {
           ],
         }),
       ),
-    ).toEqual([]);
+    ).toEqual(["port-on-drawn"]);
   });
 
-  it("flags more coast pinned than the zone has land to give", () => {
+  it("refuses a harbour pinned on a zone that is nothing but sea", () => {
     expect(
       kinds(
         spec({
           zones: [
             zone({
-              terrainCounts: { forest: 1, sea: 2 },
+              terrainCounts: { sea: 3 },
+              numberTokens: [],
+              ports: {
+                slots: [{ q: 0, r: 0, dq: 0, dr: -1 }],
+                types: ["wood"],
+              },
+            }),
+          ],
+        }),
+      ),
+    ).toEqual(["port-on-water"]);
+  });
+
+  it("refuses a harbour whose edge faces land rather than water", () => {
+    // (1,0) is a space of the island too, so the edge between them is inland.
+    expect(
+      kinds(
+        spec({
+          zones: [
+            zone({
+              ports: {
+                slots: [{ q: 0, r: 0, dq: 1, dr: 0 }],
+                types: ["wood"],
+              },
+            }),
+          ],
+        }),
+      ),
+    ).toEqual(["port-inland"]);
+  });
+
+  it("refuses a harbour whose edge faces a space left to the draw", () => {
+    expect(
+      kinds(
+        spec({
+          zones: [
+            zone({
+              cells: [{ q: 0, r: 0 }],
+              terrainCounts: { forest: 1 },
               numberTokens: [4],
+              ports: {
+                slots: [{ q: 0, r: 0, dq: 1, dr: 0 }],
+                types: ["wood"],
+              },
+            }),
+            zone({
+              name: "Large",
+              cells: [
+                { q: 1, r: 0 },
+                { q: 2, r: 0 },
+              ],
+              terrainCounts: { forest: 1, sea: 1 },
+              numberTokens: [5],
+            }),
+          ],
+        }),
+      ),
+    ).toEqual(["port-inland"]);
+  });
+
+  it("takes two harbours on one space when a corner stays free", () => {
+    // A published Marins map prints two on the same tile: what two harbours ask
+    // for is a free corner between them, not a tile each.
+    expect(
+      kinds(
+        spec({
+          zones: [
+            zone({
               ports: {
                 slots: [
                   { q: 0, r: 0, dq: 0, dr: -1 },
+                  { q: 0, r: 0, dq: 0, dr: 1 },
+                ],
+                types: ["wood", "ore"],
+              },
+            }),
+          ],
+        }),
+      ),
+    ).toEqual([]);
+  });
+
+  it("refuses two harbours meeting on the edges of one space", () => {
+    // Both edges end at the corner (0,0) shares with (0,-1) and (1,-1): two
+    // edges of one tile meet exactly the way two tiles' do. One is held in the
+    // zone's bag and the other in the board's own — they are judged together.
+    expect(
+      kinds(
+        spec({
+          zones: [
+            zone({
+              ports: {
+                slots: [{ q: 0, r: 0, dq: 0, dr: -1 }],
+                types: ["wood"],
+              },
+            }),
+          ],
+          ports: {
+            slots: [{ q: 0, r: 0, dq: 1, dr: -1 }],
+            types: ["generic"],
+          },
+        }),
+      ),
+    ).toEqual(["port-touching"]);
+  });
+
+  it("refuses two harbours meeting at a corner", () => {
+    // Both edges run onto (1,-1) and end at the corner (0,0) and (1,0) share:
+    // a printed board always leaves a free corner between two harbours.
+    expect(
+      kinds(
+        spec({
+          zones: [
+            zone({
+              ports: {
+                slots: [
+                  { q: 0, r: 0, dq: 1, dr: -1 },
                   { q: 1, r: 0, dq: 0, dr: -1 },
                 ],
                 types: ["wood", "ore"],
@@ -306,32 +677,36 @@ describe("validateScenarioSpec", () => {
           ],
         }),
       ),
-    ).toEqual(["port-over-land"]);
+    ).toEqual(["port-touching"]);
   });
 
-  it("counts two harbours on one space as one space of coast", () => {
+  it("accepts a harbour on a static tile, in the board's own bag", () => {
     expect(
       validateScenarioSpec(
         spec({
-          zones: [
-            zone({
-              terrainCounts: { forest: 1, sea: 2 },
-              numberTokens: [4],
-              ports: {
-                slots: [
-                  { q: 0, r: 0, dq: 0, dr: -1 },
-                  { q: 0, r: 0, dq: 1, dr: -1 },
-                ],
-                types: ["wood", "ore"],
-              },
-            }),
-          ],
+          statics: [{ cell: { q: 0, r: 1 }, terrain: "hills", number: 6 }],
+          ports: {
+            slots: [{ q: 0, r: 1, dq: 0, dr: 1 }],
+            types: ["generic"],
+          },
         }),
       ),
     ).toEqual([]);
   });
 
-  it("flags a harbour pinned on a space the zone doesn't hold", () => {
+  it("makes the board's own bag pin every one of its harbours", () => {
+    expect(
+      kinds(
+        spec({
+          statics: [{ cell: { q: 0, r: 1 }, terrain: "hills", number: 6 }],
+          ports: { types: ["generic"] },
+        }),
+      ),
+    ).toEqual(["board-port-count"]);
+  });
+
+  it("refuses a harbour pinned on a space nothing holds", () => {
+    // Unpainted, so open sea — there is no coast there to pin anything on.
     expect(
       kinds(
         spec({
@@ -345,7 +720,93 @@ describe("validateScenarioSpec", () => {
           ],
         }),
       ),
-    ).toEqual(["port-off-zone"]);
+    ).toEqual(["port-on-water"]);
+  });
+});
+
+describe("fixedSeaCells", () => {
+  it("fixes the two ends of the widest row to the open sea", () => {
+    expect(fixedSeaCells(DEFAULT_WIDTH)).toEqual([
+      { q: -3, r: 3 },
+      { q: 5, r: 3 },
+    ]);
+  });
+
+  it("carries the far one out as the board widens", () => {
+    expect(fixedSeaCells(DEFAULT_WIDTH + 1)).toEqual([
+      { q: -3, r: 3 },
+      { q: 6, r: 3 },
+    ]);
+  });
+
+  it("knows a space the board fixes from one the author paints", () => {
+    expect(isFixedSea(DEFAULT_WIDTH, { q: 5, r: 3 })).toBe(true);
+    expect(isFixedSea(DEFAULT_WIDTH, { q: -3, r: 3 })).toBe(true);
+
+    expect(isFixedSea(DEFAULT_WIDTH, { q: 4, r: 3 })).toBe(false);
+    expect(isFixedSea(DEFAULT_WIDTH, { q: 5, r: 2 })).toBe(false);
+  });
+
+  it("holds the open sea whatever a zone claims of it", () => {
+    // A bag of nothing but land over the whole row, the two ends included: they
+    // are still the sea the board fixes, so the tile beside one has a coast.
+    const board: ScenarioBoardSpec = {
+      players: [3],
+      width: DEFAULT_WIDTH,
+      zones: [
+        {
+          name: "Ligne",
+          cells: [
+            { q: 4, r: 3 },
+            { q: 5, r: 3 },
+          ],
+          terrainCounts: { forest: 2 },
+          numberTokens: [4, 5],
+        },
+      ],
+    };
+
+    expect(portEdges(board, { q: 5, r: 3 })).toEqual([]);
+    expect(portEdges(board, { q: 4, r: 3 })).toContainEqual({
+      q: 4,
+      r: 3,
+      dq: 1,
+      dr: 0,
+    });
+  });
+});
+
+describe("validateScenarioDraft", () => {
+  it("counts the spaces of the map the author has left to nobody", () => {
+    // `spec()` paints three spaces of a full board: the rest is still blank,
+    // which the draw would take as it is but no author should save. The two the
+    // board fixes to the open sea are nobody's to paint, so they are not owed.
+    expect(validateScenarioDraft(spec())).toEqual([
+      {
+        kind: "unassigned",
+        board: 0,
+        count:
+          boardOutline(DEFAULT_WIDTH).length -
+          3 -
+          fixedSeaCells(DEFAULT_WIDTH).length,
+      },
+    ]);
+  });
+
+  it("accepts a map drawn to its edges with no zone at all", () => {
+    // Every space a fixed tile — bar the two the board holds itself, which the
+    // author is owed nothing for. A scenario that draws nothing at random is a
+    // scenario all the same, and it needs no zone to be saved.
+    expect(
+      validateScenarioDraft(
+        spec({
+          zones: [],
+          statics: boardOutline(DEFAULT_WIDTH)
+            .filter(cell => !isFixedSea(DEFAULT_WIDTH, cell))
+            .map(cell => ({ cell, terrain: "sea" as const })),
+        }),
+      ),
+    ).toEqual([]);
   });
 });
 
@@ -363,15 +824,25 @@ describe("specIssueText", () => {
     { kind: "no-players", board: 0 },
     { kind: "duplicate-players", board: 0, players: 4 },
     { kind: "empty-zone", ...shared },
-    { kind: "row-out-of-range", board: 0, cell },
+    { kind: "off-board", board: 0, cell },
     { kind: "overlap", board: 0, cell },
     { kind: "tile-count", ...shared, tiles: 2, cells: 3 },
     { kind: "token-count", ...shared, tokens: 1, needed: 2 },
     { kind: "bad-token", board: 0, where: "Île", token: 7 },
     { kind: "static-token", board: 0, cell },
     { kind: "port-count", ...shared, types: 1, slots: 2 },
-    { kind: "port-over-land", ...shared, spaces: 2, land: 1 },
-    { kind: "port-off-zone", ...shared, cell },
+    { kind: "board-port-count", board: 0, types: 2, slots: 1 },
+    { kind: "port-on-water", board: 0, cell },
+    { kind: "port-on-drawn", board: 0, cell },
+    { kind: "port-inland", board: 0, cell, across: { q: 1, r: 1 } },
+    { kind: "static-gold-red", board: 0, cell },
+    { kind: "forced-gold-red", ...shared, reds: 2, others: 1 },
+    { kind: "static-no-token", board: 0, cell },
+    { kind: "port-touching", board: 0, cell, other: { q: 1, r: 1 } },
+    { kind: "port-touching", board: 0, cell, other: cell },
+    { kind: "unassigned", board: 0, count: 1 },
+    { kind: "unassigned", board: 0, count: 12 },
+    { kind: "port-hidden", ...shared },
   ];
 
   it("phrases every issue for the author, in French and without a blank", () => {
@@ -387,8 +858,8 @@ describe("specIssueText", () => {
     expect(specIssueText(issues[7])).toBe(
       "La zone « Île » déclare 1 jetons pour 2 tuiles qui en portent un.",
     );
-    expect(specIssueText(issues[12])).toBe(
-      "Le port épinglé en 1,2 n'est pas dans la zone « Île ».",
+    expect(specIssueText(issues[11])).toBe(
+      "Les 2 ports hors zone demandent autant d'emplacements épinglés : il y en a 1.",
     );
   });
 });

@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChipPicker } from "@/components/ChipPicker";
 import { DateWindow } from "@/components/DateWindow";
 import { InfoTip } from "@/components/InfoTip";
 import { MultiSelectField } from "@/components/MultiSelectField";
+import { OptionPicker, type PickerOption } from "@/components/OptionPicker";
 import { StatTile } from "@/components/StatTile";
 import type { BoardgameId, GameStatsRecord, PlayerId } from "@/lib/domain";
 import { formatDuration } from "@/lib/game/format-time";
@@ -24,15 +24,15 @@ import { StatsDiceDistribution } from "./StatsDiceDistribution";
 import { TimeIndexInfo } from "./TimeIndexInfo";
 
 /** Distinct boardgames present in the records, sorted by name. */
-function gameOptions(records: GameStatsRecord[]) {
+function gameOptions(records: GameStatsRecord[]): PickerOption<string>[] {
   const map = new Map<string, string>();
   for (const r of records) {
     map.set(r.boardgameId, r.boardgameName);
   }
 
   return [...map.entries()]
-    .map(([id, name]) => ({ id, name }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .map(([value, label]) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label));
 }
 
 /**
@@ -44,14 +44,14 @@ function gameOptions(records: GameStatsRecord[]) {
  */
 export function GamesTab({ records }: { records: GameStatsRecord[] }) {
   const games = useMemo(() => gameOptions(records), [records]);
-  const [selected, setSelected] = useState(games[0]?.id ?? "");
+  const [selected, setSelected] = useState(games[0]?.value ?? "");
   const [presentIds, setPresentIds] = useState<string[]>([]);
   const [from, setFrom] = useState("");
   const [until, setUntil] = useState("");
 
-  const active = games.some(g => g.id === selected)
+  const active = games.some(g => g.value === selected)
     ? selected
-    : (games[0]?.id ?? "");
+    : (games[0]?.value ?? "");
 
   // Presence-filter options: players of the selected game, narrowed to those
   // who share a game with everyone already picked (so it never goes empty).
@@ -130,7 +130,12 @@ export function GamesTab({ records }: { records: GameStatsRecord[] }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <ChipPicker options={games} selected={active} onSelect={setSelected} />
+      <OptionPicker
+        variant="chips"
+        options={games}
+        value={active}
+        onChange={setSelected}
+      />
 
       <div className="flex flex-col gap-4 rounded-xl border border-black/10 p-4 dark:border-white/10">
         <MultiSelectField

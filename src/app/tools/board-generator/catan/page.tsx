@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { CatanBoardGenerator } from "./_components/CatanBoardGenerator";
+import { CatanBoardGenerator } from "@/components/catan/CatanBoardGenerator";
 
 export const metadata: Metadata = {
   title: "Plateau Catan — Boardmate",

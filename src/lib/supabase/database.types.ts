@@ -64,6 +64,7 @@ export type Database = {
       boardgames: {
         Row: {
           avg_duration_min: number | null
+          board_generator: string | null
           created_at: string
           dice: Json | null
           has_games: boolean
@@ -84,6 +85,7 @@ export type Database = {
         }
         Insert: {
           avg_duration_min?: number | null
+          board_generator?: string | null
           created_at?: string
           dice?: Json | null
           has_games?: boolean
@@ -104,6 +106,7 @@ export type Database = {
         }
         Update: {
           avg_duration_min?: number | null
+          board_generator?: string | null
           created_at?: string
           dice?: Json | null
           has_games?: boolean
@@ -208,6 +211,97 @@ export type Database = {
           },
         ]
       }
+      extension_scenarios: {
+        Row: {
+          board_spec: Json | null
+          extension_id: string
+          id: string
+          is_official: boolean
+          name: string
+          sort_order: number
+          target_score: number | null
+        }
+        Insert: {
+          board_spec?: Json | null
+          extension_id: string
+          id?: string
+          is_official?: boolean
+          name: string
+          sort_order?: number
+          target_score?: number | null
+        }
+        Update: {
+          board_spec?: Json | null
+          extension_id?: string
+          id?: string
+          is_official?: boolean
+          name?: string
+          sort_order?: number
+          target_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extension_scenarios_extension_id_fkey"
+            columns: ["extension_id"]
+            isOneToOne: false
+            referencedRelation: "extensions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      extensions: {
+        Row: {
+          base_game_id: string
+          changes_board: boolean
+          config_fields: Json
+          created_at: string
+          has_scenarios: boolean
+          id: string
+          is_active: boolean
+          key: string | null
+          name: string
+          scoring_delta: Json | null
+          sort_order: number
+          target_modifier: number
+        }
+        Insert: {
+          base_game_id: string
+          changes_board?: boolean
+          config_fields?: Json
+          created_at?: string
+          has_scenarios?: boolean
+          id?: string
+          is_active?: boolean
+          key?: string | null
+          name: string
+          scoring_delta?: Json | null
+          sort_order?: number
+          target_modifier?: number
+        }
+        Update: {
+          base_game_id?: string
+          changes_board?: boolean
+          config_fields?: Json
+          created_at?: string
+          has_scenarios?: boolean
+          id?: string
+          is_active?: boolean
+          key?: string | null
+          name?: string
+          scoring_delta?: Json | null
+          sort_order?: number
+          target_modifier?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extensions_base_game_id_fkey"
+            columns: ["base_game_id"]
+            isOneToOne: false
+            referencedRelation: "boardgames"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feedback: {
         Row: {
           created_at: string
@@ -225,91 +319,6 @@ export type Database = {
           message?: string
         }
         Relationships: []
-      }
-      extensions: {
-        Row: {
-          base_game_id: string
-          changes_board: boolean
-          config_fields: Json
-          created_at: string
-          has_scenarios: boolean
-          id: string
-          is_active: boolean
-          name: string
-          scoring_delta: Json | null
-          sort_order: number
-          target_modifier: number
-        }
-        Insert: {
-          base_game_id: string
-          changes_board?: boolean
-          config_fields?: Json
-          created_at?: string
-          has_scenarios?: boolean
-          id?: string
-          is_active?: boolean
-          name: string
-          scoring_delta?: Json | null
-          sort_order?: number
-          target_modifier?: number
-        }
-        Update: {
-          base_game_id?: string
-          changes_board?: boolean
-          config_fields?: Json
-          created_at?: string
-          has_scenarios?: boolean
-          id?: string
-          is_active?: boolean
-          name?: string
-          scoring_delta?: Json | null
-          sort_order?: number
-          target_modifier?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "extensions_base_game_id_fkey"
-            columns: ["base_game_id"]
-            isOneToOne: false
-            referencedRelation: "boardgames"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      extension_scenarios: {
-        Row: {
-          board_key: string | null
-          extension_id: string
-          id: string
-          name: string
-          sort_order: number
-          target_score: number | null
-        }
-        Insert: {
-          board_key?: string | null
-          extension_id: string
-          id?: string
-          name: string
-          sort_order?: number
-          target_score?: number | null
-        }
-        Update: {
-          board_key?: string | null
-          extension_id?: string
-          id?: string
-          name?: string
-          sort_order?: number
-          target_score?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "extension_scenarios_extension_id_fkey"
-            columns: ["extension_id"]
-            isOneToOne: false
-            referencedRelation: "extensions"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       game_extensions: {
         Row: {
@@ -329,17 +338,17 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "game_extensions_game_id_fkey"
-            columns: ["game_id"]
-            isOneToOne: false
-            referencedRelation: "games"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "game_extensions_extension_id_fkey"
             columns: ["extension_id"]
             isOneToOne: false
             referencedRelation: "extensions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_extensions_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
             referencedColumns: ["id"]
           },
           {

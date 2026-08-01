@@ -6,6 +6,11 @@ import {
   isRedNumber,
   pipCount,
 } from "@/lib/catan/board";
+import {
+  hexCorners as cornersOf,
+  type HexPoint,
+  polygonPoints,
+} from "@/lib/catan/hex-geometry";
 
 const SIZE = 42; // hex circumradius in px
 
@@ -22,9 +27,16 @@ export const TERRAIN_STYLE: Record<
   fields: { fill: "#e5b731", stroke: "#b98f1f" },
   hills: { fill: "#c1673b", stroke: "#9a4f2b" },
   mountains: { fill: "#8a929c", stroke: "#69707a" },
-  gold: { fill: "#f0c020", stroke: "#b8860b" },
+  gold: { fill: "#7a8490", stroke: "#5f6975" },
   desert: { fill: "#e0cfa3", stroke: "#c3ac79" },
 };
+
+/**
+ * The gold running through a gold-river tile. The tile itself is grey rock, as
+ * on the printed one: only the river is gold, so a field — yellow from edge to
+ * edge — can no longer be taken for it.
+ */
+export const GOLD_RIVER = "#f0c020";
 
 /** Marins sea tiles: plain water, no terrain and no number. */
 export const SEA_STYLE = { fill: "#2b6ca3", stroke: "#1d4f79" };
@@ -41,18 +53,51 @@ const PORT_COLOR: Record<CatanPortType, string> = {
   ore: "#8a929c",
 };
 
-type Point = { x: number; y: number };
+type Point = HexPoint;
 
-/** The six corners of a pointy-top hexagon centred at (cx, cy). */
+/** The six corners of a board-sized hexagon centred at (cx, cy). */
 function hexCorners(cx: number, cy: number): Point[] {
-  const pts: Point[] = [];
+  return cornersOf(cx, cy, SIZE);
+}
 
-  for (let i = 0; i < 6; i++) {
-    const a = ((60 * i - 90) * Math.PI) / 180;
-    pts.push({ x: cx + SIZE * Math.cos(a), y: cy + SIZE * Math.sin(a) });
-  }
+/** What a tile laid face down shows of itself: a question mark, and that's all. */
+function Unknown({ centre }: Readonly<{ centre: Point }>) {
+  return (
+    <text
+      x={centre.x}
+      y={centre.y + 7}
+      textAnchor="middle"
+      fontSize={22}
+      fontWeight="700"
+      fill="#ffffff"
+      opacity={0.7}
+    >
+      ?
+    </text>
+  );
+}
 
-  return pts;
+/**
+ * The band of gold crossing a gold-river tile, drawn straight across the middle
+ * from one side to the other. Its half-width stops just inside the hex whichever
+ * way the board is laid out, so the river reaches both edges without ever
+ * spilling past them — and the number token, drawn after it, sits on top like
+ * the printed tile's does.
+ */
+export function GoldRiver({
+  centre,
+  size,
+}: Readonly<{ centre: Point; size: number }>) {
+  return (
+    <rect
+      x={centre.x - size * 0.86}
+      y={centre.y - size * 0.21}
+      width={size * 1.72}
+      height={size * 0.42}
+      fill={GOLD_RIVER}
+      className="pointer-events-none"
+    />
+  );
 }
 
 /** Small probability dots under a number token (5 = most likely). */
@@ -175,20 +220,28 @@ export function CatanBoardSvg({
       aria-label="Plateau de Catan généré"
       className="h-auto w-full max-w-md"
     >
-      {board.sea.map((s, i) => (
-        <polygon
-          key={s.id}
-          points={seaCorners[i].map(p => `${p.x},${p.y}`).join(" ")}
-          fill={SEA_STYLE.fill}
-          stroke={SEA_STYLE.stroke}
-          strokeWidth={2}
-          strokeLinejoin="round"
-        />
-      ))}
+      {board.sea.map((s, i) => {
+        const t = s.hidden ? HIDDEN_STYLE : SEA_STYLE;
+
+        return (
+          <g key={s.id}>
+            <polygon
+              points={polygonPoints(seaCorners[i])}
+              fill={t.fill}
+              stroke={t.stroke}
+              strokeWidth={2}
+              strokeLinejoin="round"
+            />
+            {s.hidden ? (
+              <Unknown centre={tf(axialToPixel(s.q, s.r, SIZE))} />
+            ) : null}
+          </g>
+        );
+      })}
 
       {board.hexes.map(h => {
         const c = centres[h.id];
-        const points = corners[h.id].map(p => `${p.x},${p.y}`).join(" ");
+        const points = polygonPoints(corners[h.id]);
         const t = h.hidden ? HIDDEN_STYLE : TERRAIN_STYLE[h.terrain];
 
         return (
@@ -200,18 +253,11 @@ export function CatanBoardSvg({
               strokeWidth={2}
               strokeLinejoin="round"
             />
+            {h.terrain === "gold" && !h.hidden ? (
+              <GoldRiver centre={c} size={SIZE} />
+            ) : null}
             {h.hidden ? (
-              <text
-                x={c.x}
-                y={c.y + 7}
-                textAnchor="middle"
-                fontSize={22}
-                fontWeight="700"
-                fill="#ffffff"
-                opacity={0.7}
-              >
-                ?
-              </text>
+              <Unknown centre={c} />
             ) : h.number === null ? (
               <circle cx={c.x} cy={c.y} r={7} fill="#4b5563" opacity={0.85} />
             ) : (

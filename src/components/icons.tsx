@@ -52,6 +52,16 @@ export function PencilIcon(props: IconProps) {
   );
 }
 
+export function EraserIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="m7 21-4.3-4.3a2 2 0 0 1 0-2.8l9.6-9.6a2 2 0 0 1 2.8 0l5.6 5.6a2 2 0 0 1 0 2.8L13 21" />
+      <path d="M22 21H7" />
+      <path d="m5 11 9 9" />
+    </Icon>
+  );
+}
+
 export function EyeIcon(props: IconProps) {
   return (
     <Icon {...props}>

@@ -11,6 +11,8 @@ import {
   composeConfigFields,
   composeScoring,
   extensionEffects,
+  extensionShortName,
+  playedExtensions,
   scenarioTarget,
   winTargetWithModifiers,
 } from "./extensions";
@@ -21,6 +23,7 @@ function ext(
   return {
     id: partial.id as ExtensionId,
     baseGameId: "bg" as never,
+    key: partial.key ?? null,
     name: partial.name ?? partial.id,
     configFields: partial.configFields ?? [],
     scoringDelta: partial.scoringDelta ?? null,
@@ -185,7 +188,8 @@ describe("scenarioTarget", () => {
         extensionId: "marins" as ExtensionId,
         name: "Four Islands",
         targetScore: 13,
-        boardKey: "four-islands",
+        isOfficial: true,
+        boardSpec: null,
         sortOrder: 0,
       },
       {
@@ -193,7 +197,8 @@ describe("scenarioTarget", () => {
         extensionId: "marins" as ExtensionId,
         name: "No target",
         targetScore: null,
-        boardKey: null,
+        isOfficial: false,
+        boardSpec: null,
         sortOrder: 1,
       },
     ],
@@ -218,6 +223,69 @@ describe("scenarioTarget", () => {
         marins: "gone" as ExtensionScenarioId,
       }),
     ).toBeNull();
+  });
+});
+
+describe("extensionShortName", () => {
+  it("drops the base game's name when the extension carries it", () => {
+    expect(extensionShortName("Catan - Marins", "Catan")).toBe("Marins");
+  });
+
+  it("leaves a name that stands on its own", () => {
+    expect(extensionShortName("Villes & Chevaliers", "Catan")).toBe(
+      "Villes & Chevaliers",
+    );
+    expect(extensionShortName("Catania", "Catan")).toBe("Catania");
+  });
+});
+
+describe("playedExtensions", () => {
+  const marins = ext({
+    id: "marins",
+    name: "Catan - Marins",
+    sortOrder: 1,
+    hasScenarios: true,
+    scenarios: [
+      {
+        id: "s1" as ExtensionScenarioId,
+        extensionId: "marins" as ExtensionId,
+        name: "Les quatre îles",
+        targetScore: 13,
+        isOfficial: true,
+        boardSpec: null,
+        sortOrder: 0,
+      },
+    ],
+  });
+
+  it("names the scenario played", () => {
+    expect(
+      playedExtensions([
+        { ...marins, scenarioId: "s1" as ExtensionScenarioId },
+      ]),
+    ).toEqual([{ name: "Catan - Marins", scenarioName: "Les quatre îles" }]);
+  });
+
+  it("leaves the scenario out when there is none, or none that matches", () => {
+    expect(playedExtensions([{ ...marins, scenarioId: null }])).toEqual([
+      { name: "Catan - Marins", scenarioName: null },
+    ]);
+    expect(
+      playedExtensions([
+        { ...marins, scenarioId: "gone" as ExtensionScenarioId },
+      ]),
+    ).toEqual([{ name: "Catan - Marins", scenarioName: null }]);
+  });
+
+  it("orders them as they apply", () => {
+    const vc = ext({ id: "vc", name: "Villes & Chevaliers", sortOrder: 0 });
+
+    expect(
+      playedExtensions([
+        { ...marins, scenarioId: null },
+        { ...vc, scenarioId: null },
+      ]).map(e => e.name),
+    ).toEqual(["Villes & Chevaliers", "Catan - Marins"]);
   });
 });
 

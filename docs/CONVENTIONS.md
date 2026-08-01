@@ -248,6 +248,30 @@ separate so the fast one never needs a database:
 - **Skip**: per-component/snapshot tests, mocking the Supabase client,
   perf/load, visual-regression (Vercel preview + occasional screenshot suffices).
 
+## 12. Dates & times
+
+**Stored in UTC, always shown in the reader's local time.** An instant is one
+point on the timeline; the calendar it is read on is the reader's, not the
+server's.
+
+- **Storing**: `timestamptz` columns, written as `new Date().toISOString()`.
+  Never store a wall-clock string, never store a local offset.
+- **Showing**: format in the browser — `toLocaleString`/`toLocaleDateString` or
+  an `Intl.DateTimeFormat`, in `"fr-FR"`. **Never** derive a displayed date from
+  `toISOString()` or `getUTC*()`: that prints the UTC day, so a game played at
+  1 a.m. in Paris shows up as the day before.
+- **Filing under a day** (date filters, per-day counts, chart buckets):
+  `localDay(instant)` in `src/lib/game/game-filters.ts`, which reads the local
+  calendar. `<input type="date">` gives a **local** day, so both sides of a
+  comparison must be local ones.
+- **Reading a day back into an instant**: parse it as local (`new
+  Date("2026-07-28T12:00:00")`, no `Z`) and store the ISO string. Midday, not
+  midnight — an offset can then never push it onto the neighbouring day.
+- **Formatting stays client-side.** The server runs in UTC (Vercel), so a date
+  formatted during SSR would be the UTC one for one paint, then flip on
+  hydration. Timestamps therefore live in `"use client"` components fed by the
+  hooks, never rendered from a Server Component.
+
 ---
 
 ### Changelog of conventions
@@ -320,3 +344,8 @@ separate so the fast one never needs a database:
   it on the first line **and carry the `configuration` label** so the owner
   reviews the diff; source-only PRs (incl. test changes) need neither — he trusts
   the conventions + SonarCloud. Owner's call.
+- _2026-07-28_ — **Dates & times** (new §12): store instants in **UTC**
+  (`timestamptz` + `toISOString()`), display them **always in the reader's local
+  time** (`toLocaleString`/`Intl`, client-side), and file a game under its
+  **local** day (`localDay`) — never the UTC one. Owner's call, after a game
+  played after midnight was listed on the day before.
