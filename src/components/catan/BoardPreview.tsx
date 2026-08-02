@@ -2,6 +2,7 @@
 
 import { BoardWarnings } from "@/components/catan/BoardWarnings";
 import { CatanBoardSvg } from "@/components/catan/CatanBoardSvg";
+import { ErrorText } from "@/components/ErrorText";
 import { boardWarnings } from "@/lib/catan/board";
 import type { GeneratorOptions } from "@/lib/catan/generator-options";
 import type { ScenarioSpec } from "@/lib/catan/scenario-spec";
@@ -42,11 +43,7 @@ export function BoardPreview({
   );
 
   if (!draw.ok) {
-    return (
-      <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-        {draw.reason}
-      </p>
-    );
+    return <ErrorText message={draw.reason} />;
   }
 
   const warnings = showWarnings

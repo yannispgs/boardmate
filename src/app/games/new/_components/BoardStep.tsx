@@ -2,6 +2,7 @@
 
 import { CatanBoardGenerator } from "@/components/catan/CatanBoardGenerator";
 import { MarinsScenarioBoard } from "@/components/catan/MarinsScenarioBoard";
+import { ErrorText } from "@/components/ErrorText";
 import type { FunnelBoard } from "@/lib/game/funnel-board";
 import { FunnelStep } from "./FunnelStep";
 
@@ -31,11 +32,7 @@ export function BoardStep({
       onBack={onBack}
       footer={
         <>
-          {error ? (
-            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-              {error}
-            </p>
-          ) : null}
+          <ErrorText message={error} />
 
           <button
             type="button"

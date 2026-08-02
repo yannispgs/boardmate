@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { ErrorText } from "@/components/ErrorText";
 import { Modal } from "@/components/Modal";
 import { ModalHeader } from "@/components/ModalHeader";
 import { modalCardClass } from "@/components/ui";
@@ -76,11 +77,7 @@ export function ScenarioImportSheet({
           className="w-full rounded-lg border border-black/10 p-3 font-mono text-xs dark:border-white/15 dark:bg-zinc-950"
         />
 
-        {refusal === null ? null : (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-            {refusalMessage[refusal]}
-          </p>
-        )}
+        <ErrorText message={refusal && refusalMessage[refusal]} />
 
         <button
           type="button"

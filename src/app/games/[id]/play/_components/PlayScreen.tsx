@@ -352,7 +352,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
     return <p className="text-sm text-zinc-500">Chargement…</p>;
   }
   if (error && !game) {
-    return <p className="text-sm text-red-600 dark:text-red-400">{error}</p>;
+    return <ErrorText message={error} />;
   }
   if (!game) {
     return <p className="text-sm text-zinc-500">Partie introuvable.</p>;

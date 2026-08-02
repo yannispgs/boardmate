@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import { BoardPreview } from "@/components/catan/BoardPreview";
 import { GeneratorSettings } from "@/components/catan/GeneratorSettings";
+import { ErrorText } from "@/components/ErrorText";
 import { EraserIcon } from "@/components/icons";
 import { StickyActionBar } from "@/components/StickyActionBar";
 import { fieldClass, sectionHeadingClass } from "@/components/ui";
@@ -389,11 +390,7 @@ export function ScenarioEditor({
       </div>
 
       <StickyActionBar>
-        {error ? (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-            {error}
-          </p>
-        ) : null}
+        <ErrorText message={error} />
 
         <div className="flex items-center gap-3">
           <button
