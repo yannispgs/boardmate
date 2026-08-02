@@ -1,5 +1,6 @@
 "use client";
 
+import type { ScenarioSpec } from "@/lib/catan/scenario-spec";
 import type { ExtensionScenario } from "@/lib/domain";
 import { AuthoredScenarioCard } from "./AuthoredScenarioCard";
 
@@ -7,11 +8,13 @@ import { AuthoredScenarioCard } from "./AuthoredScenarioCard";
 export function AuthoredScenarioCardList({
   scenarios,
   onEdit,
+  onExport,
   onDelete,
   empty = "Aucun scénario pour l'instant.",
 }: Readonly<{
   scenarios: ExtensionScenario[];
   onEdit: (scenario: ExtensionScenario) => void;
+  onExport: (spec: ScenarioSpec) => void;
   onDelete: (scenario: ExtensionScenario) => void;
   /** What to say when there is nothing to list — a filter narrows it. */
   empty?: string;
@@ -27,6 +30,7 @@ export function AuthoredScenarioCardList({
           key={scenario.id}
           scenario={scenario}
           onEdit={onEdit}
+          onExport={onExport}
           onDelete={onDelete}
         />
       ))}

@@ -2,10 +2,13 @@
 
 import { ScenarioOriginBadge } from "@/components/catan/ScenarioOriginBadge";
 import { ScenarioTarget } from "@/components/catan/ScenarioTarget";
-import { PencilIcon, TrashIcon } from "@/components/icons";
+import { CopyIcon, PencilIcon, TrashIcon } from "@/components/icons";
 import { dangerIconButtonClass, iconButtonClass } from "@/components/ui";
 import { scenarioSummary } from "@/lib/catan/scenario-listing";
-import { validateScenarioSpec } from "@/lib/catan/scenario-spec";
+import {
+  type ScenarioSpec,
+  validateScenarioSpec,
+} from "@/lib/catan/scenario-spec";
 import type { ExtensionScenario } from "@/lib/domain";
 
 /**
@@ -20,15 +23,16 @@ import type { ExtensionScenario } from "@/lib/domain";
 export function AuthoredScenarioCard({
   scenario,
   onEdit,
+  onExport,
   onDelete,
 }: Readonly<{
   scenario: ExtensionScenario;
   onEdit: (scenario: ExtensionScenario) => void;
+  onExport: (spec: ScenarioSpec) => void;
   onDelete: (scenario: ExtensionScenario) => void;
 }>) {
-  const unfinished =
-    scenario.boardSpec !== null &&
-    validateScenarioSpec(scenario.boardSpec).length > 0;
+  const spec = scenario.boardSpec;
+  const unfinished = spec !== null && validateScenarioSpec(spec).length > 0;
 
   return (
     <li className="flex items-center gap-3 rounded-xl border border-black/10 bg-white px-4 py-3 dark:border-white/10 dark:bg-zinc-900">
@@ -46,14 +50,24 @@ export function AuthoredScenarioCard({
           ) : null}
         </div>
         <span className="text-xs text-zinc-500">
-          {scenario.boardSpec === null
-            ? "Aucun plateau dessiné"
-            : scenarioSummary(scenario.boardSpec)}
+          {spec === null ? "Aucun plateau dessiné" : scenarioSummary(spec)}
         </span>
       </div>
 
       <ScenarioTarget targetScore={scenario.targetScore} />
 
+      {/* Nothing to carry away from a scenario whose map is still to draw. */}
+      {spec === null ? null : (
+        <button
+          type="button"
+          onClick={() => onExport(spec)}
+          aria-label={`Copier ${scenario.name}`}
+          title="Copier le scénario, pour l'importer ailleurs"
+          className={iconButtonClass}
+        >
+          <CopyIcon />
+        </button>
+      )}
       <button
         type="button"
         onClick={() => onEdit(scenario)}
