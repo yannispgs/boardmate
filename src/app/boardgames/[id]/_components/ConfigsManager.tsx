@@ -2,6 +2,7 @@
 
 import { type FormEvent, useState } from "react";
 import { ConfigFieldList } from "@/components/ConfigFieldList";
+import { ErrorText } from "@/components/ErrorText";
 import { useConfirm } from "@/components/use-confirm";
 import {
   buildDefaults,
@@ -174,16 +175,8 @@ export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
 
   return (
     <div className="flex flex-col gap-8">
-      {actionError ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {actionError}
-        </p>
-      ) : null}
-      {error ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      ) : null}
+      <ErrorText message={actionError} />
+      <ErrorText message={error} />
 
       {/* 1 · The default configuration (pre-fills every new game / config). */}
       <section className="flex flex-col gap-3">
@@ -349,11 +342,7 @@ function ConfigForm({
         onChange={(key, v) => setValues(prev => ({ ...prev, [key]: v }))}
       />
 
-      {formError ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {formError}
-        </p>
-      ) : null}
+      <ErrorText message={formError} />
 
       <div className="flex gap-2">
         <button

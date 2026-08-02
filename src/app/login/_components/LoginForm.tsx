@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 
+import { ErrorText } from "@/components/ErrorText";
 import {
   type SignInState,
   signInWithEmail,
@@ -46,11 +47,7 @@ export function LoginForm({ initialError }: { initialError?: string }) {
         {sending ? "Envoi…" : "Recevoir un code"}
       </button>
 
-      {error ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      ) : null}
+      <ErrorText message={error} />
     </form>
   );
 }
@@ -107,11 +104,7 @@ function CodeForm({ email, onBack }: { email: string; onBack: () => void }) {
         <button type="submit" disabled={verifying} className={buttonClass}>
           {verifying ? "Vérification…" : "Se connecter"}
         </button>
-        {verifyState.error ? (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-            {verifyState.error}
-          </p>
-        ) : null}
+        <ErrorText message={verifyState.error} />
       </form>
 
       <p className="text-center text-xs text-zinc-500 dark:text-zinc-400">
@@ -142,11 +135,8 @@ function CodeForm({ email, onBack }: { email: string; onBack: () => void }) {
                 : "Renvoyer le code"}
           </button>
         </form>
-        {resendState.error ? (
-          <p role="alert" className="text-red-600 dark:text-red-400">
-            {resendState.error}
-          </p>
-        ) : null}
+        <ErrorText message={resendState.error} />
+
         <button
           type="button"
           onClick={onBack}

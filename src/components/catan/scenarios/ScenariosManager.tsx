@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { PlayerCountFilter } from "@/components/catan/PlayerCountFilter";
+import { ErrorText } from "@/components/ErrorText";
 import { UploadIcon } from "@/components/icons";
 import { sectionHeadingClass } from "@/components/ui";
 import { useConfirm } from "@/components/use-confirm";
@@ -164,11 +165,7 @@ export function ScenariosManager({
     <section className="flex flex-col gap-3">
       <h3 className={sectionHeadingClass}>Scénarios · {shown.length}</h3>
 
-      {error ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      ) : null}
+      <ErrorText message={error} />
 
       {notice === null ? null : (
         <p className="text-sm text-emerald-700 dark:text-emerald-400">

@@ -1,6 +1,7 @@
 "use client";
 
 import { type FormEvent, useState } from "react";
+import { ErrorText } from "@/components/ErrorText";
 import {
   blankField,
   cleanTemplateFields,
@@ -177,11 +178,7 @@ export function ConfigTemplateEditor({
         </button>
       </div>
 
-      {error ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      ) : null}
+      <ErrorText message={error} />
 
       <div className="flex gap-2">
         <button

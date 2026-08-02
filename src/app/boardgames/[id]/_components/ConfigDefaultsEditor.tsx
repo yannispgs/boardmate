@@ -3,6 +3,7 @@
 import { type FormEvent, useState } from "react";
 
 import { ConfigFieldList } from "@/components/ConfigFieldList";
+import { ErrorText } from "@/components/ErrorText";
 import {
   buildDefaults,
   collectFieldErrors,
@@ -70,11 +71,7 @@ export function ConfigDefaultsEditor({
         onChange={(key, v) => setValues(prev => ({ ...prev, [key]: v }))}
       />
 
-      {formError ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {formError}
-        </p>
-      ) : null}
+      <ErrorText message={formError} />
 
       <div className="flex gap-2">
         <button

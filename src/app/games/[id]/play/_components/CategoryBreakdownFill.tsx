@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { ErrorText } from "@/components/ErrorText";
 import type { PlayerId, PopulatedGame } from "@/lib/domain";
 import { rankByTotal, scoreCategories } from "@/lib/game/scoring";
 import { getGameRepository } from "@/lib/repositories";
@@ -152,9 +153,7 @@ export function CategoryBreakdownFill({
           de la partie.
         </p>
       ) : null}
-      {error ? (
-        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-      ) : null}
+      <ErrorText message={error} />
       <div className="flex items-center gap-2">
         <button
           type="button"

@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { ErrorText } from "@/components/ErrorText";
 import { InfoTip } from "@/components/InfoTip";
 import { ChevronRightIcon, PencilIcon, UploadIcon } from "@/components/icons";
 import {
@@ -823,11 +824,7 @@ export function BoardgameForm({
         ) : null}
       </fieldset>
 
-      {formError ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {formError}
-        </p>
-      ) : null}
+      <ErrorText message={formError} />
 
       <div className="flex gap-2">
         <button

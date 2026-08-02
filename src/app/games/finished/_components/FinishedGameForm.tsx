@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { ErrorText } from "@/components/ErrorText";
 import type { Boardgame, Player, PlayerId } from "@/lib/domain";
 import { localDay } from "@/lib/game/game-filters";
 import {
@@ -390,11 +391,7 @@ export function FinishedGameForm() {
         </section>
       ) : null}
 
-      {error ? (
-        <p className="text-sm text-red-600" aria-live="polite">
-          {error}
-        </p>
-      ) : null}
+      <ErrorText message={error} />
 
       <button
         type="button"
