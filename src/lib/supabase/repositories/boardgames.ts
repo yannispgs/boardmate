@@ -42,6 +42,7 @@ export function toBoardgame(row: BoardgameRow): Boardgame {
     roundLimit: row.round_limit,
     dice: (row.dice as Boardgame["dice"]) ?? null,
     trackSeatStats: row.track_seat_stats,
+    turnCountVaries: row.turn_count_varies,
     boardGenerator: toBoardGenerator(row.board_generator),
     isActive: row.is_active,
     // Denormalized column kept up to date by a DB trigger on games.
@@ -98,6 +99,9 @@ function toRow(input: NewBoardgame | BoardgameUpdate): BoardgameWrite {
   }
   if (input.trackSeatStats !== undefined) {
     row.track_seat_stats = input.trackSeatStats;
+  }
+  if (input.turnCountVaries !== undefined) {
+    row.turn_count_varies = input.turnCountVaries;
   }
   if (input.boardGenerator !== undefined) {
     row.board_generator = input.boardGenerator;

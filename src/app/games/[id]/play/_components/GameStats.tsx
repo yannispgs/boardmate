@@ -10,6 +10,7 @@ import { buildTurnTimeSeries } from "@/lib/game/turn-time-series";
 import { DiceTimeline } from "./DiceTimeline";
 import { PlayerStatCardList } from "./PlayerStatCardList";
 import { ScoreChart } from "./ScoreChart";
+import { ScorePaceStats } from "./ScorePaceStats";
 import { SimultaneousGameStats } from "./SimultaneousGameStats";
 import { TurnTimeChart } from "./TurnTimeChart";
 
@@ -210,6 +211,10 @@ export function GameStats({ game }: { game: PopulatedGame }) {
             rouge au-delà d&apos;un écart-type, gris pour la variance normale.
           </p>
         </div>
+      ) : null}
+
+      {game.boardgame.turnCountVaries ? (
+        <ScorePaceStats game={game} timeStats={stats.players} />
       ) : null}
 
       {stats.rounds >= 2 ? (
