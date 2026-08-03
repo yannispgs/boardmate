@@ -11,6 +11,7 @@ import { useSearch } from "@/components/use-search";
 import type { FaqEntry, FaqEntryId, FaqScope } from "@/lib/domain";
 import {
   entriesInScope,
+  faqEmptyMessage,
   groupByScope,
   moveEntry,
   nextSortOrder,
@@ -32,33 +33,16 @@ interface Draft {
   answer: string;
 }
 
-/** What stands in for the list: nothing written yet, or a search nobody answers. */
-function emptyMessage(
-  written: number,
-  found: number,
-  query: string,
-  label: string,
-): string | null {
-  if (found > 0) {
-    return null;
-  }
-
-  if (written === 0) {
-    return "Aucune question pour l'instant.";
-  }
-
-  if (query.trim() !== "") {
-    return `Aucune question ne correspond à « ${query} ».`;
-  }
-
-  return `Aucune question pour « ${label} » pour l'instant.`;
-}
-
-export function FaqManager() {
+export function FaqManager({
+  initialScope = { kind: "app" },
+}: Readonly<{
+  /** The section to open on — a game reached from its own FAQ shortcut. */
+  initialScope?: FaqScope;
+}>) {
   const { entries, loading, error, add, edit, remove, reorder } = useFaq();
   const { boardgames } = useBoardgames();
   const extensions = useAllExtensions();
-  const [scope, setScope] = useState<FaqScope>({ kind: "app" });
+  const [scope, setScope] = useState<FaqScope>(initialScope);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [submitting, setSubmitting] = useState(false);
   // Two error slots, because they are read in two places: what the form did
@@ -182,7 +166,12 @@ export function FaqManager() {
 
         <ListBody
           loading={loading}
-          message={emptyMessage(entries.length, visible, query, label(scope))}
+          message={faqEmptyMessage(
+            entries.length,
+            visible,
+            query,
+            label(scope),
+          )}
         >
           {shown.map(group => (
             <FaqEntryCardList

@@ -9,10 +9,13 @@ import type {
 } from "@/lib/domain";
 import {
   entriesInScope,
+  faqEmptyMessage,
+  gameFaqSections,
   groupByScope,
   moveEntry,
   nextSortOrder,
   sameScope,
+  scopeFromParam,
   scopeKey,
   scopeLabel,
   searchFaq,
@@ -215,6 +218,94 @@ describe("scopeLabel", () => {
 
   it("falls back on a neutral word for an extension it no longer knows", () => {
     expect(scopeLabel(MARINS, boardgames, [])).toBe("Extension");
+  });
+});
+
+describe("gameFaqSections", () => {
+  const CATAN_ID = "bg-catan" as BoardgameId;
+  const MARINS_ID = "ext-marins" as ExtensionId;
+  const OTHER: FaqScope = {
+    kind: "boardgame",
+    boardgameId: "bg-wingspan" as BoardgameId,
+  };
+
+  it("opens on the game, then the extensions on the table", () => {
+    const entries = [
+      entry("m1", MARINS, 0),
+      entry("c1", CATAN, 0),
+      entry("c2", CATAN, 1),
+    ];
+    const sections = gameFaqSections(entries, CATAN_ID, [MARINS_ID]);
+
+    expect(sections.map(s => scopeKey(s.scope))).toEqual([
+      "boardgame:bg-catan",
+      "extension:ext-marins",
+    ]);
+    expect(sections[0].entries.map(e => e.id)).toEqual(["c1", "c2"]);
+  });
+
+  it("leaves out an extension that is not being played with", () => {
+    const entries = [entry("c1", CATAN, 0), entry("m1", MARINS, 0)];
+
+    expect(gameFaqSections(entries, CATAN_ID, [])).toHaveLength(1);
+  });
+
+  it("ignores the questions of every other game", () => {
+    const entries = [entry("w1", OTHER, 0), entry("a1", APP, 0)];
+
+    expect(gameFaqSections(entries, CATAN_ID, [MARINS_ID])).toEqual([]);
+  });
+
+  it("drops a section nobody has written a question in", () => {
+    const entries = [entry("m1", MARINS, 0)];
+    const sections = gameFaqSections(entries, CATAN_ID, [MARINS_ID]);
+
+    expect(sections.map(s => scopeKey(s.scope))).toEqual([
+      "extension:ext-marins",
+    ]);
+  });
+});
+
+describe("scopeFromParam", () => {
+  it("opens the game a link named", () => {
+    expect(scopeFromParam("2c8f0d1e-4b3a-4c5d-8e9f-0a1b2c3d4e5f")).toEqual({
+      kind: "boardgame",
+      boardgameId: "2c8f0d1e-4b3a-4c5d-8e9f-0a1b2c3d4e5f",
+    });
+  });
+
+  it("opens the app section when no game was named", () => {
+    expect(scopeFromParam(undefined)).toEqual({ kind: "app" });
+  });
+
+  it("refuses anything that is not an id", () => {
+    expect(scopeFromParam("' or 1=1 --")).toEqual({ kind: "app" });
+    expect(scopeFromParam("bg-catan")).toEqual({ kind: "app" });
+    expect(scopeFromParam("")).toEqual({ kind: "app" });
+  });
+});
+
+describe("faqEmptyMessage", () => {
+  it("says nothing when there is a list to show", () => {
+    expect(faqEmptyMessage(3, 3, "", "Catan")).toBeNull();
+  });
+
+  it("announces a FAQ nobody has written yet", () => {
+    expect(faqEmptyMessage(0, 0, "", "Catan")).toBe(
+      "Aucune question pour l'instant.",
+    );
+  });
+
+  it("quotes the search nobody answers", () => {
+    expect(faqEmptyMessage(3, 0, "port", "Catan")).toBe(
+      "Aucune question ne correspond à « port ».",
+    );
+  });
+
+  it("names the section that is still to be filled", () => {
+    expect(faqEmptyMessage(3, 0, "  ", "Catan")).toBe(
+      "Aucune question pour « Catan » pour l'instant.",
+    );
   });
 });
 

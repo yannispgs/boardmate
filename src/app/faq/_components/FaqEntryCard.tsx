@@ -1,18 +1,14 @@
 "use client";
 
+import { FaqQuestion } from "@/components/FaqQuestion";
 import { ChevronRightIcon, PencilIcon, TrashIcon } from "@/components/icons";
 import { dangerIconButtonClass, iconButtonClass } from "@/components/ui";
 import type { FaqEntry } from "@/lib/domain";
 
 /**
- * One question, closed until it is asked. The answer and the buttons acting on
- * it appear together when the card unfolds: on a phone there is no hovering to
- * reveal them with, and a list of questions is easier to run down when nothing
- * but the questions is on screen.
- *
- * The answer is rendered as plain text (`whitespace-pre-wrap` keeps the line
- * breaks) — never as HTML. It is stored exactly as it was typed, so anything
- * else would turn the FAQ into a stored-XSS vector.
+ * A question of the FAQ screen: the card everyone reads, plus what only this
+ * screen may do to it — move it in the reading order, reword it, remove it.
+ * The buttons sit inside the unfolded card, next to the answer they act on.
  */
 export function FaqEntryCard({
   entry,
@@ -31,63 +27,53 @@ export function FaqEntryCard({
   canMoveDown: boolean;
 }>) {
   return (
-    <li className="rounded-xl border border-black/10 bg-white dark:border-white/10 dark:bg-zinc-900">
-      <details className="group">
-        <summary className="flex cursor-pointer list-none items-start gap-2 p-3">
-          <ChevronRightIcon className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400 transition-transform group-open:rotate-90" />
-          <span className="flex-1 text-sm font-medium">{entry.question}</span>
-        </summary>
+    <FaqQuestion
+      entry={entry}
+      actions={
+        <div className="flex items-center gap-1.5">
+          {onMove === undefined ? null : (
+            <>
+              <button
+                type="button"
+                onClick={() => onMove(entry, "up")}
+                disabled={!canMoveUp}
+                title="Monter"
+                className={`${iconButtonClass} disabled:opacity-30`}
+              >
+                <ChevronRightIcon className="h-4 w-4 -rotate-90" />
+              </button>
 
-        <div className="flex flex-col gap-3 border-t border-black/5 px-3 py-3 dark:border-white/10">
-          <p className="whitespace-pre-wrap text-sm text-zinc-600 dark:text-zinc-300">
-            {entry.answer}
-          </p>
+              <button
+                type="button"
+                onClick={() => onMove(entry, "down")}
+                disabled={!canMoveDown}
+                title="Descendre"
+                className={`${iconButtonClass} disabled:opacity-30`}
+              >
+                <ChevronRightIcon className="h-4 w-4 rotate-90" />
+              </button>
+            </>
+          )}
 
-          <div className="flex items-center gap-1.5">
-            {onMove === undefined ? null : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => onMove(entry, "up")}
-                  disabled={!canMoveUp}
-                  title="Monter"
-                  className={`${iconButtonClass} disabled:opacity-30`}
-                >
-                  <ChevronRightIcon className="h-4 w-4 -rotate-90" />
-                </button>
+          <button
+            type="button"
+            onClick={() => onEdit(entry)}
+            title="Modifier"
+            className={`${iconButtonClass} ml-auto`}
+          >
+            <PencilIcon />
+          </button>
 
-                <button
-                  type="button"
-                  onClick={() => onMove(entry, "down")}
-                  disabled={!canMoveDown}
-                  title="Descendre"
-                  className={`${iconButtonClass} disabled:opacity-30`}
-                >
-                  <ChevronRightIcon className="h-4 w-4 rotate-90" />
-                </button>
-              </>
-            )}
-
-            <button
-              type="button"
-              onClick={() => onEdit(entry)}
-              title="Modifier"
-              className={`${iconButtonClass} ml-auto`}
-            >
-              <PencilIcon />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onDelete(entry)}
-              title="Supprimer"
-              className={dangerIconButtonClass}
-            >
-              <TrashIcon />
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => onDelete(entry)}
+            title="Supprimer"
+            className={dangerIconButtonClass}
+          >
+            <TrashIcon />
+          </button>
         </div>
-      </details>
-    </li>
+      }
+    />
   );
 }

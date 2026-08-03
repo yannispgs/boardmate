@@ -34,6 +34,7 @@ import { getGameRepository } from "@/lib/repositories";
 import { CategoryScoreEntry } from "../../../_components/CategoryScoreEntry";
 import { DiceBar } from "./DiceBar";
 import { EndedGame } from "./EndedGame";
+import { FaqPanel } from "./FaqPanel";
 import { FinalScoreTable } from "./FinalScoreTable";
 import { LiveEndPrompt } from "./LiveEndPrompt";
 import { RankingReveal } from "./RankingReveal";
@@ -652,6 +653,8 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
           Tour suivant →
         </button>
       )}
+
+      <FaqPanel boardgame={game.boardgame} extensions={game.extensions} />
 
       {simultaneous ? null : (
         <StatsPanel
