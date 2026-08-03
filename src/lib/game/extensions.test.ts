@@ -27,6 +27,7 @@ function ext(
     name: partial.name ?? partial.id,
     configFields: partial.configFields ?? [],
     scoringDelta: partial.scoringDelta ?? null,
+    roundGoals: partial.roundGoals ?? [],
     targetModifier: partial.targetModifier ?? 0,
     hasScenarios: partial.hasScenarios ?? false,
     changesBoard: partial.changesBoard ?? false,

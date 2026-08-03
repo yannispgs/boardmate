@@ -5,4 +5,5 @@ export * from "./feedback";
 export * from "./game";
 export * from "./ids";
 export * from "./player";
+export * from "./round-goal";
 export * from "./tie-break";

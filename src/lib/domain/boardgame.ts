@@ -1,4 +1,5 @@
 import type { BoardgameId } from "./ids";
+import type { RoundGoal } from "./round-goal";
 import type { TieBreakRule } from "./tie-break";
 
 /**
@@ -165,6 +166,11 @@ export interface Boardgame {
   roundLimit: number | null;
   /** Dice for in-game roll tracking (Catan), or `null` when not tracked. */
   dice: DiceSpec | null;
+  /**
+   * The end-of-stage goal tiles this game can be set up with (Wingspan). Empty
+   * for every game played without stages; extensions add their own tiles to it.
+   */
+  roundGoals: RoundGoal[];
   /**
    * Whether the stats should break results down by turn order — first / middle
    * / last to play — for games where playing order matters (Catan). Off by

@@ -3,6 +3,7 @@ import type { ScenarioSpec } from "@/lib/catan/scenario-spec";
 import type { ScoreSheetItem } from "./boardgame";
 import type { FieldSpec } from "./config";
 import type { BoardgameId, ExtensionId, ExtensionScenarioId } from "./ids";
+import type { RoundGoal } from "./round-goal";
 
 /** What an extension appends to a base game's scoresheet. */
 export interface ScoringDelta {
@@ -73,6 +74,11 @@ export interface Extension {
   name: string;
   configFields: FieldSpec[];
   scoringDelta: ScoringDelta | null;
+  /**
+   * End-of-stage goal tiles this extension adds to the base game's catalogue
+   * (Wingspan - Océanie). Empty for every other extension.
+   */
+  roundGoals: RoundGoal[];
   /** Additive, non-negative modifier to the win target. */
   targetModifier: number;
   hasScenarios: boolean;
