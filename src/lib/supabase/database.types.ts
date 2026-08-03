@@ -302,6 +302,51 @@ export type Database = {
           },
         ]
       }
+      faq_entries: {
+        Row: {
+          answer: string
+          boardgame_id: string | null
+          created_at: string
+          extension_id: string | null
+          id: string
+          question: string
+          sort_order: number
+        }
+        Insert: {
+          answer: string
+          boardgame_id?: string | null
+          created_at?: string
+          extension_id?: string | null
+          id?: string
+          question: string
+          sort_order?: number
+        }
+        Update: {
+          answer?: string
+          boardgame_id?: string | null
+          created_at?: string
+          extension_id?: string | null
+          id?: string
+          question?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "faq_entries_boardgame_id_fkey"
+            columns: ["boardgame_id"]
+            isOneToOne: false
+            referencedRelation: "boardgames"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "faq_entries_extension_id_fkey"
+            columns: ["extension_id"]
+            isOneToOne: false
+            referencedRelation: "extensions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feedback: {
         Row: {
           created_at: string

@@ -17,6 +17,9 @@ import type {
   ExtensionScenario,
   ExtensionScenarioId,
   ExtensionScenarioUpdate,
+  FaqEntry,
+  FaqEntryId,
+  FaqEntryUpdate,
   Feedback,
   FieldSpec,
   Game,
@@ -27,6 +30,7 @@ import type {
   NewBoardgame,
   NewConfig,
   NewExtensionScenario,
+  NewFaqEntry,
   NewFeedback,
   NewFinishedGame,
   NewGame,
@@ -221,6 +225,11 @@ export interface FeedbackRepository {
 export interface ExtensionRepository {
   /** The active extensions (with their scenarios) available for a base game. */
   listByBase(baseGameId: BoardgameId): Promise<Extension[]>;
+  /**
+   * Every active extension, whatever the game — what a screen that spans all of
+   * them needs (the FAQ offers a section per extension and has to name them).
+   */
+  listAll(): Promise<Extension[]>;
   /** The ids of the base games that have at least one active extension. */
   listExtendedBaseGames(): Promise<BoardgameId[]>;
   /**
@@ -241,6 +250,20 @@ export interface ExtensionRepository {
   deleteScenario(id: ExtensionScenarioId): Promise<void>;
 }
 
+export interface FaqRepository {
+  /**
+   * The whole FAQ, every scope together. It is a handful of questions per game,
+   * and loading it in one go is what lets a search answer across all of them —
+   * you rarely know which rulebook holds the answer before you find it.
+   */
+  list(): Promise<FaqEntry[]>;
+  create(input: NewFaqEntry): Promise<FaqEntry>;
+  update(id: FaqEntryId, patch: FaqEntryUpdate): Promise<FaqEntry>;
+  remove(id: FaqEntryId): Promise<void>;
+  /** Persists a new reading order, as returned by `moveEntry`. */
+  reorder(changes: Array<{ id: FaqEntryId; sortOrder: number }>): Promise<void>;
+}
+
 /** Aggregate of all repositories, resolved by the active adapter. */
 export interface Repositories {
   players: PlayerRepository;
@@ -249,4 +272,5 @@ export interface Repositories {
   games: GameRepository;
   feedback: FeedbackRepository;
   extensions: ExtensionRepository;
+  faq: FaqRepository;
 }

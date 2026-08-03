@@ -15,3 +15,4 @@ export type GameTurnId = Id<"gameTurn">;
 export type FeedbackId = Id<"feedback">;
 export type ExtensionId = Id<"extension">;
 export type ExtensionScenarioId = Id<"extensionScenario">;
+export type FaqEntryId = Id<"faqEntry">;

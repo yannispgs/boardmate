@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/client";
 import { createBoardgameRepository } from "@/lib/supabase/repositories/boardgames";
 import { createConfigRepository } from "@/lib/supabase/repositories/configs";
 import { createExtensionRepository } from "@/lib/supabase/repositories/extensions";
+import { createFaqRepository } from "@/lib/supabase/repositories/faq";
 import { createFeedbackRepository } from "@/lib/supabase/repositories/feedback";
 import { createGameRepository } from "@/lib/supabase/repositories/games";
 import { createPlayerRepository } from "@/lib/supabase/repositories/players";
@@ -11,6 +12,7 @@ import type {
   BoardgameRepository,
   ConfigRepository,
   ExtensionRepository,
+  FaqRepository,
   FeedbackRepository,
   GameRepository,
   PlayerRepository,
@@ -65,6 +67,15 @@ export function getFeedbackRepository(): FeedbackRepository {
     feedbackRepository = createFeedbackRepository(createClient());
   }
   return feedbackRepository;
+}
+
+let faqRepository: FaqRepository | null = null;
+
+export function getFaqRepository(): FaqRepository {
+  if (!faqRepository) {
+    faqRepository = createFaqRepository(createClient());
+  }
+  return faqRepository;
 }
 
 let extensionRepository: ExtensionRepository | null = null;
