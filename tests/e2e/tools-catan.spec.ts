@@ -88,15 +88,25 @@ test("generates a Catan - Marins scenario board", async ({ page }) => {
       page.getByRole("heading", { name: "Catan - Marins" }),
     ).toBeVisible();
 
-    // The scenario picker, with the score the scenario fixes.
-    const scenario = page.getByRole("button", { name });
+    // The scenario is picked in a sheet the summary line opens, and which
+    // closes again on the pick — so the sheet's own buttons are scoped to it.
+    const summary = page.getByRole("button", {
+      name: /Choisir un autre scénario/,
+    });
 
-    await scenario.click();
-    await expect(scenario).toHaveAttribute("aria-pressed", "true");
-    await expect(scenario).toContainText("11 points");
+    await summary.click();
+
+    const sheet = page.getByRole("dialog");
+
+    await sheet.getByRole("button", { name }).click();
+    await expect(sheet).toHaveCount(0);
+
+    // Back on the summary, with the score the scenario fixes.
+    await expect(summary).toContainText(name);
+    await expect(summary).toContainText("🎯 11 points");
 
     // A single map for 3-4 players → a one-line recap instead of a picker.
-    await expect(page.getByText("3-4 joueurs · 🎯 11 points")).toBeVisible();
+    await expect(page.getByText("3-4 joueurs", { exact: true })).toBeVisible();
 
     const board = page.getByRole("img", { name: "Plateau de Catan généré" });
 
@@ -106,12 +116,12 @@ test("generates a Catan - Marins scenario board", async ({ page }) => {
     await expect(page.getByText("Désert (voleur)")).toHaveCount(0);
     await expect(page.getByText("Structure du plateau")).toBeVisible();
 
-    // Regenerating draws a different island.
+    // Regenerating draws a different island. The seeded map is six cells wide,
+    // so one draw can honestly land back on the same layout — keep rolling.
     const before = await board.textContent();
-    await page.getByRole("button", { name: "Régénérer" }).click();
-    await expect(board).toBeVisible();
 
     await expect(async () => {
+      await page.getByRole("button", { name: "Régénérer" }).click();
       expect(await board.textContent()).not.toBe(before);
     }).toPass();
   } finally {
