@@ -5,6 +5,7 @@ import type {
   CategorySubsection,
   ScoreSheetItem,
 } from "@/lib/domain";
+import { type MoveDirection, moveItem } from "@/lib/game/reorder";
 import { isSubsection } from "@/lib/game/scoring";
 
 const input =
@@ -13,6 +14,8 @@ const removeBtn =
   "shrink-0 rounded-md border border-black/10 px-2 py-1 text-xs text-zinc-500 transition hover:border-red-400 hover:text-red-600 dark:border-white/15";
 const addBtn =
   "rounded-md border border-black/10 px-3 py-1 text-xs font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5";
+const moveBtn =
+  "rounded-md border border-black/10 px-1.5 py-1 text-xs leading-none text-zinc-500 transition enabled:hover:border-indigo-400 enabled:hover:text-indigo-600 disabled:opacity-30 dark:border-white/15";
 
 /** A fresh, stable key for a new field — labels can change, this never does. */
 function newKey(): string {
@@ -24,7 +27,9 @@ function newKey(): string {
  * fields and one level of titled sections holding their own fields. Nesting is
  * capped at that single level for now (no section inside a section). Existing
  * fields keep their key (and any colours / ranking bonus) so edits don't orphan
- * past games; new fields get a generated key.
+ * past games; new fields get a generated key. Rows reorder with `↑` / `↓` —
+ * the order here is the order the score is asked for at the end of a game, so
+ * it has to be fixable without retyping everything below.
  */
 export function ScoreSheetEditor({
   value,
@@ -41,6 +46,10 @@ export function ScoreSheetEditor({
     onChange(value.filter((_, idx) => idx !== i));
   }
 
+  function moveAt(i: number, direction: MoveDirection) {
+    onChange(moveItem(value, i, direction));
+  }
+
   return (
     <div className="flex flex-col gap-2">
       <span className="text-xs text-zinc-500">Catégories de points</span>
@@ -54,10 +63,13 @@ export function ScoreSheetEditor({
       {value.map((item, i) =>
         isSubsection(item) ? (
           <SectionRow
-            // biome-ignore lint/suspicious/noArrayIndexKey: sections carry no stable id; order is user-controlled and not reordered.
+            // biome-ignore lint/suspicious/noArrayIndexKey: sections carry no stable id; a section is identified by where it sits.
             key={`section-${i}`}
             section={item}
             onChange={s => replace(i, s)}
+            onMove={direction => moveAt(i, direction)}
+            canUp={i > 0}
+            canDown={i < value.length - 1}
             onRemove={() => removeAt(i)}
           />
         ) : (
@@ -65,6 +77,9 @@ export function ScoreSheetEditor({
             key={item.key}
             label={item.label}
             onLabel={label => replace(i, { ...item, label })}
+            onMove={direction => moveAt(i, direction)}
+            canUp={i > 0}
+            canDown={i < value.length - 1}
             onRemove={() => removeAt(i)}
             placeholder="Nom du champ"
           />
@@ -91,15 +106,61 @@ export function ScoreSheetEditor({
   );
 }
 
-/** One scored line: a label input and a remove control. */
+/**
+ * The `↑` / `↓` pair that reorders whatever row it sits on. Buttons rather than
+ * drag-and-drop: this is a phone-first form that scrolls, and dragging a row in
+ * a scrolling form fights the scroll instead of moving the row.
+ */
+function MoveButtons({
+  onMove,
+  canUp,
+  canDown,
+}: {
+  onMove: (direction: MoveDirection) => void;
+  canUp: boolean;
+  canDown: boolean;
+}) {
+  return (
+    <div className="flex shrink-0 items-center gap-1">
+      <button
+        type="button"
+        onClick={() => onMove("up")}
+        disabled={!canUp}
+        aria-label="Monter"
+        title="Monter"
+        className={moveBtn}
+      >
+        ↑
+      </button>
+      <button
+        type="button"
+        onClick={() => onMove("down")}
+        disabled={!canDown}
+        aria-label="Descendre"
+        title="Descendre"
+        className={moveBtn}
+      >
+        ↓
+      </button>
+    </div>
+  );
+}
+
+/** One scored line: a label input, the reorder controls and a remove control. */
 function FieldRow({
   label,
   onLabel,
+  onMove,
+  canUp,
+  canDown,
   onRemove,
   placeholder,
 }: {
   label: string;
   onLabel: (label: string) => void;
+  onMove: (direction: MoveDirection) => void;
+  canUp: boolean;
+  canDown: boolean;
   onRemove: () => void;
   placeholder: string;
 }) {
@@ -111,6 +172,7 @@ function FieldRow({
         placeholder={placeholder}
         className={input}
       />
+      <MoveButtons onMove={onMove} canUp={canUp} canDown={canDown} />
       <button
         type="button"
         onClick={onRemove}
@@ -127,10 +189,16 @@ function FieldRow({
 function SectionRow({
   section,
   onChange,
+  onMove,
+  canUp,
+  canDown,
   onRemove,
 }: {
   section: CategorySubsection;
   onChange: (section: CategorySubsection) => void;
+  onMove: (direction: MoveDirection) => void;
+  canUp: boolean;
+  canDown: boolean;
   onRemove: () => void;
 }) {
   const fields = section.categories;
@@ -149,6 +217,10 @@ function SectionRow({
     });
   }
 
+  function moveField(j: number, direction: MoveDirection) {
+    onChange({ ...section, categories: moveItem(fields, j, direction) });
+  }
+
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-black/15 p-2 dark:border-white/15">
       <div className="flex items-center gap-2">
@@ -158,6 +230,7 @@ function SectionRow({
           placeholder="Nom de la section"
           className={`${input} font-semibold`}
         />
+        <MoveButtons onMove={onMove} canUp={canUp} canDown={canDown} />
         <button
           type="button"
           onClick={onRemove}
@@ -174,6 +247,9 @@ function SectionRow({
             key={def.key}
             label={def.label}
             onLabel={label => replaceField(j, { ...def, label })}
+            onMove={direction => moveField(j, direction)}
+            canUp={j > 0}
+            canDown={j < fields.length - 1}
             onRemove={() => removeField(j)}
             placeholder="Nom du champ"
           />
