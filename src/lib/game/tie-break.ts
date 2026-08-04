@@ -66,6 +66,21 @@ function leadersOf(
   return entries.filter(e => e.score === best).map(e => e.playerId);
 }
 
+/**
+ * The player a score board settles on by itself, or `null` when several are
+ * level on the best score. Nobody can be crowned then: the table has to break
+ * the tie (or share the victory) first, which the end-of-game reveal only asks
+ * for once it has uncovered the place they share.
+ */
+export function loneLeader(
+  entries: Array<{ playerId: PlayerId; score: number }>,
+  direction: ScoreDirection,
+): PlayerId | null {
+  const leaders = leadersOf(entries, direction);
+
+  return leaders.length === 1 ? leaders[0] : null;
+}
+
 /** The values a rule ranks the still-tied players on, or null when unavailable. */
 function valuesFor(
   rule: TieBreakRule,

@@ -4,6 +4,7 @@ import type { PlayerId, TieBreakRecord, TieBreakRule } from "@/lib/domain";
 
 import {
   formatNames,
+  loneLeader,
   recordForWinners,
   resolveTieBreak,
   tieBreakRecord,
@@ -50,6 +51,30 @@ describe("formatNames", () => {
 
   it("commas all but the last of three names", () => {
     expect(formatNames(["Alice", "Bob", "Chloé"])).toBe("Alice, Bob et Chloé");
+  });
+});
+
+describe("loneLeader", () => {
+  it("has no leader without a score", () => {
+    expect(loneLeader([], "highest")).toBeNull();
+  });
+
+  it("returns the player alone on the best score", () => {
+    expect(
+      loneLeader([score("a", 10), score("b", 8), score("c", 8)], "highest"),
+    ).toBe(p("a"));
+  });
+
+  it("reads the best score the other way when lowest wins", () => {
+    expect(
+      loneLeader([score("a", 10), score("b", 8), score("c", 12)], "lowest"),
+    ).toBe(p("b"));
+  });
+
+  it("returns nobody while several players lead", () => {
+    expect(
+      loneLeader([score("a", 10), score("b", 10), score("c", 4)], "highest"),
+    ).toBeNull();
   });
 });
 
