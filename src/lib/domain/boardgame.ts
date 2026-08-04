@@ -78,6 +78,13 @@ export interface CategorySubsection {
    * they occupy, floored (see {@link rankBonusFor}).
    */
   rankBonus?: number[];
+  /**
+   * When set, the stats charts offer an extra view splitting *this* subsection's
+   * points across its own lines (Cascadia: which animal the points came from).
+   * Off by default — a section only earns its own tab when the lines inside it
+   * are worth comparing.
+   */
+  showDetail?: boolean;
 }
 
 /**

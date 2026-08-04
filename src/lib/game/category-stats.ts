@@ -1,9 +1,11 @@
 /**
- * Aggregates category-scored games (Cascadia) into point-distribution slices
- * for the stats charts: how a player's / a game's points split across category
- * groups (Animaux / Biomes / Divers) and, within a group, across its lines
- * (the animal types). Only games whose stored breakdown covers every category
- * count. Pure: no vendor types, unit-tested.
+ * Aggregates category-scored games into point-distribution slices for the stats
+ * charts: how a player's / a game's points split across the top level of the
+ * scoresheet — its subsections when it has any (Cascadia's Animaux / Biomes /
+ * Divers), its plain lines otherwise (Wingspan, Forêt Mixte) — and, inside a
+ * subsection the game flagged `showDetail`, across its own lines. Only games
+ * whose stored breakdown covers every category count. Pure: no vendor types,
+ * unit-tested.
  */
 import type {
   CategoryDef,
@@ -21,9 +23,25 @@ export interface Slice {
   color: string;
 }
 
-// Distinct hues for the top-level GROUPS (subsections); standalones are grey.
-const GROUP_COLORS = ["#6366f1", "#10b981", "#f59e0b", "#ec4899", "#06b6d4"];
+// Distinct hues handed out to whatever the top level of the sheet turns out to
+// be — its subsections, or its lines when it has none. Eight of them: past that
+// a donut is unreadable anyway, so repeating a hue costs nothing.
+const PALETTE = [
+  "#6366f1",
+  "#10b981",
+  "#f59e0b",
+  "#ec4899",
+  "#06b6d4",
+  "#8b5cf6",
+  "#84cc16",
+  "#f43f5e",
+];
 const DIVERS_COLOR = "#9ca3af";
+
+/** The palette hue at `i`, wrapping round for a sheet longer than the palette. */
+function paletteColor(i: number): string {
+  return PALETTE[i % PALETTE.length];
+}
 
 /** A subsection (its category keys) or the "Divers" bundle of standalone lines. */
 export interface CategoryGroup {
@@ -35,8 +53,21 @@ export interface CategoryGroup {
 /**
  * The sheet's top-level groups: one per subsection (Animaux, Biomes…), then a
  * single "Divers" group gathering every standalone line (Cascadia's pine cones).
+ *
+ * A sheet with **no** subsection at all (Wingspan, Forêt Mixte) has no such top
+ * level to speak of, so each of its lines becomes a group in its own right —
+ * bundling them all into one "Divers" would draw a single full circle and say
+ * nothing.
  */
 export function categoryGroups(sheet: ScoreSheetItem[]): CategoryGroup[] {
+  if (!sheet.some(isSubsection)) {
+    return sheetCategories(sheet).map((c, i) => ({
+      label: c.label,
+      keys: [c.key],
+      color: paletteColor(i),
+    }));
+  }
+
   const groups: CategoryGroup[] = [];
   const divers: string[] = [];
   let subIndex = 0;
@@ -46,7 +77,7 @@ export function categoryGroups(sheet: ScoreSheetItem[]): CategoryGroup[] {
       groups.push({
         label: item.label,
         keys: item.categories.map(c => c.key),
-        color: GROUP_COLORS[subIndex % GROUP_COLORS.length],
+        color: paletteColor(subIndex),
       });
       subIndex++;
     } else {
@@ -61,11 +92,14 @@ export function categoryGroups(sheet: ScoreSheetItem[]): CategoryGroup[] {
   return groups;
 }
 
-/** The first subsection of a sheet (Cascadia: "Animaux"), or null if there's none. */
-export function firstSubsection(
+/**
+ * The subsections the game says are worth breaking down further (Cascadia:
+ * "Animaux"), in sheet order — each one earns its own view in the charts.
+ */
+export function detailSubsections(
   sheet: ScoreSheetItem[],
-): CategorySubsection | null {
-  return sheet.find(isSubsection) ?? null;
+): CategorySubsection[] {
+  return sheet.filter(isSubsection).filter(s => s.showDetail === true);
 }
 
 /** True when a breakdown carries a value for every category of the sheet. */
@@ -137,9 +171,11 @@ export function categorySlices(
   categories: CategoryDef[],
   breakdowns: Record<string, number>[],
 ): Slice[] {
-  return categories.map(c => ({
+  return categories.map((c, i) => ({
     label: c.label,
-    color: c.colors?.[0] ?? DIVERS_COLOR,
+    // A game that named its own colours keeps them (Cascadia's animals); one
+    // that didn't gets told apart by the palette rather than by nothing.
+    color: c.colors?.[0] ?? paletteColor(i),
     value: mean(breakdowns, b => b[c.key] ?? 0),
   }));
 }

@@ -191,6 +191,18 @@ function SectionRow({
           + Champ dans la section
         </button>
       </div>
+
+      <label className="flex items-center gap-2 pl-3 text-xs text-zinc-500">
+        <input
+          type="checkbox"
+          checked={section.showDetail === true}
+          onChange={e =>
+            onChange({ ...section, showDetail: e.target.checked || undefined })
+          }
+          className="h-3.5 w-3.5 accent-indigo-600"
+        />
+        Détailler cette section dans les statistiques
+      </label>
     </div>
   );
 }

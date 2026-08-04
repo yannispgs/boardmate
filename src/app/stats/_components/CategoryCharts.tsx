@@ -6,7 +6,7 @@ import type { GameStatsRecord, PlayerId, ScoreSheetItem } from "@/lib/domain";
 import {
   categorySlices,
   completeBreakdowns,
-  firstSubsection,
+  detailSubsections,
   groupSlices,
   type Slice,
 } from "@/lib/game/category-stats";
@@ -132,9 +132,10 @@ function StackedBars({
 }
 
 /**
- * Category point-distribution for Cascadia-like games: a donut of the mean
- * split (over games with a complete breakdown), toggling between the top-level
- * groups ("Globale") and the first subsection's detail ("Animaux"). With
+ * Category point-distribution for any game scored by category: a donut of the
+ * mean split (over games with a complete breakdown), toggling between the
+ * top-level view ("Globale" — the sheet's sections, or its lines when it has
+ * none) and one tab per section the game asked to detail ("Animaux"). With
  * `comparePlayers` (a handful selected on the games tab) it shows one stacked
  * bar per player instead of the aggregate donut. Renders nothing when no game
  * in scope has a complete breakdown.
@@ -152,12 +153,14 @@ export function CategoryCharts({
   /** Show a bar per player instead of the donut (any players filtered in). */
   comparePlayers?: Array<{ id: PlayerId; name: string }>;
 }) {
-  const sub = firstSubsection(sheet);
-  const [view, setView] = useState<"group" | "detail">("group");
+  const subs = detailSubsections(sheet);
+  // -1 is the top-level split; 0..n-1 pick a subsection to break down.
+  const [view, setView] = useState(-1);
+  const detailed = subs[view] ?? null;
 
   function slicesOf(breakdowns: Record<string, number>[]): Slice[] {
-    return view === "detail" && sub
-      ? categorySlices(sub.categories, breakdowns)
+    return detailed
+      ? categorySlices(detailed.categories, breakdowns)
       : groupSlices(sheet, breakdowns);
   }
 
@@ -186,28 +189,27 @@ export function CategoryCharts({
 
   return (
     <div className="flex flex-col gap-3">
-      {sub ? (
+      {subs.length > 0 ? (
         <div className="flex justify-end">
-          <div className="inline-flex overflow-hidden rounded-lg border border-black/10 text-xs dark:border-white/10">
-            {(
-              [
-                ["group", "Globale"],
-                ["detail", sub.label],
-              ] as const
-            ).map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setView(key)}
-                className={`px-2.5 py-1 font-medium transition ${
-                  view === key
-                    ? "bg-indigo-600 text-white"
-                    : "hover:bg-black/5 dark:hover:bg-white/5"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+          <div className="inline-flex flex-wrap overflow-hidden rounded-lg border border-black/10 text-xs dark:border-white/10">
+            {[{ label: "Globale" }, ...subs].map((tab, i) => {
+              const index = i - 1;
+
+              return (
+                <button
+                  key={tab.label}
+                  type="button"
+                  onClick={() => setView(index)}
+                  className={`px-2.5 py-1 font-medium transition ${
+                    view === index
+                      ? "bg-indigo-600 text-white"
+                      : "hover:bg-black/5 dark:hover:bg-white/5"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
         </div>
       ) : null}

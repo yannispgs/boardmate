@@ -5,7 +5,7 @@ import {
   categoryGroups,
   categorySlices,
   completeBreakdowns,
-  firstSubsection,
+  detailSubsections,
   groupSlices,
   hasCompleteBreakdown,
 } from "./category-stats";
@@ -14,6 +14,7 @@ import {
 const sheet: ScoreSheetItem[] = [
   {
     label: "Animaux",
+    showDetail: true,
     categories: [
       { key: "ours", label: "Ours", colors: ["#5F4A4A"] },
       { key: "buse", label: "Buse", colors: ["#3BD1FC"] },
@@ -27,6 +28,13 @@ const sheet: ScoreSheetItem[] = [
     ],
   },
   { key: "pommesDePin", label: "Pommes de pin" },
+];
+
+// A Wingspan-like sheet: plain lines, no section, no colours of its own.
+const flat: ScoreSheetItem[] = [
+  { key: "oiseaux", label: "Oiseaux" },
+  { key: "oeufs", label: "Œufs" },
+  { key: "nectar", label: "Nectar" },
 ];
 
 const ALICE = "p-alice" as PlayerId;
@@ -71,12 +79,58 @@ describe("categoryGroups", () => {
   it("omits Divers when there is no standalone line", () => {
     expect(categoryGroups([sheet[0]]).map(g => g.label)).toEqual(["Animaux"]);
   });
+
+  it("gives a sheet without any section one group per line", () => {
+    const groups = categoryGroups(flat);
+
+    expect(groups.map(g => g.label)).toEqual(["Oiseaux", "Œufs", "Nectar"]);
+    expect(groups.map(g => g.keys)).toEqual([
+      ["oiseaux"],
+      ["oeufs"],
+      ["nectar"],
+    ]);
+  });
+
+  it("tells those lines apart by colour instead of drowning them in Divers", () => {
+    const colors = categoryGroups(flat).map(g => g.color);
+
+    expect(new Set(colors).size).toBe(3);
+    expect(colors).not.toContain("#9ca3af");
+  });
+
+  it("still has a colour for a sheet longer than the palette", () => {
+    const long: ScoreSheetItem[] = Array.from({ length: 11 }, (_, i) => ({
+      key: `k${i}`,
+      label: `L${i}`,
+    }));
+
+    expect(categoryGroups(long).every(g => g.color !== undefined)).toBe(true);
+  });
 });
 
-describe("firstSubsection", () => {
-  it("returns the first subsection, or null when there's none", () => {
-    expect(firstSubsection(sheet)?.label).toBe("Animaux");
-    expect(firstSubsection([{ key: "x", label: "X" }])).toBeNull();
+describe("detailSubsections", () => {
+  it("keeps only the sections the game asked to detail", () => {
+    expect(detailSubsections(sheet).map(s => s.label)).toEqual(["Animaux"]);
+  });
+
+  it("details every section that asks for it, in sheet order", () => {
+    const both: ScoreSheetItem[] = [
+      { label: "Biomes", showDetail: true, categories: [] },
+      { label: "Animaux", showDetail: true, categories: [] },
+    ];
+
+    expect(detailSubsections(both).map(s => s.label)).toEqual([
+      "Biomes",
+      "Animaux",
+    ]);
+  });
+
+  it("details nothing on a sheet with no section at all", () => {
+    expect(detailSubsections(flat)).toEqual([]);
+  });
+
+  it("leaves a section alone until it is flagged", () => {
+    expect(detailSubsections([sheet[1]])).toEqual([]);
   });
 });
 
@@ -135,7 +189,7 @@ describe("groupSlices", () => {
 
 describe("categorySlices", () => {
   it("means each category and carries its colour", () => {
-    const animals = firstSubsection(sheet)?.categories ?? [];
+    const animals = detailSubsections(sheet)[0].categories;
     const slices = categorySlices(animals, [full, { ours: 1, buse: 7 }]);
 
     expect(slices).toEqual([
@@ -144,10 +198,17 @@ describe("categorySlices", () => {
     ]);
   });
 
-  it("falls back to grey when a category has no colour", () => {
-    const slices = categorySlices([{ key: "foret", label: "Forêt" }], [full]);
+  it("falls back to the palette when a category names no colour", () => {
+    const slices = categorySlices(
+      [
+        { key: "foret", label: "Forêt" },
+        { key: "prairie", label: "Prairie" },
+      ],
+      [full],
+    );
 
-    expect(slices[0].color).toBe("#9ca3af");
+    expect(slices[0].color).not.toBe(slices[1].color);
+    expect(slices.map(s => s.color)).not.toContain("#9ca3af");
   });
 
   it("treats an absent category as 0 points", () => {
