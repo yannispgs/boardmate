@@ -74,9 +74,15 @@ test("edits the game's default configuration and persists it", async ({
       page.getByRole("button", { name: "Enregistrer les valeurs par défaut" }),
     ).toBeVisible();
     await page.locator("#pointsToWin").fill("15");
-    await page
-      .getByRole("button", { name: "Enregistrer les valeurs par défaut" })
-      .click();
+
+    const save = page.getByRole("button", {
+      name: "Enregistrer les valeurs par défaut",
+    });
+
+    await save.click();
+    // The editor only closes once the save came back, so waiting for it is
+    // what keeps the reload below from cancelling the request in flight.
+    await expect(save).toHaveCount(0);
 
     // Reload (proving it round-tripped through the DB) → the create form now
     // pre-fills the new default.
