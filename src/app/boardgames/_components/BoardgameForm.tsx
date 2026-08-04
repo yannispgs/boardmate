@@ -22,6 +22,7 @@ import {
   type TurnMode,
   type WinCondition,
 } from "@/lib/domain";
+import { seatOrderMatters } from "@/lib/game/seat-stats";
 import { ScoreSheetEditor } from "./ScoreSheetEditor";
 
 interface FormState {
@@ -194,7 +195,10 @@ function toInput(
       .filter(Boolean),
     turnMode: form.turnMode,
     kind: form.kind,
-    trackSeatStats: form.trackSeatStats,
+    // Switching a game to "everybody at once" must also clear a seat-order
+    // tracking left on from before, or the stats would keep a table nothing
+    // can fill.
+    trackSeatStats: seatOrderMatters(form.turnMode) && form.trackSeatStats,
     turnCountVaries: form.turnCountVaries,
     boardGenerator: form.boardGenerator === "" ? null : form.boardGenerator,
     dice: form.diceTracked
@@ -324,6 +328,7 @@ export function BoardgameForm({
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const seatOrder = seatOrderMatters(form.turnMode);
 
   // Uploads any logo image (picked file or pasted from the clipboard) to Storage
   // and previews it. `label` is what the UI shows as the chosen source.
@@ -563,22 +568,29 @@ export function BoardgameForm({
         </select>
       </label>
 
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={form.trackSeatStats}
-          onChange={e => setForm({ ...form, trackSeatStats: e.target.checked })}
-        />
-        Suivre les statistiques selon l&apos;ordre de jeu
-        <InfoTip label="À quoi sert le suivi selon l'ordre de jeu">
-          <p>
-            Active un tableau de stats{" "}
-            <strong>Premier / Intermédiaire / Dernier</strong>&nbsp;à jouer,
-            pour les jeux où l&apos;ordre de jeu influence l&apos;issue (Catan).
-          </p>
-          <p>Sans effet sur le déroulé d&apos;une partie.</p>
-        </InfoTip>
-      </label>
+      {/* Nobody plays first when everybody plays at once — the option would
+          only offer a table of empty columns. */}
+      {seatOrder ? (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={form.trackSeatStats}
+            onChange={e =>
+              setForm({ ...form, trackSeatStats: e.target.checked })
+            }
+          />
+          Suivre les statistiques selon l&apos;ordre de jeu
+          <InfoTip label="À quoi sert le suivi selon l'ordre de jeu">
+            <p>
+              Active un tableau de stats{" "}
+              <strong>Premier / Intermédiaire / Dernier</strong>&nbsp;à jouer,
+              pour les jeux où l&apos;ordre de jeu influence l&apos;issue
+              (Catan).
+            </p>
+            <p>Sans effet sur le déroulé d&apos;une partie.</p>
+          </InfoTip>
+        </label>
+      ) : null}
 
       <label className="flex items-center gap-2 text-sm">
         <input

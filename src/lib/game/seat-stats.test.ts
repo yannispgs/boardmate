@@ -1,7 +1,21 @@
 import { describe, expect, it } from "vitest";
 
 import type { GameStatsRecord, PlayerId } from "@/lib/domain";
-import { computeSeatStats, type SeatBucket } from "./seat-stats";
+import {
+  computeSeatStats,
+  type SeatBucket,
+  seatOrderMatters,
+} from "./seat-stats";
+
+describe("seatOrderMatters", () => {
+  it("holds when players take turns", () => {
+    expect(seatOrderMatters("sequential")).toBe(true);
+  });
+
+  it("fails when everybody plays at once", () => {
+    expect(seatOrderMatters("simultaneous")).toBe(false);
+  });
+});
 
 type P = { seat: number; winner?: boolean; score?: number | null };
 
