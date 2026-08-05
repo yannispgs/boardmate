@@ -1,7 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { ErrorText } from "@/components/ErrorText";
 import type {
   GameId,
@@ -12,6 +18,7 @@ import type {
 } from "@/lib/domain";
 import { countdownColor } from "@/lib/game/colors";
 import { diceStats, diceValues } from "@/lib/game/dice";
+import { pairBreakdown, scorePiles } from "@/lib/game/pair-scoring";
 import {
   clampScore,
   type Ranked,
@@ -32,10 +39,12 @@ import { useTurnTimer } from "@/lib/hooks/use-turn-timer";
 import { useWakeLock } from "@/lib/hooks/use-wake-lock";
 import { getGameRepository } from "@/lib/repositories";
 import { CategoryScoreEntry } from "../../../_components/CategoryScoreEntry";
+import { PairScoreEntry } from "../../../_components/PairScoreEntry";
 import { DiceBar } from "./DiceBar";
 import { EndedGame } from "./EndedGame";
 import { FinalScoreTable } from "./FinalScoreTable";
 import { LiveEndPrompt } from "./LiveEndPrompt";
+import { PairScoreTable } from "./PairScoreTable";
 import { RankingReveal } from "./RankingReveal";
 import { ScorePanel } from "./ScorePanel";
 import { StatsPanel } from "./StatsPanel";
@@ -50,12 +59,18 @@ type FinalScores = Array<{
   breakdown?: Record<string, number>;
 }>;
 
-/** How a scored game came out, driving the reveal and then the score sheet. */
+/**
+ * How a scored game came out, driving the reveal and then the score sheet.
+ * Which sheet it was decides what that layout is: the per-category grid
+ * (`values`), the ring of shared piles (`piles`), or neither.
+ */
 interface EndOutcome {
   scores: FinalScores;
   ranking: Ranked[];
   /** The per-category values to lay out after the reveal, or null. */
   values: Record<string, Record<string, number>> | null;
+  /** The shared piles to lay out after the reveal, or null. */
+  piles: Record<string, number> | null;
   /** Who won — empty while the leaders are level and the tie unbroken. */
   winners: PlayerId[];
 }
@@ -86,8 +101,9 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   // Whether the end-of-game score form (final total / winner pick) is open —
   // when it is, it takes the timer's place.
   const [endFormOpen, setEndFormOpen] = useState(false);
-  // Category scoring: the end sheet modal, then the reveal → table phases.
+  // Sheet scoring: the end sheet modal, then the reveal → table phases.
   const [catOpen, setCatOpen] = useState(false);
+  const [pairOpen, setPairOpen] = useState(false);
   const [phase, setPhase] = useState<"play" | "reveal" | "table">("play");
   const [end, setEnd] = useState<EndOutcome | null>(null);
   // Opened from the reveal, once it has uncovered leaders that came out level:
@@ -181,7 +197,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
 
   // The end score form replaces the timer once opened; pause the timer then so
   // it doesn't keep ticking (and running down the wake lock) behind the form.
-  const scoreFormOpen = endFormOpen || catOpen;
+  const scoreFormOpen = endFormOpen || catOpen || pairOpen;
   useEffect(() => {
     if (scoreFormOpen) {
       timer.pause();
@@ -295,6 +311,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
     }
 
     setCatOpen(false);
+    setPairOpen(false);
     setEndFormOpen(false);
     setEnd(outcome);
     setPhase("reveal");
@@ -319,9 +336,9 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
     setEnd(settled);
   }
 
-  /** Leaves the reveal: the score sheet for a category game, the recap for the rest. */
+  /** Leaves the reveal: the score sheet for a sheet-scored game, the recap for the rest. */
   async function leaveReveal() {
-    if (end?.values) {
+    if (end?.values || end?.piles) {
       setPhase("table");
 
       return;
@@ -398,8 +415,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
     }
   }
 
-  // Category scoring: sum each player's sheet into a total, rank them, persist
-  // the end (winner + totals + per-category breakdown), then run the reveal.
+  // Category scoring: sum each player's sheet into a total, and rank them.
   async function handleCategoryFinish(
     values: Record<string, Record<string, number>>,
   ) {
@@ -432,6 +448,39 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
       scores,
       ranking,
       values,
+      piles: null,
+      winners: leader ? [leader] : [],
+    });
+  }
+
+  // Pair scoring (Splito): each player's total is the product of the two piles
+  // flanking his seat, so the piles entered once around the ring score everyone.
+  async function handlePairFinish(piles: Record<string, number>) {
+    if (!game || busy) {
+      return;
+    }
+
+    const seats = game.players.map(p => p.playerId);
+    const scored = scorePiles(seats, piles);
+    const ranking = rankByTotal(
+      seats.map(playerId => ({
+        playerId,
+        total: scored[playerId].total,
+      })),
+    );
+    const scores = seats.map(playerId => ({
+      playerId,
+      score: scored[playerId].total,
+      breakdown: pairBreakdown(scored[playerId]),
+    }));
+    // The product is always read highest-first, like a category sheet.
+    const leader = loneLeader(scores, "highest");
+
+    await revealEnd({
+      scores,
+      ranking,
+      values: null,
+      piles,
       winners: leader ? [leader] : [],
     });
   }
@@ -458,6 +507,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
       scores,
       ranking: rankFinalScores(scores, direction),
       values: null,
+      piles: null,
       winners: leader ? [leader] : [],
     });
   }
@@ -522,6 +572,16 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
       </>
     );
   }
+  if (phase === "table" && end?.piles) {
+    return (
+      <PairScoreTable
+        seats={namedPlayers}
+        piles={end.piles}
+        ranking={end.ranking}
+        onDone={() => router.push("/games")}
+      />
+    );
+  }
   if (phase === "table" && end?.values) {
     return (
       <FinalScoreTable
@@ -571,6 +631,84 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   const diceRange = dice ? diceValues(dice) : [];
   const dStats = dice ? diceStats(rollValues, diceRange) : {};
   const lastRolled = rollValues.at(-1) ?? null;
+
+  // How the game ends depends on how it is scored: a shared outcome for a
+  // cooperative game, one of the two end-of-game sheets, a plain final total,
+  // or — when nothing is scored at all — a winner named by the table.
+  const finalScoring =
+    game.boardgame.scoring?.timing === "final" ? game.boardgame.scoring : null;
+  let endControl: ReactNode = (
+    <WinnerPicker
+      players={game.players.map(p => p.player)}
+      onPick={winnerIds => {
+        // Picked by hand: several names is a shared victory the table decided
+        // on, with no score to explain it.
+        handleEnd(
+          winnerIds,
+          undefined,
+          winnerIds.length > 1
+            ? { tied: winnerIds, steps: [], shared: true }
+            : null,
+        );
+      }}
+      disabled={busy}
+      open={endFormOpen}
+      onOpenChange={setEndFormOpen}
+    />
+  );
+
+  if (coop) {
+    endControl = (
+      <CoopEnd
+        open={endFormOpen}
+        onOpenChange={setEndFormOpen}
+        onEnd={handleEndCoop}
+        disabled={busy}
+      />
+    );
+  } else if (finalScoring?.entry === "pairs") {
+    endControl = (
+      <>
+        <CountPointsButton onClick={() => setPairOpen(true)} disabled={busy} />
+        {pairOpen ? (
+          <PairScoreEntry
+            seats={namedPlayers}
+            onSubmit={handlePairFinish}
+            onCancel={() => setPairOpen(false)}
+            disabled={busy}
+          />
+        ) : null}
+      </>
+    );
+  } else if (finalScoring?.entry === "categories" && finalScoring.sheet) {
+    const sheet = finalScoring.sheet;
+
+    endControl = (
+      <>
+        <CountPointsButton onClick={() => setCatOpen(true)} disabled={busy} />
+        {catOpen ? (
+          <CategoryScoreEntry
+            players={namedPlayers}
+            sheet={sheet}
+            onSubmit={handleCategoryFinish}
+            onCancel={() => setCatOpen(false)}
+            disabled={busy}
+          />
+        ) : null}
+      </>
+    );
+  } else if (finalScoring) {
+    endControl = (
+      <ScoreEntry
+        players={game.players.map(p => p.player)}
+        winCondition={finalScoring.winCondition}
+        onEnd={handleFinalScores}
+        disabled={busy}
+        open={endFormOpen}
+        onOpenChange={setEndFormOpen}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col items-center gap-8">
@@ -676,66 +814,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         />
       ) : null}
 
-      {canEnd ? (
-        coop ? (
-          <CoopEnd
-            open={endFormOpen}
-            onOpenChange={setEndFormOpen}
-            onEnd={handleEndCoop}
-            disabled={busy}
-          />
-        ) : game.boardgame.scoring?.timing === "final" ? (
-          game.boardgame.scoring.entry === "categories" &&
-          game.boardgame.scoring.sheet ? (
-            <>
-              <button
-                type="button"
-                onClick={() => setCatOpen(true)}
-                disabled={busy}
-                className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-black transition hover:bg-amber-300 disabled:opacity-60"
-              >
-                Compter les points
-              </button>
-              {catOpen ? (
-                <CategoryScoreEntry
-                  players={namedPlayers}
-                  sheet={game.boardgame.scoring.sheet}
-                  onSubmit={handleCategoryFinish}
-                  onCancel={() => setCatOpen(false)}
-                  disabled={busy}
-                />
-              ) : null}
-            </>
-          ) : (
-            <ScoreEntry
-              players={game.players.map(p => p.player)}
-              winCondition={game.boardgame.scoring.winCondition}
-              onEnd={handleFinalScores}
-              disabled={busy}
-              open={endFormOpen}
-              onOpenChange={setEndFormOpen}
-            />
-          )
-        ) : (
-          <WinnerPicker
-            players={game.players.map(p => p.player)}
-            onPick={winnerIds => {
-              // Picked by hand: several names is a shared victory the table
-              // decided on, with no score to explain it.
-              handleEnd(
-                winnerIds,
-                undefined,
-                winnerIds.length > 1
-                  ? { tied: winnerIds, steps: [], shared: true }
-                  : null,
-              );
-            }}
-            disabled={busy}
-            open={endFormOpen}
-            onOpenChange={setEndFormOpen}
-          />
-        )
-      ) : null}
+      {canEnd ? endControl : null}
 
       {endOpen && scores ? (
         <LiveEndPrompt
@@ -1139,6 +1218,30 @@ function CoopEnd({
         Annuler
       </button>
     </div>
+  );
+}
+
+/**
+ * Opens the end-of-game scoresheet — whichever of the two the game uses. Same
+ * button either way: from the table's point of view it is the one moment where
+ * the points get counted.
+ */
+function CountPointsButton({
+  onClick,
+  disabled,
+}: {
+  onClick: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-black transition hover:bg-amber-300 disabled:opacity-60"
+    >
+      Compter les points
+    </button>
   );
 }
 

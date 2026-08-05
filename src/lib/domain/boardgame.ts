@@ -94,11 +94,13 @@ export type ScoreSheetItem = CategorySubsection | CategoryDef;
  * `timing`: `live` = a running score during play (auto-ends when a threshold is
  * reached) ; `final` = entered at the end. `entry`: `total` = one total per
  * player ; `categories` = a per-category scoresheet summed into the total (the
- * `sheet` describes it).
+ * `sheet` describes it) ; `pairs` = the players sit in a circle and each pile
+ * of points is shared by two neighbours, a player's total being the product of
+ * the two flanking his seat (Splito — see {@link scorePiles}).
  */
 export interface ScoringSpec {
   timing: "final" | "live";
-  entry: "total" | "categories";
+  entry: "total" | "categories" | "pairs";
   winCondition: WinCondition;
   /**
    * Whether a score can go below zero. Defaults to `false` (positive-only, e.g.
