@@ -90,9 +90,14 @@ test("browses the Catan extensions from the games list", async ({ page }) => {
   await expect(page.getByText("2 scénarios au choix")).toBeVisible();
   await expect(page.getByText("Modifie le plateau")).toBeVisible();
 
-  // Each scenario shows its rulebook target (Four Islands = 13).
-  await expect(page.getByText("Les quatre îles")).toBeVisible();
-  await expect(page.getByText("🎯 13 pts")).toBeVisible();
+  // Marins is authored in the app, so its scenarios come with the editor: each
+  // row still carries the rulebook target (Four Islands = 13).
+  const fourIslands = page
+    .getByRole("listitem")
+    .filter({ hasText: "Les quatre îles" });
+
+  await expect(fourIslands).toBeVisible();
+  await expect(fourIslands).toContainText("🎯 13");
 });
 
 /**
