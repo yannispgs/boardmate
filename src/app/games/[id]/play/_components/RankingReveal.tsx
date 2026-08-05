@@ -3,45 +3,83 @@
 import { useState } from "react";
 
 import type { PlayerId } from "@/lib/domain";
+import { revealGroups } from "@/lib/game/reveal";
 import type { Ranked } from "@/lib/game/scoring";
+import { formatNames } from "@/lib/game/tie-break";
+
+/** The unsettled ex æquo at the top, which the reveal stops on. */
+export interface RevealTieBreak {
+  /** What the button offers: applying the game's rules, or sharing the win. */
+  label: string;
+  onOpen: () => void;
+}
 
 /**
  * Suspense reveal of the final standings: opens on an empty board, then steps up
- * one player at a time from the last place to the winner. Newly revealed players
- * stack from the bottom, so the winner lands last, at the top. The button reads
- * "Afficher" for the very first reveal, "Suivant" while climbing, and "Voir les
- * scores" once everyone is out.
+ * one **place** at a time from the last to the first. Players sharing a place
+ * come out together, so an ex æquo is only ever announced when the reveal
+ * reaches it — the tie for the win included, which is why nobody is crowned
+ * until `winners` is settled. The button reads "Afficher" for the very first
+ * reveal, "Suivant" while climbing, then either the tie-break's own label or
+ * "Voir les scores" once the winner is known.
  */
 export function RankingReveal({
   ranking,
   players,
+  winners,
+  tieBreak,
   onDone,
 }: {
   ranking: Ranked[];
   players: { id: PlayerId; name: string }[];
+  /** Who won; empty while the leaders are still level and unsettled. */
+  winners: PlayerId[];
+  /** How to settle those leaders, or null when there is nothing to settle. */
+  tieBreak: RevealTieBreak | null;
   onDone: () => void;
 }) {
-  // Reveal worst → best; the array is best-first, so walk it in reverse.
-  const worstFirst = [...ranking].reverse();
+  // One step per place, worst first; the winner's place is the last one out.
+  const groups = revealGroups(ranking);
   // Start at 0: nobody is shown until the first "Afficher".
   const [shown, setShown] = useState(0);
 
   const nameOf = (id: PlayerId) => players.find(p => p.id === id)?.name ?? "?";
-  const done = shown >= worstFirst.length;
+  const done = shown >= groups.length;
   // Revealed so far, shown best-first (so the winner rises to the top last).
-  const revealed = worstFirst.slice(0, shown);
+  const revealed = groups.slice(0, shown).flatMap(g => g.players);
   const displayed = [...revealed].sort((a, b) => a.rank - b.rank);
-  const latest = shown > 0 ? worstFirst[shown - 1] : null;
+  const latest = shown > 0 ? groups[shown - 1] : null;
+  // The reveal is over but the game isn't: the leaders came out level.
+  const unsettled = done && tieBreak !== null;
 
   function caption(): string {
     if (shown === 0) {
       return "Du dernier au premier…";
     }
+
+    const names = formatNames(
+      (latest?.players ?? []).map(g => nameOf(g.playerId)),
+    );
+
+    if (unsettled) {
+      return `Égalité 🤝 — ${names} à ${latest?.players[0].total} points`;
+    }
+
     if (done) {
       return "🏆 Et le vainqueur est…";
     }
 
-    return `${latest?.rank}ᵉ place · ${nameOf((latest as Ranked).playerId)}`;
+    const place = `${latest?.rank}ᵉ place`;
+
+    return `${place}${(latest?.players.length ?? 0) > 1 ? " ex æquo" : ""} · ${names}`;
+  }
+
+  function label(): string {
+    if (!done) {
+      return shown === 0 ? "Afficher" : "Suivant";
+    }
+
+    return tieBreak?.label ?? "Voir les scores";
   }
 
   return (
@@ -56,8 +94,9 @@ export function RankingReveal({
 
       <ol className="flex w-full max-w-xs flex-col gap-2">
         {displayed.map(r => {
-          const isWinner = r.rank === 1;
-          const isLatest = latest !== null && r.playerId === latest.playerId;
+          const isWinner = winners.includes(r.playerId);
+          // A group is exactly one place, so sharing its rank is being in it.
+          const isLatest = latest?.rank === r.rank;
 
           return (
             <li
@@ -83,10 +122,24 @@ export function RankingReveal({
 
       <button
         type="button"
-        onClick={() => (done ? onDone() : setShown(s => s + 1))}
+        onClick={() => {
+          if (!done) {
+            setShown(s => s + 1);
+
+            return;
+          }
+
+          if (tieBreak) {
+            tieBreak.onOpen();
+
+            return;
+          }
+
+          onDone();
+        }}
         className="rounded-lg bg-indigo-600 px-6 py-3 font-semibold text-white transition hover:bg-indigo-500"
       >
-        {done ? "Voir les scores" : shown === 0 ? "Afficher" : "Suivant"}
+        {label()}
       </button>
     </div>
   );

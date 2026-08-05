@@ -35,6 +35,7 @@ import type {
   PlayerId,
   PlayerUpdate,
   PopulatedGame,
+  TieBreakRecord,
   TurnMode,
 } from "@/lib/domain";
 
@@ -175,18 +176,21 @@ export interface GameRepository {
   /** Records one dice roll (the summed value) for the game's roll log. */
   addDiceRoll(id: GameId, value: number): Promise<void>;
   /**
-   * Ends the game, marks the winner, and (for scored games) records each
+   * Ends the game, marks the winner(s), and (for scored games) records each
    * player's final score — plus, for category-scored games, the per-category
-   * `breakdown` (category key → points) that sums to it.
+   * `breakdown` (category key → points) that sums to it. `winnerIds` holds
+   * several players on a shared victory (ex æquo the game's tie-break rules
+   * couldn't separate); `tieBreak` records what was applied, for the recap.
    */
   end(
     id: GameId,
-    winnerId: PlayerId,
+    winnerIds: PlayerId[],
     scores?: Array<{
       playerId: PlayerId;
       score: number;
       breakdown?: Record<string, number>;
     }>,
+    tieBreak?: TieBreakRecord | null,
   ): Promise<void>;
   /**
    * Ends a cooperative game on a *shared* outcome: `won` marks every player a
@@ -198,16 +202,17 @@ export interface GameRepository {
    * Retroactively records the per-category `breakdown` (and the re-derived
    * total + winner) for an already-ended category game that was logged with
    * only a total. Every player's `is_winner` is reset, then the recomputed
-   * winner is set.
+   * winner(s) are set — several on a shared victory.
    */
   setBreakdown(
     id: GameId,
-    winnerId: PlayerId,
+    winnerIds: PlayerId[],
     scores: Array<{
       playerId: PlayerId;
       score: number;
       breakdown: Record<string, number>;
     }>,
+    tieBreak?: TieBreakRecord | null,
   ): Promise<void>;
   subscribe(onChange: () => void): Unsubscribe;
 }

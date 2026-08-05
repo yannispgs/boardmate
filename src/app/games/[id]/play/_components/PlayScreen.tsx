@@ -7,19 +7,25 @@ import type {
   GameId,
   PlayerId,
   PopulatedGame,
+  TieBreakRecord,
   WinCondition,
 } from "@/lib/domain";
 import { countdownColor } from "@/lib/game/colors";
 import { diceStats, diceValues } from "@/lib/game/dice";
 import {
   clampScore,
-  leaderByScore,
   type Ranked,
   rankByTotal,
+  rankFinalScores,
   scoreCategories,
   winnerDirection,
 } from "@/lib/game/scoring";
 import { liveTimeHog } from "@/lib/game/stats";
+import {
+  loneLeader,
+  resolveTieBreak,
+  tieBreakRecord,
+} from "@/lib/game/tie-break";
 import { isFinalTurn, turnsPerRound } from "@/lib/game/turn";
 import { turnDurationForRound } from "@/lib/game/turn-schedule";
 import { useTurnTimer } from "@/lib/hooks/use-turn-timer";
@@ -33,13 +39,25 @@ import { LiveEndPrompt } from "./LiveEndPrompt";
 import { RankingReveal } from "./RankingReveal";
 import { ScorePanel } from "./ScorePanel";
 import { StatsPanel } from "./StatsPanel";
+import { TieBreakPrompt } from "./TieBreakPrompt";
 import { TurnFlow } from "./turn-flow";
 import { WaitPicker } from "./WaitPicker";
 
-/** The computed outcome of a category-scored game, driving the reveal + table. */
-interface CategoryResult {
-  values: Record<string, Record<string, number>>;
+/** Final scores about to be persisted, with the breakdown when there is one. */
+type FinalScores = Array<{
+  playerId: PlayerId;
+  score: number;
+  breakdown?: Record<string, number>;
+}>;
+
+/** How a scored game came out, driving the reveal and then the score sheet. */
+interface EndOutcome {
+  scores: FinalScores;
   ranking: Ranked[];
+  /** The per-category values to lay out after the reveal, or null. */
+  values: Record<string, Record<string, number>> | null;
+  /** Who won — empty while the leaders are level and the tie unbroken. */
+  winners: PlayerId[];
 }
 
 export function PlayScreen({ gameId }: { gameId: GameId }) {
@@ -71,7 +89,10 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   // Category scoring: the end sheet modal, then the reveal → table phases.
   const [catOpen, setCatOpen] = useState(false);
   const [phase, setPhase] = useState<"play" | "reveal" | "table">("play");
-  const [result, setResult] = useState<CategoryResult | null>(null);
+  const [end, setEnd] = useState<EndOutcome | null>(null);
+  // Opened from the reveal, once it has uncovered leaders that came out level:
+  // the prompt then applies the game's own rules and confirms who won.
+  const [tieOpen, setTieOpen] = useState(false);
   // Live running scores, seeded once from the loaded game then owned here so
   // they survive turn reloads and feed both the score panel and the end prompt.
   const [scores, setScores] = useState<Record<string, number> | null>(null);
@@ -221,21 +242,93 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   }
 
   async function handleEnd(
-    winnerId: PlayerId,
-    scores?: Array<{ playerId: PlayerId; score: number }>,
+    winnerIds: PlayerId[],
+    scores?: FinalScores,
+    tieBreak?: TieBreakRecord | null,
   ) {
     if (!game || busy) {
       return;
     }
     setBusy(true);
     try {
-      await repo.end(game.id, winnerId, scores);
+      await repo.end(game.id, winnerIds, scores, tieBreak ?? null);
       await load();
     } catch {
       setError("Impossible de terminer la partie.");
     } finally {
       setBusy(false);
     }
+  }
+
+  /** Records the finished game; false when it failed and the screen must stay. */
+  async function persistEnd(
+    outcome: EndOutcome,
+    tieBreak: TieBreakRecord | null,
+  ): Promise<boolean> {
+    if (!game || busy) {
+      return false;
+    }
+    setBusy(true);
+    try {
+      await repo.end(game.id, outcome.winners, outcome.scores, tieBreak);
+    } catch {
+      setError("Impossible de terminer la partie.");
+      setBusy(false);
+
+      return false;
+    }
+
+    setBusy(false);
+
+    return true;
+  }
+
+  /**
+   * Hands a finished scored game over to the reveal, which climbs the standings
+   * from the last place to the first. A lone leader is recorded up front; level
+   * leaders leave `winners` empty so nothing is written — and nothing shown —
+   * until the reveal reaches their place and the table settles it there.
+   */
+  async function revealEnd(outcome: EndOutcome) {
+    if (outcome.winners.length > 0 && !(await persistEnd(outcome, null))) {
+      return;
+    }
+
+    setCatOpen(false);
+    setEndFormOpen(false);
+    setEnd(outcome);
+    setPhase("reveal");
+  }
+
+  /** Records the game once the reveal's tie-break has named the winners. */
+  async function settleTie(
+    winnerIds: PlayerId[],
+    record: TieBreakRecord | null,
+  ) {
+    if (!end) {
+      return;
+    }
+
+    const settled = { ...end, winners: winnerIds };
+
+    if (!(await persistEnd(settled, record))) {
+      return;
+    }
+
+    setTieOpen(false);
+    setEnd(settled);
+  }
+
+  /** Leaves the reveal: the score sheet for a category game, the recap for the rest. */
+  async function leaveReveal() {
+    if (end?.values) {
+      setPhase("table");
+
+      return;
+    }
+
+    setPhase("play");
+    await load();
   }
 
   // Cooperative games end on a shared outcome (all win, or none).
@@ -331,21 +424,42 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
       score: scored[p.playerId]?.total ?? 0,
       breakdown: values[p.playerId] ?? {},
     }));
+    // A category sheet is always summed highest-first, so the leader is the
+    // player alone on rank 1 — nobody while several share it.
+    const leader = loneLeader(scores, "highest");
 
-    setBusy(true);
-    try {
-      await repo.end(game.id, ranking[0].playerId, scores);
-    } catch {
-      setError("Impossible de terminer la partie.");
-      setBusy(false);
+    await revealEnd({
+      scores,
+      ranking,
+      values,
+      winners: leader ? [leader] : [],
+    });
+  }
 
+  /**
+   * A game scored on a final total: the leader wins, unless the table named
+   * someone else by hand (`override`) or several players finished level — the
+   * reveal then offers to apply the game's own rules once it gets there.
+   */
+  async function handleFinalScores(
+    scores: Array<{ playerId: PlayerId; score: number }>,
+    override: PlayerId | null,
+  ) {
+    if (!game) {
       return;
     }
 
-    setBusy(false);
-    setCatOpen(false);
-    setResult({ values, ranking });
-    setPhase("reveal");
+    const direction = game.boardgame.scoring
+      ? winnerDirection(game.boardgame.scoring.winCondition)
+      : "highest";
+    const leader = override ?? loneLeader(scores, direction);
+
+    await revealEnd({
+      scores,
+      ranking: rankFinalScores(scores, direction),
+      values: null,
+      winners: leader ? [leader] : [],
+    });
   }
 
   if (loading) {
@@ -362,24 +476,59 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
     id: p.playerId,
     name: p.player.name,
   }));
+  // The boardgame's own secondary rules, for a game that ends level.
+  const tieRules = game.boardgame.scoring?.tieBreak ?? [];
 
-  // Category flow takes over the screen: reveal the ranking, then the sheet.
-  if (phase === "reveal" && result) {
+  // Scoring flow takes over the screen: reveal the ranking, then the sheet.
+  if (phase === "reveal" && end) {
     return (
-      <RankingReveal
-        ranking={result.ranking}
-        players={namedPlayers}
-        onDone={() => setPhase("table")}
-      />
+      <>
+        <RankingReveal
+          ranking={end.ranking}
+          players={namedPlayers}
+          winners={end.winners}
+          tieBreak={
+            end.winners.length === 0
+              ? {
+                  // No rule in the box means the reveal can only offer to share
+                  // the win, so the button says so rather than promising more.
+                  label:
+                    tieRules.length > 0 ? "Départager" : "Victoire partagée",
+                  onOpen: () => setTieOpen(true),
+                }
+              : null
+          }
+          onDone={leaveReveal}
+        />
+
+        {tieOpen ? (
+          <TieBreakPrompt
+            players={namedPlayers}
+            scores={Object.fromEntries(
+              end.scores.map(s => [s.playerId, s.score]),
+            )}
+            direction={
+              game.boardgame.scoring
+                ? winnerDirection(game.boardgame.scoring.winCondition)
+                : "highest"
+            }
+            rules={tieRules}
+            currentPlayerId={game.currentPlayerId}
+            onConfirm={settleTie}
+            onCancel={() => setTieOpen(false)}
+            disabled={busy}
+          />
+        ) : null}
+      </>
     );
   }
-  if (phase === "table" && result) {
+  if (phase === "table" && end?.values) {
     return (
       <FinalScoreTable
         sheet={game.boardgame.scoring?.sheet ?? []}
         players={namedPlayers}
-        values={result.values}
-        ranking={result.ranking}
+        values={end.values}
+        ranking={end.ranking}
         onDone={() => router.push("/games")}
       />
     );
@@ -402,6 +551,18 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
   const perRound = turnsPerRound(game.boardgame.turnMode, game.players.length);
   const atFinalTurn = isFinalTurn(game.turn, perRound, roundLimit);
   const canEnd = roundLimit === null || atFinalTurn;
+
+  // Live scoring: who the target-reached prompt proposes as winner, already
+  // resolved through those rules (Catan hands the tie to whoever holds the turn).
+  const liveOutcome = resolveTieBreak(
+    game.players.map(p => ({
+      playerId: p.playerId,
+      score: scores?.[p.playerId] ?? 0,
+    })),
+    "highest",
+    tieRules,
+    { currentPlayerId: game.currentPlayerId },
+  );
 
   // Dice tracking (Catan): a one-tap histogram sharing the screen with a
   // slimmed-down timer.
@@ -549,7 +710,7 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
             <ScoreEntry
               players={game.players.map(p => p.player)}
               winCondition={game.boardgame.scoring.winCondition}
-              onEnd={handleEnd}
+              onEnd={handleFinalScores}
               disabled={busy}
               open={endFormOpen}
               onOpenChange={setEndFormOpen}
@@ -558,7 +719,17 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
         ) : (
           <WinnerPicker
             players={game.players.map(p => p.player)}
-            onPick={handleEnd}
+            onPick={winnerIds => {
+              // Picked by hand: several names is a shared victory the table
+              // decided on, with no score to explain it.
+              handleEnd(
+                winnerIds,
+                undefined,
+                winnerIds.length > 1
+                  ? { tied: winnerIds, steps: [], shared: true }
+                  : null,
+              );
+            }}
             disabled={busy}
             open={endFormOpen}
             onOpenChange={setEndFormOpen}
@@ -568,28 +739,21 @@ export function PlayScreen({ gameId }: { gameId: GameId }) {
 
       {endOpen && scores ? (
         <LiveEndPrompt
-          players={game.players.map(p => ({
-            id: p.playerId,
-            name: p.player.name,
-          }))}
+          players={namedPlayers}
           scores={scores}
-          defaultWinnerId={leaderByScore(
-            game.players.map(p => ({
-              playerId: p.playerId,
-              score: scores[p.playerId] ?? 0,
-            })),
-            "highest",
-          )}
-          onEnd={winnerId => {
+          defaultWinnerIds={liveOutcome.winners}
+          tieBreak={tieBreakRecord(liveOutcome)}
+          onEnd={winnerIds => {
             setEndOpen(false);
             // Persist every player's live score, not just the winner's, so no
             // one is left unscored in the finished game.
             handleEnd(
-              winnerId,
+              winnerIds,
               game.players.map(p => ({
                 playerId: p.playerId,
                 score: scores[p.playerId] ?? 0,
               })),
+              tieBreakRecord(liveOutcome),
             );
           }}
           onCancel={() => setEndOpen(false)}
@@ -847,13 +1011,21 @@ function WinnerPicker({
   disabled,
   open,
   onOpenChange,
-}: {
+}: Readonly<{
   players: { id: PlayerId; name: string }[];
-  onPick: (id: PlayerId) => void;
+  onPick: (ids: PlayerId[]) => void;
   disabled: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}) {
+}>) {
+  const [picked, setPicked] = useState<PlayerId[]>([]);
+
+  const toggle = (id: PlayerId) => {
+    setPicked(ids =>
+      ids.includes(id) ? ids.filter(w => w !== id) : [...ids, id],
+    );
+  };
+
   if (!open) {
     return (
       <button
@@ -869,17 +1041,37 @@ function WinnerPicker({
   return (
     <div className="flex w-full max-w-xs flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10">
       <p className="text-sm font-semibold">Qui a gagné ?</p>
-      {players.map(p => (
-        <button
-          key={p.id}
-          type="button"
-          disabled={disabled}
-          onClick={() => onPick(p.id)}
-          className="rounded-lg border border-black/10 px-3 py-2 text-left transition hover:border-indigo-400 disabled:opacity-60 dark:border-white/10"
-        >
-          {p.name}
-        </button>
-      ))}
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+        Plusieurs noms = victoire partagée.
+      </p>
+      {players.map(p => {
+        const isWinner = picked.includes(p.id);
+
+        return (
+          <button
+            key={p.id}
+            type="button"
+            disabled={disabled}
+            onClick={() => toggle(p.id)}
+            className={`rounded-lg border px-3 py-2 text-left transition disabled:opacity-60 ${
+              isWinner
+                ? "border-amber-500 bg-amber-500/10 font-semibold"
+                : "border-black/10 hover:border-indigo-400 dark:border-white/10"
+            }`}
+          >
+            {isWinner ? "🏆 " : ""}
+            {p.name}
+          </button>
+        );
+      })}
+      <button
+        type="button"
+        disabled={disabled || picked.length === 0}
+        onClick={() => onPick(picked)}
+        className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
+      >
+        Terminer
+      </button>
       <button
         type="button"
         onClick={() => onOpenChange(false)}
@@ -953,8 +1145,9 @@ function CoopEnd({
 /**
  * End-of-game score entry for a game scored at the end (final total). Each
  * player gets a number; the leader (by the win condition's direction) is
- * proposed as winner and can be overridden by tapping a name (ties, house
- * rules). Ends once every score is in.
+ * proposed as winner — several of them while the table is level, which the
+ * tie-break prompt settles afterwards. Tapping a name names that player winner
+ * outright (house rules). Ends once every score is in.
  */
 function ScoreEntry({
   players,
@@ -963,17 +1156,17 @@ function ScoreEntry({
   disabled,
   open,
   onOpenChange,
-}: {
+}: Readonly<{
   players: { id: PlayerId; name: string }[];
   winCondition: WinCondition;
   onEnd: (
-    winnerId: PlayerId,
     scores: Array<{ playerId: PlayerId; score: number }>,
+    override: PlayerId | null,
   ) => void;
   disabled: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}) {
+}>) {
   const [raw, setRaw] = useState<Record<string, string>>({});
   const [override, setOverride] = useState<PlayerId | null>(null);
 
@@ -987,8 +1180,16 @@ function ScoreEntry({
     };
   });
   const allEntered = entries.every(e => e.score !== null);
-  const winnerId =
-    override ?? leaderByScore(entries, winnerDirection(winCondition));
+  // While a score is missing the leader can't be trusted, so highlight nobody —
+  // and level leaders are left uncrowned too, so the form doesn't give the ex
+  // æquo away before the reveal reaches the place they share.
+  const leader = allEntered
+    ? loneLeader(
+        entries.map(e => ({ playerId: e.playerId, score: e.score ?? 0 })),
+        winnerDirection(winCondition),
+      )
+    : null;
+  const highlighted = override ?? leader;
 
   if (!open) {
     return (
@@ -1006,7 +1207,7 @@ function ScoreEntry({
     <div className="flex w-full max-w-xs flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10">
       <p className="text-sm font-semibold">Scores de fin</p>
       {players.map(p => {
-        const isWinner = winnerId === p.id;
+        const isWinner = highlighted === p.id;
 
         return (
           <div key={p.id} className="flex items-center justify-between gap-2">
@@ -1035,14 +1236,12 @@ function ScoreEntry({
       })}
       <button
         type="button"
-        disabled={disabled || !allEntered || !winnerId}
+        disabled={disabled || !allEntered}
         onClick={() => {
-          if (winnerId) {
-            onEnd(
-              winnerId,
-              entries.map(e => ({ playerId: e.playerId, score: e.score ?? 0 })),
-            );
-          }
+          onEnd(
+            entries.map(e => ({ playerId: e.playerId, score: e.score ?? 0 })),
+            override,
+          );
         }}
         className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
       >

@@ -13,7 +13,6 @@ import {
   finalStandings,
   initialScoreFor,
   isSubsection,
-  leaderByScore,
   optionTargetModifier,
   rankBonusFor,
   rankByTotal,
@@ -82,43 +81,6 @@ describe("winnerDirection", () => {
     expect(winnerDirection({ type: "threshold", field: "pointsToWin" })).toBe(
       "highest",
     );
-  });
-});
-
-describe("leaderByScore", () => {
-  const entries = [
-    { playerId: p("a"), score: 92 },
-    { playerId: p("b"), score: 104 },
-    { playerId: p("c"), score: 87 },
-  ];
-
-  it("picks the highest / lowest by direction", () => {
-    expect(leaderByScore(entries, "highest")).toBe("b");
-    expect(leaderByScore(entries, "lowest")).toBe("c");
-  });
-
-  it("keeps the first among tied leaders", () => {
-    const tied = [
-      { playerId: p("a"), score: 50 },
-      { playerId: p("b"), score: 50 },
-    ];
-
-    expect(leaderByScore(tied, "highest")).toBe("a");
-  });
-
-  it("ignores players without a score, null when nobody scored", () => {
-    expect(
-      leaderByScore(
-        [
-          { playerId: p("a"), score: null },
-          { playerId: p("b"), score: 10 },
-        ],
-        "highest",
-      ),
-    ).toBe("b");
-    expect(
-      leaderByScore([{ playerId: p("a"), score: null }], "highest"),
-    ).toBeNull();
   });
 });
 
@@ -376,6 +338,38 @@ describe("finalStandings", () => {
       ["a", 1],
       ["c", 2], // 12 beats 20 when lowest wins
       ["b", 3],
+    ]);
+  });
+
+  it("shares rank 1 between the winners of an ex æquo, next player 3rd", () => {
+    const ranked = finalStandings(
+      [
+        { playerId: p("a"), score: 32, isWinner: true },
+        { playerId: p("b"), score: 32, isWinner: true },
+        { playerId: p("c"), score: 20, isWinner: false },
+      ],
+      "highest",
+    );
+
+    expect(ranked.map(r => [r.playerId, r.rank])).toEqual([
+      ["a", 1],
+      ["b", 1], // no rule separated them: victory shared
+      ["c", 3], // two players ahead of him
+    ]);
+  });
+
+  it("ranks on score alone when nobody is flagged a winner", () => {
+    const ranked = finalStandings(
+      [
+        { playerId: p("a"), score: 8, isWinner: false },
+        { playerId: p("b"), score: 15, isWinner: false },
+      ],
+      "highest",
+    );
+
+    expect(ranked.map(r => [r.playerId, r.rank])).toEqual([
+      ["b", 1],
+      ["a", 2],
     ]);
   });
 

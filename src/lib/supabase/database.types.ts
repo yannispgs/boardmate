@@ -480,6 +480,7 @@ export type Database = {
           round: number
           started_at: string
           status: string
+          tie_break: Json | null
           turn: number
         }
         Insert: {
@@ -492,6 +493,7 @@ export type Database = {
           round?: number
           started_at?: string
           status?: string
+          tie_break?: Json | null
           turn?: number
         }
         Update: {
@@ -504,6 +506,7 @@ export type Database = {
           round?: number
           started_at?: string
           status?: string
+          tie_break?: Json | null
           turn?: number
         }
         Relationships: [

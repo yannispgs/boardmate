@@ -216,12 +216,13 @@ export function rankFinalScores(
 }
 
 /**
- * Final standings for the finished-game score panel. A competitive game has a
- * single recorded winner (ties are already broken at game end), so that winner
- * takes rank 1 alone and everyone else is ranked by score below them — a
- * co-leader on the same score is 2nd, not a shared 1st. Ties from 2nd place down
- * still share a rank. Falls back to plain {@link rankFinalScores} when there is
- * not exactly one winner (cooperative games: the whole table wins or loses).
+ * Final standings for the finished-game score panel. The recorded winners take
+ * rank 1 — one of them normally, several on a shared victory (ex æquo the
+ * tie-break rules couldn't separate) — and everyone else is ranked by score
+ * below them: a co-leader on the same score who lost the tie-break is 2nd, not a
+ * shared 1st. Ties from 2nd place down still share a rank. Falls back to plain
+ * {@link rankFinalScores} when nobody won, or when everybody did (cooperative
+ * games: the whole table wins or loses together).
  */
 export function finalStandings(
   entries: Array<{ playerId: PlayerId; score: number; isWinner: boolean }>,
@@ -229,52 +230,27 @@ export function finalStandings(
 ): Ranked[] {
   const winners = entries.filter(e => e.isWinner);
 
-  if (winners.length !== 1) {
+  if (winners.length === 0 || winners.length === entries.length) {
     return rankFinalScores(entries, direction);
   }
 
-  const winner = winners[0];
-  // Rank the others among themselves, then shift below the lone winner.
+  const top = winners.map(w => ({
+    playerId: w.playerId,
+    total: w.score,
+    rank: 1,
+  }));
+  // Rank the others among themselves, then shift below the whole winning group.
   const rest = rankFinalScores(
-    entries.filter(e => e.playerId !== winner.playerId),
+    entries.filter(e => !e.isWinner),
     direction,
-  ).map(r => ({ ...r, rank: r.rank + 1 }));
+  ).map(r => ({ ...r, rank: r.rank + winners.length }));
 
-  return [{ playerId: winner.playerId, total: winner.score, rank: 1 }, ...rest];
+  return [...top, ...rest];
 }
 
 /** The direction a win condition ranks by (a threshold is a race to the top). */
 export function winnerDirection(condition: WinCondition): ScoreDirection {
   return condition.type === "lowest" ? "lowest" : "highest";
-}
-
-/**
- * The leading player by score in the given direction. Players with no score yet
- * are ignored; a tie keeps the first among the leaders (the end-of-game form
- * lets the user override). Returns null when nobody has a score.
- */
-export function leaderByScore(
-  entries: Array<{ playerId: PlayerId; score: number | null }>,
-  direction: ScoreDirection,
-): PlayerId | null {
-  let leader: { playerId: PlayerId; score: number } | null = null;
-
-  for (const e of entries) {
-    if (e.score === null) {
-      continue;
-    }
-
-    if (
-      leader === null ||
-      (direction === "highest"
-        ? e.score > leader.score
-        : e.score < leader.score)
-    ) {
-      leader = { playerId: e.playerId, score: e.score };
-    }
-  }
-
-  return leader?.playerId ?? null;
 }
 
 /**

@@ -110,8 +110,9 @@ test("asks for the winner only on a tie, among the tied players", async ({
       page.getByRole("button", { name: names[2], exact: true }),
     ).toHaveCount(0);
 
-    // Override the default (first tied) → the second tied player wins.
-    await page.getByRole("button", { name: names[1], exact: true }).click();
+    // Both tied players are proposed (a shared victory); dropping the first
+    // leaves the second as the lone winner.
+    await page.getByRole("button", { name: names[0], exact: true }).click();
     await page.getByRole("button", { name: "Enregistrer la partie" }).click();
     await expect(page).toHaveURL(/\/games$/);
 
@@ -124,6 +125,67 @@ test("asks for the winner only on a tie, among the tied players", async ({
 
     expect(rows.find(r => r.player_id === ids[1])?.is_winner).toBe(true);
     expect(rows.find(r => r.player_id === ids[0])?.is_winner).toBe(false);
+  } finally {
+    if (gameId) {
+      await admin.from("games").delete().eq("id", gameId);
+    }
+    await admin.from("players").delete().in("name", names);
+  }
+});
+
+test("records a tie left unbroken as a shared victory (two winners)", async ({
+  page,
+}) => {
+  const names = await seedPlayers(2);
+  const admin = adminClient();
+  const { data: seeded } = await admin
+    .from("players")
+    .select("id, name")
+    .in("name", names);
+  const ids = (seeded ?? []).map(p => p.id);
+  let gameId: string | undefined;
+
+  try {
+    await page.goto("/games");
+    await page
+      .getByRole("link", { name: "Ajouter une partie terminée" })
+      .click();
+    await page.getByRole("button", { name: CATAN_NAME, exact: true }).click();
+    for (const name of names) {
+      await page.getByRole("button", { name, exact: true }).click();
+    }
+
+    await page.getByRole("spinbutton", { name: names[0] }).fill("10");
+    await page.getByRole("spinbutton", { name: names[1] }).fill("10");
+
+    // Both tied players stay selected → the victory is shared.
+    await expect(page.getByText("Vainqueurs")).toBeVisible();
+    await page.getByRole("button", { name: "Enregistrer la partie" }).click();
+    await expect(page).toHaveURL(/\/games$/);
+
+    const { data: gps } = await admin
+      .from("game_players")
+      .select("is_winner, player_id, game_id")
+      .in("player_id", ids);
+    const rows = gps ?? [];
+    gameId = rows[0]?.game_id as string;
+
+    expect(rows.filter(r => r.is_winner)).toHaveLength(2);
+
+    // The ended list credits both names, and the game keeps the ex æquo trail.
+    const finished = page.locator("details", {
+      has: page.getByText("Terminées"),
+    });
+    await finished.locator("summary").click();
+    await expect(page.getByText(`🏆 ${names[0]} et ${names[1]}`)).toBeVisible();
+
+    const { data: game } = await admin
+      .from("games")
+      .select("tie_break")
+      .eq("id", gameId)
+      .single();
+
+    expect((game?.tie_break as { shared: boolean } | null)?.shared).toBe(true);
   } finally {
     if (gameId) {
       await admin.from("games").delete().eq("id", gameId);

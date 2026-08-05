@@ -7,9 +7,57 @@ import { Drawer } from "@/components/Drawer";
 import { ExtensionBadgeList } from "@/components/games/ExtensionBadgeList";
 import type { PopulatedGame } from "@/lib/domain";
 import { playedExtensions } from "@/lib/game/extensions";
+import { formatNames } from "@/lib/game/tie-break";
 
 import { EndScorePanel } from "./EndScorePanel";
 import { GameStats } from "./GameStats";
+
+/**
+ * Who won, under the "Partie terminée !" heading: the whole table on a
+ * cooperative game, otherwise the winner — or several names when no tie-break
+ * rule separated them (a shared victory).
+ */
+function Outcome({
+  coop,
+  coopWon,
+  names,
+  score,
+  shared,
+}: Readonly<{
+  coop: boolean;
+  coopWon: boolean;
+  names: string;
+  score: number | null;
+  shared: boolean;
+}>) {
+  if (coop) {
+    return (
+      <p className="text-zinc-500 dark:text-zinc-400">
+        <span className="font-semibold">
+          {coopWon ? "Victoire commune 🎉" : "Défaite 😔"}
+        </span>
+      </p>
+    );
+  }
+
+  if (names === "") {
+    return null;
+  }
+
+  return (
+    <p className="text-zinc-500 dark:text-zinc-400">
+      Bravo <span className="font-semibold">{names}</span> 🎉
+      {shared ? (
+        <span className="block text-sm font-semibold">
+          Victoire partagée 🤝
+        </span>
+      ) : null}
+      {score !== null ? (
+        <span className="block text-sm">avec {score} points</span>
+      ) : null}
+    </p>
+  );
+}
 
 /**
  * The finished-game screen: a winner banner filling the view, then the
@@ -27,9 +75,11 @@ export function EndedGame({
 }) {
   const statsRef = useRef<HTMLDivElement>(null);
   const [scoreOpen, setScoreOpen] = useState(false);
-  const winnerEntry = game.players.find(p => p.isWinner) ?? null;
-  const winner = winnerEntry?.player ?? null;
-  const winnerScore = winnerEntry?.score ?? null;
+  // Usually one, several on a shared victory (an ex æquo no rule separated).
+  const winners = game.players.filter(p => p.isWinner);
+  const winnerNames = formatNames(winners.map(w => w.player.name));
+  const winnerScore = winners[0]?.score ?? null;
+  const shared = winners.length > 1;
 
   // Cooperative games have no individual winner: the whole table wins or loses
   // together (every player `isWinner`, or none).
@@ -69,24 +119,13 @@ export function EndedGame({
               />
             </div>
 
-            {coop ? (
-              <p className="text-zinc-500 dark:text-zinc-400">
-                {coopWon ? (
-                  <span className="font-semibold">Victoire commune 🎉</span>
-                ) : (
-                  <span className="font-semibold">Défaite 😔</span>
-                )}
-              </p>
-            ) : winner ? (
-              <p className="text-zinc-500 dark:text-zinc-400">
-                Bravo <span className="font-semibold">{winner.name}</span> 🎉
-                {winnerScore !== null ? (
-                  <span className="block text-sm">
-                    avec {winnerScore} points
-                  </span>
-                ) : null}
-              </p>
-            ) : null}
+            <Outcome
+              coop={coop}
+              coopWon={coopWon}
+              names={winnerNames}
+              score={winnerScore}
+              shared={shared}
+            />
           </div>
         </div>
 

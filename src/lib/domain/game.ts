@@ -11,6 +11,7 @@ import type {
   PlayerId,
 } from "./ids";
 import type { Player } from "./player";
+import type { TieBreakRecord } from "./tie-break";
 
 export type GameStatus = "ongoing" | "ended";
 
@@ -31,6 +32,12 @@ export interface Game {
   /** ISO 8601 timestamps. */
   startedAt: string;
   endedAt: string | null;
+  /**
+   * How the players tied on the best score were separated, when the game ended
+   * on a tie. Null when a single player led outright (the usual case). Shown in
+   * the score recap only.
+   */
+  tieBreak: TieBreakRecord | null;
 }
 
 /**
@@ -237,6 +244,7 @@ export interface NewFinishedGame {
   boardgameId: BoardgameId;
   /** When the game ended (ISO 8601) — drives the stats date windows. */
   endedAt: string;
-  winnerId: PlayerId;
+  /** Usually one player; several on a shared victory (ex æquo). */
+  winnerIds: PlayerId[];
   players: FinishedGameEntry[];
 }

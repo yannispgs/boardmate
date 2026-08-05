@@ -6,6 +6,7 @@ import { ExtensionBadgeList } from "@/components/games/ExtensionBadgeList";
 import { TrashIcon } from "@/components/icons";
 import { Tooltip } from "@/components/Tooltip";
 import type { GameListItem, PlayerId } from "@/lib/domain";
+import { formatNames } from "@/lib/game/tie-break";
 
 /** Full start timestamp (date + HH:mm:ss), shown when hovering the date. */
 function fullStart(iso: string): string {
@@ -119,9 +120,19 @@ export function GameCard({
 }) {
   const count = game.players.length;
   const currentPlayer = game.players.find(p => p.id === game.currentPlayerId);
-  const winner = game.players.find(p => p.isWinner);
+  // Usually one, several on a shared victory (an ex æquo no rule separated).
+  const winners = game.players.filter(p => p.isWinner);
+  const winnerLabel = formatNames(winners.map(w => w.name));
+  const winnerScore = winners[0]?.score ?? null;
   // Cooperative games win or lose as a group (some player `isWinner`, or none).
   const coopWon = game.players.some(p => p.isWinner);
+  // How a finished game opens its line: the table's shared result on a
+  // cooperative game, else the winner(s) and their score.
+  const scoreLabel = winnerScore === null ? "" : ` (${winnerScore} pts)`;
+  const winnerOutcome =
+    winners.length === 0 ? "" : `🏆 ${winnerLabel}${scoreLabel}`;
+  const coopOutcome = coopWon ? "🎉 Victoire" : "😔 Défaite";
+  const outcome = coop ? coopOutcome : winnerOutcome;
   // A finished game has no "current" player to emphasise.
   const highlightId = ended ? null : game.currentPlayerId;
 
@@ -174,13 +185,7 @@ export function GameCard({
             </span>
             {ended ? (
               <span className="mt-0.5 text-xs font-medium text-amber-600 dark:text-amber-500">
-                {coop
-                  ? `${coopWon ? "🎉 Victoire" : "😔 Défaite"} · `
-                  : winner
-                    ? `🏆 ${winner.name}${
-                        winner.score !== null ? ` (${winner.score} pts)` : ""
-                      } · `
-                    : ""}
+                {outcome === "" ? null : `${outcome} · `}
                 {game.round} tour{game.round > 1 ? "s" : ""}
               </span>
             ) : currentPlayer ? (

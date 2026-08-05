@@ -6,12 +6,7 @@ import { useState } from "react";
 import { ErrorText } from "@/components/ErrorText";
 import type { Boardgame, Player, PlayerId } from "@/lib/domain";
 import { localDay } from "@/lib/game/game-filters";
-import {
-  leaderByScore,
-  rankByTotal,
-  scoreCategories,
-  winnerDirection,
-} from "@/lib/game/scoring";
+import { scoreCategories, winnerDirection } from "@/lib/game/scoring";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useGames } from "@/lib/hooks/use-games";
 import { usePlayers } from "@/lib/hooks/use-players";
@@ -45,7 +40,8 @@ export function FinishedGameForm() {
   // fact (the detail can be filled later from the game's stats).
   const [entryMode, setEntryMode] = useState<"total" | "detail">("total");
   const [catRaw, setCatRaw] = useState<CategoryRaw>({});
-  const [winnerId, setWinnerId] = useState<PlayerId | null>(null);
+  // Null while the form's own suggestion stands; set once the table picks.
+  const [winnerIds, setWinnerIds] = useState<PlayerId[] | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -85,34 +81,10 @@ export function FinishedGameForm() {
   const scoresComplete =
     scoring === null || selected.every(p => scoreOf(p.id) !== null);
 
-  // Winner suggested from the scores; overridable (tie-breaks the app doesn't
-  // model). Unscored games have no suggestion — the winner must be picked.
-  const suggestedWinner: PlayerId | null = (() => {
-    if (!scoresComplete || scoring === null) {
-      return null;
-    }
-
-    const entries = selected.map(p => ({
-      playerId: p.id,
-      score: scoreOf(p.id),
-    }));
-
-    if (sheet) {
-      return (
-        rankByTotal(
-          entries.map(e => ({ playerId: e.playerId, total: e.score ?? 0 })),
-        )[0]?.playerId ?? null
-      );
-    }
-
-    return leaderByScore(entries, winnerDirection(scoring.winCondition));
-  })();
-
-  const effectiveWinner = winnerId ?? suggestedWinner;
-
-  // The winner is only worth asking about on a TIE for the best score: then the
-  // user says who takes it. Otherwise it's simply the top scorer — no picker.
-  // An unscored game has no score, so its winner is always picked (everyone).
+  // The players sharing the best score. The winner is only worth asking about
+  // on a TIE: then the table says who takes it — one of them, or all of them on
+  // a shared victory. Otherwise it's simply the top scorer, no picker. An
+  // unscored game has no score, so its winner is always picked (everyone).
   const winnerCandidates: Player[] = (() => {
     if (scoring === null) {
       return selected;
@@ -138,17 +110,32 @@ export function FinishedGameForm() {
 
   const needsWinnerChoice =
     scoring === null ? selected.length >= 1 : winnerCandidates.length > 1;
+  // A scored game proposes its co-leaders (one of them when there is a clear
+  // top scorer, all of them on a tie — a shared victory until narrowed down);
+  // an unscored one has nothing to propose.
+  const suggestedWinners =
+    scoring === null ? [] : winnerCandidates.map(p => p.id);
+  const effectiveWinners = winnerIds ?? suggestedWinners;
+  const sharedVictory = effectiveWinners.length > 1;
+
+  function toggleWinner(id: PlayerId) {
+    setWinnerIds(
+      effectiveWinners.includes(id)
+        ? effectiveWinners.filter(w => w !== id)
+        : [...effectiveWinners, id],
+    );
+  }
 
   function chooseBoardgame(b: Boardgame) {
     setBoardgame(b);
     setTotals({});
     setCatRaw({});
     setEntryMode("total");
-    setWinnerId(null);
+    setWinnerIds(null);
   }
 
   function togglePlayer(p: Player) {
-    setWinnerId(null);
+    setWinnerIds(null);
     setSelected(prev =>
       prev.some(s => s.id === p.id)
         ? prev.filter(s => s.id !== p.id)
@@ -160,11 +147,11 @@ export function FinishedGameForm() {
     boardgame !== null &&
     selected.length >= 2 &&
     scoresComplete &&
-    effectiveWinner !== null &&
+    effectiveWinners.length > 0 &&
     !submitting;
 
   async function submit() {
-    if (!boardgame || effectiveWinner === null) {
+    if (!boardgame || effectiveWinners.length === 0) {
       return;
     }
 
@@ -175,7 +162,7 @@ export function FinishedGameForm() {
       await createFinished({
         boardgameId: boardgame.id,
         endedAt: new Date(`${endedAt}T12:00:00`).toISOString(),
-        winnerId: effectiveWinner,
+        winnerIds: effectiveWinners,
         players: selected.map((p, index) => ({
           playerId: p.id,
           seatOrder: index,
@@ -283,7 +270,7 @@ export function FinishedGameForm() {
                         className="sr-only"
                         checked={entryMode === mode}
                         onChange={() => {
-                          setWinnerId(null);
+                          setWinnerIds(null);
                           setEntryMode(mode);
                         }}
                       />
@@ -303,7 +290,7 @@ export function FinishedGameForm() {
                     raw={catRaw}
                     disabled={submitting}
                     onCell={(pid, key, text) => {
-                      setWinnerId(null);
+                      setWinnerIds(null);
                       setCatRaw(r => ({
                         ...r,
                         [pid]: { ...(r[pid] ?? {}), [key]: text },
@@ -344,7 +331,7 @@ export function FinishedGameForm() {
                         min={scoring.allowNegative ? undefined : 0}
                         value={totals[p.id] ?? ""}
                         onChange={e => {
-                          setWinnerId(null);
+                          setWinnerIds(null);
                           setTotals(t => ({ ...t, [p.id]: e.target.value }));
                         }}
                         className="no-spinners w-20 rounded-lg border border-black/15 bg-white px-2 py-1 text-right tabular-nums outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900"
@@ -359,7 +346,7 @@ export function FinishedGameForm() {
           {needsWinnerChoice ? (
             <div className="flex flex-col gap-1.5">
               <span className="text-sm font-medium">
-                Vainqueur
+                {sharedVictory ? "Vainqueurs" : "Vainqueur"}
                 {scoring !== null ? (
                   <span className="font-normal text-zinc-500 dark:text-zinc-400">
                     {" "}
@@ -367,14 +354,17 @@ export function FinishedGameForm() {
                   </span>
                 ) : null}
               </span>
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                Plusieurs noms = victoire partagée.
+              </span>
               {winnerCandidates.map(p => {
-                const isWinner = effectiveWinner === p.id;
+                const isWinner = effectiveWinners.includes(p.id);
 
                 return (
                   <button
                     key={p.id}
                     type="button"
-                    onClick={() => setWinnerId(p.id)}
+                    onClick={() => toggleWinner(p.id)}
                     className={`flex items-center justify-between rounded-lg border px-4 py-2.5 text-sm font-medium transition ${
                       isWinner
                         ? "border-indigo-500 bg-indigo-600 text-white"
