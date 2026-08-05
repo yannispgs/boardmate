@@ -5,8 +5,11 @@ import type {
   CategorySubsection,
   ScoreSheetItem,
 } from "@/lib/domain";
+import type { CategoryIconId } from "@/lib/game/category-icons";
 import { type MoveDirection, moveItem } from "@/lib/game/reorder";
 import { isSubsection } from "@/lib/game/scoring";
+
+import { CategoryIconPicker } from "./CategoryIconPicker";
 
 const input =
   "min-w-0 flex-1 rounded-md border border-black/15 bg-white px-2 py-1 text-sm outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900";
@@ -76,7 +79,9 @@ export function ScoreSheetEditor({
           <FieldRow
             key={item.key}
             label={item.label}
+            icon={item.icon}
             onLabel={label => replace(i, { ...item, label })}
+            onIcon={icon => replace(i, { ...item, icon })}
             onMove={direction => moveAt(i, direction)}
             canUp={i > 0}
             canDown={i < value.length - 1}
@@ -146,32 +151,40 @@ function MoveButtons({
   );
 }
 
-/** One scored line: a label input, the reorder controls and a remove control. */
+/**
+ * One scored line: a label input, its symbol, the reorder controls and a remove
+ * control.
+ */
 function FieldRow({
   label,
+  icon,
   onLabel,
+  onIcon,
   onMove,
   canUp,
   canDown,
   onRemove,
   placeholder,
-}: {
+}: Readonly<{
   label: string;
+  icon: string | undefined;
   onLabel: (label: string) => void;
+  onIcon: (icon: CategoryIconId | undefined) => void;
   onMove: (direction: MoveDirection) => void;
   canUp: boolean;
   canDown: boolean;
   onRemove: () => void;
   placeholder: string;
-}) {
+}>) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <input
         value={label}
         onChange={e => onLabel(e.target.value)}
         placeholder={placeholder}
         className={input}
       />
+      <CategoryIconPicker icon={icon} label={label} onIcon={onIcon} />
       <MoveButtons onMove={onMove} canUp={canUp} canDown={canDown} />
       <button
         type="button"
@@ -246,7 +259,9 @@ function SectionRow({
           <FieldRow
             key={def.key}
             label={def.label}
+            icon={def.icon}
             onLabel={label => replaceField(j, { ...def, label })}
+            onIcon={icon => replaceField(j, { ...def, icon })}
             onMove={direction => moveField(j, direction)}
             canUp={j > 0}
             canDown={j < fields.length - 1}

@@ -1,6 +1,9 @@
 "use client";
 
-import type { PlayerId, ScoreSheetItem } from "@/lib/domain";
+import { CategoryIcon } from "@/components/CategoryIcon";
+import { ScoreSheetLegend } from "@/components/ScoreSheetLegend";
+import type { CategoryDef, PlayerId, ScoreSheetItem } from "@/lib/domain";
+import { categoryIconOf } from "@/lib/game/category-icons";
 import {
   isSubsection,
   rankBonusFor,
@@ -112,7 +115,12 @@ export function CategoryScoreGrid({
               className="grid items-end"
               style={{ gridTemplateColumns: gridCols }}
             >
-              <span className="sticky left-0 z-20 self-stretch bg-white dark:bg-zinc-900" />
+              {/* The empty corner over the category column: where the legend
+                  of the sheet's pictograms lives, right above the lines it
+                  explains. */}
+              <span className="sticky left-0 z-20 flex items-end self-stretch bg-white px-1 dark:bg-zinc-900">
+                <ScoreSheetLegend sheet={sheet} />
+              </span>
               {players.map(pl => (
                 <span
                   key={pl.id}
@@ -133,8 +141,7 @@ export function CategoryScoreGrid({
                 {item.categories.map(cat => (
                   <Row
                     key={cat.key}
-                    label={cat.label}
-                    colors={cat.colors}
+                    category={cat}
                     players={players}
                     value={pid => raw[pid]?.[cat.key] ?? ""}
                     onChange={(pid, t) => onCell(pid, cat.key, t)}
@@ -150,8 +157,7 @@ export function CategoryScoreGrid({
             ) : (
               <Section key={item.key} gridCols={gridCols}>
                 <Row
-                  label={item.label}
-                  colors={item.colors}
+                  category={item}
                   players={players}
                   value={pid => raw[pid]?.[item.key] ?? ""}
                   onChange={(pid, t) => onCell(pid, item.key, t)}
@@ -218,22 +224,23 @@ function dotStyle(colors: string[]): React.CSSProperties {
 
 /** One scored line: its label then a cell per player (with a `/N` bonus badge). */
 function Row({
-  label,
-  colors,
+  category,
   players,
   value,
   onChange,
   bonus,
   disabled,
 }: {
-  label: string;
-  colors?: string[];
+  category: CategoryDef;
   players: { id: PlayerId; name: string }[];
   value: (playerId: PlayerId) => string;
   onChange: (playerId: PlayerId, text: string) => void;
   bonus?: Record<string, number>;
   disabled: boolean;
 }) {
+  const { label, colors } = category;
+  const icon = categoryIconOf(category);
+
   return (
     <>
       <span
@@ -247,7 +254,13 @@ function Row({
             style={dotStyle(colors)}
           />
         ) : null}
-        <span className="min-w-0 truncate text-sm">{label}</span>
+        {/* A drawing stands in for the words, as on the printed pad; the ⓘ at
+            the head of the column is where it is spelled out. */}
+        {icon ? (
+          <CategoryIcon id={icon} title={label} />
+        ) : (
+          <span className="min-w-0 truncate text-sm">{label}</span>
+        )}
       </span>
       {players.map(pl => (
         <span key={pl.id} className="flex items-center justify-center">
