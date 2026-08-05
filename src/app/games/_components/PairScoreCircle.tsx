@@ -15,13 +15,23 @@ const MAX_PILE = 99;
 const TYPICAL_PILE = 6;
 
 /**
- * Where things sit, as a percentage of the square's half-width — the table seen
- * from above: the players sit AROUND it, the shared piles lie ON it, between
- * them. Two rings and not one interleaved: at eight players a single ring of
- * sixteen items has them elbowing each other.
+ * The most players that still fit on a single ring. Past that, seats and piles
+ * alternating make sixteen items elbowing each other on the same circle.
  */
-const PILE_RING = 26;
-const SEAT_RING = 44;
+const INTERLEAVED_MAX = 6;
+
+/**
+ * Where things sit, as a distance from the centre in percent of the square's
+ * width (so 50 is the edge, and a ring has to stop short of it by half an item).
+ *
+ * By default one ring, the pile sitting literally BETWEEN the two players who
+ * share it — the printed sheet's own layout, an oval straddling the border of
+ * two neighbouring cells. When the table is too full for that, the piles move
+ * out to a ring of their own, around the players rather than between them.
+ */
+const SINGLE_RING = 37;
+const CROWDED_SEAT_RING = 26;
+const CROWDED_PILE_RING = 40;
 
 const stepBtn =
   "flex h-12 w-12 items-center justify-center rounded-xl border border-black/15 text-2xl font-semibold leading-none transition active:bg-black/10 disabled:opacity-40 dark:border-white/15 dark:active:bg-white/10";
@@ -64,6 +74,7 @@ export function PairScoreCircle({
   const activePile = ring.find(p => p.key === active) ?? null;
   const activeValue = active === null ? undefined : piles[active];
   const nameOf = (id: PlayerId) => seats.find(s => s.id === id)?.name ?? "";
+  const interleaved = seats.length <= INTERLEAVED_MAX;
 
   // Selecting a pile for the first time seeds it: tapping it is already saying
   // "I've counted this one". An untouched pile stays blank rather than showing
@@ -91,8 +102,13 @@ export function PairScoreCircle({
       <div
         className={`relative mx-auto aspect-square w-full ${tableWidth(seats.length)}`}
       >
-        {/* The table the piles lie on, with the players seated around it. */}
-        <div className="absolute left-1/2 top-1/2 h-[70%] w-[70%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-100/70 dark:bg-zinc-800/70" />
+        {/* The table itself: the players sit at its rim, the piles between
+            them — or, on a full table, just outside their ring. */}
+        <div
+          className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-100/70 dark:bg-zinc-800/70 ${
+            interleaved ? "h-[74%] w-[74%]" : "h-[52%] w-[52%]"
+          }`}
+        />
 
         {seats.map((s, i) => {
           const flanking = pilesOfSeat(ids, s.id);
@@ -106,6 +122,7 @@ export function PairScoreCircle({
               name={s.name}
               owning={owning}
               angle={-90 + i * step}
+              radius={interleaved ? SINGLE_RING : CROWDED_SEAT_RING}
             />
           );
         })}
@@ -119,6 +136,7 @@ export function PairScoreCircle({
             disabled={disabled}
             onSelect={() => select(pile.key)}
             angle={-90 + (i + 0.5) * step}
+            radius={interleaved ? SINGLE_RING : CROWDED_PILE_RING}
           />
         ))}
       </div>
@@ -212,19 +230,16 @@ export function PairScoreCircle({
 }
 
 /**
- * How wide the table is drawn: a big circle for a full table, a smaller one for
- * three players, who would otherwise sit around a lot of nothing.
+ * How wide the table is drawn: the more seats round it, the more room the ring
+ * needs — a five-player table drawn as wide as a three-player one would have
+ * its piles touching.
  */
 function tableWidth(players: number): string {
-  if (players >= 6) {
-    return "max-w-[19rem]";
-  }
-
   if (players >= 5) {
-    return "max-w-[17rem]";
+    return "max-w-[21rem]";
   }
 
-  return "max-w-[14rem]";
+  return "max-w-[17rem]";
 }
 
 /** One player round the table: the score sheet's little figure, and his name. */
@@ -232,14 +247,16 @@ function SeatMark({
   name,
   owning,
   angle,
+  radius,
 }: {
   name: string;
   owning: boolean;
   angle: number;
+  radius: number;
 }) {
   return (
     <div
-      style={polar(angle, SEAT_RING)}
+      style={polar(angle, radius)}
       className={`absolute flex w-16 -translate-x-1/2 -translate-y-1/2 flex-col items-center rounded-lg px-0.5 py-0.5 ${
         owning ? "bg-indigo-500/20 ring-1 ring-indigo-500" : ""
       }`}
@@ -268,6 +285,7 @@ function PileOval({
   disabled,
   onSelect,
   angle,
+  radius,
 }: {
   label: string;
   value: number | undefined;
@@ -275,6 +293,7 @@ function PileOval({
   disabled: boolean;
   onSelect: () => void;
   angle: number;
+  radius: number;
 }) {
   return (
     <button
@@ -283,7 +302,7 @@ function PileOval({
       disabled={disabled}
       aria-label={label}
       aria-pressed={active}
-      style={polar(angle, PILE_RING)}
+      style={polar(angle, radius)}
       className={`absolute flex h-10 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 text-lg font-bold tabular-nums shadow-sm transition disabled:opacity-50 ${
         active
           ? "border-indigo-600 bg-indigo-600 text-white"

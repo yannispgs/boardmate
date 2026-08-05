@@ -98,15 +98,15 @@ test("scores a pair game on the piles shared between neighbours", async ({
 
     // Each player multiplies the two piles flanking his seat, and the middle
     // one is counted by both of his neighbours.
-    await expect(
-      page.getByLabel(`Score de ${players[0]}`),
-    ).toContainText("5 × 6 = 30");
-    await expect(
-      page.getByLabel(`Score de ${players[1]}`),
-    ).toContainText("6 × 7 = 42");
-    await expect(
-      page.getByLabel(`Score de ${players[2]}`),
-    ).toContainText("7 × 5 = 35");
+    await expect(page.getByLabel(`Score de ${players[0]}`)).toContainText(
+      "5 × 6 = 30",
+    );
+    await expect(page.getByLabel(`Score de ${players[1]}`)).toContainText(
+      "6 × 7 = 42",
+    );
+    await expect(page.getByLabel(`Score de ${players[2]}`)).toContainText(
+      "7 × 5 = 35",
+    );
 
     await expect(submit).toBeEnabled();
     await submit.click();
