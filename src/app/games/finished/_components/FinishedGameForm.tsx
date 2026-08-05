@@ -1,11 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import { ErrorText } from "@/components/ErrorText";
 import type { Boardgame, Player, PlayerId } from "@/lib/domain";
 import { localDay } from "@/lib/game/game-filters";
+import {
+  pairBreakdown,
+  pilesRemaining,
+  scorePiles,
+} from "@/lib/game/pair-scoring";
 import { scoreCategories, winnerDirection } from "@/lib/game/scoring";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useGames } from "@/lib/hooks/use-games";
@@ -16,6 +21,7 @@ import {
   gridRemaining,
   gridValues,
 } from "../../_components/CategoryScoreGrid";
+import { PairScoreCircle } from "../../_components/PairScoreCircle";
 
 /** Today where the reader is, for the default end-date field. */
 function today(): string {
@@ -24,6 +30,15 @@ function today(): string {
 
 const sectionClass =
   "flex flex-col gap-3 rounded-xl border border-black/10 p-4 dark:border-white/10";
+
+/** What the alternative to a plain total is called on this game's own sheet. */
+function detailLabel(pairs: boolean): string {
+  if (pairs) {
+    return "Tas partagés";
+  }
+
+  return "Détail par catégorie";
+}
 
 export function FinishedGameForm() {
   const router = useRouter();
@@ -35,11 +50,11 @@ export function FinishedGameForm() {
   const [selected, setSelected] = useState<Player[]>([]);
   const [endedAt, setEndedAt] = useState(today());
   const [totals, setTotals] = useState<Record<string, string>>({});
-  // For category games: enter just the final total, or the full per-category
-  // detail. Default to the total — the common case when recording after the
-  // fact (the detail can be filled later from the game's stats).
+  // For a game with a sheet of its own: enter just the final total, or the
+  // detail the game is really scored on (per-category values, shared piles).
   const [entryMode, setEntryMode] = useState<"total" | "detail">("total");
   const [catRaw, setCatRaw] = useState<CategoryRaw>({});
+  const [piles, setPiles] = useState<Record<string, number>>({});
   // Null while the form's own suggestion stands; set once the table picks.
   const [winnerIds, setWinnerIds] = useState<PlayerId[] | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -51,31 +66,59 @@ export function FinishedGameForm() {
   const scoring = boardgame?.scoring ?? null;
   const sheet =
     scoring?.entry === "categories" ? (scoring.sheet ?? null) : null;
+  const pairs = scoring?.entry === "pairs";
   const ids = selected.map(p => p.id);
+  const namedPlayers = selected.map(p => ({ id: p.id, name: p.name }));
 
-  // Category detail entry (vs a plain total). Only category games offer it.
-  const detailMode = sheet !== null && entryMode === "detail";
-  const catValues = detailMode ? gridValues(selected, sheet, catRaw) : null;
+  // The two sheets a game can be scored on, each entered instead of a plain
+  // total. Both are optional here: a game recorded after the fact is often only
+  // remembered as its final scores.
+  const catMode = sheet !== null && entryMode === "detail";
+  const pairMode = pairs && entryMode === "detail";
+  const catValues = catMode ? gridValues(selected, sheet, catRaw) : null;
+  const pairScores = pairMode ? scorePiles(ids, piles) : null;
+  const remainingPiles = pairMode ? pilesRemaining(ids, piles) : 0;
+  const remainingCells = catMode ? gridRemaining(selected, sheet, catRaw) : 0;
   const detailComplete =
-    detailMode && gridRemaining(selected, sheet, catRaw) === 0;
+    (catMode && remainingCells === 0) || (pairMode && remainingPiles === 0);
 
   // Final score per player, per the game's scoring model.
   const scored =
-    detailMode && catValues ? scoreCategories(sheet, catValues, ids) : null;
+    catMode && catValues ? scoreCategories(sheet, catValues, ids) : null;
+
+  // Whichever sheet the game is being entered on, the total it gives each
+  // player — and nothing at all while it is incomplete: a missing category, or
+  // a pile nobody counted, would read as a genuine zero.
+  const usesSheet = catMode || pairMode;
+  const sheetTotals: Record<string, { total: number }> | null = detailComplete
+    ? (scored ?? pairScores)
+    : null;
 
   function scoreOf(id: PlayerId): number | null {
     if (scoring === null) {
       return null;
     }
 
-    if (detailMode) {
-      // The category total only counts once every cell is in.
-      return detailComplete ? (scored?.[id]?.total ?? 0) : null;
+    if (usesSheet) {
+      return sheetTotals?.[id]?.total ?? null;
     }
 
     const n = Number.parseInt(totals[id] ?? "", 10);
 
     return Number.isFinite(n) ? n : null;
+  }
+
+  /** The detail kept behind a total, for the sheet it was entered on. */
+  function breakdownOf(id: PlayerId): Record<string, number> | null {
+    if (catValues) {
+      return catValues[id] ?? {};
+    }
+
+    if (pairScores) {
+      return pairBreakdown(pairScores[id]);
+    }
+
+    return null;
   }
 
   const scoresComplete =
@@ -94,7 +137,11 @@ export function FinishedGameForm() {
       return [];
     }
 
-    const direction = sheet ? "highest" : winnerDirection(scoring.winCondition);
+    // A sheet is always read highest-first, whether it sums or multiplies.
+    const direction =
+      sheet !== null || pairs
+        ? "highest"
+        : winnerDirection(scoring.winCondition);
     const withScore = selected.map(p => ({
       p,
       score: scoreOf(p.id) as number,
@@ -130,12 +177,19 @@ export function FinishedGameForm() {
     setBoardgame(b);
     setTotals({});
     setCatRaw({});
-    setEntryMode("total");
+    setPiles({});
+    // A category sheet is long to fill in after the fact, so it opens on the
+    // total. Shared piles are the opposite: they are what was on the table, and
+    // the total is the multiplication the app is there to do.
+    setEntryMode(b.scoring?.entry === "pairs" ? "detail" : "total");
     setWinnerIds(null);
   }
 
   function togglePlayer(p: Player) {
     setWinnerIds(null);
+    // A pile is named after its place round the table, so changing who sits
+    // there makes the counted ones meaningless.
+    setPiles({});
     setSelected(prev =>
       prev.some(s => s.id === p.id)
         ? prev.filter(s => s.id !== p.id)
@@ -167,7 +221,7 @@ export function FinishedGameForm() {
           playerId: p.id,
           seatOrder: index,
           score: scoreOf(p.id),
-          breakdown: detailMode && catValues ? (catValues[p.id] ?? {}) : null,
+          breakdown: breakdownOf(p.id),
         })),
       });
       router.push("/games");
@@ -175,6 +229,76 @@ export function FinishedGameForm() {
       setError("Impossible d'enregistrer la partie.");
       setSubmitting(false);
     }
+  }
+
+  // How the scores are asked for: the game's own sheet when the table kept it,
+  // a plain total per player otherwise.
+  let scoreEntry: ReactNode = (
+    <TotalScoreFields
+      players={namedPlayers}
+      totals={totals}
+      allowNegative={scoring?.allowNegative ?? false}
+      onTotal={(id, text) => {
+        setWinnerIds(null);
+        setTotals(t => ({ ...t, [id]: text }));
+      }}
+    />
+  );
+
+  if (catMode) {
+    scoreEntry = (
+      <div className="flex flex-col gap-2">
+        <CategoryScoreGrid
+          players={namedPlayers}
+          sheet={sheet}
+          raw={catRaw}
+          disabled={submitting}
+          onCell={(pid, key, text) => {
+            setWinnerIds(null);
+            setCatRaw(r => ({
+              ...r,
+              [pid]: { ...(r[pid] ?? {}), [key]: text },
+            }));
+          }}
+        />
+        {detailComplete && scored ? (
+          <ul className="flex flex-col gap-1 text-sm">
+            {selected.map(p => (
+              <li key={p.id} className="flex justify-between">
+                <span>{p.name}</span>
+                <span className="font-medium tabular-nums">
+                  {scored[p.id]?.total ?? 0} pts
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            Encore {remainingCells} case{remainingCells > 1 ? "s" : ""} à
+            remplir.
+          </p>
+        )}
+      </div>
+    );
+  } else if (pairMode) {
+    scoreEntry = (
+      <div className="flex flex-col gap-2">
+        <PairScoreCircle
+          seats={namedPlayers}
+          piles={piles}
+          onPile={(key, value) => {
+            setWinnerIds(null);
+            setPiles(p => ({ ...p, [key]: value }));
+          }}
+          disabled={submitting}
+        />
+        {remainingPiles > 0 ? (
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            Encore {remainingPiles} tas à compter.
+          </p>
+        ) : null}
+      </div>
+    );
   }
 
   return (
@@ -253,7 +377,7 @@ export function FinishedGameForm() {
 
           {scoring !== null ? (
             <div className="flex flex-col gap-3">
-              {sheet ? (
+              {sheet !== null || pairs ? (
                 <div className="flex flex-wrap gap-2 text-sm">
                   {(["total", "detail"] as const).map(mode => (
                     <label
@@ -274,72 +398,13 @@ export function FinishedGameForm() {
                           setEntryMode(mode);
                         }}
                       />
-                      {mode === "total"
-                        ? "Score total"
-                        : "Détail par catégorie"}
+                      {mode === "total" ? "Score total" : detailLabel(pairs)}
                     </label>
                   ))}
                 </div>
               ) : null}
 
-              {detailMode ? (
-                <div className="flex flex-col gap-2">
-                  <CategoryScoreGrid
-                    players={selected.map(p => ({ id: p.id, name: p.name }))}
-                    sheet={sheet}
-                    raw={catRaw}
-                    disabled={submitting}
-                    onCell={(pid, key, text) => {
-                      setWinnerIds(null);
-                      setCatRaw(r => ({
-                        ...r,
-                        [pid]: { ...(r[pid] ?? {}), [key]: text },
-                      }));
-                    }}
-                  />
-                  {detailComplete && scored ? (
-                    <ul className="flex flex-col gap-1 text-sm">
-                      {selected.map(p => (
-                        <li key={p.id} className="flex justify-between">
-                          <span>{p.name}</span>
-                          <span className="font-medium tabular-nums">
-                            {scored[p.id]?.total ?? 0} pts
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                      Encore {gridRemaining(selected, sheet, catRaw)} case
-                      {gridRemaining(selected, sheet, catRaw) > 1 ? "s" : ""} à
-                      remplir.
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  <span className="text-sm font-medium">Score final</span>
-                  {selected.map(p => (
-                    <label
-                      key={p.id}
-                      className="flex items-center justify-between gap-2 text-sm"
-                    >
-                      {p.name}
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        min={scoring.allowNegative ? undefined : 0}
-                        value={totals[p.id] ?? ""}
-                        onChange={e => {
-                          setWinnerIds(null);
-                          setTotals(t => ({ ...t, [p.id]: e.target.value }));
-                        }}
-                        className="no-spinners w-20 rounded-lg border border-black/15 bg-white px-2 py-1 text-right tabular-nums outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900"
-                      />
-                    </label>
-                  ))}
-                </div>
-              )}
+              {scoreEntry}
             </div>
           ) : null}
 
@@ -391,6 +456,41 @@ export function FinishedGameForm() {
       >
         {submitting ? "Enregistrement…" : "Enregistrer la partie"}
       </button>
+    </div>
+  );
+}
+
+/** One final total per player, for a game with no sheet to fill in. */
+function TotalScoreFields({
+  players,
+  totals,
+  allowNegative,
+  onTotal,
+}: {
+  players: Array<{ id: PlayerId; name: string }>;
+  totals: Record<string, string>;
+  allowNegative: boolean;
+  onTotal: (id: PlayerId, text: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-sm font-medium">Score final</span>
+      {players.map(p => (
+        <label
+          key={p.id}
+          className="flex items-center justify-between gap-2 text-sm"
+        >
+          {p.name}
+          <input
+            type="number"
+            inputMode="numeric"
+            min={allowNegative ? undefined : 0}
+            value={totals[p.id] ?? ""}
+            onChange={e => onTotal(p.id, e.target.value)}
+            className="no-spinners w-20 rounded-lg border border-black/15 bg-white px-2 py-1 text-right tabular-nums outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900"
+          />
+        </label>
+      ))}
     </div>
   );
 }

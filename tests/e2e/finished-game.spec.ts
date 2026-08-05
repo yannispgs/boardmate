@@ -349,3 +349,82 @@ test("a category game can be recorded with just a total (detail optional)", asyn
     await admin.from("players").delete().in("name", names);
   }
 });
+
+test("records a pair-scored game on its shared piles", async ({ page }) => {
+  const names = await seedPlayers(3);
+  const admin = adminClient();
+  const { data: seeded } = await admin
+    .from("players")
+    .select("id, name")
+    .in("name", names);
+  const ids = (seeded ?? []).map(p => p.id);
+  let gameId: string | undefined;
+
+  try {
+    await page.goto("/games");
+    await page
+      .getByRole("link", { name: "Ajouter une partie terminée" })
+      .click();
+
+    await page.getByRole("button", { name: "Splito", exact: true }).click();
+    for (const name of names) {
+      await page.getByRole("button", { name, exact: true }).click();
+    }
+
+    // Unlike a category sheet, the piles ARE what the table wrote down, so the
+    // form opens on them rather than on a total nobody worked out.
+    const save = page.getByRole("button", { name: "Enregistrer la partie" });
+
+    await expect(page.getByText("Encore 3 tas à compter")).toBeVisible();
+    await expect(save).toBeDisabled();
+
+    const piles = [
+      page.getByRole("button", {
+        name: `Tas entre ${names[0]} et ${names[1]}`,
+      }),
+      page.getByRole("button", {
+        name: `Tas entre ${names[1]} et ${names[2]}`,
+      }),
+      page.getByRole("button", {
+        name: `Tas entre ${names[2]} et ${names[0]}`,
+      }),
+    ];
+
+    await piles[0].click();
+    await piles[1].click();
+    await page.getByRole("button", { name: "Ajouter un point au tas" }).click();
+    await piles[2].click();
+    await page.getByRole("button", { name: "Retirer un point au tas" }).click();
+
+    // 6 / 7 / 5 round the ring → each player multiplies the two flanking his
+    // seat, so the middle one wins on 6 × 7.
+    await expect(page.getByLabel(`Score de ${names[1]}`)).toContainText(
+      "6 × 7 = 42",
+    );
+    await expect(save).toBeEnabled();
+    await save.click();
+
+    await expect(page).toHaveURL(/\/games$/);
+
+    const { data: gps } = await admin
+      .from("game_players")
+      .select("game_id, score, is_winner, score_breakdown, player_id")
+      .in("player_id", ids);
+    const rows = gps ?? [];
+    gameId = rows[0]?.game_id as string;
+
+    const winner = rows.find(r => r.player_id === ids[1]);
+
+    expect(winner?.is_winner).toBe(true);
+    expect(winner?.score).toBe(42);
+    // The two piles behind the total are kept, so the recap can spell it out.
+    expect(winner?.score_breakdown).toEqual({ left: 6, right: 7 });
+    expect(rows.find(r => r.player_id === ids[0])?.score).toBe(30);
+    expect(rows.find(r => r.player_id === ids[2])?.score).toBe(35);
+  } finally {
+    if (gameId) {
+      await admin.from("games").delete().eq("id", gameId);
+    }
+    await admin.from("players").delete().in("name", names);
+  }
+});
