@@ -115,11 +115,11 @@ function MoveButtons({
   onMove,
   canUp,
   canDown,
-}: {
+}: Readonly<{
   onMove: (direction: MoveDirection) => void;
   canUp: boolean;
   canDown: boolean;
-}) {
+}>) {
   return (
     <div className="flex shrink-0 items-center gap-1">
       <button
