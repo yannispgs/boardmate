@@ -20,6 +20,6 @@ export const config = {
      * - favicon.ico, icon.svg, manifest.webmanifest
      * - any image or audio file
      */
-    "/((?!_next/static|_next/image|favicon.ico|icon.svg|manifest.webmanifest|.*\\.(?:png|jpg|jpeg|gif|svg|webp|mp3|wav|ogg|m4a)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icon.svg|manifest.webmanifest|.*[.](?:png|jpg|jpeg|gif|svg|webp|mp3|wav|ogg|m4a)$).*)",
   ],
 };

@@ -100,6 +100,53 @@ export function GoldRiver({
   );
 }
 
+/**
+ * What sits at the centre of a hex: nothing revealed yet, a plain disc for a
+ * numberless hex (desert, sea), or the number token with its probability dots.
+ */
+function NumberToken({
+  centre,
+  hidden,
+  n,
+}: Readonly<{
+  centre: { x: number; y: number };
+  hidden: boolean;
+  n: number | null;
+}>) {
+  if (hidden) {
+    return <Unknown centre={centre} />;
+  }
+
+  if (n === null) {
+    return (
+      <circle cx={centre.x} cy={centre.y} r={7} fill="#4b5563" opacity={0.85} />
+    );
+  }
+
+  return (
+    <>
+      <circle
+        cx={centre.x}
+        cy={centre.y}
+        r={14}
+        fill="#faf7ef"
+        stroke="#0000001a"
+      />
+      <text
+        x={centre.x}
+        y={centre.y + 1}
+        textAnchor="middle"
+        fontSize={15}
+        fontWeight="700"
+        fill={isRedNumber(n) ? "#c62828" : "#27272a"}
+      >
+        {n}
+      </text>
+      <Pips cx={centre.x} cy={centre.y + 9} n={n} />
+    </>
+  );
+}
+
 /** Small probability dots under a number token (5 = most likely). */
 function Pips({ cx, cy, n }: Readonly<{ cx: number; cy: number; n: number }>) {
   const count = pipCount(n);
@@ -256,32 +303,7 @@ export function CatanBoardSvg({
             {h.terrain === "gold" && !h.hidden ? (
               <GoldRiver centre={c} size={SIZE} />
             ) : null}
-            {h.hidden ? (
-              <Unknown centre={c} />
-            ) : h.number === null ? (
-              <circle cx={c.x} cy={c.y} r={7} fill="#4b5563" opacity={0.85} />
-            ) : (
-              <>
-                <circle
-                  cx={c.x}
-                  cy={c.y}
-                  r={14}
-                  fill="#faf7ef"
-                  stroke="#0000001a"
-                />
-                <text
-                  x={c.x}
-                  y={c.y + 1}
-                  textAnchor="middle"
-                  fontSize={15}
-                  fontWeight="700"
-                  fill={isRedNumber(h.number) ? "#c62828" : "#27272a"}
-                >
-                  {h.number}
-                </text>
-                <Pips cx={c.x} cy={c.y + 9} n={h.number} />
-              </>
-            )}
+            <NumberToken centre={c} hidden={h.hidden} n={h.number} />
           </g>
         );
       })}

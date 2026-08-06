@@ -59,6 +59,41 @@ function PlayOrder({
  * shown only on touch devices (`@media (hover: none)`), where the hover tooltip
  * never fires, so the participants stay reachable without a mouse.
  */
+/**
+ * The card's one-line status: how the finished game ended, or whose turn it is
+ * in a running one. A game that hasn't started has nothing to say.
+ */
+function StatusLine({
+  ended,
+  outcome,
+  rounds,
+  currentPlayerName,
+}: Readonly<{
+  ended: boolean;
+  outcome: string;
+  rounds: number;
+  currentPlayerName: string | null;
+}>) {
+  if (ended) {
+    return (
+      <span className="mt-0.5 text-xs font-medium text-amber-600 dark:text-amber-500">
+        {outcome === "" ? null : `${outcome} · `}
+        {rounds} tour{rounds > 1 ? "s" : ""}
+      </span>
+    );
+  }
+
+  if (currentPlayerName === null) {
+    return null;
+  }
+
+  return (
+    <span className="mt-0.5 text-xs font-medium text-indigo-600 dark:text-indigo-400">
+      Au tour de {currentPlayerName}
+    </span>
+  );
+}
+
 function InlinePlayOrder({
   players,
   currentPlayerId,
@@ -183,16 +218,12 @@ export function GameCard({
                 {count} {count > 1 ? "joueurs" : "joueur"}
               </Tooltip>
             </span>
-            {ended ? (
-              <span className="mt-0.5 text-xs font-medium text-amber-600 dark:text-amber-500">
-                {outcome === "" ? null : `${outcome} · `}
-                {game.round} tour{game.round > 1 ? "s" : ""}
-              </span>
-            ) : currentPlayer ? (
-              <span className="mt-0.5 text-xs font-medium text-indigo-600 dark:text-indigo-400">
-                Au tour de {currentPlayer.name}
-              </span>
-            ) : null}
+            <StatusLine
+              ended={ended}
+              outcome={outcome}
+              rounds={game.round}
+              currentPlayerName={currentPlayer?.name ?? null}
+            />
             <InlinePlayOrder
               players={game.players}
               currentPlayerId={highlightId}

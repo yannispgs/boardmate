@@ -143,6 +143,111 @@ function gameTimeIndex(
   return (ownActiveS / gameActiveS) * playerCount * 100;
 }
 
+type StatsPlayer = GameStatsRecord["players"][number];
+
+/** Folds one player's share of one game into their per-boardgame breakdown. */
+function accumulateBoardgame(
+  cur: PlayerAcc,
+  game: GameStatsRecord,
+  p: StatsPlayer,
+  idx: number | null,
+): void {
+  const bg = cur.byGame.get(game.boardgameId) ?? {
+    name: game.boardgameName,
+    games: 0,
+    wins: 0,
+    scoreSum: 0,
+    scored: 0,
+    indexSum: 0,
+    indexGames: 0,
+  };
+
+  bg.games += 1;
+  bg.wins += p.isWinner ? 1 : 0;
+
+  if (p.score !== null) {
+    bg.scoreSum += p.score;
+    bg.scored += 1;
+  }
+
+  if (idx !== null) {
+    bg.indexSum += idx;
+    bg.indexGames += 1;
+  }
+
+  cur.byGame.set(game.boardgameId, bg);
+}
+
+/** Folds one player's share of one game into the running accumulator. */
+function accumulatePlayer(
+  acc: Map<PlayerId, PlayerAcc>,
+  game: GameStatsRecord,
+  p: StatsPlayer,
+  gameActiveS: number,
+): void {
+  const own = game.turns.filter(t => t.playerId === p.playerId);
+  const ownActive = own.reduce((s, t) => s + t.durationS, 0);
+  const idx = gameTimeIndex(ownActive, gameActiveS, game.players.length);
+  const cur = acc.get(p.playerId) ?? newPlayerAcc(p.name);
+
+  cur.games += 1;
+  cur.wins += p.isWinner ? 1 : 0;
+
+  if (p.score !== null) {
+    cur.scoreSum += p.score;
+    cur.scoredGames += 1;
+  }
+
+  cur.turnS += ownActive;
+  cur.turnCount += own.length;
+
+  if (idx !== null) {
+    cur.indexSum += idx;
+    cur.indexGames += 1;
+  }
+
+  cur.overtimeS += own.reduce((s, t) => s + t.overtimeS, 0);
+  cur.pauseS += own.reduce((s, t) => s + t.pauseDurationS, 0);
+
+  accumulateBoardgame(cur, game, p, idx);
+
+  acc.set(p.playerId, cur);
+}
+
+/** The finished row for one player: their averages plus their best/worst game. */
+function toAggregate(id: PlayerId, a: PlayerAcc): PlayerAggregate {
+  const byGame: GameBreakdown[] = [...a.byGame.entries()]
+    .map(([boardgameId, g]) => ({
+      boardgameId: boardgameId as BoardgameId,
+      boardgameName: g.name,
+      games: g.games,
+      wins: g.wins,
+      winRate: (g.wins / g.games) * 100,
+      avgScore: g.scored > 0 ? g.scoreSum / g.scored : null,
+      timeIndex: g.indexGames > 0 ? g.indexSum / g.indexGames : null,
+    }))
+    .sort((x, y) => y.games - x.games || y.winRate - x.winRate);
+
+  // `a.games` is ≥ 1 for any accumulated player (added inside the game loop).
+  return {
+    playerId: id,
+    name: a.name,
+    games: a.games,
+    wins: a.wins,
+    winRate: (a.wins / a.games) * 100,
+    scoredGames: a.scoredGames,
+    avgScore: a.scoredGames > 0 ? a.scoreSum / a.scoredGames : null,
+    avgTurnS: a.turnCount > 0 ? a.turnS / a.turnCount : 0,
+    timeIndex: a.indexGames > 0 ? a.indexSum / a.indexGames : null,
+    // Per PLAYED game (`indexGames`), not every game — a recorded-after-the-
+    // fact game has no turns and would otherwise drag these averages down.
+    avgOvertimeS: a.indexGames > 0 ? a.overtimeS / a.indexGames : 0,
+    avgPauseS: a.indexGames > 0 ? a.pauseS / a.indexGames : 0,
+    byGame,
+    ...extremes(byGame),
+  };
+}
+
 function activeTotal(game: GameStatsRecord): number {
   return game.turns.reduce((sum, t) => sum + t.durationS, 0);
 }
@@ -181,7 +286,8 @@ function extremes(byGame: GameBreakdown[]): {
 
   return {
     mostPlayedGame,
-    bestGame: byRate[byRate.length - 1],
+    /* c8 ignore next -- `?? null` fallback: `eligible` holds 2+ games here */
+    bestGame: byRate.at(-1) ?? null,
     worstGame: byRate[0],
   };
 }
@@ -263,93 +369,14 @@ export function computeGlobalStats(
     const gameActive = activeTotal(game);
 
     for (const p of game.players) {
-      const own = game.turns.filter(t => t.playerId === p.playerId);
-      const ownActive = own.reduce((s, t) => s + t.durationS, 0);
-      const idx = gameTimeIndex(ownActive, gameActive, game.players.length);
-
-      const cur = acc.get(p.playerId) ?? newPlayerAcc(p.name);
-
-      cur.games += 1;
-      cur.wins += p.isWinner ? 1 : 0;
-
-      if (p.score !== null) {
-        cur.scoreSum += p.score;
-        cur.scoredGames += 1;
-      }
-
-      cur.turnS += ownActive;
-      cur.turnCount += own.length;
-
-      if (idx !== null) {
-        cur.indexSum += idx;
-        cur.indexGames += 1;
-      }
-
-      cur.overtimeS += own.reduce((s, t) => s + t.overtimeS, 0);
-      cur.pauseS += own.reduce((s, t) => s + t.pauseDurationS, 0);
-
-      const bg = cur.byGame.get(game.boardgameId) ?? {
-        name: game.boardgameName,
-        games: 0,
-        wins: 0,
-        scoreSum: 0,
-        scored: 0,
-        indexSum: 0,
-        indexGames: 0,
-      };
-      bg.games += 1;
-      bg.wins += p.isWinner ? 1 : 0;
-
-      if (p.score !== null) {
-        bg.scoreSum += p.score;
-        bg.scored += 1;
-      }
-
-      if (idx !== null) {
-        bg.indexSum += idx;
-        bg.indexGames += 1;
-      }
-      cur.byGame.set(game.boardgameId, bg);
-
-      acc.set(p.playerId, cur);
+      accumulatePlayer(acc, game, p, gameActive);
     }
   }
 
-  const players: PlayerAggregate[] = [...acc.keys()].map(id => {
-    // `acc` has an entry for every id here (this iterates its own keys).
-    const a = acc.get(id) as PlayerAcc;
-
-    const byGame: GameBreakdown[] = [...a.byGame.entries()]
-      .map(([boardgameId, g]) => ({
-        boardgameId: boardgameId as BoardgameId,
-        boardgameName: g.name,
-        games: g.games,
-        wins: g.wins,
-        winRate: (g.wins / g.games) * 100,
-        avgScore: g.scored > 0 ? g.scoreSum / g.scored : null,
-        timeIndex: g.indexGames > 0 ? g.indexSum / g.indexGames : null,
-      }))
-      .sort((x, y) => y.games - x.games || y.winRate - x.winRate);
-
-    // `a.games` is ≥ 1 for any accumulated player (added inside the game loop).
-    return {
-      playerId: id,
-      name: a.name,
-      games: a.games,
-      wins: a.wins,
-      winRate: (a.wins / a.games) * 100,
-      scoredGames: a.scoredGames,
-      avgScore: a.scoredGames > 0 ? a.scoreSum / a.scoredGames : null,
-      avgTurnS: a.turnCount > 0 ? a.turnS / a.turnCount : 0,
-      timeIndex: a.indexGames > 0 ? a.indexSum / a.indexGames : null,
-      // Per PLAYED game (`indexGames`), not every game — a recorded-after-the-
-      // fact game has no turns and would otherwise drag these averages down.
-      avgOvertimeS: a.indexGames > 0 ? a.overtimeS / a.indexGames : 0,
-      avgPauseS: a.indexGames > 0 ? a.pauseS / a.indexGames : 0,
-      byGame,
-      ...extremes(byGame),
-    };
-  });
+  // `acc` has an entry for every id here (this iterates its own keys).
+  const players: PlayerAggregate[] = [...acc.keys()].map(id =>
+    toAggregate(id, acc.get(id) as PlayerAcc),
+  );
 
   // Best win rate first; ties broken by more games, then more wins, then name.
   players.sort(

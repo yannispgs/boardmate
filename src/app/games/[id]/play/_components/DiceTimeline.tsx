@@ -1,5 +1,6 @@
 import type { DiceSpec } from "@/lib/domain";
 import { type DiceLuck, diceDeviations, diceValues } from "@/lib/game/dice";
+import { niceStep } from "@/lib/game/nice-step";
 
 const LUCK_CLASS: Record<DiceLuck, string> = {
   over: "text-emerald-600 dark:text-emerald-400",
@@ -22,12 +23,7 @@ function formatDelta(delta: number): string {
 
 /** A "nice" roll-number step (5 / 10 / 20 / 50 …) giving ~5 axis labels. */
 function axisStep(n: number): number {
-  const rough = n / 5;
-  const pow = 10 ** Math.floor(Math.log10(rough));
-  const base = rough / pow;
-  const nice = base <= 1 ? 1 : base <= 2 ? 2 : base <= 5 ? 5 : 10;
-
-  return Math.max(5, nice * pow);
+  return Math.max(5, niceStep(n / 5));
 }
 
 /**

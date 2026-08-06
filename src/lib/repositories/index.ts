@@ -27,45 +27,40 @@ import type {
 let playerRepository: PlayerRepository | null = null;
 
 export function getPlayerRepository(): PlayerRepository {
-  if (!playerRepository) {
-    playerRepository = createPlayerRepository(createClient());
-  }
+  playerRepository ??= createPlayerRepository(createClient());
+
   return playerRepository;
 }
 
 let boardgameRepository: BoardgameRepository | null = null;
 
 export function getBoardgameRepository(): BoardgameRepository {
-  if (!boardgameRepository) {
-    boardgameRepository = createBoardgameRepository(createClient());
-  }
+  boardgameRepository ??= createBoardgameRepository(createClient());
+
   return boardgameRepository;
 }
 
 let configRepository: ConfigRepository | null = null;
 
 export function getConfigRepository(): ConfigRepository {
-  if (!configRepository) {
-    configRepository = createConfigRepository(createClient());
-  }
+  configRepository ??= createConfigRepository(createClient());
+
   return configRepository;
 }
 
 let gameRepository: GameRepository | null = null;
 
 export function getGameRepository(): GameRepository {
-  if (!gameRepository) {
-    gameRepository = createGameRepository(createClient());
-  }
+  gameRepository ??= createGameRepository(createClient());
+
   return gameRepository;
 }
 
 let feedbackRepository: FeedbackRepository | null = null;
 
 export function getFeedbackRepository(): FeedbackRepository {
-  if (!feedbackRepository) {
-    feedbackRepository = createFeedbackRepository(createClient());
-  }
+  feedbackRepository ??= createFeedbackRepository(createClient());
+
   return feedbackRepository;
 }
 
@@ -80,8 +75,7 @@ export function getFaqRepository(): FaqRepository {
 let extensionRepository: ExtensionRepository | null = null;
 
 export function getExtensionRepository(): ExtensionRepository {
-  if (!extensionRepository) {
-    extensionRepository = createExtensionRepository(createClient());
-  }
+  extensionRepository ??= createExtensionRepository(createClient());
+
   return extensionRepository;
 }

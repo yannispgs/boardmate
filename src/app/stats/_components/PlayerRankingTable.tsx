@@ -36,12 +36,17 @@ export function PlayerRankingTable({
 
   const sorted = useMemo(() => {
     const mul = dir === "desc" ? -1 : 1;
-    const value = (p: PlayerAggregate) =>
-      sortKey === "winRate"
-        ? p.winRate
-        : sortKey === "games"
-          ? p.games
-          : p.timeIndex;
+    const value = (p: PlayerAggregate) => {
+      if (sortKey === "winRate") {
+        return p.winRate;
+      }
+
+      if (sortKey === "games") {
+        return p.games;
+      }
+
+      return p.timeIndex;
+    };
 
     return [...players].sort((a, b) => {
       const av = value(a);

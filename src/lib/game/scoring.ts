@@ -181,7 +181,7 @@ export function rankByTotal(
   for (let i = 0; i < sorted.length; i++) {
     const prev = ranked[i - 1];
     // Same total as the player above → share their rank, else 1-based position.
-    const rank = prev && prev.total === sorted[i].total ? prev.rank : i + 1;
+    const rank = prev?.total === sorted[i].total ? prev.rank : i + 1;
 
     ranked.push({ playerId: sorted[i].playerId, total: sorted[i].total, rank });
   }

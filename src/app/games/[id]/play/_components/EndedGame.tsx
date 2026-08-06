@@ -17,6 +17,15 @@ import { GameStats } from "./GameStats";
  * cooperative game, otherwise the winner — or several names when no tie-break
  * rule separated them (a shared victory).
  */
+/** The banner emoji: a trophy when someone won, joy or defeat in co-op. */
+function outcomeEmoji(coop: boolean, coopWon: boolean): string {
+  if (!coop) {
+    return "🏆";
+  }
+
+  return coopWon ? "🎉" : "😔";
+}
+
 function Outcome({
   coop,
   coopWon,
@@ -102,7 +111,7 @@ export function EndedGame({
       <div className="flex min-h-[calc(100lvh-6rem)] flex-col items-center text-center">
         <div className="flex flex-1 flex-col items-center justify-center gap-4">
           <span aria-hidden className="text-6xl">
-            {coop ? (coopWon ? "🎉" : "😔") : "🏆"}
+            {outcomeEmoji(coop, coopWon)}
           </span>
           <div className="flex flex-col gap-1">
             <h2 className="text-2xl font-bold">Partie terminée !</h2>

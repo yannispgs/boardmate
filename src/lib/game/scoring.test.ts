@@ -41,10 +41,10 @@ describe("initialScoreFor", () => {
   });
 
   it("returns null for final scoring or no scoring", () => {
-    expect(initialScoreFor(scoring({ timing: "final", startScore: 2 }))).toBe(
-      null,
-    );
-    expect(initialScoreFor(null)).toBe(null);
+    expect(
+      initialScoreFor(scoring({ timing: "final", startScore: 2 })),
+    ).toBeNull();
+    expect(initialScoreFor(null)).toBeNull();
   });
 });
 
@@ -55,10 +55,10 @@ describe("scoreFloor", () => {
   });
 
   it("is null when negatives are allowed or there is no scoring", () => {
-    expect(scoreFloor(scoring({ allowNegative: true, minScore: 2 }))).toBe(
-      null,
-    );
-    expect(scoreFloor(null)).toBe(null);
+    expect(
+      scoreFloor(scoring({ allowNegative: true, minScore: 2 })),
+    ).toBeNull();
+    expect(scoreFloor(null)).toBeNull();
   });
 });
 

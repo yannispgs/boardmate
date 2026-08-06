@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-
 import { ErrorText } from "@/components/ErrorText";
+import { ListState } from "@/components/ListState";
 import type { Feedback } from "@/lib/domain";
 import { useFeedback } from "@/lib/hooks/use-feedback";
 
@@ -85,19 +85,17 @@ export function FeedbackManager() {
 
       <ErrorText message={error} />
 
-      {loading ? (
-        <p className="text-sm text-zinc-500">Chargement…</p>
-      ) : items.length === 0 ? (
-        <p className="text-sm text-zinc-500">
-          Aucun retour pour l&apos;instant.
-        </p>
-      ) : (
+      <ListState
+        loading={loading}
+        empty={items.length === 0}
+        emptyLabel={<>Aucun retour pour l&apos;instant.</>}
+      >
         <ul className="flex flex-col gap-3">
           {items.map(item => (
             <FeedbackItem key={item.id} item={item} />
           ))}
         </ul>
-      )}
+      </ListState>
     </div>
   );
 }

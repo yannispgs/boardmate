@@ -140,16 +140,122 @@ function hopsToLand(neighbours: number[][], land: Set<number>): number[] {
     hops[id] = 0;
   }
 
-  for (let i = 0; i < queue.length; i++) {
-    for (const n of neighbours[queue[i]]) {
+  // `queue` grows while we walk it — the array iterator re-reads `length`
+  // on every step, so the newly discovered cells are visited in turn.
+  for (const id of queue) {
+    for (const n of neighbours[id]) {
       if (hops[n] === Number.POSITIVE_INFINITY) {
-        hops[n] = hops[queue[i]] + 1;
+        hops[n] = hops[id] + 1;
         queue.push(n);
       }
     }
   }
 
   return hops;
+}
+
+/**
+ * Lays one tile per island, each as far from the land already down as the space
+ * allows. Fills `owner` (space id → island) and `grown` (tiles per island).
+ */
+function seedIslands(
+  neighbours: number[][],
+  total: number,
+  sizes: number[],
+  rng: () => number,
+  owner: Map<number, number>,
+  grown: number[],
+): void {
+  const spaces = neighbours.map((_, id) => id);
+
+  for (const _size of sizes) {
+    if (owner.size >= total) {
+      break;
+    }
+
+    const hops = hopsToLand(neighbours, new Set(owner.keys()));
+    const seeds = spaces.filter(id => !owner.has(id) && hops[id] > 1);
+
+    if (seeds.length === 0) {
+      break;
+    }
+
+    const furthest = Math.max(...seeds.map(id => hops[id]));
+
+    owner.set(
+      pick(
+        seeds.filter(id => hops[id] === furthest),
+        rng,
+      ),
+      grown.length,
+    );
+    grown.push(1);
+  }
+}
+
+/** The free spaces `island` can grow onto: its own coast, no one else's. */
+function growthCandidates(
+  neighbours: number[][],
+  owner: Map<number, number>,
+  island: number,
+): number[] {
+  return neighbours
+    .map((_, id) => id)
+    .filter(
+      id =>
+        !owner.has(id) &&
+        neighbours[id].some(n => owner.get(n) === island) &&
+        !neighbours[id].some(n => owner.has(n) && owner.get(n) !== island),
+    );
+}
+
+/** One round of growth: every island still short of its size takes one tile. */
+function growPass(
+  neighbours: number[][],
+  total: number,
+  sizes: number[],
+  rng: () => number,
+  owner: Map<number, number>,
+  grown: number[],
+): void {
+  for (let island = 0; island < grown.length && owner.size < total; island++) {
+    if (grown[island] >= sizes[island]) {
+      continue;
+    }
+
+    const candidates = growthCandidates(neighbours, owner, island);
+
+    if (candidates.length === 0) {
+      continue;
+    }
+
+    owner.set(pick(candidates, rng), island);
+    grown[island] += 1;
+  }
+}
+
+/**
+ * Short of land: extend an existing coast, or — if every coast is landlocked —
+ * drop the tile on any free space.
+ */
+function fillRemainingLand(
+  neighbours: number[][],
+  total: number,
+  island: number,
+  rng: () => number,
+  owner: Map<number, number>,
+): void {
+  const spaces = neighbours.map((_, id) => id);
+  const free = (id: number): boolean => !owner.has(id);
+
+  while (owner.size < total) {
+    const coastal = spaces.filter(
+      id => free(id) && neighbours[id].some(n => owner.has(n)),
+    );
+    const pool = coastal.length > 0 ? coastal : spaces.filter(free);
+
+    owner.set(pick(pool, rng), island);
+  }
 }
 
 /**
@@ -170,74 +276,20 @@ export function growIslands(
   sizes: number[],
   rng: () => number,
 ): number[] {
-  const spaces = neighbours.map((_, id) => id);
   const owner = new Map<number, number>();
-  const free = (id: number): boolean => !owner.has(id);
-  const taken = (id: number): boolean => owner.has(id);
   const grown: number[] = [];
 
-  for (const _size of sizes) {
-    if (owner.size >= total) {
-      break;
-    }
-
-    const hops = hopsToLand(neighbours, new Set(owner.keys()));
-    const seeds = spaces.filter(id => free(id) && hops[id] > 1);
-
-    if (seeds.length === 0) {
-      break;
-    }
-
-    const furthest = Math.max(...seeds.map(id => hops[id]));
-
-    owner.set(
-      pick(
-        seeds.filter(id => hops[id] === furthest),
-        rng,
-      ),
-      grown.length,
-    );
-    grown.push(1);
-  }
+  seedIslands(neighbours, total, sizes, rng, owner, grown);
 
   for (
     let pass = 0;
     pass < Math.max(0, ...sizes) && owner.size < total;
     pass++
   ) {
-    for (
-      let island = 0;
-      island < grown.length && owner.size < total;
-      island++
-    ) {
-      if (grown[island] >= sizes[island]) {
-        continue;
-      }
-
-      const candidates = spaces.filter(
-        id =>
-          free(id) &&
-          neighbours[id].some(n => owner.get(n) === island) &&
-          !neighbours[id].some(n => taken(n) && owner.get(n) !== island),
-      );
-
-      if (candidates.length === 0) {
-        continue;
-      }
-
-      owner.set(pick(candidates, rng), island);
-      grown[island] += 1;
-    }
+    growPass(neighbours, total, sizes, rng, owner, grown);
   }
 
-  // Short of land: extend an existing coast, or — if every coast is landlocked
-  // — drop the tile on any free space.
-  while (owner.size < total) {
-    const coastal = spaces.filter(id => free(id) && neighbours[id].some(taken));
-    const pool = coastal.length > 0 ? coastal : spaces.filter(free);
-
-    owner.set(pick(pool, rng), grown.length);
-  }
+  fillRemainingLand(neighbours, total, grown.length, rng, owner);
 
   return [...owner.keys()].sort((a, b) => a - b);
 }

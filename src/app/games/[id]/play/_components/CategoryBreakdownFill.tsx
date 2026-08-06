@@ -125,7 +125,7 @@ export function CategoryBreakdownFill({
         raw={raw}
         disabled={busy}
         onCell={(pid, key, text) =>
-          setRaw(r => ({ ...r, [pid]: { ...(r[pid] ?? {}), [key]: text } }))
+          setRaw(r => ({ ...r, [pid]: { ...r[pid], [key]: text } }))
         }
       />
 

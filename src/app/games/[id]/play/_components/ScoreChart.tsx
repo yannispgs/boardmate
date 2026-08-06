@@ -7,17 +7,10 @@ import {
 } from "react";
 
 import type { PlayerId } from "@/lib/domain";
+import { niceStep } from "@/lib/game/nice-step";
+import { playerColorOf } from "@/lib/game/player-colors";
 import type { PlayerSeries } from "@/lib/game/score-series";
 
-/** One stable colour per seat, cycled if there are more players than colours. */
-const COLORS = [
-  "#6366f1",
-  "#f59e0b",
-  "#10b981",
-  "#f43f5e",
-  "#0ea5e9",
-  "#8b5cf6",
-];
 /** The objective line's colour (yellow). */
 const TARGET = "#eab308";
 const W = 320;
@@ -35,19 +28,6 @@ interface View {
   x1: number;
   y0: number;
   y1: number;
-}
-
-/** Nearest "nice" step (1 / 2 / 5 × 10ⁿ) at or above `rough`, for axis ticks. */
-function niceStep(rough: number): number {
-  if (rough <= 0) {
-    return 1;
-  }
-
-  const pow = 10 ** Math.floor(Math.log10(rough));
-  const n = rough / pow;
-  const base = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
-
-  return base * pow;
 }
 
 /**
@@ -71,11 +51,7 @@ export function ScoreChart({
   rounds: number;
   players: { id: PlayerId; name: string }[];
 }>) {
-  const colorOf = (playerId: PlayerId) => {
-    const idx = players.findIndex(p => p.id === playerId);
-
-    return COLORS[(idx < 0 ? 0 : idx) % COLORS.length];
-  };
+  const colorOf = (playerId: PlayerId) => playerColorOf(players, playerId);
 
   // Round the top up to an even number so the base view frames the data nicely.
   const chartMax = Math.max(

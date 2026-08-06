@@ -41,11 +41,15 @@ function formatDefault(field: FieldSpec, value: unknown): string {
     return field.options.find(o => o.value === value)?.label ?? "—";
   }
 
-  if (value === undefined || value === null || value === "") {
-    return "—";
+  // Anything that isn't a primitive would print as "[object Object]".
+  if (
+    typeof value === "number" ||
+    (typeof value === "string" && value !== "")
+  ) {
+    return String(value);
   }
 
-  return String(value);
+  return "—";
 }
 
 export function ConfigsManager({
@@ -189,13 +193,18 @@ export function ConfigsManager({
             onSave={submitFields}
             onCancel={() => setEditingFields(false)}
           />
-        ) : editingDefaults ? (
+        ) : null}
+
+        {!editingFields && editingDefaults ? (
           <ConfigDefaultsEditor
             template={template}
             onSave={submitDefaults}
             onCancel={() => setEditingDefaults(false)}
           />
-        ) : (
+        ) : null}
+
+        {/* Neither editor open: the read-only summary of the defaults. */}
+        {!editingFields && !editingDefaults ? (
           <div className="flex flex-col gap-3 rounded-xl border border-black/10 p-4 dark:border-white/10">
             <dl className="grid grid-cols-1 gap-x-4 gap-y-1 text-sm sm:grid-cols-2">
               {template.fields.map(field => (
@@ -232,7 +241,7 @@ export function ConfigsManager({
               </button>
             </div>
           </div>
-        )}
+        ) : null}
       </section>
 
       {/* 2 · Named custom configurations, reusable at launch. */}

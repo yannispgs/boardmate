@@ -76,7 +76,7 @@ async function extractCode(base: string, id: string): Promise<string | null> {
 
   const message = (await res.json()) as MailpitMessage;
   const source = `${message.Text}\n${message.HTML}`;
-  const match = source.match(/enter the code:\s*(\d{6,10})/i);
+  const match = /enter the code:\s*(\d{6,10})/i.exec(source);
 
   return match?.[1] ?? null;
 }

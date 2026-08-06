@@ -419,6 +419,24 @@ export function buildNeighbours(cells: HexCell[]): number[][] {
   });
 }
 
+/** The corners around hex `a`: every pair of its neighbours that also touch. */
+function verticesAround(
+  neighbours: number[][],
+  a: number,
+): Array<[number, number, number]> {
+  const out: Array<[number, number, number]> = [];
+
+  for (const b of neighbours[a]) {
+    for (const c of neighbours[a]) {
+      if (b < c && neighbours[b].includes(c)) {
+        out.push([a, b, c]);
+      }
+    }
+  }
+
+  return out;
+}
+
 function buildVertices(
   neighbours: number[][],
 ): Array<[number, number, number]> {
@@ -426,16 +444,12 @@ function buildVertices(
   const out: Array<[number, number, number]> = [];
 
   for (let a = 0; a < neighbours.length; a++) {
-    for (const b of neighbours[a]) {
-      for (const c of neighbours[a]) {
-        if (b < c && neighbours[b].includes(c)) {
-          const key = [a, b, c].sort((x, y) => x - y).join(",");
+    for (const triple of verticesAround(neighbours, a)) {
+      const key = [...triple].sort((x, y) => x - y).join(",");
 
-          if (!seen.has(key)) {
-            seen.add(key);
-            out.push([a, b, c]);
-          }
-        }
+      if (!seen.has(key)) {
+        seen.add(key);
+        out.push(triple);
       }
     }
   }
@@ -1411,6 +1425,171 @@ function randomNumbers(
   return map;
 }
 
+/** Many layouts, keeping the least-blobby triangle-free one. */
+function leastBlobbyTerrain(
+  desertIds: number[],
+  rng: () => number,
+  variant: CatanVariant,
+  attempts: number,
+): CatanTerrain[] {
+  let best = layTerrain(desertIds, rng, variant);
+  let bestCost = hasMonoTriangle(best, variant)
+    ? Number.POSITIVE_INFINITY
+    : terrainCost(best, variant);
+
+  for (let i = 1; i < attempts; i++) {
+    const cand = layTerrain(desertIds, rng, variant);
+
+    if (hasMonoTriangle(cand, variant)) {
+      continue;
+    }
+
+    const cost = terrainCost(cand, variant);
+
+    if (cost < bestCost) {
+      bestCost = cost;
+      best = cand;
+    }
+  }
+
+  return best;
+}
+
+/** Re-lays until no mono-coloured triangle is left, or the attempts run out. */
+function triangleFreeTerrain(
+  desertIds: number[],
+  rng: () => number,
+  variant: CatanVariant,
+  attempts: number,
+): CatanTerrain[] {
+  let laid = layTerrain(desertIds, rng, variant);
+
+  for (let i = 0; i < attempts && hasMonoTriangle(laid, variant); i++) {
+    laid = layTerrain(desertIds, rng, variant);
+  }
+
+  return laid;
+}
+
+/**
+ * Terrain: always reject a mono-triangle (unless ignoring). When avoiding
+ * clusters, also keep the least-blobby of many layouts; otherwise take the
+ * first triangle-free one.
+ */
+function chooseTerrain(
+  desertIds: number[],
+  rng: () => number,
+  variant: CatanVariant,
+  opts: { ignore: boolean; avoidClusters: boolean; attempts: number },
+): CatanTerrain[] {
+  if (opts.ignore) {
+    return layTerrain(desertIds, rng, variant);
+  }
+
+  if (opts.avoidClusters) {
+    return leastBlobbyTerrain(desertIds, rng, variant, opts.attempts);
+  }
+
+  return triangleFreeTerrain(desertIds, rng, variant, opts.attempts);
+}
+
+/**
+ * The most evenly-spread of `attempts` legal number placements.
+ *
+ * When nothing satisfies the rules — an authored scenario can leave no legal
+ * arrangement at all — the tokens are laid anyway rather than handing back a
+ * board with no numbers: a board that breaks a rule beats a board with no
+ * production, and what it costs shows up in `boardWarnings`.
+ */
+function bestNumbers(
+  numberedIds: number[],
+  hexes: BoardHex[],
+  rng: () => number,
+  variant: CatanVariant,
+  noReds: ReadonlySet<number>,
+  opts: {
+    attempts: number;
+    avoidReds: boolean;
+    avoidDuplicates: boolean;
+    tolerance: number;
+    balanceIntersections: boolean;
+    penalizeVariance: boolean;
+    limitPips: boolean;
+    maxPips: number;
+  },
+): Map<number, number> {
+  let candidate: Map<number, number> | null = null;
+  let bestScore = Number.POSITIVE_INFINITY;
+  // The zones' own bands read off the bags, so the search works them out once
+  // rather than once per candidate.
+  const bands = poolBands(variant.pools);
+
+  for (let i = 0; i < opts.attempts; i++) {
+    const placement = placeNumbers(
+      numberedIds,
+      rng,
+      opts.avoidReds,
+      opts.avoidDuplicates,
+      variant,
+      noReds,
+    );
+
+    // No placement satisfies the rules — an authored scenario can pin two reds
+    // side by side, and then no shuffle will do.
+    if (placement === null) {
+      continue;
+    }
+
+    const scored = hexes.map(h => ({
+      ...h,
+      number: placement.get(h.id) ?? null,
+    }));
+    const score = numberBalance(scored, variant, {
+      tolerance: opts.tolerance,
+      bands,
+      balanceIntersections: opts.balanceIntersections,
+      penalizeVariance: opts.penalizeVariance,
+      limitPips: opts.limitPips,
+      maxPips: opts.maxPips,
+    });
+
+    if (score < bestScore) {
+      bestScore = score;
+      candidate = placement;
+    }
+  }
+
+  return candidate ?? randomNumbers(numberedIds, rng, variant);
+}
+
+/**
+ * Ports, re-shuffled until none trades the resource its own hexes produce —
+ * best effort, `PORT_ATTEMPTS` tries.
+ */
+function shuffledPorts(
+  variant: CatanVariant,
+  rng: () => number,
+  terrainByHex: CatanTerrain[],
+  avoidOwnResource: boolean,
+): CatanPortType[] {
+  let portTypes = shufflePorts(variant, rng);
+
+  if (!avoidOwnResource) {
+    return portTypes;
+  }
+
+  for (
+    let i = 0;
+    i < PORT_ATTEMPTS &&
+    portTouchesOwnResource(portTypes, terrainByHex, variant);
+    i++
+  ) {
+    portTypes = shufflePorts(variant, rng);
+  }
+
+  return portTypes;
+}
+
 /**
  * Generates a Catan board. Deterministic for a given `seed` (defaults to a
  * random one). By default: on the base board the desert sits on the centre (the
@@ -1451,44 +1630,11 @@ export function generateCatanBoard(
     allowAdjacent: allowAdjacentDeserts,
   });
 
-  // Terrain: always reject a mono-triangle (unless ignoring). When avoiding
-  // clusters, also keep the least-blobby of many layouts; otherwise take the
-  // first triangle-free one.
-  let terrainByHex: CatanTerrain[];
-
-  if (ignore) {
-    terrainByHex = layTerrain(desertIds, rng, variant);
-  } else if (avoidClusters) {
-    let best = layTerrain(desertIds, rng, variant);
-    let bestCost = hasMonoTriangle(best, variant)
-      ? Number.POSITIVE_INFINITY
-      : terrainCost(best, variant);
-
-    for (let i = 1; i < terrainN; i++) {
-      const cand = layTerrain(desertIds, rng, variant);
-
-      if (hasMonoTriangle(cand, variant)) {
-        continue;
-      }
-
-      const cost = terrainCost(cand, variant);
-
-      if (cost < bestCost) {
-        bestCost = cost;
-        best = cand;
-      }
-    }
-
-    terrainByHex = best;
-  } else {
-    let laid = layTerrain(desertIds, rng, variant);
-
-    for (let i = 0; i < terrainN && hasMonoTriangle(laid, variant); i++) {
-      laid = layTerrain(desertIds, rng, variant);
-    }
-
-    terrainByHex = laid;
-  }
+  const terrainByHex = chooseTerrain(desertIds, rng, variant, {
+    ignore,
+    avoidClusters,
+    attempts: terrainN,
+  });
 
   const hiddenPool = poolIndexByHex(variant).map(i => variant.pools[i].hidden);
   const hexes: BoardHex[] = variant.cells.map(cell => ({
@@ -1507,75 +1653,29 @@ export function generateCatanBoard(
   const noReds = redFreeHexes(hexes, options?.avoidRedOnGold);
 
   // Numbers: an unconstrained shuffle when ignoring, else the balanced search.
-  let best: Map<number, number>;
-
-  if (ignore) {
-    best = randomNumbers(numberedIds, rng, variant);
-  } else {
-    let candidate: Map<number, number> | null = null;
-    let bestScore = Number.POSITIVE_INFINITY;
-    // The zones' own bands read off the bags, so the search works them out once
-    // rather than once per candidate.
-    const bands = poolBands(variant.pools);
-
-    for (let i = 0; i < numberN; i++) {
-      const placement = placeNumbers(
-        numberedIds,
-        rng,
+  const best = ignore
+    ? randomNumbers(numberedIds, rng, variant)
+    : bestNumbers(numberedIds, hexes, rng, variant, noReds, {
+        attempts: numberN,
         avoidReds,
         avoidDuplicates,
-        variant,
-        noReds,
-      );
-
-      // No placement satisfies the rules — an authored scenario can pin two
-      // reds side by side, and then no shuffle will do.
-      if (placement === null) {
-        continue;
-      }
-
-      const scored = hexes.map(h => ({
-        ...h,
-        number: placement.get(h.id) ?? null,
-      }));
-      const score = numberBalance(scored, variant, {
         tolerance,
-        bands,
         balanceIntersections: balanceInter,
         penalizeVariance,
         limitPips,
         maxPips,
       });
 
-      if (score < bestScore) {
-        bestScore = score;
-        candidate = placement;
-      }
-    }
-
-    // Nothing satisfied the rules — an authored scenario can leave no legal
-    // arrangement at all. Lay the tokens anyway rather than hand back a board
-    // with no numbers: a board that breaks a rule beats a board with no
-    // production, and what it costs shows up in `boardWarnings`.
-    best = candidate ?? randomNumbers(numberedIds, rng, variant);
-  }
-
   for (const h of hexes) {
     h.number = best.get(h.id) ?? null;
   }
 
-  let portTypes = shufflePorts(variant, rng);
-
-  if (avoidPortRes && !ignore) {
-    for (
-      let i = 0;
-      i < PORT_ATTEMPTS &&
-      portTouchesOwnResource(portTypes, terrainByHex, variant);
-      i++
-    ) {
-      portTypes = shufflePorts(variant, rng);
-    }
-  }
+  const portTypes = shuffledPorts(
+    variant,
+    rng,
+    terrainByHex,
+    avoidPortRes && !ignore,
+  );
 
   const ports: BoardPort[] = variant.portSlots.map((slot, i) => ({
     ...slot,
