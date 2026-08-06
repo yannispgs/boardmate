@@ -46,9 +46,9 @@ describe("categoryIconOf", () => {
   });
 
   it("falls back to text when the drawing is unknown", () => {
-    expect(categoryIconOf({ key: "a", label: "Arbres", icon: "gone" })).toBe(
-      null,
-    );
+    expect(
+      categoryIconOf({ key: "a", label: "Arbres", icon: "gone" }),
+    ).toBeNull();
   });
 });
 
