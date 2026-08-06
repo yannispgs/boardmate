@@ -6,6 +6,7 @@ import type {
   BoardgameKind,
   BoardgameUpdate,
   NewBoardgame,
+  RoundGoal,
   ScoringSpec,
   TurnMode,
 } from "@/lib/domain";
@@ -41,6 +42,8 @@ export function toBoardgame(row: BoardgameRow): Boardgame {
     scoring: (row.scoring as ScoringSpec | null) ?? null,
     roundLimit: row.round_limit,
     dice: (row.dice as Boardgame["dice"]) ?? null,
+    // Reference data, authored in migrations — never written back from the app.
+    roundGoals: row.round_goals as unknown as RoundGoal[],
     trackSeatStats: row.track_seat_stats,
     boardGenerator: toBoardGenerator(row.board_generator),
     isActive: row.is_active,

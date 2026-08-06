@@ -10,6 +10,7 @@ import type {
   ExtensionScenarioUpdate,
   FieldSpec,
   NewExtensionScenario,
+  RoundGoal,
   ScoringDelta,
 } from "@/lib/domain";
 import { ScenarioInUseError } from "@/lib/repositories/errors";
@@ -44,6 +45,7 @@ export function toExtension(
     name: row.name,
     configFields: row.config_fields as unknown as FieldSpec[],
     scoringDelta: row.scoring_delta as unknown as ScoringDelta | null,
+    roundGoals: row.round_goals as unknown as RoundGoal[],
     targetModifier: row.target_modifier,
     hasScenarios: row.has_scenarios,
     changesBoard: row.changes_board,

@@ -47,6 +47,7 @@ function ext(
     name: partial.id,
     configFields: [],
     scoringDelta: null,
+    roundGoals: [],
     targetModifier: 0,
     hasScenarios: false,
     changesBoard: false,

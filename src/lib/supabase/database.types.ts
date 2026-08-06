@@ -77,6 +77,7 @@ export type Database = {
           name: string
           rec_max_players: number | null
           rec_min_players: number | null
+          round_goals: Json
           round_limit: number | null
           scoring: Json | null
           tags: string[]
@@ -98,6 +99,7 @@ export type Database = {
           name: string
           rec_max_players?: number | null
           rec_min_players?: number | null
+          round_goals?: Json
           round_limit?: number | null
           scoring?: Json | null
           tags?: string[]
@@ -119,6 +121,7 @@ export type Database = {
           name?: string
           rec_max_players?: number | null
           rec_min_players?: number | null
+          round_goals?: Json
           round_limit?: number | null
           scoring?: Json | null
           tags?: string[]
@@ -260,6 +263,7 @@ export type Database = {
           is_active: boolean
           key: string | null
           name: string
+          round_goals: Json
           scoring_delta: Json | null
           sort_order: number
           target_modifier: number
@@ -274,6 +278,7 @@ export type Database = {
           is_active?: boolean
           key?: string | null
           name: string
+          round_goals?: Json
           scoring_delta?: Json | null
           sort_order?: number
           target_modifier?: number
@@ -288,6 +293,7 @@ export type Database = {
           is_active?: boolean
           key?: string | null
           name?: string
+          round_goals?: Json
           scoring_delta?: Json | null
           sort_order?: number
           target_modifier?: number
