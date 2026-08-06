@@ -12,7 +12,7 @@ export function ScorePaceCard({
   isWinner,
   scale,
   shortest,
-}: {
+}: Readonly<{
   pace: PlayerPace;
   rank: number;
   isWinner: boolean;
@@ -20,7 +20,7 @@ export function ScorePaceCard({
   scale: number;
   /** Fewest turns anyone took, the yardstick for "played more turns". */
   shortest: number;
-}) {
+}>) {
   const width =
     scale > 0 && pace.perTurn !== null ? (pace.perTurn / scale) * 100 : 0;
   const extraTurns = pace.turnCount - shortest;

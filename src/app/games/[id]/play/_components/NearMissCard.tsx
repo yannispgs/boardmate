@@ -5,7 +5,7 @@ import type { NearMiss } from "@/lib/game/score-pace";
  * would have gone past their neighbour on one more turn at their own pace.
  * A what-if, said as one — the ranking above is the result.
  */
-export function NearMissCard({ miss }: { miss: NearMiss }) {
+export function NearMissCard({ miss }: Readonly<{ miss: NearMiss }>) {
   return (
     <li className="flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] p-3 text-sm">
       <span aria-hidden>🤏</span>

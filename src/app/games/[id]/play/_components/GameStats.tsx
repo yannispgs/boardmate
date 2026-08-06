@@ -8,6 +8,7 @@ import { buildScoreSeries } from "@/lib/game/score-series";
 import { computeGameStats } from "@/lib/game/stats";
 import { buildTurnTimeSeries } from "@/lib/game/turn-time-series";
 import { DiceTimeline } from "./DiceTimeline";
+import { GameHighlights } from "./GameHighlights";
 import { PlayerStatCardList } from "./PlayerStatCardList";
 import { ScoreChart } from "./ScoreChart";
 import { ScorePaceStats } from "./ScorePaceStats";
@@ -19,7 +20,7 @@ import { TurnTimeChart } from "./TurnTimeChart";
  * banner when the player scrolls. All figures are derived client-side from the
  * turn log by `computeGameStats`; nothing here needs the network.
  */
-export function GameStats({ game }: { game: PopulatedGame }) {
+export function GameStats({ game }: Readonly<{ game: PopulatedGame }>) {
   // Simultaneous games have no per-player turns — a different summary applies.
   if (game.boardgame.turnMode === "simultaneous") {
     return <SimultaneousGameStats game={game} />;
@@ -127,57 +128,7 @@ export function GameStats({ game }: { game: PopulatedGame }) {
         ))}
       </div>
 
-      {stats.longestTurn ? (
-        <div className="flex items-center justify-between gap-2 rounded-xl border border-black/10 bg-black/[0.02] p-3 dark:border-white/10 dark:bg-white/[0.02]">
-          <span className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
-            <span aria-hidden>⏳</span>
-            Tour le plus long
-          </span>
-          <span className="text-sm tabular-nums">
-            <span className="font-semibold">
-              {formatDuration(stats.longestTurn.durationS)}
-            </span>{" "}
-            <span className="text-zinc-500 dark:text-zinc-400">
-              · {stats.longestTurn.name}, tour {stats.longestTurn.round}
-            </span>
-          </span>
-        </div>
-      ) : null}
-
-      {stats.mostPaused ? (
-        <div className="flex items-center justify-between gap-2 rounded-xl border border-black/10 bg-black/[0.02] p-3 dark:border-white/10 dark:bg-white/[0.02]">
-          <span className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
-            <span aria-hidden>⏸️</span>
-            Le plus en pause
-          </span>
-          <span className="text-sm tabular-nums">
-            <span className="font-semibold">
-              {formatDuration(stats.mostPaused.durationS)}
-            </span>{" "}
-            <span className="text-zinc-500 dark:text-zinc-400">
-              · {stats.mostPaused.name} ({stats.mostPaused.count} pause
-              {stats.mostPaused.count > 1 ? "s" : ""})
-            </span>
-          </span>
-        </div>
-      ) : null}
-
-      {stats.mostOvertime ? (
-        <div className="flex items-center justify-between gap-2 rounded-xl border border-red-500/20 bg-red-500/[0.04] p-3">
-          <span className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
-            <span aria-hidden>⏱️</span>
-            Le plus en dépassement
-          </span>
-          <span className="text-sm tabular-nums">
-            <span className="font-semibold text-red-600 dark:text-red-400">
-              {formatDuration(stats.mostOvertime.overtimeS)}
-            </span>{" "}
-            <span className="text-zinc-500 dark:text-zinc-400">
-              · {stats.mostOvertime.name}
-            </span>
-          </span>
-        </div>
-      ) : null}
+      <GameHighlights stats={stats} />
 
       {stats.turnCount > 0 && stats.totalPauseCount === 0 ? (
         <p className="text-center text-sm text-zinc-400 dark:text-zinc-500">

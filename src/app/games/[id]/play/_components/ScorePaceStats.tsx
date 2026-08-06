@@ -19,11 +19,11 @@ import { ScorePaceCardList } from "./ScorePaceCardList";
 export function ScorePaceStats({
   game,
   timeStats,
-}: {
+}: Readonly<{
   game: PopulatedGame;
   /** Per-player time stats, the only place turns are already counted. */
   timeStats: PlayerTimeStats[];
-}) {
+}>) {
   const turnsOf = new Map(timeStats.map(s => [s.playerId, s.turnCount]));
   const players: PacePlayer[] = game.players.map(p => ({
     playerId: p.playerId,

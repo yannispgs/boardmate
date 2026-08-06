@@ -7,10 +7,10 @@ import { ScorePaceCard } from "./ScorePaceCard";
 export function ScorePaceCardList({
   paces,
   winnerIds,
-}: {
+}: Readonly<{
   paces: PlayerPace[];
   winnerIds: PlayerId[];
-}) {
+}>) {
   const scale = Math.max(...paces.map(p => p.perTurn ?? 0), 0);
   const shortest = Math.min(...paces.map(p => p.turnCount));
 
