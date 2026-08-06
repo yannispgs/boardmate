@@ -28,7 +28,7 @@ comment on column public.extensions.round_goals is
 -- The third habitat is « Mer » on purpose: the official French term is
 -- marais/zones humides, but the owner reads the blue habitat as the sea.
 update public.boardgames
-set round_goals = '[
+set round_goals = $json$[
   { "key": "birdsInHabitat", "label": "Oiseaux dans {habitat}",
     "params": [{ "key": "habitat", "label": "Écosystème", "options": [
       { "value": "forest", "label": "Forêt", "icon": "habitat-forest" },
@@ -57,10 +57,10 @@ set round_goals = '[
     ] }] },
   { "key": "eggSets", "label": "Séries de 3 œufs", "params": [] },
   { "key": "totalBirds", "label": "Oiseaux (total)", "params": [] }
-]'::jsonb
+]$json$::jsonb
 where name = 'Wingspan';
 
--- Oceania: 8 more tiles, including the « Pas d''objectif » one. That tile scores
+-- Oceania: 8 more tiles, including the « Pas d'objectif » one. That tile scores
 -- nothing, and its action cube is never spent on the goal board — it returns to
 -- stock, granting one extra turn in EVERY following stage. Modelled as two
 -- properties of the goal (`scores` / `extraTurn`) so the stage calendar is a
@@ -71,7 +71,7 @@ select
   'Wingspan - Océanie',
   false,
   0,
-  '[
+  $json$[
     { "key": "beakLeft", "label": "Bec tourné vers la gauche", "params": [] },
     { "key": "beakRight", "label": "Bec tourné vers la droite", "params": [] },
     { "key": "foodCost", "label": "{food} dans le coût en nourriture de vos oiseaux",
@@ -82,8 +82,8 @@ select
       ] }] },
     { "key": "cubesOnPlayBird", "label": "Cubes sur « Jouer un oiseau »", "params": [] },
     { "key": "cheapBirds", "label": "Oiseaux valant 3 points ou moins", "params": [] },
-    { "key": "noGoal", "label": "Pas d''objectif", "params": [],
+    { "key": "noGoal", "label": "Pas d'objectif", "params": [],
       "scores": false, "extraTurn": 1 }
-  ]'::jsonb
+  ]$json$::jsonb
 from public.boardgames
 where name = 'Wingspan';
