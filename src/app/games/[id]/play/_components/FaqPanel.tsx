@@ -17,7 +17,7 @@ import { useFaq } from "@/lib/hooks/use-faq";
 import { FaqSectionList } from "./FaqSectionList";
 
 /**
- * The rules you keep re-asking, one tap away from the table: a right-edge tab
+ * The rules you keep re-asking, one tap away from the table: a corner button
  * opening the FAQ of the game being played, followed by the FAQ of each
  * extension on the table — and only those, since an extension's rules do not
  * exist when it is not being played with.
@@ -72,7 +72,7 @@ export function FaqPanel({
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Ouvrir la FAQ"
-        className="fixed right-3 top-[26%] z-30 flex -translate-y-1/2 items-center justify-center rounded-full bg-indigo-600 p-3 text-white shadow-lg transition hover:bg-indigo-500"
+        className="fixed right-3 top-3 z-30 flex items-center justify-center rounded-full bg-indigo-600 p-3 text-white shadow-lg transition hover:bg-indigo-500"
       >
         <HelpIcon className="h-6 w-6" />
       </button>
