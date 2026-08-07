@@ -136,3 +136,34 @@ export async function seedMarinsScenario(name: string): Promise<string> {
 export async function deleteScenarios(names: string[]): Promise<void> {
   await adminClient().from("extension_scenarios").delete().in("name", names);
 }
+
+/**
+ * Inserts FAQ entries (service role) and returns their questions, so a played
+ * game has rules to read — the app ships with an empty FAQ. A `"catan"` entry
+ * hangs off the Catan game, an `"app"` one off nothing (a question about
+ * Boardmate itself), which is what a game in progress must *not* show.
+ */
+export async function seedFaqEntries(
+  entries: Array<{ question: string; answer: string; scope: "catan" | "app" }>,
+): Promise<string[]> {
+  const { error } = await adminClient()
+    .from("faq_entries")
+    .insert(
+      entries.map((entry, i) => ({
+        boardgame_id: entry.scope === "catan" ? CATAN_ID : null,
+        question: entry.question,
+        answer: entry.answer,
+        sort_order: i,
+      })),
+    );
+  if (error) {
+    throw new Error(`Failed to seed FAQ entries: ${error.message}`);
+  }
+
+  return entries.map(entry => entry.question);
+}
+
+/** Removes seeded FAQ entries by question — call in a test's `finally`. */
+export async function deleteFaqEntries(questions: string[]): Promise<void> {
+  await adminClient().from("faq_entries").delete().in("question", questions);
+}
