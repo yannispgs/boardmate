@@ -277,7 +277,7 @@ function SectionRow({
           }
           className="h-3.5 w-3.5 accent-indigo-600"
         />
-        Détailler cette section dans les statistiques
+        <span>Détailler cette section dans les statistiques</span>
       </label>
     </div>
   );
