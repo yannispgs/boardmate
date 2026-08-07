@@ -10,7 +10,7 @@ import {
   hasCompleteBreakdown,
 } from "./category-stats";
 
-// A Cascadia-like sheet: two subsections + a standalone (→ "Divers").
+// A Cascadia-like sheet: two subsections + a standalone line.
 const sheet: ScoreSheetItem[] = [
   {
     label: "Animaux",
@@ -65,19 +65,16 @@ function rec(
 const full = { ours: 5, buse: 3, foret: 4, prairie: 2, pommesDePin: 1 };
 
 describe("categoryGroups", () => {
-  it("makes one group per subsection and bundles standalones into Divers", () => {
+  it("makes one group per sheet entry, in sheet order", () => {
     const groups = categoryGroups(sheet);
 
-    expect(groups.map(g => g.label)).toEqual(["Animaux", "Biomes", "Divers"]);
+    expect(groups.map(g => g.label)).toEqual([
+      "Animaux",
+      "Biomes",
+      "Pommes de pin",
+    ]);
     expect(groups[0].keys).toEqual(["ours", "buse"]);
     expect(groups[2].keys).toEqual(["pommesDePin"]);
-    // Subsections get distinct hues; Divers is grey.
-    expect(groups[0].color).not.toBe(groups[1].color);
-    expect(groups[2].color).toBe("#9ca3af");
-  });
-
-  it("omits Divers when there is no standalone line", () => {
-    expect(categoryGroups([sheet[0]]).map(g => g.label)).toEqual(["Animaux"]);
   });
 
   it("gives a sheet without any section one group per line", () => {
@@ -91,11 +88,9 @@ describe("categoryGroups", () => {
     ]);
   });
 
-  it("tells those lines apart by colour instead of drowning them in Divers", () => {
-    const colors = categoryGroups(flat).map(g => g.color);
-
-    expect(new Set(colors).size).toBe(3);
-    expect(colors).not.toContain("#9ca3af");
+  it("tells every group apart by colour, standalone lines included", () => {
+    expect(new Set(categoryGroups(sheet).map(g => g.color)).size).toBe(3);
+    expect(new Set(categoryGroups(flat).map(g => g.color)).size).toBe(3);
   });
 
   it("still has a colour for a sheet longer than the palette", () => {
@@ -167,11 +162,11 @@ describe("groupSlices", () => {
     const slices = groupSlices(sheet, [full, b2]);
 
     // Animaux: (5+3)/1 games… mean of (8) and (4) = 6; Biomes: (6, 4) = 5;
-    // Divers: (1, 5) = 3.
+    // Pommes de pin: (1, 5) = 3.
     expect(slices.map(s => [s.label, s.value])).toEqual([
       ["Animaux", 6],
       ["Biomes", 5],
-      ["Divers", 3],
+      ["Pommes de pin", 3],
     ]);
   });
 
@@ -180,7 +175,7 @@ describe("groupSlices", () => {
   });
 
   it("treats a category absent from a breakdown as 0", () => {
-    // Only `ours` present → Animaux 5, Biomes / Divers 0 (missing → 0).
+    // Only `ours` present → Animaux 5, the other two 0 (missing → 0).
     expect(groupSlices(sheet, [{ ours: 5 }]).map(s => s.value)).toEqual([
       5, 0, 0,
     ]);

@@ -1,11 +1,11 @@
 /**
  * Aggregates category-scored games into point-distribution slices for the stats
  * charts: how a player's / a game's points split across the top level of the
- * scoresheet — its subsections when it has any (Cascadia's Animaux / Biomes /
- * Divers), its plain lines otherwise (Wingspan, Forêt Mixte) — and, inside a
- * subsection the game flagged `showDetail`, across its own lines. Only games
- * whose stored breakdown covers every category count. Pure: no vendor types,
- * unit-tested.
+ * scoresheet — its subsections and its plain lines alike, each counting for one
+ * (Cascadia's Animaux / Biomes / Pommes de pin, Wingspan's every line) — and,
+ * inside a subsection the game flagged `showDetail`, across its own lines. Only
+ * games whose stored breakdown covers every category count. Pure: no vendor
+ * types, unit-tested.
  */
 import type {
   CategoryDef,
@@ -36,14 +36,12 @@ const PALETTE = [
   "#84cc16",
   "#f43f5e",
 ];
-const DIVERS_COLOR = "#9ca3af";
-
 /** The palette hue at `i`, wrapping round for a sheet longer than the palette. */
 function paletteColor(i: number): string {
   return PALETTE[i % PALETTE.length];
 }
 
-/** A subsection (its category keys) or the "Divers" bundle of standalone lines. */
+/** A subsection (its category keys) or a standalone line (its own single key). */
 export interface CategoryGroup {
   label: string;
   keys: string[];
@@ -51,45 +49,23 @@ export interface CategoryGroup {
 }
 
 /**
- * The sheet's top-level groups: one per subsection (Animaux, Biomes…), then a
- * single "Divers" group gathering every standalone line (Cascadia's pine cones).
+ * The sheet's top level, one group per entry and in sheet order: a subsection
+ * counts as one (Cascadia's Animaux, Biomes), a standalone line counts as
+ * itself (its pine cones).
  *
- * A sheet with **no** subsection at all (Wingspan, Forêt Mixte) has no such top
- * level to speak of, so each of its lines becomes a group in its own right —
- * bundling them all into one "Divers" would draw a single full circle and say
- * nothing.
+ * A standalone line keeps its own name rather than being swept with the others
+ * into a "Divers" bundle — that bundle held exactly one line on the only sheet
+ * that has any, and replaced a name we already had with a word that says
+ * nothing. Should a sheet one day carry enough loose lines to crowd the donut,
+ * the answer is to name a subsection for them in the sheet, not to hide them
+ * behind a vague label here.
  */
 export function categoryGroups(sheet: ScoreSheetItem[]): CategoryGroup[] {
-  if (!sheet.some(isSubsection)) {
-    return sheetCategories(sheet).map((c, i) => ({
-      label: c.label,
-      keys: [c.key],
-      color: paletteColor(i),
-    }));
-  }
-
-  const groups: CategoryGroup[] = [];
-  const divers: string[] = [];
-  let subIndex = 0;
-
-  for (const item of sheet) {
-    if (isSubsection(item)) {
-      groups.push({
-        label: item.label,
-        keys: item.categories.map(c => c.key),
-        color: paletteColor(subIndex),
-      });
-      subIndex++;
-    } else {
-      divers.push(item.key);
-    }
-  }
-
-  if (divers.length > 0) {
-    groups.push({ label: "Divers", keys: divers, color: DIVERS_COLOR });
-  }
-
-  return groups;
+  return sheet.map((item, i) => ({
+    label: item.label,
+    keys: isSubsection(item) ? item.categories.map(c => c.key) : [item.key],
+    color: paletteColor(i),
+  }));
 }
 
 /**
@@ -154,7 +130,7 @@ function mean(
   return breakdowns.reduce((sum, b) => sum + f(b), 0) / breakdowns.length;
 }
 
-/** Mean points per GROUP (Animaux / Biomes / Divers) over the breakdowns. */
+/** Mean points per top-level GROUP of the sheet over the breakdowns. */
 export function groupSlices(
   sheet: ScoreSheetItem[],
   breakdowns: Record<string, number>[],
