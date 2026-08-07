@@ -48,6 +48,38 @@ export function useExtensions(baseGameId: BoardgameId | null): Extension[] {
   return extensions;
 }
 
+/**
+ * Every active extension, all games together (empty while loading). What a
+ * screen spanning the whole catalogue needs — the FAQ has a section per
+ * extension and has to name the one an entry belongs to.
+ */
+export function useAllExtensions(): Extension[] {
+  const [extensions, setExtensions] = useState<Extension[]>([]);
+
+  useEffect(() => {
+    let active = true;
+
+    getExtensionRepository()
+      .listAll()
+      .then(list => {
+        if (active) {
+          setExtensions(list);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setExtensions([]);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return extensions;
+}
+
 /** A scenario on its way to the database — no id yet if it's a new one. */
 export interface ScenarioDraft {
   id: ExtensionScenarioId | null;

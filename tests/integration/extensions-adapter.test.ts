@@ -76,6 +76,15 @@ describe("extensions adapter", () => {
     expect(four?.isOfficial).toBe(true);
   });
 
+  it("lists every active extension, whatever its game", async () => {
+    const all = await repo().listAll();
+    const byBase = await repo().listByBase(CATAN_ID);
+
+    expect(all.length).toBeGreaterThanOrEqual(byBase.length);
+    expect(all.map(e => e.name)).toContain("Catan - Marins");
+    expect(all.every(e => e.isActive)).toBe(true);
+  });
+
   it("finds Catan Marins by its key, scenarios included", async () => {
     const marins = await repo().getByKey("catan-marins");
 

@@ -87,6 +87,24 @@ export function createExtensionRepository(
       ).map(toExtension);
     },
 
+    async listAll() {
+      const { data, error } = await supabase
+        .from("extensions")
+        .select("*, extension_scenarios(*)")
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true });
+      /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */
+      if (error) {
+        throw new Error(`Lecture des extensions: ${error.message}`);
+      }
+
+      return (
+        data as unknown as Array<
+          ExtensionRow & { extension_scenarios: ScenarioRow[] }
+        >
+      ).map(toExtension);
+    },
+
     async listExtendedBaseGames() {
       const { data, error } = await supabase
         .from("extensions")

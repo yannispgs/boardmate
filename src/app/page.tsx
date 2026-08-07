@@ -18,6 +18,7 @@ const TOOLS: {
     emoji: "🗺️",
     href: "/tools/board-generator",
   },
+  { name: "FAQ", emoji: "❓", href: "/faq" },
   { name: "Retours", emoji: "📝", href: "/feedback" },
 ];
 
