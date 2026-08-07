@@ -72,9 +72,8 @@ export function getFeedbackRepository(): FeedbackRepository {
 let faqRepository: FaqRepository | null = null;
 
 export function getFaqRepository(): FaqRepository {
-  if (!faqRepository) {
-    faqRepository = createFaqRepository(createClient());
-  }
+  faqRepository ??= createFaqRepository(createClient());
+
   return faqRepository;
 }
 
