@@ -45,6 +45,7 @@ export function toBoardgame(row: BoardgameRow): Boardgame {
     // Reference data, authored in migrations — never written back from the app.
     roundGoals: row.round_goals as unknown as RoundGoal[],
     trackSeatStats: row.track_seat_stats,
+    turnCountVaries: row.turn_count_varies,
     boardGenerator: toBoardGenerator(row.board_generator),
     isActive: row.is_active,
     // Denormalized column kept up to date by a DB trigger on games.
@@ -59,53 +60,34 @@ export function toBoardgame(row: BoardgameRow): Boardgame {
  * column that wasn't in the patch.
  */
 function toRow(input: NewBoardgame | BoardgameUpdate): BoardgameWrite {
-  const row: BoardgameWrite = {};
-  if (input.name !== undefined) {
-    row.name = input.name;
-  }
-  if (input.logoUrl !== undefined) {
-    row.logo_url = input.logoUrl;
-  }
-  if (input.minPlayers !== undefined) {
-    row.min_players = input.minPlayers;
-  }
-  if (input.maxPlayers !== undefined) {
-    row.max_players = input.maxPlayers;
-  }
-  if (input.recMinPlayers !== undefined) {
-    row.rec_min_players = input.recMinPlayers;
-  }
-  if (input.recMaxPlayers !== undefined) {
-    row.rec_max_players = input.recMaxPlayers;
-  }
-  if (input.kind !== undefined) {
-    row.kind = input.kind;
-  }
-  if (input.turnMode !== undefined) {
-    row.turn_mode = input.turnMode;
-  }
-  if (input.avgDurationMin !== undefined) {
-    row.avg_duration_min = input.avgDurationMin;
-  }
-  if (input.tags !== undefined) {
-    row.tags = input.tags;
-  }
-  if (input.scoring !== undefined) {
-    row.scoring = input.scoring as unknown as Json;
-  }
-  if (input.roundLimit !== undefined) {
-    row.round_limit = input.roundLimit;
-  }
-  if (input.dice !== undefined) {
-    row.dice = input.dice as unknown as Json;
-  }
-  if (input.trackSeatStats !== undefined) {
-    row.track_seat_stats = input.trackSeatStats;
-  }
-  if (input.boardGenerator !== undefined) {
-    row.board_generator = input.boardGenerator;
-  }
-  return row;
+  return withoutAbsent({
+    name: input.name,
+    logo_url: input.logoUrl,
+    min_players: input.minPlayers,
+    max_players: input.maxPlayers,
+    rec_min_players: input.recMinPlayers,
+    rec_max_players: input.recMaxPlayers,
+    kind: input.kind,
+    turn_mode: input.turnMode,
+    avg_duration_min: input.avgDurationMin,
+    tags: input.tags,
+    scoring: input.scoring as unknown as Json,
+    round_limit: input.roundLimit,
+    dice: input.dice as unknown as Json,
+    track_seat_stats: input.trackSeatStats,
+    turn_count_varies: input.turnCountVaries,
+    board_generator: input.boardGenerator,
+  });
+}
+
+/**
+ * Drops the columns the caller said nothing about. `undefined` means "absent",
+ * never "clear it" — a column is emptied by passing `null` explicitly.
+ */
+function withoutAbsent(row: BoardgameWrite): BoardgameWrite {
+  return Object.fromEntries(
+    Object.entries(row).filter(([, value]) => value !== undefined),
+  );
 }
 
 /**

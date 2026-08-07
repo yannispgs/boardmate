@@ -39,6 +39,8 @@ interface FormState {
   kind: BoardgameKind;
   // Break the stats down by turn order (first / middle / last to play).
   trackSeatStats: boolean;
+  // The game can stop mid-lap, so players don't all get the same turn count.
+  turnCountVaries: boolean;
   // The generator that draws this game's board ("" = played on no such board).
   boardGenerator: BoardGeneratorId | "";
   // Dice tracking (e.g. Catan's 2×d6): when on, `diceCount` × d`diceSides`.
@@ -67,6 +69,7 @@ const EMPTY: FormState = {
   turnMode: "sequential",
   kind: "competitive",
   trackSeatStats: false,
+  turnCountVaries: false,
   boardGenerator: "",
   diceTracked: false,
   diceCount: "",
@@ -94,6 +97,7 @@ function fromBoardgame(b: Boardgame): FormState {
     turnMode: b.turnMode,
     kind: b.kind,
     trackSeatStats: b.trackSeatStats,
+    turnCountVaries: b.turnCountVaries,
     boardGenerator: b.boardGenerator ?? "",
     diceTracked: b.dice !== null,
     diceCount: b.dice?.count?.toString() ?? "",
@@ -191,6 +195,7 @@ function toInput(
     turnMode: form.turnMode,
     kind: form.kind,
     trackSeatStats: form.trackSeatStats,
+    turnCountVaries: form.turnCountVaries,
     boardGenerator: form.boardGenerator === "" ? null : form.boardGenerator,
     dice: form.diceTracked
       ? {
@@ -572,6 +577,33 @@ export function BoardgameForm({
             pour les jeux où l&apos;ordre de jeu influence l&apos;issue (Catan).
           </p>
           <p>Sans effet sur le déroulé d&apos;une partie.</p>
+        </InfoTip>
+      </label>
+
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={form.turnCountVaries}
+          onChange={e =>
+            setForm({ ...form, turnCountVaries: e.target.checked })
+          }
+        />
+        La partie peut s&apos;arrêter en plein tour de table
+        <InfoTip label="À quoi sert « s'arrêter en plein tour de table »">
+          <p>
+            Pour les jeux dont la fin se déclenche au hasard (Forêt Mixte
+            s&apos;arrête dès la 3<sup>e</sup> carte hiver)&nbsp;: les joueurs
+            placés après n&apos;ont pas joué leur dernier tour.
+          </p>
+          <p>
+            Ajoute au récap de fin de partie les{" "}
+            <strong>points par tour</strong> de chacun, et signale ceux
+            qu&apos;un tour de plus aurait fait passer devant.
+          </p>
+          <p>
+            Purement indicatif&nbsp;: sans effet sur le vainqueur ni sur le
+            classement.
+          </p>
         </InfoTip>
       </label>
 

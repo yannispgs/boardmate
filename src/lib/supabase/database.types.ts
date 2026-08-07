@@ -82,6 +82,7 @@ export type Database = {
           scoring: Json | null
           tags: string[]
           track_seat_stats: boolean
+          turn_count_varies: boolean
           turn_mode: string
         }
         Insert: {
@@ -104,6 +105,7 @@ export type Database = {
           scoring?: Json | null
           tags?: string[]
           track_seat_stats?: boolean
+          turn_count_varies?: boolean
           turn_mode?: string
         }
         Update: {
@@ -126,6 +128,7 @@ export type Database = {
           scoring?: Json | null
           tags?: string[]
           track_seat_stats?: boolean
+          turn_count_varies?: boolean
           turn_mode?: string
         }
         Relationships: []

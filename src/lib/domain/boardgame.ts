@@ -178,6 +178,13 @@ export interface Boardgame {
    */
   trackSeatStats: boolean;
   /**
+   * Whether a game can end mid-lap, leaving some players one turn short of the
+   * others (Forêt Mixte stops the moment the third winter card is drawn). Turns
+   * on a points-per-turn reading on the end-of-game stats; purely informative,
+   * it never touches the winner, the ranking or the tie-break.
+   */
+  turnCountVaries: boolean;
+  /**
    * The generator that draws a board for this game, offered as a step of the
    * new-game funnel; `null` for a game played on no generated board.
    */
@@ -216,6 +223,8 @@ export interface NewBoardgame {
   dice?: DiceSpec | null;
   /** Break the stats down by turn order (first / middle / last). */
   trackSeatStats?: boolean;
+  /** Players may not all get the same number of turns (random end trigger). */
+  turnCountVaries?: boolean;
   /** The generator that draws this game's board, or `null` for none. */
   boardGenerator?: BoardGeneratorId | null;
 }
