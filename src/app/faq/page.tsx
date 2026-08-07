@@ -13,9 +13,9 @@ export const metadata: Metadata = {
  */
 export default async function FaqPage({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: Promise<{ jeu?: string }>;
-}) {
+}>) {
   const { jeu } = await searchParams;
 
   return (

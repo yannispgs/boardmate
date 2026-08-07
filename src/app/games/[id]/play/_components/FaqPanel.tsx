@@ -30,11 +30,11 @@ import { FaqSectionList } from "./FaqSectionList";
 export function FaqPanel({
   boardgame,
   extensions,
-}: {
+}: Readonly<{
   boardgame: Boardgame;
   /** The extensions this game is played with (empty when none). */
   extensions: Array<{ id: ExtensionId; name: string }>;
-}) {
+}>) {
   const { entries, loading, error } = useFaq();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -55,6 +55,10 @@ export function FaqPanel({
     query,
     boardgame.name,
   );
+
+  // The one grey line the panel says instead of a list, `null` when there is a
+  // list worth showing (same shape as `ListBody`'s `said`).
+  const said = loading ? "Chargement…" : empty;
 
   function close() {
     setOpen(false);
@@ -86,12 +90,10 @@ export function FaqPanel({
 
           <ErrorText message={error} />
 
-          {loading ? (
-            <p className="text-sm text-zinc-500">Chargement…</p>
-          ) : empty === null ? (
+          {said === null ? (
             <FaqSectionList sections={shown} label={label} />
           ) : (
-            <p className="text-sm text-zinc-500">{empty}</p>
+            <p className="text-sm text-zinc-500">{said}</p>
           )}
         </div>
       </Drawer>
