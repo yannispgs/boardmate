@@ -1,9 +1,11 @@
 /**
- * Aggregates category-scored games (Cascadia) into point-distribution slices
- * for the stats charts: how a player's / a game's points split across category
- * groups (Animaux / Biomes / Divers) and, within a group, across its lines
- * (the animal types). Only games whose stored breakdown covers every category
- * count. Pure: no vendor types, unit-tested.
+ * Aggregates category-scored games into point-distribution slices for the stats
+ * charts: how a player's / a game's points split across the top level of the
+ * scoresheet — its subsections and its plain lines alike, each counting for one
+ * (Cascadia's Animaux / Biomes / Pommes de pin, Wingspan's every line) — and,
+ * inside a subsection the game flagged `showDetail`, across its own lines. Only
+ * games whose stored breakdown covers every category count. Pure: no vendor
+ * types, unit-tested.
  */
 import type {
   CategoryDef,
@@ -21,11 +23,25 @@ export interface Slice {
   color: string;
 }
 
-// Distinct hues for the top-level GROUPS (subsections); standalones are grey.
-const GROUP_COLORS = ["#6366f1", "#10b981", "#f59e0b", "#ec4899", "#06b6d4"];
-const DIVERS_COLOR = "#9ca3af";
+// Distinct hues handed out to whatever the top level of the sheet turns out to
+// be — its subsections, or its lines when it has none. Eight of them: past that
+// a donut is unreadable anyway, so repeating a hue costs nothing.
+const PALETTE = [
+  "#6366f1",
+  "#10b981",
+  "#f59e0b",
+  "#ec4899",
+  "#06b6d4",
+  "#8b5cf6",
+  "#84cc16",
+  "#f43f5e",
+];
+/** The palette hue at `i`, wrapping round for a sheet longer than the palette. */
+function paletteColor(i: number): string {
+  return PALETTE[i % PALETTE.length];
+}
 
-/** A subsection (its category keys) or the "Divers" bundle of standalone lines. */
+/** A subsection (its category keys) or a standalone line (its own single key). */
 export interface CategoryGroup {
   label: string;
   keys: string[];
@@ -33,39 +49,33 @@ export interface CategoryGroup {
 }
 
 /**
- * The sheet's top-level groups: one per subsection (Animaux, Biomes…), then a
- * single "Divers" group gathering every standalone line (Cascadia's pine cones).
+ * The sheet's top level, one group per entry and in sheet order: a subsection
+ * counts as one (Cascadia's Animaux, Biomes), a standalone line counts as
+ * itself (its pine cones).
+ *
+ * A standalone line keeps its own name rather than being swept with the others
+ * into a "Divers" bundle — that bundle held exactly one line on the only sheet
+ * that has any, and replaced a name we already had with a word that says
+ * nothing. Should a sheet one day carry enough loose lines to crowd the donut,
+ * the answer is to name a subsection for them in the sheet, not to hide them
+ * behind a vague label here.
  */
 export function categoryGroups(sheet: ScoreSheetItem[]): CategoryGroup[] {
-  const groups: CategoryGroup[] = [];
-  const divers: string[] = [];
-  let subIndex = 0;
-
-  for (const item of sheet) {
-    if (isSubsection(item)) {
-      groups.push({
-        label: item.label,
-        keys: item.categories.map(c => c.key),
-        color: GROUP_COLORS[subIndex % GROUP_COLORS.length],
-      });
-      subIndex++;
-    } else {
-      divers.push(item.key);
-    }
-  }
-
-  if (divers.length > 0) {
-    groups.push({ label: "Divers", keys: divers, color: DIVERS_COLOR });
-  }
-
-  return groups;
+  return sheet.map((item, i) => ({
+    label: item.label,
+    keys: isSubsection(item) ? item.categories.map(c => c.key) : [item.key],
+    color: paletteColor(i),
+  }));
 }
 
-/** The first subsection of a sheet (Cascadia: "Animaux"), or null if there's none. */
-export function firstSubsection(
+/**
+ * The subsections the game says are worth breaking down further (Cascadia:
+ * "Animaux"), in sheet order — each one earns its own view in the charts.
+ */
+export function detailSubsections(
   sheet: ScoreSheetItem[],
-): CategorySubsection | null {
-  return sheet.find(isSubsection) ?? null;
+): CategorySubsection[] {
+  return sheet.filter(isSubsection).filter(s => s.showDetail === true);
 }
 
 /** True when a breakdown carries a value for every category of the sheet. */
@@ -120,7 +130,7 @@ function mean(
   return breakdowns.reduce((sum, b) => sum + f(b), 0) / breakdowns.length;
 }
 
-/** Mean points per GROUP (Animaux / Biomes / Divers) over the breakdowns. */
+/** Mean points per top-level GROUP of the sheet over the breakdowns. */
 export function groupSlices(
   sheet: ScoreSheetItem[],
   breakdowns: Record<string, number>[],
@@ -137,9 +147,11 @@ export function categorySlices(
   categories: CategoryDef[],
   breakdowns: Record<string, number>[],
 ): Slice[] {
-  return categories.map(c => ({
+  return categories.map((c, i) => ({
     label: c.label,
-    color: c.colors?.[0] ?? DIVERS_COLOR,
+    // A game that named its own colours keeps them (Cascadia's animals); one
+    // that didn't gets told apart by the palette rather than by nothing.
+    color: c.colors?.[0] ?? paletteColor(i),
     value: mean(breakdowns, b => b[c.key] ?? 0),
   }));
 }
