@@ -1,4 +1,13 @@
-import type { GameStatsRecord, PlayerId } from "@/lib/domain";
+import type { GameStatsRecord, PlayerId, TurnMode } from "@/lib/domain";
+
+/**
+ * Whether "first / middle / last to play" means anything for a game. It doesn't
+ * when everybody plays at once (Splito): there is no such thing as playing
+ * first, so the option to track it is hidden and never stored as on.
+ */
+export function seatOrderMatters(turnMode: TurnMode): boolean {
+  return turnMode !== "simultaneous";
+}
 
 /** Where a player sat in the turn order, coarsened for the stats. */
 export type SeatBucket = "first" | "middle" | "last";
