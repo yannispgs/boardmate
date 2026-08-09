@@ -48,8 +48,18 @@ export function Drawer({
     return null;
   }
 
+  // A closed drawer stays in the DOM — that is what animates it back out, and
+  // the backdrop has to stay mounted to fade away with it — but while it sits
+  // there it must announce nothing at all: the play screen now carries two
+  // drawers (the scores and the FAQ), so every name they hold, the screen holds
+  // twice, closed or not. `inert` keeps the tab order out of an off-screen
+  // panel, and hiding the whole overlay is what stops it being found by name.
   return createPortal(
-    <div className={`fixed inset-0 z-50 ${open ? "" : "pointer-events-none"}`}>
+    <div
+      inert={!open}
+      aria-hidden={!open || undefined}
+      className={`fixed inset-0 z-50 ${open ? "" : "pointer-events-none"}`}
+    >
       <button
         type="button"
         aria-label="Fermer"

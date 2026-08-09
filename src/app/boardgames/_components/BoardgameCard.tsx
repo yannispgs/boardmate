@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   EyeIcon,
   EyeOffIcon,
+  HelpIcon,
   PuzzleIcon,
   SlidersIcon,
   TrashIcon,
@@ -32,8 +33,8 @@ function formatMeta(b: Boardgame): string {
 }
 
 /**
- * A single boardgame row: logo, name + meta, and the extensions / configs /
- * edit / deactivate / delete actions. Whether it's an active or deactivated
+ * A single boardgame row: logo, name + meta, and the extensions / FAQ / edit /
+ * deactivate / delete actions. Whether it's an active or deactivated
  * game is just the `dimmed` + `actionLabel` inputs; the extensions shortcut
  * only shows for a game that actually has some.
  */
@@ -87,6 +88,14 @@ export function BoardgameCard({
           <PuzzleIcon />
         </Link>
       ) : null}
+      <Link
+        href={`/faq?jeu=${b.id}`}
+        aria-label={`FAQ de ${b.name}`}
+        title="FAQ"
+        className={iconButtonClass}
+      >
+        <HelpIcon />
+      </Link>
       <Link
         href={`/boardgames/${b.id}/edit`}
         aria-label={`Réglages de ${b.name}`}

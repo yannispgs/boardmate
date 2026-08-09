@@ -118,6 +118,78 @@ export function scopeLabel(
   return "Boardmate";
 }
 
+/**
+ * The sections a played game reads: its own questions first, then those of each
+ * extension **on the table**. An extension documents rules that only exist when
+ * it is in play, so the caller passes the game's extensions and only those.
+ *
+ * Sections with nothing in them are dropped: mid-game, a heading with no
+ * question under it is one more thing to scroll past.
+ */
+export function gameFaqSections(
+  entries: FaqEntry[],
+  boardgameId: BoardgameId,
+  extensionIds: ExtensionId[],
+): Array<{ scope: FaqScope; entries: FaqEntry[] }> {
+  const scopes: FaqScope[] = [
+    { kind: "boardgame", boardgameId },
+    ...extensionIds.map(extensionId => ({
+      kind: "extension" as const,
+      extensionId,
+    })),
+  ];
+
+  return scopes
+    .map(scope => ({ scope, entries: entriesInScope(entries, scope) }))
+    .filter(section => section.entries.length > 0);
+}
+
+/** What the database hands out as an id, and the only shape trusted as one. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The section a link asked to open — `/faq?jeu=<id>` from a game — or the
+ * Boardmate one by default. The value comes from the URL, where anyone can type
+ * anything, so it is only read as an id when it has the shape of one; anything
+ * else opens the app's own section rather than a game that cannot exist.
+ */
+export function scopeFromParam(value: string | undefined): FaqScope {
+  if (value !== undefined && UUID.test(value)) {
+    // The brand is asserted here rather than in an adapter: this *is* the
+    // boundary the id enters through, and it has just been checked.
+    return { kind: "boardgame", boardgameId: value as BoardgameId };
+  }
+
+  return { kind: "app" };
+}
+
+/**
+ * What stands in for the list when it has nothing to show: nothing written
+ * anywhere, a search nobody answers, or a section still to be filled. Shared by
+ * the FAQ screen and the panel opened in a game, which are empty for the same
+ * reasons and should say so in the same words.
+ */
+export function faqEmptyMessage(
+  written: number,
+  found: number,
+  query: string,
+  label: string,
+): string | null {
+  if (found > 0) {
+    return null;
+  }
+
+  if (written === 0) {
+    return "Aucune question pour l'instant.";
+  }
+
+  if (query.trim() !== "") {
+    return `Aucune question ne correspond à « ${query} ».`;
+  }
+
+  return `Aucune question pour « ${label} » pour l'instant.`;
+}
+
 /** Where a new question lands: at the end of its scope. */
 export function nextSortOrder(entries: FaqEntry[], scope: FaqScope): number {
   const orders = entriesInScope(entries, scope).map(e => e.sortOrder);
