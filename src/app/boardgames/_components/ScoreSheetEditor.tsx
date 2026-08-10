@@ -1,5 +1,6 @@
 "use client";
 
+import { useConfirm } from "@/components/use-confirm";
 import type {
   CategoryDef,
   CategorySubsection,
@@ -7,7 +8,13 @@ import type {
 } from "@/lib/domain";
 import type { CategoryIconId } from "@/lib/game/category-icons";
 import { type MoveDirection, moveItem } from "@/lib/game/reorder";
-import { isSubsection } from "@/lib/game/scoring";
+import { isSubsection, sheetCategories } from "@/lib/game/scoring";
+
+/**
+ * Asks before a removal that would bury already-recorded points, and removes
+ * outright when there is nothing to lose.
+ */
+type GuardRemoval = (item: ScoreSheetItem, remove: () => void) => void;
 
 import { CategoryIconPicker } from "./CategoryIconPicker";
 
@@ -33,14 +40,22 @@ function newKey(): string {
  * past games; new fields get a generated key. Rows reorder with `↑` / `↓` —
  * the order here is the order the score is asked for at the end of a game, so
  * it has to be fixable without retyping everything below.
+ *
+ * `usage` (games already scored under each key) turns removals into a question
+ * whenever there is history behind the line. Renaming and reordering need no
+ * such warning: they never move a point from one key to another.
  */
 export function ScoreSheetEditor({
   value,
   onChange,
-}: {
+  usage = {},
+}: Readonly<{
   value: ScoreSheetItem[];
   onChange: (sheet: ScoreSheetItem[]) => void;
-}) {
+  usage?: Record<string, number>;
+}>) {
+  const { requestConfirm, confirmDialog } = useConfirm();
+
   function replace(i: number, item: ScoreSheetItem) {
     onChange(value.map((it, idx) => (idx === i ? item : it)));
   }
@@ -48,6 +63,33 @@ export function ScoreSheetEditor({
   function removeAt(i: number) {
     onChange(value.filter((_, idx) => idx !== i));
   }
+
+  const guardRemoval: GuardRemoval = (item, remove) => {
+    const scored = sheetCategories([item])
+      .map(c => ({
+        key: c.key,
+        label: c.label.trim(),
+        games: usage[c.key] ?? 0,
+      }))
+      .filter(line => line.games > 0);
+
+    // Nothing was ever scored here — a confirmation everyone learns to dismiss
+    // protects nothing, so don't ask.
+    if (scored.length === 0) {
+      remove();
+
+      return;
+    }
+
+    const section = isSubsection(item);
+
+    requestConfirm({
+      message: `Supprimer ${section ? "la section" : "la ligne"} « ${item.label.trim() || "sans nom"} » ?\n\nDes points y sont déjà enregistrés. Ils resteront en base, mais ne s'afficheront plus nulle part : ni sur la feuille de score des parties passées, ni dans les statistiques.`,
+      confirmLabel: "Supprimer quand même",
+      details: <ScoredLines lines={scored} />,
+      onConfirm: remove,
+    });
+  };
 
   function moveAt(i: number, direction: MoveDirection) {
     onChange(moveItem(value, i, direction));
@@ -73,7 +115,8 @@ export function ScoreSheetEditor({
             onMove={direction => moveAt(i, direction)}
             canUp={i > 0}
             canDown={i < value.length - 1}
-            onRemove={() => removeAt(i)}
+            onRemove={() => guardRemoval(item, () => removeAt(i))}
+            guardRemoval={guardRemoval}
           />
         ) : (
           <FieldRow
@@ -85,7 +128,7 @@ export function ScoreSheetEditor({
             onMove={direction => moveAt(i, direction)}
             canUp={i > 0}
             canDown={i < value.length - 1}
-            onRemove={() => removeAt(i)}
+            onRemove={() => guardRemoval(item, () => removeAt(i))}
             placeholder="Nom du champ"
           />
         ),
@@ -107,7 +150,27 @@ export function ScoreSheetEditor({
           + Section
         </button>
       </div>
+
+      {confirmDialog}
     </div>
+  );
+}
+
+/** What a removal would bury, line by line, inside the confirmation. */
+function ScoredLines({
+  lines,
+}: Readonly<{ lines: Array<{ key: string; label: string; games: number }> }>) {
+  return (
+    <ul className="flex flex-col gap-1 text-sm">
+      {lines.map(line => (
+        <li key={line.key} className="flex justify-between gap-3">
+          <span className="truncate">{line.label || "Sans nom"}</span>
+          <span className="shrink-0 text-zinc-500">
+            {line.games} partie{line.games > 1 ? "s" : ""}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -206,14 +269,16 @@ function SectionRow({
   canUp,
   canDown,
   onRemove,
-}: {
+  guardRemoval,
+}: Readonly<{
   section: CategorySubsection;
   onChange: (section: CategorySubsection) => void;
   onMove: (direction: MoveDirection) => void;
   canUp: boolean;
   canDown: boolean;
   onRemove: () => void;
-}) {
+  guardRemoval: GuardRemoval;
+}>) {
   const fields = section.categories;
 
   function replaceField(j: number, def: CategoryDef) {
@@ -265,7 +330,7 @@ function SectionRow({
             onMove={direction => moveField(j, direction)}
             canUp={j > 0}
             canDown={j < fields.length - 1}
-            onRemove={() => removeField(j)}
+            onRemove={() => guardRemoval(def, () => removeField(j))}
             placeholder="Nom du champ"
           />
         ))}

@@ -5,10 +5,10 @@ import { useState } from "react";
 import type { GameStatsRecord, PlayerId, ScoreSheetItem } from "@/lib/domain";
 import {
   categorySlices,
-  completeBreakdowns,
   detailSubsections,
   groupSlices,
   type Slice,
+  usableBreakdowns,
 } from "@/lib/game/category-stats";
 
 /** An SVG donut of the slices with a labelled legend (mean points + share). */
@@ -167,12 +167,12 @@ export function CategoryCharts({
   const bars =
     comparePlayers?.map(p => ({
       label: p.name,
-      slices: slicesOf(completeBreakdowns(records, sheet, p.id)),
+      slices: slicesOf(usableBreakdowns(records, sheet, p.id)),
     })) ?? null;
 
   const aggregate = bars
     ? null
-    : slicesOf(completeBreakdowns(records, sheet, playerId));
+    : slicesOf(usableBreakdowns(records, sheet, playerId));
 
   // Nothing to show when no game in scope has the full breakdown.
   const hasData = bars
