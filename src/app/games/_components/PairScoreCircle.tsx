@@ -59,12 +59,12 @@ export function PairScoreCircle({
   piles,
   onPile,
   disabled,
-}: {
+}: Readonly<{
   seats: Seat[];
   piles: Record<string, number>;
   onPile: (key: string, value: number) => void;
   disabled: boolean;
-}) {
+}>) {
   const [active, setActive] = useState<string | null>(null);
 
   const ids = seats.map(s => s.id);
@@ -248,12 +248,12 @@ function SeatMark({
   owning,
   angle,
   radius,
-}: {
+}: Readonly<{
   name: string;
   owning: boolean;
   angle: number;
   radius: number;
-}) {
+}>) {
   return (
     <div
       style={polar(angle, radius)}
@@ -286,7 +286,7 @@ function PileOval({
   onSelect,
   angle,
   radius,
-}: {
+}: Readonly<{
   label: string;
   value: number | undefined;
   active: boolean;
@@ -294,7 +294,7 @@ function PileOval({
   onSelect: () => void;
   angle: number;
   radius: number;
-}) {
+}>) {
   return (
     <button
       type="button"

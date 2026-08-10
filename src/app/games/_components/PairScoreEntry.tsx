@@ -19,12 +19,12 @@ export function PairScoreEntry({
   onSubmit,
   onCancel,
   disabled,
-}: {
+}: Readonly<{
   seats: Seat[];
   onSubmit: (piles: Record<string, number>) => void;
   onCancel: () => void;
   disabled: boolean;
-}) {
+}>) {
   const [piles, setPiles] = useState<Record<string, number>>({});
 
   const remaining = pilesRemaining(

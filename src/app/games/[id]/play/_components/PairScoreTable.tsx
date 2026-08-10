@@ -19,12 +19,12 @@ export function PairScoreTable({
   piles,
   ranking,
   onDone,
-}: {
+}: Readonly<{
   seats: { id: PlayerId; name: string }[];
   piles: Record<string, number>;
   ranking: Ranked[];
   onDone?: () => void;
-}) {
+}>) {
   const scored = scorePiles(
     seats.map(s => s.id),
     piles,

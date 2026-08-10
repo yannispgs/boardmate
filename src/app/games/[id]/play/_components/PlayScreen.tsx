@@ -1229,10 +1229,10 @@ function CoopEnd({
 function CountPointsButton({
   onClick,
   disabled,
-}: {
+}: Readonly<{
   onClick: () => void;
   disabled: boolean;
-}) {
+}>) {
   return (
     <button
       type="button"

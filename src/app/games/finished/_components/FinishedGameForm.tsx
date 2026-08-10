@@ -466,12 +466,12 @@ function TotalScoreFields({
   totals,
   allowNegative,
   onTotal,
-}: {
+}: Readonly<{
   players: Array<{ id: PlayerId; name: string }>;
   totals: Record<string, string>;
   allowNegative: boolean;
   onTotal: (id: PlayerId, text: string) => void;
-}) {
+}>) {
   return (
     <div className="flex flex-col gap-2">
       <span className="text-sm font-medium">Score final</span>
