@@ -133,6 +133,28 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
+  sonar:
+    name: SonarCloud issues
+    # Pull requests only. The check reads the PR-scoped analysis, and `main`
+    # carries a backlog of pre-existing issues that would fail every push to it.
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-24.04
+    # The script waits up to 10 minutes for SonarCloud's asynchronous analysis.
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Fail on SonarCloud issues in the pull request
+        # Stands in for the `new_violations = 0` gate condition our SonarCloud
+        # plan won't let us configure (see the script's header). Reads the public
+        # API, so no token is involved.
+        run: .github/scripts/sonar-pr-issues.sh
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+
   coverage:
     name: Coverage
     runs-on: ubuntu-24.04
