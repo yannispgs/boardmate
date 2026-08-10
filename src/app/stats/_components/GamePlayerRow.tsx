@@ -1,7 +1,7 @@
 import { formatDuration } from "@/lib/game/format-time";
 import type { PlayerAggregate } from "@/lib/game/global-stats";
 
-function Cell({ label, value }: { label: string; value: string }) {
+function Cell({ label, value }: Readonly<{ label: string; value: string }>) {
   return (
     <div className="flex flex-col">
       <span className="text-sm font-semibold tabular-nums">{value}</span>
@@ -22,11 +22,11 @@ export function GamePlayerRow({
   rank,
   player,
   scored,
-}: {
+}: Readonly<{
   rank: number;
   player: PlayerAggregate;
   scored: boolean;
-}) {
+}>) {
   const medal = MEDALS[rank - 1] ?? `${rank}.`;
 
   return (

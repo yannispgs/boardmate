@@ -13,13 +13,13 @@ export function PlayerPickCardList({
   selected,
   simultaneous,
   onToggle,
-}: {
+}: Readonly<{
   players: Player[];
   /** The picked players' ids, in play order. */
   selected: PlayerId[];
   simultaneous: boolean;
   onToggle: (id: PlayerId) => void;
-}) {
+}>) {
   return (
     <ul className="flex flex-col gap-2">
       {players.map(p => {

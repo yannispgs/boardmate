@@ -20,7 +20,7 @@ export function GameCardList({
   collapsible = false,
   title,
   onAbandon,
-}: {
+}: Readonly<{
   games: GameListItem[];
   boardgameFor: (id: BoardgameId) => Boardgame | undefined;
   ended?: boolean;
@@ -28,7 +28,7 @@ export function GameCardList({
   title?: string;
   /** Ongoing games only: abandon (delete) a game. */
   onAbandon?: (game: GameListItem) => void;
-}) {
+}>) {
   const cards = (
     <ul className="flex flex-col gap-2">
       {games.map(game => {

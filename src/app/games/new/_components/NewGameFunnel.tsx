@@ -167,11 +167,11 @@ function ConfigStep({
   boardgameId,
   onPick,
   onBack,
-}: {
+}: Readonly<{
   boardgameId: Boardgame["id"];
   onPick: (config: Config | null) => void;
   onBack: () => void;
-}) {
+}>) {
   const { configs, loading } = useConfigs(boardgameId);
 
   return (
@@ -213,7 +213,7 @@ function PlayersStep({
   initial,
   onConfirm,
   onBack,
-}: {
+}: Readonly<{
   minPlayers: number | null;
   maxPlayers: number | null;
   /** Simultaneous games have no turn order — selection is just a checkmark. */
@@ -221,7 +221,7 @@ function PlayersStep({
   initial: Player[];
   onConfirm: (players: Player[]) => void;
   onBack: () => void;
-}) {
+}>) {
   const { players, loading } = usePlayers();
   const [selected, setSelected] = useState<PlayerId[]>(initial.map(p => p.id));
 
@@ -305,7 +305,7 @@ function RecapStep({
   onBack,
   onReorderPlayers,
   onLaunch,
-}: {
+}: Readonly<{
   boardgame: Boardgame;
   config: Config | null;
   players: Player[];
@@ -318,7 +318,7 @@ function RecapStep({
     extensionIds: ExtensionId[],
     scenarioByExtension: Record<ExtensionId, ExtensionScenarioId>,
   ) => void;
-}) {
+}>) {
   const { template, loading } = useConfigs(boardgame.id);
   const extensions = useExtensions(boardgame.id);
   const { requestConfirm, confirmDialog } = useConfirm();

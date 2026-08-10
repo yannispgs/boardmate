@@ -8,7 +8,9 @@ import { computeSimultaneousStats } from "@/lib/game/simultaneous-stats";
  * once). No per-player time breakdown — instead the time each *round* took, and
  * who the table waited on most (tapped during play).
  */
-export function SimultaneousGameStats({ game }: { game: PopulatedGame }) {
+export function SimultaneousGameStats({
+  game,
+}: Readonly<{ game: PopulatedGame }>) {
   const stats = computeSimultaneousStats({
     players: game.players,
     turns: game.turns,

@@ -19,13 +19,13 @@ export function PlayerCard({
   onDelete,
   actionLabel,
   dimmed = false,
-}: {
+}: Readonly<{
   player: Player;
   onToggle: (player: Player) => void;
   onDelete: (player: Player) => void;
   actionLabel: string;
   dimmed?: boolean;
-}) {
+}>) {
   return (
     <li
       className={`flex items-center justify-between gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 dark:border-white/10 dark:bg-zinc-900 ${

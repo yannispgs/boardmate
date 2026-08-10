@@ -24,7 +24,7 @@ export function LiveScore({
   minScore,
   onSet,
   disabled,
-}: {
+}: Readonly<{
   players: Array<GamePlayer & { player: Player }>;
   scores: Record<string, number>;
   threshold: number | null;
@@ -32,7 +32,7 @@ export function LiveScore({
   minScore: number;
   onSet: (playerId: PlayerId, score: number) => void;
   disabled: boolean;
-}) {
+}>) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between">
@@ -67,7 +67,7 @@ function ScoreRow({
   minScore,
   disabled,
   onSet,
-}: {
+}: Readonly<{
   name: string;
   score: number;
   threshold: number | null;
@@ -75,7 +75,7 @@ function ScoreRow({
   minScore: number;
   disabled: boolean;
   onSet: (score: number) => void;
-}) {
+}>) {
   // Local draft so typing a multi-digit total doesn't persist each keystroke;
   // it commits on blur / Enter. Kept in sync when −/+ change the score.
   const [draft, setDraft] = useState(String(score));

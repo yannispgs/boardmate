@@ -18,13 +18,13 @@ export function Modal({
   label,
   className,
   children,
-}: {
+}: Readonly<{
   onClose: () => void;
   dismissable?: boolean;
   label?: string;
   className?: string;
   children: ReactNode;
-}) {
+}>) {
   // The page underneath is pinned while the modal is up: a drag that starts
   // anywhere but on a scrollable part of the card would otherwise scroll it,
   // which reads as the modal ignoring the gesture entirely.

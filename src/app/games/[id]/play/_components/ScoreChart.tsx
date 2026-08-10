@@ -63,14 +63,14 @@ export function ScoreChart({
   threshold,
   rounds,
   players,
-}: {
+}: Readonly<{
   series: PlayerSeries[];
   maxScore: number;
   threshold: number | null;
   /** Total tours (rounds) the game lasted — the full x-axis span. */
   rounds: number;
   players: { id: PlayerId; name: string }[];
-}) {
+}>) {
   const colorOf = (playerId: PlayerId) => {
     const idx = players.findIndex(p => p.id === playerId);
 

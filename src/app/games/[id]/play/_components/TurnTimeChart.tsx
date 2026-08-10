@@ -44,12 +44,12 @@ export function TurnTimeChart({
   maxSeconds,
   maxTour,
   players,
-}: {
+}: Readonly<{
   series: PlayerTimeSeries[];
   maxSeconds: number;
   maxTour: number;
   players: { id: PlayerId; name: string }[];
-}) {
+}>) {
   const colorOf = (playerId: PlayerId) => {
     const idx = players.findIndex(p => p.id === playerId);
 

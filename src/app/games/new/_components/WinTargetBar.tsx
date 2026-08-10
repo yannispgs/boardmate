@@ -21,7 +21,7 @@ export function WinTargetBar({
   max,
   bonus,
   onChange,
-}: {
+}: Readonly<{
   /** The target a scenario imposes, or `null` when the game sets its own. */
   locked: number | null;
   /** Why the target is imposed — shown only alongside a locked target. */
@@ -33,7 +33,7 @@ export function WinTargetBar({
   /** What options add on top of an editable target, already summed. */
   bonus: { label: string; total: number } | null;
   onChange: (value: number | undefined) => void;
-}) {
+}>) {
   const heading = (
     <>
       <span aria-hidden>🎯</span>

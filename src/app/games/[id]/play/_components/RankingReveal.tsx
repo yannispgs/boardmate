@@ -29,7 +29,7 @@ export function RankingReveal({
   winners,
   tieBreak,
   onDone,
-}: {
+}: Readonly<{
   ranking: Ranked[];
   players: { id: PlayerId; name: string }[];
   /** Who won; empty while the leaders are still level and unsettled. */
@@ -37,7 +37,7 @@ export function RankingReveal({
   /** How to settle those leaders, or null when there is nothing to settle. */
   tieBreak: RevealTieBreak | null;
   onDone: () => void;
-}) {
+}>) {
   // One step per place, worst first; the winner's place is the last one out.
   const groups = revealGroups(ranking);
   // Start at 0: nobody is shown until the first "Afficher".

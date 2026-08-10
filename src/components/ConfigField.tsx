@@ -16,12 +16,12 @@ export function ConfigField({
   value,
   onChange,
   error,
-}: {
+}: Readonly<{
   field: FieldSpec;
   value: unknown;
   onChange: (value: unknown) => void;
   error?: string;
-}) {
+}>) {
   const label = (
     <span className="flex items-baseline gap-2">
       <span className="font-medium">{field.label}</span>
@@ -65,11 +65,11 @@ function Control({
   field,
   value,
   onChange,
-}: {
+}: Readonly<{
   field: FieldSpec;
   value: unknown;
   onChange: (value: unknown) => void;
-}) {
+}>) {
   switch (field.type) {
     case "integer":
     case "number":

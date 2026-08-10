@@ -27,10 +27,10 @@ function fullStart(iso: string): string {
 function PlayOrder({
   players,
   currentPlayerId,
-}: {
+}: Readonly<{
   players: GameListItem["players"];
   currentPlayerId: PlayerId | null;
-}) {
+}>) {
   if (players.length === 0) {
     return <span>Aucun joueur</span>;
   }
@@ -62,10 +62,10 @@ function PlayOrder({
 function InlinePlayOrder({
   players,
   currentPlayerId,
-}: {
+}: Readonly<{
   players: GameListItem["players"];
   currentPlayerId: PlayerId | null;
-}) {
+}>) {
   if (players.length === 0) {
     return null;
   }
@@ -108,7 +108,7 @@ export function GameCard({
   ended = false,
   coop = false,
   onAbandon,
-}: {
+}: Readonly<{
   game: GameListItem;
   boardgameName: string;
   logoUrl: string | null;
@@ -117,7 +117,7 @@ export function GameCard({
   coop?: boolean;
   /** When set (ongoing games only), shows an "abandon" (delete) button. */
   onAbandon?: () => void;
-}) {
+}>) {
   const count = game.players.length;
   const currentPlayer = game.players.find(p => p.id === game.currentPlayerId);
   // Usually one, several on a shared victory (an ex æquo no rule separated).

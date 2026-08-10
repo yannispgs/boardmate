@@ -17,10 +17,10 @@ import { InfoIcon } from "./icons";
 export function InfoTip({
   label = "Informations",
   children,
-}: {
+}: Readonly<{
   label?: string;
   children: ReactNode;
-}) {
+}>) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);

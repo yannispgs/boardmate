@@ -43,10 +43,10 @@ function axisStep(n: number): number {
 export function DiceTimeline({
   rolls,
   spec,
-}: {
+}: Readonly<{
   rolls: number[];
   spec: DiceSpec;
-}) {
+}>) {
   const values = diceValues(spec);
   const byValue = new Map(diceDeviations(rolls, spec).map(d => [d.value, d]));
   const n = rolls.length;

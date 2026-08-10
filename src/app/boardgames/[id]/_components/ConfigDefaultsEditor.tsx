@@ -21,11 +21,11 @@ export function ConfigDefaultsEditor({
   template,
   onSave,
   onCancel,
-}: {
+}: Readonly<{
   template: ConfigTemplate;
   onSave: (defaults: ConfigValues) => Promise<void>;
   onCancel: () => void;
-}) {
+}>) {
   const [values, setValues] = useState<ConfigValues>(() =>
     buildDefaults(template.fields),
   );

@@ -6,9 +6,9 @@ import { ScenarioCard } from "./ScenarioCard";
 /** The scenarios of an extension, in their rulebook order. */
 export function ScenarioCardList({
   scenarios,
-}: {
+}: Readonly<{
   scenarios: ExtensionScenario[];
-}) {
+}>) {
   if (scenarios.length === 0) {
     return <p className="text-sm text-zinc-500">Aucun scénario enregistré.</p>;
   }

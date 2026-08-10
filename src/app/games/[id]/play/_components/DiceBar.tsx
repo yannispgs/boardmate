@@ -23,7 +23,7 @@ export function DiceBar({
   disabled,
   capNotice,
   maxRolls,
-}: {
+}: Readonly<{
   values: number[];
   stats: Record<number, DiceValueStat>;
   lastRolled: number | null;
@@ -31,7 +31,7 @@ export function DiceBar({
   disabled: boolean;
   capNotice: boolean;
   maxRolls: number;
-}) {
+}>) {
   const maxCount = Math.max(1, ...values.map(v => stats[v]?.count ?? 0));
   // A value absent for a full cycle of values reads as fully cold.
   const scale = values.length;

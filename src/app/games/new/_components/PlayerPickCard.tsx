@@ -12,13 +12,13 @@ export function PlayerPickCard({
   order,
   simultaneous,
   onToggle,
-}: {
+}: Readonly<{
   player: Player;
   /** The player's 1-based seat, or `null` when they're not in the game. */
   order: number | null;
   simultaneous: boolean;
   onToggle: () => void;
-}) {
+}>) {
   return (
     <button
       type="button"

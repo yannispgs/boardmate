@@ -20,7 +20,7 @@ export function PlayerCardList({
   onDelete,
   dimmed = false,
   collapsible = false,
-}: {
+}: Readonly<{
   title: string;
   players: Player[];
   onToggle: (player: Player) => void;
@@ -28,7 +28,7 @@ export function PlayerCardList({
   onDelete: (player: Player) => void;
   dimmed?: boolean;
   collapsible?: boolean;
-}) {
+}>) {
   if (players.length === 0) {
     return null;
   }

@@ -17,7 +17,7 @@ const RESOURCE: Record<CatanResource, { label: string; color: string }> = {
  * (summed pips = production chances out of 36) each resource carries, biggest
  * first, as small labelled bars. The five always add up to 58.
  */
-export function BoardStructure({ board }: { board: CatanBoard }) {
+export function BoardStructure({ board }: Readonly<{ board: CatanBoard }>) {
   const rows = [...resourceCombinations(board.hexes)].sort(
     (a, b) => b.combos - a.combos,
   );

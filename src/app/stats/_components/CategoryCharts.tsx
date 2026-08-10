@@ -12,7 +12,7 @@ import {
 } from "@/lib/game/category-stats";
 
 /** An SVG donut of the slices with a labelled legend (mean points + share). */
-function Donut({ slices }: { slices: Slice[] }) {
+function Donut({ slices }: Readonly<{ slices: Slice[] }>) {
   const total = slices.reduce((s, x) => s + x.value, 0);
   const r = 42;
   const c = 2 * Math.PI * r;
@@ -72,7 +72,7 @@ function Donut({ slices }: { slices: Slice[] }) {
 }
 
 /** Colour key shared by the comparison bars (which have no inline labels). */
-function Legend({ slices }: { slices: Slice[] }) {
+function Legend({ slices }: Readonly<{ slices: Slice[] }>) {
   return (
     <ul className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400">
       {slices.map(s => (
@@ -92,9 +92,9 @@ function Legend({ slices }: { slices: Slice[] }) {
 /** One 100%-wide bar per player, split by category share, with their total. */
 function StackedBars({
   bars,
-}: {
+}: Readonly<{
   bars: Array<{ label: string; slices: Slice[] }>;
-}) {
+}>) {
   return (
     <ul className="flex flex-col gap-2">
       {bars.map(bar => {
@@ -145,14 +145,14 @@ export function CategoryCharts({
   records,
   playerId,
   comparePlayers,
-}: {
+}: Readonly<{
   sheet: ScoreSheetItem[];
   records: GameStatsRecord[];
   /** Restrict the aggregate to one player (the player detail view). */
   playerId?: PlayerId;
   /** Show a bar per player instead of the donut (any players filtered in). */
   comparePlayers?: Array<{ id: PlayerId; name: string }>;
-}) {
+}>) {
   const subs = detailSubsections(sheet);
   // -1 is the top-level split; 0..n-1 pick a subsection to break down.
   const [view, setView] = useState(-1);

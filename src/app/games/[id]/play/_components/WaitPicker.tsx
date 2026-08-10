@@ -12,11 +12,11 @@ export function WaitPicker({
   players,
   value,
   onChange,
-}: {
+}: Readonly<{
   players: Player[];
   value: PlayerId | null;
   onChange: (id: PlayerId | null) => void;
-}) {
+}>) {
   return (
     <div className="flex w-full max-w-sm flex-col items-center gap-3">
       <p className="text-lg font-semibold">Tout le monde joue</p>

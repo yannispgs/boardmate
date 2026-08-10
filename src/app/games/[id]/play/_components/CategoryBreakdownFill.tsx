@@ -22,10 +22,10 @@ import {
 export function CategoryBreakdownFill({
   game,
   onSaved,
-}: {
+}: Readonly<{
   game: PopulatedGame;
   onSaved: () => void;
-}) {
+}>) {
   const scoring = game.boardgame.scoring;
   const sheet =
     scoring?.entry === "categories" ? (scoring.sheet ?? null) : null;

@@ -76,7 +76,7 @@ interface EndOutcome {
   winners: PlayerId[];
 }
 
-export function PlayScreen({ gameId }: { gameId: GameId }) {
+export function PlayScreen({ gameId }: Readonly<{ gameId: GameId }>) {
   const repo = getGameRepository();
   const router = useRouter();
   const [game, setGame] = useState<PopulatedGame | null>(null);
@@ -896,14 +896,14 @@ function TimerRing({
   running,
   onToggle,
   size = RING_SIZE,
-}: {
+}: Readonly<{
   remainingS: number;
   durationS: number;
   running: boolean;
   onToggle: () => void;
   /** Outer diameter in px; smaller when the dice bar shares the screen. */
   size?: number;
-}) {
+}>) {
   const r = (size - RING_STROKE) / 2;
   const c = 2 * Math.PI * r;
   const paused = !running;
@@ -1025,11 +1025,11 @@ function DurationEditor({
   durationS,
   onChange,
   onPause,
-}: {
+}: Readonly<{
   durationS: number;
   onChange: (seconds: number) => void;
   onPause: () => void;
-}) {
+}>) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(durationS.toString());
 
@@ -1176,12 +1176,12 @@ function CoopEnd({
   onOpenChange,
   onEnd,
   disabled,
-}: {
+}: Readonly<{
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onEnd: (won: boolean) => void;
   disabled: boolean;
-}) {
+}>) {
   if (!open) {
     return (
       <button

@@ -19,10 +19,10 @@ const LUCK_BAR: Record<string, string> = {
 export function StatsDiceDistribution({
   rolls,
   spec,
-}: {
+}: Readonly<{
   rolls: number[];
   spec: DiceSpec;
-}) {
+}>) {
   const values = diceValues(spec);
   const dev = diceDeviations(rolls, spec);
   const byValue = new Map(dev.map(d => [d.value, d]));

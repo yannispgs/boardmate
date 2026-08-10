@@ -24,13 +24,13 @@ export function CategoryScoreEntry({
   onSubmit,
   onCancel,
   disabled,
-}: {
+}: Readonly<{
   players: { id: PlayerId; name: string }[];
   sheet: ScoreSheetItem[];
   onSubmit: (values: Record<string, Record<string, number>>) => void;
   onCancel: () => void;
   disabled: boolean;
-}) {
+}>) {
   const [raw, setRaw] = useState<CategoryRaw>({});
 
   const remaining = gridRemaining(players, sheet, raw);

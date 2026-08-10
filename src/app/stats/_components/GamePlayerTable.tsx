@@ -9,10 +9,10 @@ import { GamePlayerRow } from "./GamePlayerRow";
 export function GamePlayerTable({
   players,
   scored,
-}: {
+}: Readonly<{
   players: PlayerAggregate[];
   scored: boolean;
-}) {
+}>) {
   return (
     <ul className="flex flex-col gap-3">
       {players.map((player, i) => (

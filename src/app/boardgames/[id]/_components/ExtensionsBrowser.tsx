@@ -10,7 +10,9 @@ import { ExtensionPanel } from "./ExtensionPanel";
  * The extensions of a base game, one tab per extension (the tab bar is hidden
  * when there's only one).
  */
-export function ExtensionsBrowser({ extensions }: { extensions: Extension[] }) {
+export function ExtensionsBrowser({
+  extensions,
+}: Readonly<{ extensions: Extension[] }>) {
   const [activeId, setActiveId] = useState(extensions[0]?.id ?? null);
 
   if (extensions.length === 0) {

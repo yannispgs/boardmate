@@ -10,7 +10,7 @@ function fmtIndex(index: number | null): string {
 }
 
 /** One boardgame line in the player's per-game breakdown. */
-function GameRow({ game }: { game: GameBreakdown }) {
+function GameRow({ game }: Readonly<{ game: GameBreakdown }>) {
   return (
     <li className="flex flex-col gap-2 rounded-xl border border-black/10 bg-white p-3 dark:border-white/10 dark:bg-zinc-900">
       <div className="flex items-center gap-3">
@@ -50,12 +50,12 @@ export function PlayerDetail({
   records,
   boardgames,
   onBack,
-}: {
+}: Readonly<{
   player: PlayerAggregate;
   records: GameStatsRecord[];
   boardgames: Boardgame[];
   onBack: () => void;
-}) {
+}>) {
   // Category games (Cascadia) the player has played → their point-distribution
   // chart, built from this player's records for that game.
   const categoryCharts = boardgames

@@ -20,10 +20,10 @@ export const metadata: Metadata = {
 export default async function BoardgameExtensionsPage({
   params,
   searchParams,
-}: {
+}: Readonly<{
   params: Promise<{ id: string }>;
   searchParams: Promise<{ from?: string }>;
-}) {
+}>) {
   const [{ id }, { from }] = await Promise.all([params, searchParams]);
 
   // The screen that sent us here, so leaving goes back the way we came in.

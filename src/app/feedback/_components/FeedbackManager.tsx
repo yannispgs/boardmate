@@ -12,7 +12,7 @@ const dateFmt = new Intl.DateTimeFormat("fr-FR", {
   year: "numeric",
 });
 
-function FeedbackItem({ item }: { item: Feedback }) {
+function FeedbackItem({ item }: Readonly<{ item: Feedback }>) {
   return (
     <li className="flex flex-col gap-1 rounded-xl border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
       <p className="whitespace-pre-wrap text-sm">{item.message}</p>

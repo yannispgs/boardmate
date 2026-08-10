@@ -119,12 +119,12 @@ export function WheelSvg({
   rotation,
   spinning,
   onSettled,
-}: {
+}: Readonly<{
   segments: WheelSegment[];
   rotation: number;
   spinning: boolean;
   onSettled: () => void;
-}) {
+}>) {
   const seg = 360 / segments.length;
 
   return (

@@ -32,7 +32,9 @@ function Scenarios({ extension }: Readonly<{ extension: Extension }>) {
 }
 
 /** One extension: what it changes, then its scenarios. */
-export function ExtensionPanel({ extension }: { extension: Extension }) {
+export function ExtensionPanel({
+  extension,
+}: Readonly<{ extension: Extension }>) {
   const effects = extensionEffects(extension);
 
   return (
