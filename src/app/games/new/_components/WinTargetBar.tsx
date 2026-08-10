@@ -37,7 +37,7 @@ export function WinTargetBar({
   const heading = (
     <>
       <span aria-hidden>🎯</span>
-      Score à atteindre pour gagner
+      <span>Score à atteindre pour gagner</span>
     </>
   );
 

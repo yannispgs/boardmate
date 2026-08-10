@@ -33,7 +33,7 @@ export function LoginForm({
   return (
     <form action={sendAction} className="flex flex-col gap-3">
       <label className="flex flex-col gap-1 text-sm font-medium">
-        Adresse e-mail
+        <span>Adresse e-mail</span>
         <input
           type="email"
           name="email"
@@ -107,7 +107,7 @@ function CodeForm({
       <form action={verifyAction} className="flex flex-col gap-3">
         <input type="hidden" name="email" value={email} />
         <label className="flex flex-col gap-1 text-sm font-medium">
-          Code de connexion
+          <span>Code de connexion</span>
           <input
             name="token"
             inputMode="numeric"

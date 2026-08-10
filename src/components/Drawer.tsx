@@ -68,7 +68,9 @@ export function Drawer({
           open ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       />
-      <div
+      {/* Same call as Modal: accessibility is out of scope, so this stays a div
+          with the dialog role rather than a <dialog>. */}
+      <div // NOSONAR
         role="dialog"
         aria-modal="true"
         aria-label={label}

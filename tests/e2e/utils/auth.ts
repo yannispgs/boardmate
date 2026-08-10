@@ -4,7 +4,9 @@ import { clearMailbox, waitForLoginCode } from "./mailpit";
 
 /** A throwaway, unique e-mail so each login mints a fresh local user. */
 export function uniqueEmail(prefix = "e2e"): string {
-  const rand = Math.random().toString(36).slice(2, 8);
+  // This address only has to be unique within a test run, never unguessable —
+  // nothing is derived from it, so a weak PRNG is the right tool.
+  const rand = Math.random().toString(36).slice(2, 8); // NOSONAR
   return `${prefix}-${Date.now()}-${rand}@example.com`;
 }
 

@@ -31,7 +31,9 @@ export function localStack(): LocalStack {
 
   let raw: string;
   try {
-    raw = execSync("supabase status -o env", { encoding: "utf8" });
+    // `supabase` is resolved through the developer's own PATH by design — this
+    // runs on a dev machine or a CI runner, never in the shipped app.
+    raw = execSync("supabase status -o env", { encoding: "utf8" }); // NOSONAR
   } catch {
     throw new Error(
       "Local Supabase is not running. Run `supabase start` before the e2e " +

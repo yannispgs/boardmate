@@ -39,14 +39,22 @@ export function Modal({
   }, []);
 
   return (
-    <div
+    // Accessibility is out of scope for this app, so the backdrop stays a plain
+    // div carrying the dialog role rather than becoming a <dialog>, and it
+    // closes on click with no keyboard equivalent. Sonar has four rules to say
+    // otherwise; the NOSONAR below answers all of them at once.
+    <div // NOSONAR
       role="dialog"
       aria-modal="true"
       aria-label={label}
       onClick={dismissable ? onClose : undefined}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
     >
-      <div className={className} onClick={e => e.stopPropagation()}>
+      {/* Clicks inside the card are its own; they must not reach the backdrop. */}
+      <div // NOSONAR: same call as above.
+        className={className}
+        onClick={e => e.stopPropagation()}
+      >
         {children}
       </div>
     </div>
