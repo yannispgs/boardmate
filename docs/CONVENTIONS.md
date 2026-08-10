@@ -146,6 +146,16 @@ otherwise. **Updated on every remark from the project owner.**
   (e.g. `actions/checkout@<sha> # v6.0.3`). Never reference an action by a
   mutable tag (`@v6`, `@main`) — a tag can be repointed to malicious code, a
   commit digest is immutable. When bumping, take the latest version (see §9).
+- **SonarCloud issue gate**: a `SonarCloud issues` job (PR-only) runs
+  `.github/scripts/sonar-pr-issues.sh`, which waits for SonarCloud's
+  **asynchronous** Automatic Analysis of the PR's head commit, then **fails the
+  build if the PR carries any unresolved issue** (one GitHub annotation per
+  issue). It exists because our SonarCloud plan **cannot associate a custom
+  Quality Gate** — the built-in « Sonar way » only grades ratings, coverage and
+  duplication, never the issue count, so smells were always green. The script
+  reads the **public** API (no token). If no analysis is published within 10
+  minutes it **warns and passes** — a PR touching only files Sonar has no
+  analyser for (Markdown, images) never gets one.
 - **Releases & CHANGELOG**: automated with **release-please**
   (`.github/workflows/release-please.yml` + `release-please-config.json` +
   `.release-please-manifest.json`). It reads Conventional Commits on `main`,
@@ -344,6 +354,11 @@ server's.
   it on the first line **and carry the `configuration` label** so the owner
   reviews the diff; source-only PRs (incl. test changes) need neither — he trusts
   the conventions + SonarCloud. Owner's call.
+- _2026-08-10_ — **SonarCloud issue gate in CI** (§10): SonarCloud's plan refuses
+  to associate any gate but the built-in « Sonar way », whose conditions ignore
+  the issue count. A PR-only CI job now reproduces the missing
+  `new_violations = 0` condition by polling the public API for the head commit's
+  analysis and failing on any unresolved issue. Owner's call.
 - _2026-07-28_ — **Dates & times** (new §12): store instants in **UTC**
   (`timestamptz` + `toISOString()`), display them **always in the reader's local
   time** (`toLocaleString`/`Intl`, client-side), and file a game under its
