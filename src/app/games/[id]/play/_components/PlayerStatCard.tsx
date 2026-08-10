@@ -15,14 +15,14 @@ export function PlayerStatCard({
   rank,
   scaleS,
   playerCount,
-}: {
+}: Readonly<{
   stat: PlayerTimeStats;
   rank: number;
   /** Longest single turn of the whole game — shared scale for the rhythm track. */
   scaleS: number;
   /** Seated players — sets the fair share the bar's redness is measured against. */
   playerCount: number;
-}) {
+}>) {
   const played = stat.turnCount > 0;
   const pct = (v: number) => (scaleS > 0 ? (v / scaleS) * 100 : 0);
   const spanLeft = stat.minS !== null ? pct(stat.minS) : 0;

@@ -69,10 +69,10 @@ function Outcome({
 export function EndedGame({
   game,
   onReload,
-}: {
+}: Readonly<{
   game: PopulatedGame;
   onReload: () => void;
-}) {
+}>) {
   const statsRef = useRef<HTMLDivElement>(null);
   const [scoreOpen, setScoreOpen] = useState(false);
   // Usually one, several on a shared victory (an ex æquo no rule separated).

@@ -7,7 +7,7 @@ import { warningText } from "@/lib/catan/warnings";
  * The ⚠️ badge pinned to a generated board's top-right corner, opening the list
  * of soft placement rules it misses. Sits inside the board's relative wrapper.
  */
-export function WarningsBadge({ onClick }: { onClick: () => void }) {
+export function WarningsBadge({ onClick }: Readonly<{ onClick: () => void }>) {
   return (
     <button
       type="button"
@@ -24,10 +24,10 @@ export function WarningsBadge({ onClick }: { onClick: () => void }) {
 export function BoardWarnings({
   warnings,
   className,
-}: {
+}: Readonly<{
   warnings: BoardWarning[];
   className: string;
-}) {
+}>) {
   return (
     <section
       className={`${className} border-amber-400/60 bg-amber-50 text-sm dark:bg-amber-950/40`}

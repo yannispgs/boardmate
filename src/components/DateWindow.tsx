@@ -10,12 +10,12 @@ export function DateWindow({
   until,
   onFrom,
   onUntil,
-}: {
+}: Readonly<{
   from: string;
   until: string;
   onFrom: (v: string) => void;
   onUntil: (v: string) => void;
-}) {
+}>) {
   const field =
     "rounded-lg border border-black/10 bg-transparent px-3 py-1.5 text-sm dark:border-white/15";
 

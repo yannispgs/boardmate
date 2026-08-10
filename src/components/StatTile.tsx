@@ -11,12 +11,12 @@ export function StatTile({
   value,
   accent = false,
   info,
-}: {
+}: Readonly<{
   label: string;
   value: string;
   accent?: boolean;
   info?: ReactNode;
-}) {
+}>) {
   return (
     <div
       className={`flex flex-col gap-0.5 rounded-xl border p-3 ${

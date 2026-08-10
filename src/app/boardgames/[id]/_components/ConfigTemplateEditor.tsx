@@ -34,11 +34,11 @@ export function ConfigTemplateEditor({
   initialFields,
   onSave,
   onCancel,
-}: {
+}: Readonly<{
   initialFields: FieldSpec[];
   onSave: (fields: FieldSpec[]) => Promise<void>;
   onCancel: () => void;
-}) {
+}>) {
   const [fields, setFields] = useState<FieldSpec[]>(initialFields);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -206,12 +206,12 @@ function FieldExtras({
   i,
   patch,
   setOptions,
-}: {
+}: Readonly<{
   field: FieldSpec;
   i: number;
   patch: (i: number, p: Partial<FieldSpec>) => void;
   setOptions: (i: number, options: EnumFieldSpec["options"]) => void;
-}) {
+}>) {
   if (field.type === "integer" || field.type === "number") {
     return (
       <div className="grid grid-cols-3 gap-2">

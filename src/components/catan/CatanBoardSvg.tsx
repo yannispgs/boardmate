@@ -101,7 +101,7 @@ export function GoldRiver({
 }
 
 /** Small probability dots under a number token (5 = most likely). */
-function Pips({ cx, cy, n }: { cx: number; cy: number; n: number }) {
+function Pips({ cx, cy, n }: Readonly<{ cx: number; cy: number; n: number }>) {
   const count = pipCount(n);
   const gap = 3.4;
   const start = cx - ((count - 1) * gap) / 2;
@@ -132,10 +132,10 @@ const PORT_R = 11; // harbour marker radius
 export function CatanBoardSvg({
   board,
   orientation = "vertical",
-}: {
+}: Readonly<{
   board: CatanBoard;
   orientation?: BoardOrientation;
-}) {
+}>) {
   // Rotate every drawn coordinate 90° for the horizontal layout; number/port
   // labels are anchored at rotated points but drawn upright, so they stay
   // readable either way.

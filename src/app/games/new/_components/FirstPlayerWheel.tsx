@@ -15,11 +15,11 @@ export function FirstPlayerWheel({
   players,
   onResult,
   onClose,
-}: {
+}: Readonly<{
   players: Player[];
   onResult: (ordered: Player[]) => void;
   onClose: () => void;
-}) {
+}>) {
   const { rotation, spinning, settledIndex, spin, handleSettled } =
     useWheelSpin(players.length);
 

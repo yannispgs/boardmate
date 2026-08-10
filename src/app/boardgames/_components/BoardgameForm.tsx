@@ -297,7 +297,7 @@ export function BoardgameForm({
   onCancel,
   uploadLogo,
   saved = false,
-}: {
+}: Readonly<{
   initial: Boardgame | null;
   onSubmit: (
     input: NewBoardgame,
@@ -307,7 +307,7 @@ export function BoardgameForm({
   uploadLogo: (file: File) => Promise<string>;
   /** When true, shows a transient "Enregistré" next to the submit button. */
   saved?: boolean;
-}) {
+}>) {
   const editing = initial !== null;
   const [form, setForm] = useState<FormState>(
     initial ? fromBoardgame(initial) : EMPTY,
@@ -924,7 +924,7 @@ function LogoPicker({
   onUrlBlur,
   onPasteImage,
   onPasteError,
-}: {
+}: Readonly<{
   logoUrl: string | null;
   logoSource: LogoSource;
   logoUrlInput: string;
@@ -938,7 +938,7 @@ function LogoPicker({
   onUrlBlur: () => void;
   onPasteImage: (file: File) => void;
   onPasteError: (message: string) => void;
-}) {
+}>) {
   // Pull an accepted image out of a paste event (Ctrl/Cmd+V into the drop zone).
   function handlePaste(event: ClipboardEvent<HTMLTextAreaElement>) {
     const item = Array.from(event.clipboardData?.items ?? []).find(i =>

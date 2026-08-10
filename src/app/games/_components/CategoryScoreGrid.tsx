@@ -80,13 +80,13 @@ export function CategoryScoreGrid({
   raw,
   onCell,
   disabled,
-}: {
+}: Readonly<{
   players: { id: PlayerId; name: string }[];
   sheet: ScoreSheetItem[];
   raw: CategoryRaw;
   onCell: (playerId: PlayerId, key: string, text: string) => void;
   disabled: boolean;
-}) {
+}>) {
   const gridCols = `${LABEL_COL} repeat(${players.length}, ${PLAYER_COL})`;
 
   // Live placement bonus for one ranked line: 0 for everyone until the whole
@@ -177,11 +177,11 @@ function Section({
   label,
   gridCols,
   children,
-}: {
+}: Readonly<{
   label?: string;
   gridCols: string;
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <div className="rounded-lg border border-black/15 dark:border-white/15">
       {label ? (
@@ -230,14 +230,14 @@ function Row({
   onChange,
   bonus,
   disabled,
-}: {
+}: Readonly<{
   category: CategoryDef;
   players: { id: PlayerId; name: string }[];
   value: (playerId: PlayerId) => string;
   onChange: (playerId: PlayerId, text: string) => void;
   bonus?: Record<string, number>;
   disabled: boolean;
-}) {
+}>) {
   const { label, colors } = category;
   const icon = categoryIconOf(category);
 

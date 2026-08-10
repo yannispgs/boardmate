@@ -22,7 +22,7 @@ export function ScorePanel({
   disabled,
   open,
   onOpenChange,
-}: {
+}: Readonly<{
   players: Array<GamePlayer & { player: Player }>;
   scores: Record<string, number>;
   threshold: number | null;
@@ -32,7 +32,7 @@ export function ScorePanel({
   disabled: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}) {
+}>) {
   const topScore = players.reduce(
     (max, p) => Math.max(max, scores[p.playerId] ?? 0),
     0,

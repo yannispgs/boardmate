@@ -18,7 +18,7 @@ function tagPath(w: number, hasLeft: boolean, hasRight: boolean): string {
  * neutral. A round's first tag drops its left chevron, its last the right one,
  * so each round reads as a bounded segment.
  */
-export function Tag({ item }: { item: TagItem }) {
+export function Tag({ item }: Readonly<{ item: TagItem }>) {
   const hasLeft = !item.firstOfRound;
   const hasRight = !item.lastOfRound;
   const width = (hasRight ? item.w + P : item.w) + 1;

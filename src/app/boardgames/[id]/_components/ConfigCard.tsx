@@ -10,12 +10,12 @@ export function ConfigCard({
   onDuplicate,
   onEdit,
   onDelete,
-}: {
+}: Readonly<{
   config: Config;
   onDuplicate: (config: Config) => void;
   onEdit: (config: Config) => void;
   onDelete: (config: Config) => void;
-}) {
+}>) {
   return (
     <li className="flex items-center justify-between gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 dark:border-white/10 dark:bg-zinc-900">
       <span className="min-w-0 flex-1 truncate font-medium">{config.name}</span>

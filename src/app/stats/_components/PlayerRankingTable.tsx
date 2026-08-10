@@ -27,10 +27,10 @@ function fmtIndex(index: number | null): string {
 export function PlayerRankingTable({
   players,
   onSelect,
-}: {
+}: Readonly<{
   players: PlayerAggregate[];
   onSelect: (id: PlayerId) => void;
-}) {
+}>) {
   const [sortKey, setSortKey] = useState<SortKey>("games");
   const [dir, setDir] = useState<"asc" | "desc">("desc");
 

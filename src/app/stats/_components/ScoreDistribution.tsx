@@ -17,7 +17,7 @@ const STUB = 4; // min height so empty buckets stay visible
  * Histogram bars: one per bucket, height ∝ how many scores fell in it, with a
  * dashed vertical marker at the mean score (labelled with its value).
  */
-function HistogramBars({ histogram }: { histogram: ScoreHistogram }) {
+function HistogramBars({ histogram }: Readonly<{ histogram: ScoreHistogram }>) {
   const maxCount = Math.max(1, ...histogram.bins.map(b => b.count));
   const meanLeft = meanOffset(histogram) * 100;
 
@@ -77,7 +77,7 @@ type View = "hist" | "dots";
  * plot** (every result, no bucketing — better when scores span a wide range
  * like Forêt Mixte's 100–300). Renders nothing when there are no scores.
  */
-export function ScoreDistribution({ scores }: { scores: number[] }) {
+export function ScoreDistribution({ scores }: Readonly<{ scores: number[] }>) {
   const [view, setView] = useState<View>("hist");
   const histogram = useMemo(() => scoreHistogram(scores), [scores]);
   const plot = useMemo(() => dotPlot(scores), [scores]);

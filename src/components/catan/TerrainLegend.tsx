@@ -22,10 +22,10 @@ function terrainHint(terrain: CatanTerrain): string {
 export function TerrainLegend({
   terrains,
   sea = false,
-}: {
+}: Readonly<{
   terrains: CatanTerrain[];
   sea?: boolean;
-}) {
+}>) {
   const items = terrains.map(terrain => ({
     key: terrain as string,
     label: TERRAIN_NAME[terrain],

@@ -48,7 +48,9 @@ function formatDefault(field: FieldSpec, value: unknown): string {
   return String(value);
 }
 
-export function ConfigsManager({ boardgameId }: { boardgameId: BoardgameId }) {
+export function ConfigsManager({
+  boardgameId,
+}: Readonly<{ boardgameId: BoardgameId }>) {
   const {
     template,
     configs,
@@ -272,7 +274,7 @@ function ConfigForm({
   init,
   onSubmit,
   onCancel,
-}: {
+}: Readonly<{
   template: ConfigTemplate;
   init: FormInit;
   onSubmit: (
@@ -281,7 +283,7 @@ function ConfigForm({
     editingId: ConfigId | null,
   ) => Promise<void>;
   onCancel: () => void;
-}) {
+}>) {
   const [name, setName] = useState(init.name);
   const [values, setValues] = useState<ConfigValues>(init.values);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});

@@ -14,12 +14,12 @@ export function Drawer({
   onClose,
   label,
   children,
-}: {
+}: Readonly<{
   open: boolean;
   onClose: () => void;
   label?: string;
   children: ReactNode;
-}) {
+}>) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {

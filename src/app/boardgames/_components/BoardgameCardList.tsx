@@ -19,7 +19,7 @@ export function BoardgameCardList({
   extendedIds,
   dimmed = false,
   collapsible = false,
-}: {
+}: Readonly<{
   title: string;
   boardgames: Boardgame[];
   onToggle: (b: Boardgame) => void;
@@ -28,7 +28,7 @@ export function BoardgameCardList({
   extendedIds: Set<BoardgameId>;
   dimmed?: boolean;
   collapsible?: boolean;
-}) {
+}>) {
   if (boardgames.length === 0) {
     return null;
   }

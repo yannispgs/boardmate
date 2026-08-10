@@ -10,11 +10,11 @@ export function TabButton({
   active,
   onClick,
   children,
-}: {
+}: Readonly<{
   active: boolean;
   onClick: () => void;
   children: string;
-}) {
+}>) {
   return (
     <button
       type="button"

@@ -21,11 +21,11 @@ export function EndScorePanel({
   game,
   onClose,
   onReload,
-}: {
+}: Readonly<{
   game: PopulatedGame;
   onClose: () => void;
   onReload: () => void;
-}) {
+}>) {
   const scoring = game.boardgame.scoring;
   const sheet =
     scoring?.entry === "categories" ? (scoring.sheet ?? null) : null;

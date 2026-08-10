@@ -26,13 +26,13 @@ export function TurnFlow({
   currentPlayerId,
   round,
   roundLimit,
-}: {
+}: Readonly<{
   players: { id: PlayerId; name: string }[];
   currentPlayerId: PlayerId | null;
   round: number;
   /** Fixed game length in rounds, or null for an open-ended game. */
   roundLimit: number | null;
-}) {
+}>) {
   const n = players.length;
   const layout = useMemo(() => layoutRound(players), [players]);
 

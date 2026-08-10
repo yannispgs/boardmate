@@ -16,9 +16,9 @@ import { BoardgameForm } from "./BoardgameForm";
  */
 export function BoardgameFormPage({
   boardgameId,
-}: {
+}: Readonly<{
   boardgameId?: BoardgameId;
-}) {
+}>) {
   const router = useRouter();
   const { boardgames, loading, addBoardgame, editBoardgame, uploadLogo } =
     useBoardgames();

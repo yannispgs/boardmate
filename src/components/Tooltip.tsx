@@ -61,10 +61,10 @@ function clippingBounds(el: HTMLElement): VerticalBounds {
 export function Tooltip({
   label,
   children,
-}: {
+}: Readonly<{
   label: ReactNode;
   children: ReactNode;
-}) {
+}>) {
   const trigger = useRef<HTMLSpanElement>(null);
   const [placement, setPlacement] = useState<TooltipPlacement>("top");
 

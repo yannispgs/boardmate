@@ -8,9 +8,9 @@ export const metadata: Metadata = {
 
 export default async function LoginPage({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: Promise<{ error?: string }>;
-}) {
+}>) {
   const { error } = await searchParams;
   const initialError =
     error === "link"

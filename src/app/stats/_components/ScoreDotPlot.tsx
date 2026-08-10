@@ -12,7 +12,7 @@ const AXIS_H = 18; // room under the baseline for tick labels
  * columns. The axis auto-fits min→max, so it reads the same whether scores run
  * 2–12 or 100–300 — no bucketing.
  */
-export function ScoreDotPlot({ plot }: { plot: DotPlot }) {
+export function ScoreDotPlot({ plot }: Readonly<{ plot: DotPlot }>) {
   const stack = DOT + GAP;
   const plotH = Math.max(1, plot.maxStack) * stack;
   const height = plotH + AXIS_H;

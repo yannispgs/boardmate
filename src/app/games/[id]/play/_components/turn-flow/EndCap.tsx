@@ -5,7 +5,7 @@ import { MID } from "./geometry";
  * after the last player so the turn order visibly stops instead of rolling into
  * another round.
  */
-export function EndCap({ left }: { left: number }) {
+export function EndCap({ left }: Readonly<{ left: number }>) {
   return (
     <div className="absolute top-0" style={{ left }}>
       <span

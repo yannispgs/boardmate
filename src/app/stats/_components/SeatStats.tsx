@@ -16,7 +16,7 @@ const cellClass = "px-3 py-2 text-right tabular-nums";
  * player count and weighted one-per-game (explained via an {@link InfoTip}).
  * Buckets with no game in scope are hidden.
  */
-export function SeatStats({ stats }: { stats: SeatStat[] }) {
+export function SeatStats({ stats }: Readonly<{ stats: SeatStat[] }>) {
   const shown = stats.filter(s => s.games > 0);
 
   if (shown.length === 0) {

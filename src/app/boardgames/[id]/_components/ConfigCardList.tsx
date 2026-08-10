@@ -9,12 +9,12 @@ export function ConfigCardList({
   onDuplicate,
   onEdit,
   onDelete,
-}: {
+}: Readonly<{
   configs: Config[];
   onDuplicate: (config: Config) => void;
   onEdit: (config: Config) => void;
   onDelete: (config: Config) => void;
-}) {
+}>) {
   if (configs.length === 0) {
     return (
       <p className="text-sm text-zinc-500">

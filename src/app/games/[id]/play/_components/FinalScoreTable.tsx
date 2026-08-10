@@ -20,13 +20,13 @@ export function FinalScoreTable({
   values,
   ranking,
   onDone,
-}: {
+}: Readonly<{
   sheet: ScoreSheetItem[];
   players: { id: PlayerId; name: string }[];
   values: Record<string, Record<string, number>>;
   ranking: Ranked[];
   onDone?: () => void;
-}) {
+}>) {
   const rankOf = (id: PlayerId) => ranking.find(r => r.playerId === id);
   const cell = "px-2 py-1 text-right tabular-nums";
   const rowLabel = "px-2 py-1 text-left font-normal";

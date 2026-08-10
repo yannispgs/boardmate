@@ -16,7 +16,9 @@ import { PlayerRankingTable } from "./PlayerRankingTable";
  * ranking still shows; it just reflects that subset of games. Tapping a player
  * opens their detail.
  */
-export function PlayersTab({ records }: { records: GameStatsRecord[] }) {
+export function PlayersTab({
+  records,
+}: Readonly<{ records: GameStatsRecord[] }>) {
   const [presentIds, setPresentIds] = useState<string[]>([]);
   const [detailId, setDetailId] = useState<PlayerId | null>(null);
   const { boardgames } = useBoardgames();

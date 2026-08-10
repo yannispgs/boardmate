@@ -6,10 +6,10 @@ import { PlayerStatCard } from "./PlayerStatCard";
 export function PlayerStatCardList({
   players,
   scaleS,
-}: {
+}: Readonly<{
   players: PlayerTimeStats[];
   scaleS: number;
-}) {
+}>) {
   return (
     <ul className="flex flex-col gap-4">
       {players.map((stat, i) => (

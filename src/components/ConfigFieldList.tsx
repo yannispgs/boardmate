@@ -13,12 +13,12 @@ export function ConfigFieldList({
   values,
   errors,
   onChange,
-}: {
+}: Readonly<{
   fields: FieldSpec[];
   values: ConfigValues;
   errors: Record<string, string>;
   onChange: (key: string, value: unknown) => void;
-}) {
+}>) {
   return (
     <>
       {fields.map(field => (

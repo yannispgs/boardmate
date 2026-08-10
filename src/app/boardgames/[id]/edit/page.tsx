@@ -13,9 +13,9 @@ export const metadata: Metadata = {
 
 export default async function EditBoardgamePage({
   params,
-}: {
+}: Readonly<{
   params: Promise<{ id: string }>;
-}) {
+}>) {
   const { id } = await params;
 
   // Resolve the boardgame name server-side (via the repository adapter) so the

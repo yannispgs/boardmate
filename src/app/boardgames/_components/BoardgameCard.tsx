@@ -45,14 +45,14 @@ export function BoardgameCard({
   actionLabel,
   dimmed = false,
   hasExtensions = false,
-}: {
+}: Readonly<{
   boardgame: Boardgame;
   onToggle: (b: Boardgame) => void;
   onDelete: (b: Boardgame) => void;
   actionLabel: string;
   dimmed?: boolean;
   hasExtensions?: boolean;
-}) {
+}>) {
   return (
     <li
       className={`flex items-center gap-3 rounded-xl border border-black/10 bg-white px-4 py-3 dark:border-white/10 dark:bg-zinc-900 ${

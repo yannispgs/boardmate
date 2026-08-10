@@ -42,7 +42,9 @@ function gameOptions(records: GameStatsRecord[]): PickerOption<string>[] {
  * game keeps one). Dice distribution for dice games is coming with dice
  * tracking.
  */
-export function GamesTab({ records }: { records: GameStatsRecord[] }) {
+export function GamesTab({
+  records,
+}: Readonly<{ records: GameStatsRecord[] }>) {
   const games = useMemo(() => gameOptions(records), [records]);
   const [selected, setSelected] = useState(games[0]?.value ?? "");
   const [presentIds, setPresentIds] = useState<string[]>([]);

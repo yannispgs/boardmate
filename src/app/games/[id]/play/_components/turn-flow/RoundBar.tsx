@@ -8,11 +8,11 @@ export function RoundBar({
   round,
   left,
   faded,
-}: {
+}: Readonly<{
   round: number;
   left: number;
   faded: boolean;
-}) {
+}>) {
   return (
     <div
       className="absolute top-0 transition-opacity duration-500"

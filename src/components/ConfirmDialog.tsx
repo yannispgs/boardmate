@@ -27,13 +27,13 @@ export function ConfirmDialog({
   details,
   onConfirm,
   onCancel,
-}: {
+}: Readonly<{
   message: string;
   confirmLabel: string;
   details?: React.ReactNode;
   onConfirm: () => void;
   onCancel: () => void;
-}) {
+}>) {
   return (
     <Modal onClose={onCancel} className={`${modalCardClass} max-w-sm p-5`}>
       <p className="whitespace-pre-line text-sm">{message}</p>

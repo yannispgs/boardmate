@@ -14,7 +14,9 @@ const inputClass =
 const buttonClass =
   "rounded-lg bg-indigo-600 px-3 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60";
 
-export function LoginForm({ initialError }: { initialError?: string }) {
+export function LoginForm({
+  initialError,
+}: Readonly<{ initialError?: string }>) {
   const [sendState, sendAction, sending] = useActionState<
     SignInState,
     FormData
@@ -57,7 +59,10 @@ export function LoginForm({ initialError }: { initialError?: string }) {
 // users from invalidating an in-flight code and restarting the wait.
 const RESEND_COOLDOWN_S = 60;
 
-function CodeForm({ email, onBack }: { email: string; onBack: () => void }) {
+function CodeForm({
+  email,
+  onBack,
+}: Readonly<{ email: string; onBack: () => void }>) {
   const [verifyState, verifyAction, verifying] = useActionState(verifyCode, {});
   const [resendState, resendAction, resending] = useActionState<
     SignInState,

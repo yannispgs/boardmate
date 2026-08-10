@@ -24,13 +24,13 @@ export function StatsPanel({
   turns,
   currentRound,
   dice,
-}: {
+}: Readonly<{
   players: Array<GamePlayer & { player: Player }>;
   turns: GameTurn[];
   /** The in-progress round, so the hog only counts completed rounds. */
   currentRound: number;
   dice?: { rolls: number[]; spec: DiceSpec };
-}) {
+}>) {
   const [open, setOpen] = useState(false);
   const stats = computeGameStats({ players, turns });
   const hog = liveTimeHog(players, turns, currentRound);
