@@ -23,6 +23,7 @@ import {
   type WinCondition,
 } from "@/lib/domain";
 import { seatOrderMatters } from "@/lib/game/seat-stats";
+import { useCategoryUsage } from "@/lib/hooks/use-category-usage";
 import { ScoreSheetEditor } from "./ScoreSheetEditor";
 
 interface FormState {
@@ -317,6 +318,9 @@ export function BoardgameForm({
   const [logoUrl, setLogoUrl] = useState<string | null>(
     initial?.logoUrl ?? null,
   );
+  // What each category key already carries in recorded games, so dropping a
+  // line from the sheet can say what it would bury.
+  const categoryUsage = useCategoryUsage(initial?.id ?? null);
   const [logoSource, setLogoSource] = useState<LogoSource>("file");
   const [logoUrlInput, setLogoUrlInput] = useState("");
   // An existing logo is shown as a preview and left untouched unless the user
@@ -862,7 +866,11 @@ export function BoardgameForm({
                   Détail des catégories
                 </summary>
                 <div className="mt-1">
-                  <ScoreSheetEditor value={sheet} onChange={setSheet} />
+                  <ScoreSheetEditor
+                    value={sheet}
+                    onChange={setSheet}
+                    usage={categoryUsage}
+                  />
                 </div>
               </details>
             ) : null}

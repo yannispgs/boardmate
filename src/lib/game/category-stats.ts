@@ -3,11 +3,12 @@
  * charts: how a player's / a game's points split across the top level of the
  * scoresheet — its subsections and its plain lines alike, each counting for one
  * (Cascadia's Animaux / Biomes / Pommes de pin, Wingspan's every line) — and,
- * inside a subsection the game flagged `showDetail`, across its own lines. Only
- * games whose stored breakdown covers every category count. Pure: no vendor
- * types, unit-tested.
+ * inside a subsection the game flagged `showDetail`, across its own lines. A
+ * game counts as soon as its stored breakdown says anything about the sheet.
+ * Pure: no vendor types, unit-tested.
  */
 import type {
+  BoardgameId,
   CategoryDef,
   CategorySubsection,
   GameStatsRecord,
@@ -78,8 +79,17 @@ export function detailSubsections(
   return sheet.filter(isSubsection).filter(s => s.showDetail === true);
 }
 
-/** True when a breakdown carries a value for every category of the sheet. */
-export function hasCompleteBreakdown(
+/**
+ * True when a breakdown says something about this sheet — it carries at least
+ * one of its categories.
+ *
+ * It deliberately does NOT demand a value for every category. Requiring that
+ * made adding a line to a sheet silently destructive: no past game can hold a
+ * key invented today, so every one of them stopped counting and the charts went
+ * blank. A category a game has no value for reads 0 (see `mean`), which is what
+ * it scored — the line did not exist, so no points were made under it.
+ */
+export function hasUsableBreakdown(
   sheet: ScoreSheetItem[],
   breakdown: Record<string, number> | null,
 ): boolean {
@@ -87,14 +97,14 @@ export function hasCompleteBreakdown(
     return false;
   }
 
-  return sheetCategories(sheet).every(c => c.key in breakdown);
+  return sheetCategories(sheet).some(c => c.key in breakdown);
 }
 
 /**
- * Every complete per-category breakdown across the games — of one player when
+ * Every usable per-category breakdown across the games — of one player when
  * `playerId` is given, otherwise of all participants.
  */
-export function completeBreakdowns(
+export function usableBreakdowns(
   records: GameStatsRecord[],
   sheet: ScoreSheetItem[],
   playerId?: PlayerId,
@@ -109,13 +119,48 @@ export function completeBreakdowns(
 
       const breakdown = p.scoreBreakdown ?? null;
 
-      if (hasCompleteBreakdown(sheet, breakdown)) {
+      if (hasUsableBreakdown(sheet, breakdown)) {
         out.push(breakdown as Record<string, number>);
       }
     }
   }
 
   return out;
+}
+
+/**
+ * How many finished games of one boardgame already carry points under each
+ * category key — what the score sheet editor warns with before a line is
+ * dropped. A game counts once, however many of its players scored under the key.
+ *
+ * Keyed by category key and not by label, because the label is what the owner
+ * edits freely: only the key ties a recorded point to the line it was scored on.
+ */
+export function breakdownUsage(
+  records: GameStatsRecord[],
+  boardgameId: BoardgameId,
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+
+  for (const record of records) {
+    if (record.boardgameId !== boardgameId) {
+      continue;
+    }
+
+    const scored = new Set<string>();
+
+    for (const p of record.players) {
+      for (const key of Object.keys(p.scoreBreakdown ?? {})) {
+        scored.add(key);
+      }
+    }
+
+    for (const key of scored) {
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+  }
+
+  return counts;
 }
 
 /** Mean of `f` over the breakdowns (0 when there are none). */

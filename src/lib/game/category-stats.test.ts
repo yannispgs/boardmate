@@ -1,13 +1,19 @@
 import { describe, expect, it } from "vitest";
 
-import type { GameStatsRecord, PlayerId, ScoreSheetItem } from "@/lib/domain";
+import type {
+  BoardgameId,
+  GameStatsRecord,
+  PlayerId,
+  ScoreSheetItem,
+} from "@/lib/domain";
 import {
+  breakdownUsage,
   categoryGroups,
   categorySlices,
-  completeBreakdowns,
   detailSubsections,
   groupSlices,
-  hasCompleteBreakdown,
+  hasUsableBreakdown,
+  usableBreakdowns,
 } from "./category-stats";
 
 // A Cascadia-like sheet: two subsections + a standalone line.
@@ -40,12 +46,16 @@ const flat: ScoreSheetItem[] = [
 const ALICE = "p-alice" as PlayerId;
 const BOB = "p-bob" as PlayerId;
 
+const CASCADIA = "b" as BoardgameId;
+const OTHER = "b-other" as BoardgameId;
+
 function rec(
   players: Array<{ id: PlayerId; breakdown: Record<string, number> | null }>,
+  boardgameId: BoardgameId = CASCADIA,
 ): GameStatsRecord {
   return {
     gameId: "g" as GameStatsRecord["gameId"],
-    boardgameId: "b" as GameStatsRecord["boardgameId"],
+    boardgameId,
     boardgameName: "Cascadia",
     dice: null,
     endedAt: "2026-07-01T00:00:00Z",
@@ -129,30 +139,91 @@ describe("detailSubsections", () => {
   });
 });
 
-describe("hasCompleteBreakdown", () => {
-  it("requires a value for every sheet category", () => {
-    expect(hasCompleteBreakdown(sheet, null)).toBe(false);
-    expect(hasCompleteBreakdown(sheet, { ours: 5 })).toBe(false);
-    expect(hasCompleteBreakdown(sheet, full)).toBe(true);
+describe("hasUsableBreakdown", () => {
+  it("takes a breakdown that carries any category of the sheet", () => {
+    expect(hasUsableBreakdown(sheet, full)).toBe(true);
+    expect(hasUsableBreakdown(sheet, { ours: 5 })).toBe(true);
+  });
+
+  it("rejects nothing at all, or points about another sheet entirely", () => {
+    expect(hasUsableBreakdown(sheet, null)).toBe(false);
+    expect(hasUsableBreakdown(sheet, {})).toBe(false);
+    expect(hasUsableBreakdown(sheet, { oiseaux: 12 })).toBe(false);
+  });
+
+  it("keeps counting a game after a line is added to the sheet", () => {
+    // The whole point: no past game can hold a key invented today, and that
+    // must not wipe it from the charts.
+    const grown: ScoreSheetItem[] = [...sheet, { key: "neuf", label: "Neuf" }];
+
+    expect(hasUsableBreakdown(grown, full)).toBe(true);
   });
 });
 
-describe("completeBreakdowns", () => {
+describe("usableBreakdowns", () => {
+  const partial = { ours: 1 };
   const records = [
     rec([
       { id: ALICE, breakdown: full },
-      { id: BOB, breakdown: { ours: 1 } }, // incomplete → skipped
+      { id: BOB, breakdown: partial },
     ]),
-    rec([{ id: ALICE, breakdown: null }]), // no breakdown → skipped
+    rec([{ id: ALICE, breakdown: null }]), // nothing recorded → skipped
   ];
 
-  it("keeps only complete breakdowns, all players by default", () => {
-    expect(completeBreakdowns(records, sheet)).toEqual([full]);
+  it("keeps every breakdown that says something, all players by default", () => {
+    expect(usableBreakdowns(records, sheet)).toEqual([full, partial]);
   });
 
   it("filters to one player when asked", () => {
-    expect(completeBreakdowns(records, sheet, BOB)).toEqual([]);
-    expect(completeBreakdowns(records, sheet, ALICE)).toEqual([full]);
+    expect(usableBreakdowns(records, sheet, BOB)).toEqual([partial]);
+    expect(usableBreakdowns(records, sheet, ALICE)).toEqual([full]);
+  });
+});
+
+describe("breakdownUsage", () => {
+  it("counts the games each category key was scored on", () => {
+    const records = [
+      rec([{ id: ALICE, breakdown: { ours: 5, buse: 3 } }]),
+      rec([{ id: ALICE, breakdown: { ours: 2 } }]),
+    ];
+
+    expect(breakdownUsage(records, CASCADIA)).toEqual({ ours: 2, buse: 1 });
+  });
+
+  it("counts a game once however many players scored under the key", () => {
+    const records = [
+      rec([
+        { id: ALICE, breakdown: { ours: 5 } },
+        { id: BOB, breakdown: { ours: 7 } },
+      ]),
+    ];
+
+    expect(breakdownUsage(records, CASCADIA)).toEqual({ ours: 1 });
+  });
+
+  it("counts a key even when the points scored under it are 0", () => {
+    // A recorded 0 is still history: dropping the line would bury it.
+    expect(
+      breakdownUsage([rec([{ id: ALICE, breakdown: { ours: 0 } }])], CASCADIA),
+    ).toEqual({
+      ours: 1,
+    });
+  });
+
+  it("ignores the games of every other boardgame", () => {
+    const records = [
+      rec([{ id: ALICE, breakdown: { ours: 5 } }]),
+      rec([{ id: ALICE, breakdown: { oiseaux: 9 } }], OTHER),
+    ];
+
+    expect(breakdownUsage(records, CASCADIA)).toEqual({ ours: 1 });
+  });
+
+  it("is empty when nothing was ever recorded", () => {
+    expect(
+      breakdownUsage([rec([{ id: ALICE, breakdown: null }])], CASCADIA),
+    ).toEqual({});
+    expect(breakdownUsage([], CASCADIA)).toEqual({});
   });
 });
 
