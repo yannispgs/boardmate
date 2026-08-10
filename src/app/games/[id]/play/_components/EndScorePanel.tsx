@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import type { PlayerId, PopulatedGame } from "@/lib/domain";
+import { readPairBreakdown } from "@/lib/game/pair-scoring";
 import { finalStandings, winnerDirection } from "@/lib/game/scoring";
 import { CategoryBreakdownFill } from "./CategoryBreakdownFill";
 import { FinalScoreTable } from "./FinalScoreTable";
@@ -35,6 +36,10 @@ export function EndScorePanel({
     name: p.player.name,
     score: p.score ?? 0,
     isWinner: p.isWinner,
+    // A pair-scored game (Splito) keeps the two shared piles behind the total,
+    // and the multiplication is the whole story — no toggle to hide it behind.
+    pair:
+      scoring?.entry === "pairs" ? readPairBreakdown(p.scoreBreakdown) : null,
   }));
 
   // The recorded winners take rank 1 (several on a shared victory); co-leaders
@@ -97,7 +102,15 @@ export function EndScorePanel({
               <span className="w-6 text-center text-sm font-semibold tabular-nums text-zinc-500 dark:text-zinc-400">
                 {rank === 1 ? "🏆" : rank}
               </span>
-              <span className="flex-1 font-medium">{p.name}</span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate font-medium">{p.name}</span>
+
+                {p.pair ? (
+                  <span className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
+                    {p.pair.left} × {p.pair.right}
+                  </span>
+                ) : null}
+              </span>
               <span className="text-lg font-semibold tabular-nums">
                 {p.score}
               </span>

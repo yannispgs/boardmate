@@ -51,8 +51,9 @@ interface FormState {
   scored: boolean;
   scoreTiming: "final" | "live";
   // "total" = one number per player; "categories" = a per-category scoresheet
-  // (edited via ScoreSheetEditor).
-  entry: "total" | "categories";
+  // (edited via ScoreSheetEditor); "pairs" = piles shared between neighbours,
+  // multiplied (Splito) — nothing to author, the rule is the same everywhere.
+  entry: "total" | "categories" | "pairs";
   winKind: WinCondition["type"];
   thresholdField: string;
   allowNegative: boolean;
@@ -807,6 +808,7 @@ export function BoardgameForm({
               >
                 <option value="total">Un total par joueur</option>
                 <option value="categories">Par catégories de points</option>
+                <option value="pairs">Tas partagés entre voisins (×)</option>
               </select>
             </label>
 
