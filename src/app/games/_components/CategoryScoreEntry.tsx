@@ -39,7 +39,7 @@ export function CategoryScoreEntry({
   function setCell(playerId: PlayerId, key: string, text: string) {
     setRaw(r => ({
       ...r,
-      [playerId]: { ...(r[playerId] ?? {}), [key]: text },
+      [playerId]: { ...r[playerId], [key]: text },
     }));
   }
 

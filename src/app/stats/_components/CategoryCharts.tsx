@@ -219,9 +219,9 @@ export function CategoryCharts({
           <StackedBars bars={bars} />
           <Legend slices={bars[0].slices} />
         </div>
-      ) : aggregate ? (
-        <Donut slices={aggregate} />
       ) : null}
+
+      {!bars && aggregate ? <Donut slices={aggregate} /> : null}
     </div>
   );
 }

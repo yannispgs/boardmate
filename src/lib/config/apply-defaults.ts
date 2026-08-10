@@ -15,10 +15,6 @@ export function withFieldDefault(field: FieldSpec, value: unknown): FieldSpec {
         default: typeof value === "number" ? value : undefined,
       };
     case "text":
-      return {
-        ...field,
-        default: typeof value === "string" ? value : undefined,
-      };
     case "enum":
       return {
         ...field,

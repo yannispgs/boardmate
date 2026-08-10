@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-
 import { ErrorText } from "@/components/ErrorText";
+import { ListState } from "@/components/ListState";
 import { StickyActionBar } from "@/components/StickyActionBar";
 import { useConfirm } from "@/components/use-confirm";
 import type { Boardgame } from "@/lib/domain";
@@ -87,36 +87,32 @@ export function BoardgamesManager() {
       {/* Only the list of games scrolls; the header above and the action bar
           below stay put. */}
       <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto pb-4">
-        {loading ? (
-          <p className="text-sm text-zinc-500">Chargement…</p>
-        ) : boardgames.length === 0 ? (
-          <p className="text-sm text-zinc-500">
-            Aucun jeu pour l&apos;instant.
-          </p>
-        ) : (
-          <>
+        <ListState
+          loading={loading}
+          empty={boardgames.length === 0}
+          emptyLabel={<>Aucun jeu pour l&apos;instant.</>}
+        >
+          <BoardgameCardList
+            title="Jeux actifs"
+            boardgames={active}
+            onToggle={b => handleToggle(b, false)}
+            actionLabel="Désactiver"
+            onDelete={handleDelete}
+            extendedIds={extendedIds}
+          />
+          {inactive.length > 0 ? (
             <BoardgameCardList
-              title="Jeux actifs"
-              boardgames={active}
-              onToggle={b => handleToggle(b, false)}
-              actionLabel="Désactiver"
+              title="Désactivés"
+              boardgames={inactive}
+              onToggle={b => handleToggle(b, true)}
+              actionLabel="Réactiver"
               onDelete={handleDelete}
               extendedIds={extendedIds}
+              dimmed
+              collapsible
             />
-            {inactive.length > 0 ? (
-              <BoardgameCardList
-                title="Désactivés"
-                boardgames={inactive}
-                onToggle={b => handleToggle(b, true)}
-                actionLabel="Réactiver"
-                onDelete={handleDelete}
-                extendedIds={extendedIds}
-                dimmed
-                collapsible
-              />
-            ) : null}
-          </>
-        )}
+          ) : null}
+        </ListState>
       </div>
 
       <StickyActionBar>

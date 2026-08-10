@@ -44,8 +44,7 @@ export function buildScoreSeries(
       const x = xOf(e.round);
       // Hold the previous score up to this tour, then jump — a run of tours
       // without scoring reads as a flat plateau.
-      points.push({ x, score: last });
-      points.push({ x, score: e.score });
+      points.push({ x, score: last }, { x, score: e.score });
       last = e.score;
     }
 

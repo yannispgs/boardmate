@@ -864,6 +864,15 @@ function formatClock(totalS: number): string {
   return String(totalS);
 }
 
+/** What the readout counts in, so the unit under it agrees with the number. */
+function countdownUnit(remainingS: number): string {
+  if (remainingS < 60) {
+    return "secondes";
+  }
+
+  return remainingS >= 120 ? "minutes" : "minute";
+}
+
 /**
  * The big ring readout. Under a minute we show raw seconds; from a minute up we
  * switch to m:ss so long turns (e.g. "3:00") stay readable instead of "180".
@@ -879,15 +888,7 @@ function formatCountdown(remainingS: number): { value: string; label: string } {
     return { value: "0", label: "temps écoulé" };
   }
 
-  return {
-    value: formatClock(remainingS),
-    label:
-      remainingS >= 60
-        ? remainingS >= 120
-          ? "minutes"
-          : "minute"
-        : "secondes",
-  };
+  return { value: formatClock(remainingS), label: countdownUnit(remainingS) };
 }
 
 function TimerRing({

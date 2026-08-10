@@ -60,7 +60,8 @@ export function diceStats(
     for (let k = 1; k < positions.length; k++) {
       longest = Math.max(longest, positions[k] - positions[k - 1] - 1);
     }
-    const currentDrought = n - 1 - positions[positions.length - 1];
+    /* c8 ignore next -- `?? 0` fallback: the empty case returned above */
+    const currentDrought = n - 1 - (positions.at(-1) ?? 0);
     longest = Math.max(longest, currentDrought);
 
     out[value] = {

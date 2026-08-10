@@ -6,6 +6,8 @@
  * so bucket widths are kept ≥ 1.
  */
 
+import { niceStep } from "@/lib/game/nice-step";
+
 export interface ScoreBin {
   /** Inclusive lower bound. */
   start: number;
@@ -23,15 +25,6 @@ export interface ScoreHistogram {
   min: number;
   max: number;
   mean: number;
-}
-
-/** Rounds a rough width up to the nearest 1 / 2 / 5 × 10ⁿ. */
-function niceStep(rough: number): number {
-  const pow = 10 ** Math.floor(Math.log10(rough));
-  const norm = rough / pow;
-  const factor = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10;
-
-  return factor * pow;
 }
 
 /**

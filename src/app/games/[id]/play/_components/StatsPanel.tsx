@@ -79,14 +79,15 @@ export function StatsPanel({
               </div>
             ) : null}
 
-            {stats.turnCount === 0 ? (
-              hasRolls ? null : (
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                  Les statistiques s&apos;afficheront après le premier tour
-                  joué.
-                </p>
-              )
-            ) : (
+            {/* Before the first turn there is nothing to summarise — unless
+                dice were already rolled, which the timeline above shows. */}
+            {stats.turnCount === 0 && !hasRolls ? (
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                Les statistiques s&apos;afficheront après le premier tour joué.
+              </p>
+            ) : null}
+
+            {stats.turnCount > 0 ? (
               <>
                 {hog ? (
                   <div className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-3 text-sm">
@@ -121,7 +122,7 @@ export function StatsPanel({
                   />
                 </div>
               </>
-            )}
+            ) : null}
           </div>
         </Modal>
       ) : null}

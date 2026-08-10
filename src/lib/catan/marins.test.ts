@@ -251,7 +251,10 @@ describe("pickPortSlots", () => {
     for (const slot of slots) {
       const cell = cells[slot.hexId];
 
-      expect(land.has(cellKey({ q: cell.q + slot.dq, r: cell.r + slot.dr })));
+      // `dq`/`dr` point at the sea the harbour faces, so that cell is not land.
+      expect(
+        land.has(cellKey({ q: cell.q + slot.dq, r: cell.r + slot.dr })),
+      ).toBe(false);
     }
   });
 

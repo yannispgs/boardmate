@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { ConfigField } from "@/components/ConfigField";
 import { HiddenMaterial } from "@/components/catan/HiddenMaterial";
 import { ErrorText } from "@/components/ErrorText";
+import { ListState } from "@/components/ListState";
 import { useConfirm } from "@/components/use-confirm";
 import { hiddenMaterial } from "@/lib/catan/hidden-material";
 import { buildDefaults, validateConfigValues } from "@/lib/config/validation";
@@ -86,13 +87,11 @@ export function NewGameFunnel() {
   if (step === 1) {
     return (
       <FunnelStep title="1 · Choisis un jeu">
-        {loading ? (
-          <p className="text-sm text-zinc-500">Chargement…</p>
-        ) : boardgames.length === 0 ? (
-          <p className="text-sm text-zinc-500">
-            Aucun jeu. Ajoute-en un dans « Jeux » d&apos;abord.
-          </p>
-        ) : (
+        <ListState
+          loading={loading}
+          empty={boardgames.length === 0}
+          emptyLabel={<>Aucun jeu. Ajoute-en un dans « Jeux » d&apos;abord.</>}
+        >
           <ul className="flex flex-col gap-2">
             {boardgames.map(b => (
               <li key={b.id}>
@@ -111,7 +110,7 @@ export function NewGameFunnel() {
               </li>
             ))}
           </ul>
-        )}
+        </ListState>
       </FunnelStep>
     );
   }
@@ -278,20 +277,18 @@ function PlayersStep({
         </>
       }
     >
-      {loading ? (
-        <p className="text-sm text-zinc-500">Chargement…</p>
-      ) : active.length === 0 ? (
-        <p className="text-sm text-zinc-500">
-          Aucun joueur actif. Ajoute-en dans « Joueurs ».
-        </p>
-      ) : (
+      <ListState
+        loading={loading}
+        empty={active.length === 0}
+        emptyLabel="Aucun joueur actif. Ajoute-en dans « Joueurs »."
+      >
         <PlayerPickCardList
           players={listed}
           selected={selected}
           simultaneous={simultaneous}
           onToggle={toggle}
         />
-      )}
+      </ListState>
     </FunnelStep>
   );
 }
@@ -364,7 +361,7 @@ function RecapStep({
         template.fields,
         extensions.filter(e => selectedExt.includes(e.id)),
       );
-      setValues({ ...buildDefaults(fields), ...(config?.values ?? {}) });
+      setValues({ ...buildDefaults(fields), ...config?.values });
     }
   }, [template, config, extensions, selectedExt]);
 
@@ -402,7 +399,7 @@ function RecapStep({
   }
 
   function setField(key: string, value: unknown) {
-    setValues(prev => ({ ...(prev ?? {}), [key]: value }));
+    setValues(prev => ({ ...prev, [key]: value }));
   }
 
   /** Only reachable from the editable target bar, which needs the field. */

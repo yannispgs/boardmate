@@ -40,7 +40,7 @@ export function localStack(): LocalStack {
   }
 
   const get = (key: string) =>
-    raw.match(new RegExp(`^${key}="?([^"\\n]+)"?`, "m"))?.[1];
+    new RegExp(String.raw`^${key}="?([^"\n]+)"?`, "m").exec(raw)?.[1];
   const parsed = {
     url: get("API_URL"),
     anonKey: get("ANON_KEY"),

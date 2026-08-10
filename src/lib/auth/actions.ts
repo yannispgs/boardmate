@@ -18,7 +18,18 @@ export interface VerifyState {
   error?: string;
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
+
+/**
+ * The text value of a form field. `FormData.get` can also return a `File` (any
+ * client can post one under any name); anything but a string is treated as
+ * absent rather than stringified into "[object File]".
+ */
+function textField(formData: FormData, name: string): string {
+  const value = formData.get(name);
+
+  return typeof value === "string" ? value : "";
+}
 
 /**
  * Sends a 6-digit login code by email (Supabase email OTP). This is the same
@@ -30,9 +41,7 @@ export async function signInWithEmail(
   _prev: SignInState,
   formData: FormData,
 ): Promise<SignInState> {
-  const email = String(formData.get("email") ?? "")
-    .trim()
-    .toLowerCase();
+  const email = textField(formData, "email").trim().toLowerCase();
 
   if (!EMAIL_RE.test(email)) {
     return { error: "Renseigne une adresse e-mail valide." };
@@ -63,10 +72,8 @@ export async function verifyCode(
   _prev: VerifyState,
   formData: FormData,
 ): Promise<VerifyState> {
-  const email = String(formData.get("email") ?? "")
-    .trim()
-    .toLowerCase();
-  const token = String(formData.get("token") ?? "").replace(/\D/g, "");
+  const email = textField(formData, "email").trim().toLowerCase();
+  const token = textField(formData, "token").replace(/\D/g, "");
 
   if (!EMAIL_RE.test(email)) {
     return { error: "Adresse e-mail manquante. Recommence." };

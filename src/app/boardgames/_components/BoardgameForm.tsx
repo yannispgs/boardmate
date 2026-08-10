@@ -219,7 +219,7 @@ const field =
 type LogoSource = "file" | "url" | "paste";
 
 /** Image MIME types accepted everywhere a logo can come in (file/paste). */
-const LOGO_MIME = ["image/png", "image/jpeg"];
+const LOGO_MIME = new Set(["image/png", "image/jpeg"]);
 
 const isPng = (b: Uint8Array): boolean =>
   b.length >= 4 &&
@@ -942,7 +942,7 @@ function LogoPicker({
   // Pull an accepted image out of a paste event (Ctrl/Cmd+V into the drop zone).
   function handlePaste(event: ClipboardEvent<HTMLTextAreaElement>) {
     const item = Array.from(event.clipboardData?.items ?? []).find(i =>
-      LOGO_MIME.includes(i.type),
+      LOGO_MIME.has(i.type),
     );
 
     if (!item) {
@@ -962,7 +962,7 @@ function LogoPicker({
     try {
       const items = await navigator.clipboard.read();
       for (const item of items) {
-        const type = item.types.find(t => LOGO_MIME.includes(t));
+        const type = item.types.find(t => LOGO_MIME.has(t));
         if (type) {
           const blob = await item.getType(type);
           const ext = type === "image/png" ? "png" : "jpg";
@@ -1029,7 +1029,9 @@ function LogoPicker({
               {fileName ?? "PNG ou JPEG"}
             </span>
           </div>
-        ) : logoSource === "url" ? (
+        ) : null}
+
+        {logoSource === "url" ? (
           <input
             type="url"
             inputMode="url"
@@ -1040,7 +1042,9 @@ function LogoPicker({
             aria-label="URL du logo (PNG ou JPEG)"
             className={`flex-1 ${field}`}
           />
-        ) : (
+        ) : null}
+
+        {logoSource === "paste" ? (
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <textarea
               readOnly
@@ -1060,7 +1064,7 @@ function LogoPicker({
               Coller depuis le presse-papier
             </button>
           </div>
-        )}
+        ) : null}
         {uploading || checkingUrl ? (
           <span className="text-xs text-zinc-500">
             {uploading ? "Envoi…" : "Vérification…"}

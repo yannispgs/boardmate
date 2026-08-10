@@ -55,7 +55,7 @@ test("records a finished game with final scores and a winner", async ({
       .in("player_id", ids);
     const rows = gps ?? [];
 
-    expect(rows.length).toBe(2);
+    expect(rows).toHaveLength(2);
     gameId = rows[0]?.game_id as string;
 
     const winnerRow = rows.find(r => r.player_id === ids[0]);
@@ -333,7 +333,7 @@ test("a category game can be recorded with just a total (detail optional)", asyn
       .in("player_id", ids);
     const rows = gps ?? [];
 
-    expect(rows.length).toBe(2);
+    expect(rows).toHaveLength(2);
     gameId = rows[0]?.game_id as string;
 
     const winner = rows.find(r => r.player_id === ids[0]);

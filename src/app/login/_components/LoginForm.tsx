@@ -59,6 +59,19 @@ export function LoginForm({
 // users from invalidating an in-flight code and restarting the wait.
 const RESEND_COOLDOWN_S = 60;
 
+/** Label of the "resend the code" button, across its three states. */
+function resendLabel(resending: boolean, cooldown: number): string {
+  if (resending) {
+    return "Envoi…";
+  }
+
+  if (cooldown > 0) {
+    return `Renvoyer le code (${cooldown}s)`;
+  }
+
+  return "Renvoyer le code";
+}
+
 function CodeForm({
   email,
   onBack,
@@ -133,11 +146,7 @@ function CodeForm({
             disabled={cooldown > 0 || resending}
             className="text-zinc-500 hover:text-zinc-800 disabled:opacity-60 dark:hover:text-zinc-200"
           >
-            {resending
-              ? "Envoi…"
-              : cooldown > 0
-                ? `Renvoyer le code (${cooldown}s)`
-                : "Renvoyer le code"}
+            {resendLabel(resending, cooldown)}
           </button>
         </form>
         <ErrorText message={resendState.error} />

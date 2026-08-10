@@ -1,16 +1,9 @@
 import type { PlayerId } from "@/lib/domain";
 import { formatDuration } from "@/lib/game/format-time";
+import { niceStep } from "@/lib/game/nice-step";
+import { playerColorOf } from "@/lib/game/player-colors";
 import type { PlayerTimeSeries } from "@/lib/game/turn-time-series";
 
-/** One stable colour per seat, cycled if there are more players than colours. */
-const COLORS = [
-  "#6366f1",
-  "#f59e0b",
-  "#10b981",
-  "#f43f5e",
-  "#0ea5e9",
-  "#8b5cf6",
-];
 const W = 320;
 const H = 160;
 const TOP = 10;
@@ -20,19 +13,6 @@ const RIGHT = 10;
 const PLOT_W = W - LEFT - RIGHT;
 const PLOT_H = H - TOP - BOTTOM;
 const MAX_X_TICKS = 8;
-
-/** Nearest "nice" step (1 / 2 / 5 × 10ⁿ) at or above `rough`, for axis ticks. */
-function niceStep(rough: number): number {
-  if (rough <= 0) {
-    return 1;
-  }
-
-  const pow = 10 ** Math.floor(Math.log10(rough));
-  const n = rough / pow;
-  const base = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
-
-  return base * pow;
-}
 
 /**
  * Each player's active time per tour, one line each, over the game's tours — so
@@ -50,11 +30,7 @@ export function TurnTimeChart({
   maxTour: number;
   players: { id: PlayerId; name: string }[];
 }>) {
-  const colorOf = (playerId: PlayerId) => {
-    const idx = players.findIndex(p => p.id === playerId);
-
-    return COLORS[(idx < 0 ? 0 : idx) % COLORS.length];
-  };
+  const colorOf = (playerId: PlayerId) => playerColorOf(players, playerId);
 
   const yStep = niceStep(maxSeconds / 4);
   const chartMax = Math.ceil(maxSeconds / yStep) * yStep;
