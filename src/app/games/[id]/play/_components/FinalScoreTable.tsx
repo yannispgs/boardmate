@@ -2,7 +2,10 @@
 
 import { Fragment } from "react";
 
-import type { PlayerId, ScoreSheetItem } from "@/lib/domain";
+import { CategoryIcon } from "@/components/CategoryIcon";
+import { ScoreSheetLegend } from "@/components/ScoreSheetLegend";
+import type { CategoryDef, PlayerId, ScoreSheetItem } from "@/lib/domain";
+import { categoryIconOf } from "@/lib/game/category-icons";
 import { isSubsection, type Ranked, scoreCategories } from "@/lib/game/scoring";
 
 /**
@@ -36,11 +39,16 @@ export function FinalScoreTable({
   // Show a placement-bonus line only when the sheet actually awards one.
   const hasBonus = players.some(p => (scored[p.id]?.bonus ?? 0) !== 0);
 
-  function line(key: string, label: string) {
+  function line(category: CategoryDef) {
+    const { key, label } = category;
+    const icon = categoryIconOf(category);
+
     return (
       <tr key={key} className="border-t border-black/5 dark:border-white/5">
-        <th scope="row" className={rowLabel}>
-          {label}
+        <th scope="row" className={rowLabel} title={label}>
+          {/* The drawing stands in for the words here too, so the sheet reads
+              the same as the one it was filled in on. */}
+          {icon ? <CategoryIcon id={icon} title={label} /> : label}
         </th>
         {players.map(p => (
           <td key={p.id} className={cell}>
@@ -59,7 +67,11 @@ export function FinalScoreTable({
         <table className="w-full min-w-full text-sm">
           <thead>
             <tr className="border-b border-black/10 dark:border-white/10">
-              <th className="px-2 py-1 text-left" />
+              {/* The empty corner cell doubles as the legend of the sheet's
+                  pictograms, above the lines wearing them. */}
+              <th className="px-2 py-1 text-left">
+                <ScoreSheetLegend sheet={sheet} />
+              </th>
               {players.map(p => (
                 <th key={p.id} className="px-2 py-1 text-right font-semibold">
                   {p.name}
@@ -80,10 +92,10 @@ export function FinalScoreTable({
                       {item.label}
                     </th>
                   </tr>
-                  {item.categories.map(cat => line(cat.key, cat.label))}
+                  {item.categories.map(cat => line(cat))}
                 </Fragment>
               ) : (
-                line(item.key, item.label)
+                line(item)
               ),
             )}
 

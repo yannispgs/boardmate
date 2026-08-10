@@ -66,6 +66,15 @@ export interface CategoryDef {
    * two-tone biomes).
    */
   colors?: string[];
+  /**
+   * Optional pictogram **replacing** the label on the score sheet, the way the
+   * printed pad draws its lines instead of writing them out. Names one of the
+   * drawings the app ships; anything else reads as no icon at all and the line
+   * falls back to its text (see {@link isCategoryIconId}). The sheet carries a
+   * legend spelling every icon out, since a drawing alone says nothing to
+   * someone who doesn't know the game.
+   */
+  icon?: string;
 }
 
 /** A titled group of scored lines (e.g. "Animaux"), for the final scoresheet. */
