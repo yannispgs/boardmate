@@ -4,7 +4,21 @@ import { type ReactNode, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 /**
- * A panel that slides in from the right over a dimmed backdrop, dismissed by a
+ * Which edge a drawer lives on. The play screen reads them as a rule rather
+ * than a decoration: **right is what every game has** (the score, the live
+ * stats, the FAQ), **left is what only the game on the table has** (Terraforming
+ * Mars' milestones). Three buttons had already stacked up on the right edge
+ * before the rule was written down.
+ */
+export type DrawerSide = "left" | "right";
+
+const SIDE = {
+  right: { edge: "right-0", away: "translate-x-full" },
+  left: { edge: "left-0", away: "-translate-x-full" },
+} as const;
+
+/**
+ * A panel that slides in from one edge over a dimmed backdrop, dismissed by a
  * backdrop click or Escape. It stays mounted (translated off-screen when
  * closed) so both opening and closing animate; when closed the whole overlay is
  * click-through so it never traps the page underneath. `label` names the dialog.
@@ -13,11 +27,14 @@ export function Drawer({
   open,
   onClose,
   label,
+  side = "right",
   children,
 }: Readonly<{
   open: boolean;
   onClose: () => void;
   label?: string;
+  /** Which edge it slides in from — see {@link DrawerSide}. */
+  side?: DrawerSide;
   children: ReactNode;
 }>) {
   const [mounted, setMounted] = useState(false);
@@ -74,9 +91,9 @@ export function Drawer({
         role="dialog"
         aria-modal="true"
         aria-label={label}
-        className={`absolute right-0 top-0 flex h-full w-full max-w-sm flex-col overflow-y-auto bg-white shadow-xl transition-transform duration-300 dark:bg-zinc-900 ${
-          open ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`absolute top-0 flex h-full w-full max-w-sm flex-col overflow-y-auto bg-white shadow-xl transition-transform duration-300 dark:bg-zinc-900 ${
+          SIDE[side].edge
+        } ${open ? "translate-x-0" : SIDE[side].away}`}
       >
         {children}
       </div>

@@ -189,6 +189,21 @@ export interface GameRepository {
   /** Records one dice roll (the summed value) for the game's roll log. */
   addDiceRoll(id: GameId, value: number): Promise<void>;
   /**
+   * Gives a milestone to a player, in the generation the game is currently in.
+   * A milestone somebody already holds is **not** re-assigned: the database
+   * refuses the second claim, and the caller is told so — two phones tapping at
+   * the same moment is a real way to play, and only the first tap may win.
+   *
+   * @throws AlreadyClaimedError when the milestone is already taken.
+   */
+  claimMilestone(
+    id: GameId,
+    playerId: PlayerId,
+    milestoneKey: string,
+  ): Promise<void>;
+  /** Takes a milestone back, for one given to the wrong player. */
+  releaseMilestone(id: GameId, milestoneKey: string): Promise<void>;
+  /**
    * Ends the game, marks the winner(s), and (for scored games) records each
    * player's final score — plus, for category-scored games, the per-category
    * `breakdown` (category key → points) that sums to it. `winnerIds` holds

@@ -163,6 +163,36 @@ export interface StageSpec {
   label: string;
 }
 
+/** One claimable milestone: what it is called and what it takes to claim it. */
+export interface Milestone {
+  key: string;
+  label: string;
+  /** The rulebook's condition, read at the table before claiming. */
+  hint: string;
+}
+
+/**
+ * Milestones a player claims **during** the game, first come first served, each
+ * worth a fixed number of points to whoever took it (Terraforming Mars: 5 of
+ * them offered, 3 claimable, 5 VP each).
+ *
+ * It is a catalogue rather than code because it is not stable — Venus Next adds
+ * a sixth, and the Hellas and Elysium boards replace all five.
+ *
+ * `null` means the game has none, which is every game but one today.
+ */
+export interface MilestoneSpec {
+  /** What the rulebook calls one, singular (« Jalon »). */
+  label: string;
+  /** Points a claimed milestone is worth its claimer. */
+  points: number;
+  /** How many of the catalogue one game may claim in total. */
+  max: number;
+  /** The scoresheet line the claims fill in, by `ScoreSheetItem` key. */
+  scoreKey: string;
+  catalogue: Milestone[];
+}
+
 /**
  * Dice this game rolls, when roll tracking is enabled. `count` dice of `sides`
  * faces each, summed — so a roll ranges `count`..`count * sides` (Catan: 2 × d6
@@ -205,6 +235,12 @@ export interface Boardgame {
    * doesn't offer it, because it changes how turns rotate.
    */
   stages: StageSpec | null;
+  /**
+   * The milestones this game offers, or `null` when it offers none. Reference
+   * data, authored in migrations — the boardgame editor doesn't offer it, for
+   * the same reason as `stages`: it is the rulebook, not a preference.
+   */
+  milestones: MilestoneSpec | null;
   /**
    * The end-of-stage goal tiles this game can be set up with (Wingspan). Empty
    * for every game played without stages; extensions add their own tiles to it.

@@ -32,11 +32,13 @@ import { activeSeat, generationOver } from "@/lib/game/generation";
 import { optionTargetModifier, winThresholdFrom } from "@/lib/game/scoring";
 import { advanceTurn as nextTurnState } from "@/lib/game/turn";
 import { turnScheduleFrom } from "@/lib/game/turn-schedule";
+import { AlreadyClaimedError } from "@/lib/repositories/errors";
 import type { GameRepository, Unsubscribe } from "@/lib/repositories/types";
 import type { Database, Json } from "@/lib/supabase/database.types";
 import { toBoardgame } from "@/lib/supabase/repositories/boardgames";
 import { toConfig } from "@/lib/supabase/repositories/configs";
 import { toExtension } from "@/lib/supabase/repositories/extensions";
+import { UNIQUE_VIOLATION } from "@/lib/supabase/repositories/pg-error-codes";
 import { toPlayer } from "@/lib/supabase/repositories/players";
 
 type GameRow = Database["public"]["Tables"]["games"]["Row"];
@@ -214,6 +216,12 @@ type PopulatedRow = GameRow & {
   }>;
   dice_rolls: Array<{ value: number; created_at: string }>;
   game_stage_passes: Array<{ player_id: string; stage: number }>;
+  game_milestones: Array<{
+    player_id: string;
+    milestone_key: string;
+    stage: number | null;
+    created_at: string;
+  }>;
 };
 
 const POPULATED_SELECT =
@@ -223,7 +231,8 @@ const POPULATED_SELECT =
   "extension:extensions(*, extension_scenarios(*))), " +
   "score_events(player_id, score, round, created_at), " +
   "dice_rolls(value, created_at), " +
-  "game_stage_passes(player_id, stage)";
+  "game_stage_passes(player_id, stage), " +
+  "game_milestones(player_id, milestone_key, stage, created_at)";
 
 /** Where a game stands once the turn that just ended has been recorded. */
 interface NextTurn {
@@ -512,6 +521,16 @@ export function createGameRepository(
         .sort((a, b) => a.stage - b.stage)
         .map(p => ({ playerId: p.player_id as PlayerId, stage: p.stage }));
 
+      // Oldest first: the order they were taken in is the order they are read
+      // in, and it is what the stats will date each claim by.
+      const milestoneClaims = [...row.game_milestones]
+        .sort((a, b) => a.created_at.localeCompare(b.created_at))
+        .map(m => ({
+          playerId: m.player_id as PlayerId,
+          milestoneKey: m.milestone_key,
+          stage: m.stage,
+        }));
+
       const populated: PopulatedGame = {
         ...toGame(row),
         boardgame,
@@ -521,6 +540,7 @@ export function createGameRepository(
         extensions,
         scoreEvents,
         diceRolls,
+        milestoneClaims,
         players,
         /* c8 ignore next 2 -- `?? null` fallback for a current player not found */
         currentPlayer:
@@ -752,6 +772,52 @@ export function createGameRepository(
       /* c8 ignore next 3 -- defensive guard: insert errors surface via e2e */
       if (error) {
         throw new Error(`Enregistrement du lancer: ${error.message}`);
+      }
+    },
+
+    async claimMilestone(id: GameId, playerId: PlayerId, milestoneKey: string) {
+      // The generation the claim is stamped with is the one the game is in
+      // right now — read here rather than passed in, so a screen left open
+      // across a generation change can't date a claim to the wrong one.
+      const { data: game, error } = await games()
+        .select("stage")
+        .eq("id", id)
+        .single();
+      /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */
+      if (error) {
+        throw new Error(`Lecture de la partie: ${error.message}`);
+      }
+
+      const { error: claimError } = await supabase
+        .from("game_milestones")
+        .insert({
+          game_id: id,
+          player_id: playerId,
+          milestone_key: milestoneKey,
+          stage: game.stage,
+        });
+
+      if (claimError) {
+        // Somebody's tap landed first: the unique key on (game, milestone) is
+        // what settles a race between two phones, not the screen.
+        if (claimError.code === UNIQUE_VIOLATION) {
+          throw new AlreadyClaimedError();
+        }
+
+        /* c8 ignore next 2 -- defensive guard: insert errors surface via e2e */
+        throw new Error(`Attribution du jalon: ${claimError.message}`);
+      }
+    },
+
+    async releaseMilestone(id: GameId, milestoneKey: string) {
+      const { error } = await supabase
+        .from("game_milestones")
+        .delete()
+        .eq("game_id", id)
+        .eq("milestone_key", milestoneKey);
+      /* c8 ignore next 3 -- defensive guard: delete errors surface via e2e */
+      if (error) {
+        throw new Error(`Retrait du jalon: ${error.message}`);
       }
     },
 

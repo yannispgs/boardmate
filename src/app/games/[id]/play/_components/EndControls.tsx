@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import type { PlayerId, PopulatedGame, WinCondition } from "@/lib/domain";
+import type {
+  MilestoneClaim,
+  PlayerId,
+  PopulatedGame,
+  WinCondition,
+} from "@/lib/domain";
+import { milestonePrefill } from "@/lib/game/milestones";
 import { winnerDirection } from "@/lib/game/scoring";
 import { loneLeader } from "@/lib/game/tie-break";
 import { CategoryScoreEntry } from "../../../_components/CategoryScoreEntry";
@@ -17,15 +23,23 @@ import type { EndFlowState } from "./use-end-flow";
 export function EndControls({
   game,
   flow,
+  milestoneClaims,
   disabled,
 }: Readonly<{
   game: PopulatedGame;
   flow: EndFlowState;
+  /**
+   * The milestones taken during play, as the panel currently holds them — not
+   * as they were loaded, since nothing reloads the game between a claim and the
+   * moment the points are counted.
+   */
+  milestoneClaims: MilestoneClaim[];
   disabled: boolean;
 }>) {
   const players = namedPlayers(game);
   const scoring = game.boardgame.scoring;
   const finalScoring = scoring?.timing === "final" ? scoring : null;
+  const milestones = game.boardgame.milestones;
 
   // Cooperative games end on a shared outcome, not by picking a winner.
   if (game.boardgame.kind === "cooperative") {
@@ -69,6 +83,11 @@ export function EndControls({
           <CategoryScoreEntry
             players={players}
             sheet={finalScoring.sheet}
+            initial={
+              milestones === null
+                ? undefined
+                : milestonePrefill(milestones, milestoneClaims)
+            }
             onSubmit={flow.finishCategories}
             onCancel={() => flow.setEntryOpen(false)}
             disabled={disabled}

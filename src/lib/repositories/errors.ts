@@ -28,6 +28,14 @@ export class ScenarioInUseError extends Error {
   }
 }
 
+/** A milestone was claimed by somebody else first — claims are exclusive. */
+export class AlreadyClaimedError extends Error {
+  constructor(message = "Ce jalon vient d'être pris.") {
+    super(message);
+    this.name = "AlreadyClaimedError";
+  }
+}
+
 /** A boardgame can't be deleted because it already has games. */
 export class BoardgameInUseError extends Error {
   constructor(message = "Ce jeu a déjà des parties enregistrées.") {

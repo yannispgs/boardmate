@@ -73,6 +73,7 @@ export type Database = {
           kind: string
           logo_url: string | null
           max_players: number | null
+          milestones: Json | null
           min_players: number | null
           name: string
           rec_max_players: number | null
@@ -97,6 +98,7 @@ export type Database = {
           kind?: string
           logo_url?: string | null
           max_players?: number | null
+          milestones?: Json | null
           min_players?: number | null
           name: string
           rec_max_players?: number | null
@@ -121,6 +123,7 @@ export type Database = {
           kind?: string
           logo_url?: string | null
           max_players?: number | null
+          milestones?: Json | null
           min_players?: number | null
           name?: string
           rec_max_players?: number | null
@@ -413,6 +416,48 @@ export type Database = {
             columns: ["scenario_id"]
             isOneToOne: false
             referencedRelation: "extension_scenarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_milestones: {
+        Row: {
+          created_at: string
+          game_id: string
+          id: string
+          milestone_key: string
+          player_id: string
+          stage: number | null
+        }
+        Insert: {
+          created_at?: string
+          game_id: string
+          id?: string
+          milestone_key: string
+          player_id: string
+          stage?: number | null
+        }
+        Update: {
+          created_at?: string
+          game_id?: string
+          id?: string
+          milestone_key?: string
+          player_id?: string
+          stage?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_milestones_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_milestones_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
             referencedColumns: ["id"]
           },
         ]
