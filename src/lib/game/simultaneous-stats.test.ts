@@ -37,6 +37,7 @@ function round(
     waitedS,
     round,
     turnNo: round,
+    stage: null,
     durationS,
     pauseCount: 0,
     pauseDurationS: 0,

@@ -35,6 +35,10 @@ export function PlayBlock({
   const players = game.players.map(p => p.player);
   const spec = game.boardgame.dice;
   const range = spec ? diceValues(spec) : [];
+  // In a game played in generations, whoever has passed is out until the next
+  // one: the ribbon drops him and keeps turning between the others.
+  const generations = game.boardgame.stages !== null;
+  const stillIn = generations ? playersStillIn(game) : players;
 
   return (
     <>
@@ -48,10 +52,11 @@ export function PlayBlock({
         />
       ) : (
         <TurnFlow
-          players={players}
+          players={stillIn}
           currentPlayerId={game.currentPlayerId}
           round={game.round}
           roundLimit={game.boardgame.roundLimit}
+          futureBlocks={!generations}
         />
       )}
 
@@ -82,4 +87,17 @@ export function PlayBlock({
       ) : null}
     </>
   );
+}
+
+/**
+ * The players still taking turns in the generation being played, in seat order.
+ * A pass only lasts one generation, so it is read from the passes filed under
+ * the current one.
+ */
+function playersStillIn(game: PopulatedGame) {
+  const passed = new Set(
+    game.stagePasses.filter(p => p.stage === game.stage).map(p => p.playerId),
+  );
+
+  return game.players.filter(p => !passed.has(p.playerId)).map(p => p.player);
 }

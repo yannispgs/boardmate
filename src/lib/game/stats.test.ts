@@ -48,6 +48,7 @@ function turn(
     waitedS: 0,
     round,
     turnNo,
+    stage: null,
     durationS,
     pauseCount,
     pauseDurationS,

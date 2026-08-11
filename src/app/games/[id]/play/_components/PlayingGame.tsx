@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import type { ConfirmRequest } from "@/components/ConfirmDialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ErrorText } from "@/components/ErrorText";
 import type { PlayerId, PopulatedGame } from "@/lib/domain";
 import { isFinalTurn, turnsPerRound } from "@/lib/game/turn";
@@ -48,6 +50,9 @@ export function PlayingGame({
   // holds when they were tapped, to time the wait (tap → advance).
   const [blockedById, setBlockedById] = useState<PlayerId | null>(null);
   const blockedAtRef = useRef<number | null>(null);
+  // Passing costs a player the rest of the generation and the app offers no way
+  // back, so a mistap has to be caught before it lands.
+  const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
 
   // Keep the screen awake while a turn is actively running; let it sleep on
   // pause / once the game ends, to spare the battery.
@@ -82,12 +87,18 @@ export function PlayingGame({
   const atFinalTurn = isFinalTurn(game.turn, perRound, roundLimit);
   const canEnd = roundLimit === null || atFinalTurn;
 
+  // Terraforming Mars is played in generations: the progress label counts them
+  // instead of laps, and whoever is up may step out of the one being played.
+  const stages = game.boardgame.stages;
+  const generations = stages !== null;
+  const stageLabel = stages?.label ?? "Tour";
+
   function pickBlocked(id: PlayerId | null) {
     setBlockedById(id);
     blockedAtRef.current = waitStart(id);
   }
 
-  async function handleNext() {
+  async function handleNext(passing = false) {
     // Snapshot the finished turn's numbers, then restart the timer *immediately*
     // — the new turn's clock starts on the click, not when Supabase replies, so
     // the countdown never keeps ticking during the async persist.
@@ -111,9 +122,25 @@ export function PlayingGame({
           turnMode: game.boardgame.turnMode,
           blockedById: blocked,
           waitedSeconds,
+          generations,
+          passing,
         },
       );
       await play.reload();
+    });
+  }
+
+  function askToPass() {
+    setConfirm({
+      // Named by the next stage rather than "the current one": it says the same
+      // thing and reads right whatever the game calls a generation.
+      message: `${game.currentPlayer?.name ?? "Ce joueur"} passe : plus de tour avant ${stageLabel} ${game.stage + 1}. Confirmer ?`,
+      confirmLabel: "Passe",
+      onConfirm: () => {
+        setConfirm(null);
+
+        return handleNext(true);
+      },
     });
   }
 
@@ -139,7 +166,11 @@ export function PlayingGame({
       />
 
       <p className="text-sm uppercase tracking-wide text-zinc-400">
-        {roundLabel(game.round, roundLimit)}
+        {progressLabel(
+          stageLabel,
+          generations ? game.stage : game.round,
+          roundLimit,
+        )}
       </p>
 
       {/* The whole play block (who's up / countdown / dice) gives way to the
@@ -163,6 +194,7 @@ export function PlayingGame({
           atFinalTurn={atFinalTurn}
           disabled={play.busy}
           onNext={handleNext}
+          onPass={generations ? askToPass : null}
         />
       )}
 
@@ -179,6 +211,15 @@ export function PlayingGame({
 
       {canEnd ? (
         <EndControls game={game} flow={flow} disabled={play.busy} />
+      ) : null}
+
+      {confirm ? (
+        <ConfirmDialog
+          message={confirm.message}
+          confirmLabel={confirm.confirmLabel}
+          onConfirm={confirm.onConfirm}
+          onCancel={() => setConfirm(null)}
+        />
       ) : null}
     </div>
   );
@@ -206,6 +247,14 @@ function waitedFor(blockedById: PlayerId | null, since: number | null): number {
   return (Date.now() - since) / 1000;
 }
 
-function roundLabel(round: number, limit: number | null): string {
-  return limit === null ? `Tour ${round}` : `Tour ${round} / ${limit}`;
+/**
+ * How far along the game is — a lap count for most games ("Tour 3 / 20"), the
+ * generation for the games that play in them ("Génération 2").
+ */
+function progressLabel(
+  label: string,
+  value: number,
+  limit: number | null,
+): string {
+  return limit === null ? `${label} ${value}` : `${label} ${value} / ${limit}`;
 }

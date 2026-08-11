@@ -28,6 +28,7 @@ import {
   scenarioTarget,
   winTargetWithModifiers,
 } from "@/lib/game/extensions";
+import { activeSeat, generationOver } from "@/lib/game/generation";
 import { optionTargetModifier, winThresholdFrom } from "@/lib/game/scoring";
 import { advanceTurn as nextTurnState } from "@/lib/game/turn";
 import { turnScheduleFrom } from "@/lib/game/turn-schedule";
@@ -55,6 +56,7 @@ function toGame(row: GameRow): Game {
     status: row.status as GameStatus,
     round: row.round,
     turn: row.turn,
+    stage: row.stage,
     /* c8 ignore next -- defensive `?? null`; the cast value is already nullable */
     currentPlayerId: (row.current_player_id as PlayerId | null) ?? null,
     startedAt: row.started_at,
@@ -112,6 +114,8 @@ function toGameTurn(row: GameTurnRow): GameTurn {
     waitedS: row.waited_s ?? 0,
     round: row.round,
     turnNo: row.turn_no,
+    // Null on every lap-based game, which has no generation to record.
+    stage: row.stage,
     durationS: row.duration_s,
     // `?? 0` guards a not-yet-migrated backend that omits the pause/overtime
     // columns (defensive, unreachable once the columns exist), so stats never
@@ -209,6 +213,7 @@ type PopulatedRow = GameRow & {
     created_at: string;
   }>;
   dice_rolls: Array<{ value: number; created_at: string }>;
+  game_stage_passes: Array<{ player_id: string; stage: number }>;
 };
 
 const POPULATED_SELECT =
@@ -217,7 +222,115 @@ const POPULATED_SELECT =
   "game_extensions(extension_id, scenario_id, " +
   "extension:extensions(*, extension_scenarios(*))), " +
   "score_events(player_id, score, round, created_at), " +
-  "dice_rolls(value, created_at)";
+  "dice_rolls(value, created_at), " +
+  "game_stage_passes(player_id, stage)";
+
+/** Where a game stands once the turn that just ended has been recorded. */
+interface NextTurn {
+  turn: number;
+  round: number;
+  stage: number;
+  playerId: string | null;
+}
+
+/** The turn state `advanceTurn` reads before rotating. */
+type TurnState = Pick<
+  GameRow,
+  "round" | "turn" | "stage" | "current_player_id"
+>;
+
+type Seat = { player_id: string };
+
+/** The passed-seat set a freshly opened generation starts from. */
+const NOBODY_PASSED: ReadonlySet<number> = new Set();
+
+/**
+ * Where a lap-based game moves to: the rotation is pure arithmetic on the turn
+ * counter (`@/lib/game/turn`), and the generation is left alone since the game
+ * has none.
+ */
+function lapTurn(
+  game: TurnState,
+  seats: Seat[],
+  next: { turn: number; round: number; seatIndex: number },
+  simultaneous: boolean,
+): NextTurn {
+  return {
+    turn: next.turn,
+    round: next.round,
+    stage: game.stage,
+    // Simultaneous games have no current player.
+    /* c8 ignore next -- defensive `?.`/`?? null`; seat index is in range */
+    playerId: simultaneous ? null : (seats[next.seatIndex]?.player_id ?? null),
+  };
+}
+
+/**
+ * Where a game played in generations moves to. Records the pass first, when the
+ * player who just played is stepping out, then hands over to the next seat
+ * still in — or, once that pass was the last one, opens the next generation on
+ * its first-player marker with everybody back in.
+ */
+async function nextGenerationTurn(
+  supabase: SupabaseClient<Database>,
+  id: GameId,
+  game: TurnState,
+  seats: Seat[],
+  passing: boolean,
+): Promise<NextTurn> {
+  /* c8 ignore next -- a live sequential game always has a current player */
+  if (passing && game.current_player_id) {
+    const { error } = await supabase.from("game_stage_passes").insert({
+      game_id: id,
+      player_id: game.current_player_id,
+      stage: game.stage,
+    });
+    /* c8 ignore next 3 -- defensive guard: insert errors surface via e2e */
+    if (error) {
+      throw new Error(`Enregistrement du passage: ${error.message}`);
+    }
+  }
+
+  const { data: passes, error: passesError } = await supabase
+    .from("game_stage_passes")
+    .select("player_id")
+    .eq("game_id", id)
+    .eq("stage", game.stage);
+  /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */
+  if (passesError) {
+    throw new Error(`Lecture des passages: ${passesError.message}`);
+  }
+
+  // Seats are read in seat order, so a player's index *is* his seat.
+  const passedIds = new Set(passes.map(p => p.player_id));
+  const passedSeats = new Set(
+    seats.flatMap((s, seat) => (passedIds.has(s.player_id) ? [seat] : [])),
+  );
+  const currentSeat = seats.findIndex(
+    s => s.player_id === game.current_player_id,
+  );
+
+  // The generation ends the moment its last player passes: the table moves on
+  // to the next one and everybody is back in.
+  const over = generationOver(seats.length, passedSeats);
+  const stage = over ? game.stage + 1 : game.stage;
+  const seat = activeSeat(
+    stage,
+    seats.length,
+    over ? null : currentSeat,
+    over ? NOBODY_PASSED : passedSeats,
+  );
+
+  return {
+    turn: game.turn + 1,
+    // Laps stop meaning anything once players start dropping out, so the round
+    // follows the generation — it is what the turn timer and the score log read.
+    round: stage,
+    stage,
+    /* c8 ignore next 2 -- defensive: a reopened generation always has a seat */
+    playerId: seat === null ? null : (seats[seat]?.player_id ?? null),
+  };
+}
 
 /**
  * Supabase-backed `GameRepository`. The only place the Supabase SDK touches
@@ -345,6 +458,10 @@ export function createGameRepository(
         .sort((a, b) => a.created_at.localeCompare(b.created_at))
         .map(d => ({ value: d.value, at: d.created_at }));
 
+      const stagePasses = [...row.game_stage_passes]
+        .sort((a, b) => a.stage - b.stage)
+        .map(p => ({ playerId: p.player_id as PlayerId, stage: p.stage }));
+
       const populated: PopulatedGame = {
         ...toGame(row),
         boardgame,
@@ -360,6 +477,7 @@ export function createGameRepository(
           players.find(p => p.playerId === row.current_player_id)?.player ??
           null,
         turns: row.game_turns.map(toGameTurn),
+        stagePasses,
       };
       return populated;
     },
@@ -475,9 +593,12 @@ export function createGameRepository(
         turnMode?: TurnMode;
         blockedById?: PlayerId | null;
         waitedSeconds?: number;
+        generations?: boolean;
+        passing?: boolean;
       },
     ) {
       const simultaneous = opts?.turnMode === "simultaneous";
+      const generations = opts?.generations === true;
       const blockedById = opts?.blockedById ?? null;
       const waitedS =
         simultaneous && blockedById !== null
@@ -485,7 +606,7 @@ export function createGameRepository(
           : null;
 
       const { data: game, error } = await games()
-        .select("round, turn, current_player_id")
+        .select("round, turn, stage, current_player_id")
         .eq("id", id)
         .single();
       if (error) {
@@ -517,6 +638,8 @@ export function createGameRepository(
           waited_s: waitedS,
           round: game.round,
           turn_no: game.turn,
+          // The generation this turn belongs to, for the per-generation stats.
+          stage: generations ? game.stage : null,
           duration_s: Math.max(0, Math.round(elapsedSeconds)),
           pause_count: Math.max(0, Math.round(pauseCount)),
           pause_duration_s: Math.max(0, Math.round(pauseDurationSeconds)),
@@ -528,16 +651,27 @@ export function createGameRepository(
         }
       }
 
-      const next = nextTurnState(game.turn, perRound);
+      const next = generations
+        ? await nextGenerationTurn(
+            supabase,
+            id,
+            game,
+            seats,
+            opts?.passing === true,
+          )
+        : lapTurn(
+            game,
+            seats,
+            nextTurnState(game.turn, perRound),
+            simultaneous,
+          );
+
       const { error: updateError } = await games()
         .update({
           turn: next.turn,
           round: next.round,
-          // Simultaneous games have no current player.
-          /* c8 ignore next -- defensive `?.`/`?? null`; seat index is in range */
-          current_player_id: simultaneous
-            ? null
-            : (seats[next.seatIndex]?.player_id ?? null),
+          stage: next.stage,
+          current_player_id: next.playerId,
         })
         .eq("id", id);
       /* c8 ignore next 3 -- defensive guard: update errors surface via e2e */

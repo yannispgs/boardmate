@@ -157,6 +157,11 @@ export interface GameRepository {
    * `simultaneous` game (`opts.turnMode`) the whole round advances at once, the
    * turn is recorded with no owner, and `opts.blockedById` optionally flags the
    * player the table waited on — for `opts.waitedSeconds` (tap → advance).
+   *
+   * A game played in generations (`opts.generations`) rotates only between the
+   * players still in: `opts.passing` ends the current player's generation, and
+   * once the last one has passed the next generation opens on the seat holding
+   * the first-player marker.
    */
   advanceTurn(
     id: GameId,
@@ -168,6 +173,10 @@ export interface GameRepository {
       turnMode?: TurnMode;
       blockedById?: PlayerId | null;
       waitedSeconds?: number;
+      /** The boardgame declares `stages` — rotate by generation, not by lap. */
+      generations?: boolean;
+      /** The player who just played passes: no more turns this generation. */
+      passing?: boolean;
     },
   ): Promise<void>;
   /** Sets one player's current score (live scoring), logged at the given tour. */

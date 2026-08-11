@@ -97,18 +97,25 @@ export function layoutRound(players: { name: string }[]): RoundLayout {
  * `lastTurn` (0-based global index of a fixed-length game's final turn) caps the
  * ribbon: no turns are drawn past it — the game doesn't roll into another round
  * — and an end flag is placed just after that last player.
+ *
+ * `futureBlocks` draws the dividers of the rounds still to come. Turn it off for
+ * a game played in generations: a generation ends whenever its last player
+ * passes, so where the next one starts is unknowable and announcing it would be
+ * a lie.
  */
 export function buildItems(
   players: { id: PlayerId; name: string }[],
   current: number,
   layout: RoundLayout,
-  lastTurn?: number | null,
+  opts?: { lastTurn?: number | null; futureBlocks?: boolean },
 ): Item[] {
   const n = players.length;
   if (n === 0) {
     return [];
   }
 
+  const lastTurn = opts?.lastTurn;
+  const futureBlocks = opts?.futureBlocks !== false;
   const out: Item[] = [];
   const start = Math.max(0, current - 1);
   const stop =
@@ -119,12 +126,15 @@ export function buildItems(
     const seat = turn % n;
     const base = roundIdx * layout.roundWidth;
 
-    if (seat === 0) {
+    // Hide a round's divider once that round has begun.
+    const started = current >= turn;
+
+    if (seat === 0 && (started || futureBlocks)) {
       out.push({
         kind: "bar",
         round: roundIdx + 1,
         left: base,
-        faded: current >= turn, // hide once this round has begun
+        faded: started,
       });
     }
     out.push({

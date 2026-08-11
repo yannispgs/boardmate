@@ -26,12 +26,18 @@ export function TurnFlow({
   currentPlayerId,
   round,
   roundLimit,
+  futureBlocks = true,
 }: Readonly<{
   players: { id: PlayerId; name: string }[];
   currentPlayerId: PlayerId | null;
   round: number;
   /** Fixed game length in rounds, or null for an open-ended game. */
   roundLimit: number | null;
+  /**
+   * Whether the rounds still to come get their divider. False for a game played
+   * in generations, whose end nobody can see coming — see `buildItems`.
+   */
+  futureBlocks?: boolean;
 }>) {
   const n = players.length;
   const layout = useMemo(() => layoutRound(players), [players]);
@@ -45,8 +51,8 @@ export function TurnFlow({
   const lastTurn = roundLimit !== null ? roundLimit * n - 1 : null;
 
   const items = useMemo(
-    () => buildItems(players, current, layout, lastTurn),
-    [players, current, layout, lastTurn],
+    () => buildItems(players, current, layout, { lastTurn, futureBlocks }),
+    [players, current, layout, lastTurn, futureBlocks],
   );
 
   if (n === 0) {

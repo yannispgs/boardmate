@@ -240,6 +240,10 @@ describe("games adapter — turn rotation & time logging", () => {
     expect(p?.currentPlayer?.id).toBe(playerIds[1]);
     expect(p?.turns).toHaveLength(1);
     expect(p?.turns[0].playerId).toBe(playerIds[0]);
+    // A lap-based game has no generation to file its turns under.
+    expect(p?.turns[0].stage).toBeNull();
+    expect(p?.stage).toBe(1);
+    expect(p?.stagePasses).toEqual([]);
     expect(p?.turns[0].durationS).toBe(30);
     expect(p?.turns[0].pauseCount).toBe(2);
     expect(p?.turns[0].pauseDurationS).toBe(18);
@@ -319,6 +323,78 @@ describe("games adapter — turn rotation & time logging", () => {
 
     expect(p?.diceRolls.map(d => d.value)).toEqual([7, 11, 7]);
     expect(p?.diceRolls.every(d => typeof d.at === "string")).toBe(true);
+  });
+});
+
+describe("games adapter — generations (Terraforming Mars)", () => {
+  let marsId: BoardgameId;
+
+  beforeAll(async () => {
+    const { data } = await serviceClient()
+      .from("boardgames")
+      .select("id, stages")
+      .eq("name", "Terraforming Mars")
+      .single();
+
+    marsId = data?.id as BoardgameId;
+    // The seeded game must actually declare generations, or every assertion
+    // below would silently fall back to lap rotation.
+    expect(data?.stages).toEqual({ label: "Génération" });
+  });
+
+  it("rotates only between the players still in, and opens the next generation on the marker", async () => {
+    const game = await repo().create({
+      boardgameId: marsId,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    const play = (passing = false) => {
+      return repo().advanceTurn(game.id, 10, 0, 0, 0, {
+        generations: true,
+        passing,
+      });
+    };
+
+    // p0 plays on, then p1 passes: the table hands over to p2 and p1 is out
+    // for the rest of the generation.
+    await play();
+    await play(true);
+    let p = await repo().getPopulated(game.id);
+    expect(p?.currentPlayer?.id).toBe(playerIds[2]);
+    expect(p?.stage).toBe(1);
+    expect(p?.stagePasses).toEqual([{ playerId: playerIds[1], stage: 1 }]);
+
+    // p2 plays: the rotation skips p1 and comes back to p0.
+    await play();
+    p = await repo().getPopulated(game.id);
+    expect(p?.currentPlayer?.id).toBe(playerIds[0]);
+
+    // p0 passes, then p2 — the last one in, which ends the generation. The
+    // next one opens on the moved first-player marker (seat 1) with everybody
+    // back in, and the round follows the generation.
+    await play(true);
+    p = await repo().getPopulated(game.id);
+    expect(p?.currentPlayer?.id).toBe(playerIds[2]);
+
+    await play(true);
+    p = await repo().getPopulated(game.id);
+    expect(p?.stage).toBe(2);
+    expect(p?.round).toBe(2);
+    expect(p?.currentPlayer?.id).toBe(playerIds[1]);
+    expect(p?.stagePasses).toHaveLength(3);
+
+    // Every turn is filed under the generation it was played in, which is what
+    // the per-player turn counts are read from.
+    expect(p?.turns).toHaveLength(5);
+    expect(p?.turns.every(t => t.stage === 1)).toBe(true);
+
+    await play();
+    p = await repo().getPopulated(game.id);
+    expect(p?.turn).toBe(7);
+    expect(p?.turns.filter(t => t.stage === 2)).toHaveLength(1);
+    expect(p?.currentPlayer?.id).toBe(playerIds[2]);
   });
 });
 

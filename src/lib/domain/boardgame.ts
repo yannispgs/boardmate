@@ -149,6 +149,21 @@ export interface ScoringSpec {
 }
 
 /**
+ * A game played in **generations** — a stage the players leave one by one by
+ * *passing*, instead of the plain lap of the table every other game turns in.
+ * `label` is what the rulebook calls one (Terraforming Mars: « Génération »),
+ * and is the progress label shown during play.
+ *
+ * `null` means plain laps: everyone takes exactly one turn per lap and nobody
+ * can take extra ones. Wingspan's manches are laps too — they are counted in
+ * blocks, but no player ever plays more turns than another — so they are not
+ * this and never will be.
+ */
+export interface StageSpec {
+  label: string;
+}
+
+/**
  * Dice this game rolls, when roll tracking is enabled. `count` dice of `sides`
  * faces each, summed — so a roll ranges `count`..`count * sides` (Catan: 2 × d6
  * → 2–12). `null` on the boardgame means no dice tracking.
@@ -184,6 +199,12 @@ export interface Boardgame {
   roundLimit: number | null;
   /** Dice for in-game roll tracking (Catan), or `null` when not tracked. */
   dice: DiceSpec | null;
+  /**
+   * How this game is played in generations, or `null` for a game turning in
+   * plain laps. Reference data, authored in migrations — the boardgame editor
+   * doesn't offer it, because it changes how turns rotate.
+   */
+  stages: StageSpec | null;
   /**
    * The end-of-stage goal tiles this game can be set up with (Wingspan). Empty
    * for every game played without stages; extensions add their own tiles to it.

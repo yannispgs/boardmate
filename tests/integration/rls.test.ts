@@ -21,6 +21,7 @@ const TABLES = [
   "games",
   "game_players",
   "game_turns",
+  "game_stage_passes",
   "feedback",
   "faq_entries",
   "auth_rate_limits",
