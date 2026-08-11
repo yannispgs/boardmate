@@ -12,6 +12,7 @@ export function ModalHeader({
   title,
   hint,
   badge,
+  action,
   onClose,
 }: Readonly<{
   title: string;
@@ -19,6 +20,8 @@ export function ModalHeader({
   hint?: ReactNode;
   /** A pill between the title and « Fermer » — a position in a deck, say. */
   badge?: string;
+  /** A control of the sheet's own, sitting just before « Fermer ». */
+  action?: ReactNode;
   onClose: () => void;
 }>) {
   return (
@@ -36,6 +39,8 @@ export function ModalHeader({
           {badge}
         </span>
       )}
+
+      {action}
 
       <button
         type="button"
