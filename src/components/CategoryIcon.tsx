@@ -146,35 +146,39 @@ const PATHS: Record<CategoryIconId, ReactNode> = {
   // The four nest types, redrawn after the tokens themselves: a filled disc with
   // the nest punched out of it, rather than the outline the other icons use.
   // `evenodd` is what cuts the hollow, so the shape works on either theme
-  // without ever painting a background colour.
+  // without ever painting a background colour. The bowl is the exception — it is
+  // drawn as its own silhouette, since the token shows it in profile.
   "nest-platform": (
+    // A horizontal bar with straight sticks stacked over it.
     <path
       fillRule="evenodd"
-      d={`${DISC} M12.7 5.1l1.6.2-.6 13.6-1.6-.2Z M9.7 5.2l6.5 13-1.4.7-6.5-13Z M16.2 5.8l-6.5 13-1.4-.7 6.5-13Z`}
+      d={`${DISC} M4.8 15.9h14.4v1.5H4.8Z M12.5 5.2h1.7l-.4 10.1h-1.7Z M9.96 5.24 15.26 14.84 13.94 15.56 8.64 5.96Z M15.65 5.97 10.25 15.57 8.95 14.83 14.35 5.23Z`}
       fill="currentColor"
       stroke="none"
     />
   ),
   "nest-bowl": (
+    // A bowl seen in profile — straight rim, rounded bottom — and an egg above.
     <path
-      fillRule="evenodd"
-      d={`${DISC} M12 5.4a6.6 6.6 0 1 0 0 13.2 6.6 6.6 0 1 0 0-13.2Z M12 8.1c1.5 1.3 1.5 6.5 0 7.8-1.5-1.3-1.5-6.5 0-7.8Z`}
+      d="M3.33 9.6A9 9 0 0 1 20.67 9.6Z M5.2 14h13.6c0 4.4-3 6.7-6.8 6.7S5.2 18.4 5.2 14Z M12 10.4a2.1 1.4 0 1 0 0 2.8 2.1 1.4 0 1 0 0-2.8Z"
       fill="currentColor"
       stroke="none"
     />
   ),
   "nest-cavity": (
+    // An oval hole in an upright trunk.
     <path
       fillRule="evenodd"
-      d={`${DISC} M3.2 9.9h17.6v4.2H3.2Z M12 10.3a2.3 1.7 0 1 0 0 3.4 2.3 1.7 0 1 0 0-3.4Z`}
+      d={`${DISC} M12 5.3a5.4 6.7 0 1 0 0 13.4 5.4 6.7 0 1 0 0-13.4Z M12 8.1c1.5 1.3 1.5 6.5 0 7.8-1.5-1.3-1.5-6.5 0-7.8Z`}
       fill="currentColor"
       stroke="none"
     />
   ),
   "nest-ground": (
+    // A clutch of eggs packed together, centred on the token.
     <path
       fillRule="evenodd"
-      d={`${DISC} M9.6 7.4a1.9 1.7 0 1 0 0 3.4 1.9 1.7 0 1 0 0-3.4Z M13.6 7.9a1.9 1.7 0 1 0 0 3.4 1.9 1.7 0 1 0 0-3.4Z M8.9 11.5a1.9 1.7 0 1 0 0 3.4 1.9 1.7 0 1 0 0-3.4Z M12.9 11.9a1.9 1.7 0 1 0 0 3.4 1.9 1.7 0 1 0 0-3.4Z M11 15.4a1.9 1.7 0 1 0 0 3.4 1.9 1.7 0 1 0 0-3.4Z`}
+      d={`${DISC} M10.05 5.8a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z M13.95 5.8a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z M8.1 9.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z M12 9.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z M15.9 9.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z M10.05 12.6a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z M13.95 12.6a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z M12 16a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z`}
       fill="currentColor"
       stroke="none"
     />
