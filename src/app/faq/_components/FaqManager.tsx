@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { ErrorText } from "@/components/ErrorText";
+import { FaqEntryForm } from "@/components/FaqEntryForm";
 import { ListBody } from "@/components/ListBody";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { StickyActionBar } from "@/components/StickyActionBar";
@@ -23,7 +24,6 @@ import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useAllExtensions } from "@/lib/hooks/use-extensions";
 import { useFaq } from "@/lib/hooks/use-faq";
 import { FaqEntryCardList } from "./FaqEntryCardList";
-import { FaqEntryForm } from "./FaqEntryForm";
 import { FaqScopePicker } from "./FaqScopePicker";
 
 /** A question being written, new (`id: null`) or reworded. */
