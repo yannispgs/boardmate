@@ -6,6 +6,8 @@ import { ExtensionBadgeList } from "@/components/games/ExtensionBadgeList";
 import { TrashIcon } from "@/components/icons";
 import { Tooltip } from "@/components/Tooltip";
 import type { GameListItem, PlayerId } from "@/lib/domain";
+import type { GameProgress } from "@/lib/game/game-progress";
+import { progressSummary } from "@/lib/game/game-progress";
 import { formatNames } from "@/lib/game/tie-break";
 
 /** Full start timestamp (date + HH:mm:ss), shown when hovering the date. */
@@ -66,19 +68,19 @@ function PlayOrder({
 function StatusLine({
   ended,
   outcome,
-  rounds,
+  progress,
   currentPlayerName,
 }: Readonly<{
   ended: boolean;
   outcome: string;
-  rounds: number;
+  progress: GameProgress;
   currentPlayerName: string | null;
 }>) {
   if (ended) {
     return (
       <span className="mt-0.5 text-xs font-medium text-amber-600 dark:text-amber-500">
         {outcome === "" ? null : `${outcome} · `}
-        {rounds} tour{rounds > 1 ? "s" : ""}
+        {progressSummary(progress)}
       </span>
     );
   }
@@ -130,16 +132,18 @@ function InlinePlayOrder({
 /**
  * One game in the list: the boardgame logo, name, start date and player count,
  * linking to the play screen. The date reveals the full timestamp on hover, and
- * the player count reveals the participants in play order. A `round` is one full
- * table cycle (everyone has played once). An **ongoing** game surfaces its
- * current tour and whose turn it is; a **finished** game instead shows the
- * winner and how many tours it lasted (no "current" player). On touch devices,
- * where hover doesn't exist, the play order is shown inline.
+ * the player count reveals the participants in play order. An **ongoing** game
+ * surfaces how far along it is and whose turn it is; a **finished** game instead
+ * shows the winner and how long it lasted (no "current" player). Both are
+ * counted in the unit the box uses — laps for most, generations for Terraforming
+ * Mars (see `gameProgress`). On touch devices, where hover doesn't exist, the
+ * play order is shown inline.
  */
 export function GameCard({
   game,
   boardgameName,
   logoUrl,
+  progress,
   ended = false,
   coop = false,
   onAbandon,
@@ -147,6 +151,8 @@ export function GameCard({
   game: GameListItem;
   boardgameName: string;
   logoUrl: string | null;
+  /** How far along, in the boardgame's own unit — resolved by the list. */
+  progress: GameProgress;
   ended?: boolean;
   /** Cooperative game: a finished one shows a shared victory/defeat, no winner. */
   coop?: boolean;
@@ -202,7 +208,11 @@ export function GameCard({
               baseName={boardgameName}
             />
             <span className="mt-0.5 text-xs text-zinc-500">
-              {ended ? null : <>Tour {game.round} · </>}
+              {ended ? null : (
+                <>
+                  {progress.label} {progress.count} ·{" "}
+                </>
+              )}
               <Tooltip label={fullStart(game.startedAt)}>
                 {new Date(game.startedAt).toLocaleDateString("fr-FR")}
               </Tooltip>{" "}
@@ -221,7 +231,7 @@ export function GameCard({
             <StatusLine
               ended={ended}
               outcome={outcome}
-              rounds={game.round}
+              progress={progress}
               currentPlayerName={currentPlayer?.name ?? null}
             />
             <InlinePlayOrder
