@@ -244,6 +244,56 @@ type Seat = { player_id: string };
 /** The passed-seat set a freshly opened generation starts from. */
 const NOBODY_PASSED: ReadonlySet<number> = new Set();
 
+/** Everything the turn that just ended has to be written down with. */
+interface FinishedTurn {
+  elapsedSeconds: number;
+  pauseCount: number;
+  pauseDurationSeconds: number;
+  overtimeSeconds: number;
+  simultaneous: boolean;
+  generations: boolean;
+  /** Simultaneous games only: who the table was waiting on, if anybody. */
+  blockedById: PlayerId | null;
+  waitedS: number | null;
+}
+
+/**
+ * Logs the turn that just ended. A simultaneous round is one shared turn owned
+ * by nobody — naming instead the player the table waited on — where a sequential
+ * turn belongs to whoever was up.
+ */
+async function recordTurn(
+  supabase: SupabaseClient<Database>,
+  id: GameId,
+  game: TurnState,
+  turn: FinishedTurn,
+): Promise<void> {
+  /* c8 ignore next 3 -- a live sequential game always has a current player */
+  if (!turn.simultaneous && !game.current_player_id) {
+    return;
+  }
+
+  const { error } = await supabase.from("game_turns").insert({
+    game_id: id,
+    player_id: turn.simultaneous ? null : game.current_player_id,
+    blocked_by_player_id: turn.simultaneous ? turn.blockedById : null,
+    waited_s: turn.waitedS,
+    round: game.round,
+    turn_no: game.turn,
+    // The generation this turn belongs to, for the per-generation stats.
+    stage: turn.generations ? game.stage : null,
+    duration_s: Math.max(0, Math.round(turn.elapsedSeconds)),
+    pause_count: Math.max(0, Math.round(turn.pauseCount)),
+    pause_duration_s: Math.max(0, Math.round(turn.pauseDurationSeconds)),
+    overtime_s: Math.max(0, Math.round(turn.overtimeSeconds)),
+  });
+
+  /* c8 ignore next 3 -- defensive guard: insert errors surface via e2e */
+  if (error) {
+    throw new Error(`Enregistrement du tour: ${error.message}`);
+  }
+}
+
 /**
  * Where a lap-based game moves to: the rotation is pure arithmetic on the turn
  * counter (`@/lib/game/turn`), and the generation is left alone since the game
@@ -627,29 +677,16 @@ export function createGameRepository(
       // "waited on" player); a sequential turn is one per seat.
       const perRound = simultaneous ? 1 : seats.length;
 
-      // Record the completed turn: the round's active time, attributed to the
-      // player who just played (sequential) or to nobody (simultaneous).
-      /* c8 ignore next -- a live sequential game always has a current player */
-      if (simultaneous || game.current_player_id) {
-        const { error: turnError } = await supabase.from("game_turns").insert({
-          game_id: id,
-          player_id: simultaneous ? null : game.current_player_id,
-          blocked_by_player_id: simultaneous ? blockedById : null,
-          waited_s: waitedS,
-          round: game.round,
-          turn_no: game.turn,
-          // The generation this turn belongs to, for the per-generation stats.
-          stage: generations ? game.stage : null,
-          duration_s: Math.max(0, Math.round(elapsedSeconds)),
-          pause_count: Math.max(0, Math.round(pauseCount)),
-          pause_duration_s: Math.max(0, Math.round(pauseDurationSeconds)),
-          overtime_s: Math.max(0, Math.round(overtimeSeconds)),
-        });
-        /* c8 ignore next 3 -- defensive guard: insert errors surface via e2e */
-        if (turnError) {
-          throw new Error(`Enregistrement du tour: ${turnError.message}`);
-        }
-      }
+      await recordTurn(supabase, id, game, {
+        elapsedSeconds,
+        pauseCount,
+        pauseDurationSeconds,
+        overtimeSeconds,
+        simultaneous,
+        generations,
+        blockedById,
+        waitedS,
+      });
 
       const next = generations
         ? await nextGenerationTurn(
