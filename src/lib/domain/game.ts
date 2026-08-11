@@ -28,6 +28,11 @@ export interface Game {
   status: GameStatus;
   round: number;
   turn: number;
+  /**
+   * The generation being played, 1-based, for a game whose boardgame declares
+   * `stages`. Always `1` for the lap-based games, which have no notion of one.
+   */
+  stage: number;
   currentPlayerId: PlayerId | null;
   /** ISO 8601 timestamps. */
   startedAt: string;
@@ -102,6 +107,12 @@ export interface GameTurn {
   waitedS: number;
   round: number;
   turnNo: number;
+  /**
+   * The generation this turn was played in, so the stats can read turns per
+   * player per generation. Null for every lap-based game, and for turns played
+   * before generations existed.
+   */
+  stage: number | null;
   durationS: number;
   pauseCount: number;
   pauseDurationS: number;
@@ -111,6 +122,16 @@ export interface GameTurn {
    * time.
    */
   overtimeS: number;
+}
+
+/**
+ * One player dropping out of one generation. The passes whose `stage` is the
+ * game's are the players currently out; the older ones are the record of when
+ * each dropped out, kept for the stats.
+ */
+export interface StagePass {
+  playerId: PlayerId;
+  stage: number;
 }
 
 /** One recorded score change (live scoring), for the evolution timeline. */
@@ -162,6 +183,11 @@ export interface PopulatedGame extends Game {
   players: Array<GamePlayer & { player: Player }>;
   currentPlayer: Player | null;
   turns: GameTurn[];
+  /**
+   * Every pass recorded this game, oldest generation first (empty for a
+   * lap-based game, where nobody can pass).
+   */
+  stagePasses: StagePass[];
 }
 
 /**

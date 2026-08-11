@@ -2,59 +2,102 @@
 
 import { useMemo } from "react";
 
-import type { PlayerId } from "@/lib/domain";
+import type { GameTurn, PlayerId, StagePass } from "@/lib/domain";
+import { generationSequence, lapSequence } from "@/lib/game/turn-ribbon";
 
 import { EndCap } from "./EndCap";
-import { buildItems, layoutRound, PAD_LEFT, SVG_H } from "./geometry";
+import { AHEAD, buildItems, measurePlayers, PAD_LEFT, SVG_H } from "./geometry";
 import { RoundBar } from "./RoundBar";
 import { Tag } from "./Tag";
+
+/** What a game played in generations needs the ribbon to know. */
+export interface GenerationFlow {
+  /** The generation being played. */
+  stage: number;
+  /** The play screen's 1-based global turn counter. */
+  turn: number;
+  /** The turn log, which is where the ribbon reads the past from. */
+  turns: GameTurn[];
+  /** Every pass recorded this game, of any generation. */
+  passes: StagePass[];
+}
 
 /**
  * The turn order as a scrolling chevron ribbon. The current player is pinned to
  * the left with a gradient fill; on each turn the ribbon slides left (the player
  * who just played fades out, upcoming players fade against the right edge). A
- * "Tour N" divider bar travels before each round's opening player. Each round is
+ * "Tour N" divider bar travels before each lap's opening player. Each lap is
  * bounded: its first player has no left chevron, its last no right chevron.
  *
- * Items are placed at ABSOLUTE x-offsets in a stable coordinate space (see
- * `geometry.ts`), and only the strip's offset changes per turn. That keeps the
- * CSS transition well-defined — a sliding window with flex margins shifts the
- * origin as items mount/unmount, which broke the animation on mobile.
+ * What the ribbon draws is a plain **sequence** of turns (`turn-ribbon.ts`) laid
+ * end to end (`geometry.ts`), each at its absolute x, with only the strip's
+ * offset changing per turn. That keeps the CSS transition well-defined — a
+ * sliding window with flex margins shifts the origin as items mount/unmount,
+ * which broke the animation on mobile — and it means the ribbon always travels
+ * forward, even when a generation reshuffles who plays next.
  */
 export function TurnFlow({
   players,
   currentPlayerId,
   round,
   roundLimit,
+  generation = null,
 }: Readonly<{
+  /** Everyone at the table, in seat order — nobody is ever dropped. */
   players: { id: PlayerId; name: string }[];
   currentPlayerId: PlayerId | null;
   round: number;
   /** Fixed game length in rounds, or null for an open-ended game. */
   roundLimit: number | null;
+  /** Set for a game played in generations, null for one played in plain laps. */
+  generation?: GenerationFlow | null;
 }>) {
   const n = players.length;
-  const layout = useMemo(() => layoutRound(players), [players]);
+  const metrics = useMemo(() => measurePlayers(players), [players]);
 
   const curSeat = Math.max(
     0,
     players.findIndex(p => p.id === currentPlayerId),
   );
-  const current = (round - 1) * n + curSeat; // global turn index
+  // Global turn index. A generation game reads it off its own counter: its laps
+  // hold different players, so seat arithmetic no longer places a turn.
+  const current = generation ? generation.turn - 1 : (round - 1) * n + curSeat;
   // 0-based index of the game's very last turn (last seat of the last round).
-  const lastTurn = roundLimit !== null ? roundLimit * n - 1 : null;
+  const lastTurn =
+    roundLimit !== null && !generation ? roundLimit * n - 1 : null;
 
-  const items = useMemo(
-    () => buildItems(players, current, layout, lastTurn),
-    [players, current, layout, lastTurn],
+  const seq = useMemo(() => {
+    const seats = players.map(p => p.id);
+
+    if (!generation) {
+      return lapSequence(seats, current, AHEAD, lastTurn);
+    }
+
+    return generationSequence({
+      seats,
+      played: generation.turns.map(t => ({
+        turn: t.turnNo - 1,
+        playerId: t.playerId,
+        stage: t.stage ?? generation.stage,
+      })),
+      current,
+      currentPlayerId: currentPlayerId ?? seats[0],
+      stage: generation.stage,
+      passes: generation.passes,
+      ahead: AHEAD,
+    });
+  }, [players, generation, current, currentPlayerId, lastTurn]);
+
+  const { items, currentLeft } = useMemo(
+    () => buildItems(seq, current, metrics, { lastTurn }),
+    [seq, current, metrics, lastTurn],
   );
 
   if (n === 0) {
     return null;
   }
 
-  const currentAbsX = (round - 1) * layout.roundWidth + layout.seatX[curSeat];
-  const scrollX = currentAbsX - PAD_LEFT;
+  const scrollX = currentLeft - PAD_LEFT;
 
   return (
     <div
@@ -81,7 +124,7 @@ export function TurnFlow({
           if (item.kind === "bar") {
             return (
               <RoundBar
-                key={`bar-${item.round}`}
+                key={`bar-${item.turn}`}
                 round={item.round}
                 left={item.left}
                 faded={item.faded}

@@ -80,6 +80,7 @@ export type Database = {
           round_goals: Json
           round_limit: number | null
           scoring: Json | null
+          stages: Json | null
           tags: string[]
           track_seat_stats: boolean
           turn_count_varies: boolean
@@ -103,6 +104,7 @@ export type Database = {
           round_goals?: Json
           round_limit?: number | null
           scoring?: Json | null
+          stages?: Json | null
           tags?: string[]
           track_seat_stats?: boolean
           turn_count_varies?: boolean
@@ -126,6 +128,7 @@ export type Database = {
           round_goals?: Json
           round_limit?: number | null
           scoring?: Json | null
+          stages?: Json | null
           tags?: string[]
           track_seat_stats?: boolean
           turn_count_varies?: boolean
@@ -456,6 +459,45 @@ export type Database = {
           },
         ]
       }
+      game_stage_passes: {
+        Row: {
+          created_at: string
+          game_id: string
+          id: string
+          player_id: string
+          stage: number
+        }
+        Insert: {
+          created_at?: string
+          game_id: string
+          id?: string
+          player_id: string
+          stage: number
+        }
+        Update: {
+          created_at?: string
+          game_id?: string
+          id?: string
+          player_id?: string
+          stage?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_stage_passes_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_stage_passes_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       game_turns: {
         Row: {
           blocked_by_player_id: string | null
@@ -468,6 +510,7 @@ export type Database = {
           pause_duration_s: number
           player_id: string | null
           round: number
+          stage: number | null
           turn_no: number
           waited_s: number | null
         }
@@ -482,6 +525,7 @@ export type Database = {
           pause_duration_s?: number
           player_id?: string | null
           round: number
+          stage?: number | null
           turn_no: number
           waited_s?: number | null
         }
@@ -496,6 +540,7 @@ export type Database = {
           pause_duration_s?: number
           player_id?: string | null
           round?: number
+          stage?: number | null
           turn_no?: number
           waited_s?: number | null
         }
@@ -532,6 +577,7 @@ export type Database = {
           ended_at: string | null
           id: string
           round: number
+          stage: number
           started_at: string
           status: string
           tie_break: Json | null
@@ -545,6 +591,7 @@ export type Database = {
           ended_at?: string | null
           id?: string
           round?: number
+          stage?: number
           started_at?: string
           status?: string
           tie_break?: Json | null
@@ -558,6 +605,7 @@ export type Database = {
           ended_at?: string | null
           id?: string
           round?: number
+          stage?: number
           started_at?: string
           status?: string
           tie_break?: Json | null

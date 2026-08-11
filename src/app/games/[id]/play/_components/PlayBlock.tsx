@@ -35,6 +35,17 @@ export function PlayBlock({
   const players = game.players.map(p => p.player);
   const spec = game.boardgame.dice;
   const range = spec ? diceValues(spec) : [];
+  // A game played in generations keeps every player on the ribbon: whoever has
+  // passed is simply not given a turn until the next generation opens.
+  const generation =
+    game.boardgame.stages !== null
+      ? {
+          stage: game.stage,
+          turn: game.turn,
+          turns: game.turns,
+          passes: game.stagePasses,
+        }
+      : null;
 
   return (
     <>
@@ -52,6 +63,7 @@ export function PlayBlock({
           currentPlayerId={game.currentPlayerId}
           round={game.round}
           roundLimit={game.boardgame.roundLimit}
+          generation={generation}
         />
       )}
 

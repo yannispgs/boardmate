@@ -1,4 +1,5 @@
 import type { PlayerId } from "@/lib/domain";
+import type { RibbonTurn } from "@/lib/game/turn-ribbon";
 
 /**
  * Layout constants and pure geometry for the turn ribbon. Kept apart from the
@@ -36,6 +37,8 @@ export interface TagItem {
 export interface BarItem {
   kind: "bar";
   round: number;
+  /** Turn the bar opens — the ribbon's stable key for it. */
+  turn: number;
   left: number;
   faded: boolean;
 }
@@ -48,13 +51,11 @@ export interface EndItem {
 
 export type Item = TagItem | BarItem | EndItem;
 
-export interface RoundLayout {
-  /** X of each seat's tag within one round. */
-  seatX: number[];
-  /** Total width of one round, repeated per round to place later turns. */
-  roundWidth: number;
-  /** Rectangle width (name + padding, chevron excluded) of each seat's tag. */
-  widths: number[];
+/** What each player's tag is called and how wide its rectangle is. */
+export interface RibbonMetrics {
+  name: Map<PlayerId, string>;
+  /** Rectangle width (name + padding, chevron excluded). */
+  width: Map<PlayerId, number>;
 }
 
 /** Measures a name's rendered width (client-only; the ribbon never SSRs). */
@@ -71,82 +72,139 @@ export function measureName(name: string): number {
   return cache._c ? cache._c.measureText(name).width : name.length * FONT * 0.6;
 }
 
-/** Per-round tag positions and widths, in a stable coordinate space. */
-export function layoutRound(players: { name: string }[]): RoundLayout {
-  const seatX: number[] = [];
-  const widths: number[] = [];
-  let x = BAR_W + BAR_GAP; // after the round's opening bar
+/** Names and rectangle widths, measured once per table. */
+export function measurePlayers(
+  players: { id: PlayerId; name: string }[],
+): RibbonMetrics {
+  const name = new Map<PlayerId, string>();
+  const width = new Map<PlayerId, number>();
 
-  for (let i = 0; i < players.length; i++) {
-    const rect = Math.round(measureName(players[i].name)) + PAD_X * 2;
-    widths[i] = rect;
-    seatX[i] = x;
-    const lastOfRound = i === players.length - 1;
-    const width = (lastOfRound ? rect : rect + P) + 1;
-    x += width + (lastOfRound ? BAR_GAP : GAP);
+  for (const p of players) {
+    name.set(p.id, p.name);
+    width.set(p.id, Math.round(measureName(p.name)) + PAD_X * 2);
   }
 
-  return { seatX, roundWidth: x, widths };
+  return { name, width };
+}
+
+/** A turn of the sequence, given its place on the ribbon. */
+interface PlacedTurn extends RibbonTurn {
+  /** X of the "Tour N" bar this turn opens its lap with, if it opens one. */
+  barLeft: number | null;
+  /** X of the tag's rectangle. */
+  left: number;
+  /** Width of that rectangle, chevron excluded. */
+  w: number;
+}
+
+/**
+ * Lays the whole sequence out end to end, each turn taking the space its own
+ * name needs. Positions are therefore **cumulative**, never arithmetic: a turn
+ * already placed keeps its x whatever the turns after it turn out to be, so the
+ * ribbon only ever travels forward.
+ */
+function place(seq: RibbonTurn[], metrics: RibbonMetrics): PlacedTurn[] {
+  const out: PlacedTurn[] = [];
+  let x = 0;
+
+  for (const t of seq) {
+    // `?? 0` only bites on a turn played by someone no longer at the table.
+    const w = metrics.width.get(t.playerId) ?? 0;
+    let barLeft: number | null = null;
+
+    if (t.firstOfLap) {
+      barLeft = x;
+      x += BAR_W + BAR_GAP;
+    }
+
+    const left = x;
+    // A tag that closes its lap drops its chevron, so it needs no overlap with
+    // the next one — the lap's bar goes in the space instead.
+    x += (t.lastOfLap ? w : w + P) + 1 + (t.lastOfLap ? BAR_GAP : GAP);
+    out.push({ ...t, barLeft, left, w });
+  }
+
+  return out;
 }
 
 /**
  * The visible window of items — the just-played turn, the current one and the
- * next `AHEAD` — as tags plus a "Tour N" bar before each round's opener. Each is
- * placed at its absolute x so only the strip's offset animates per turn.
+ * next `AHEAD` — as tags plus a "Tour N" bar before each lap's opener, together
+ * with the current turn's x so the ribbon knows how far to scroll.
  *
- * `lastTurn` (0-based global index of a fixed-length game's final turn) caps the
- * ribbon: no turns are drawn past it — the game doesn't roll into another round
- * — and an end flag is placed just after that last player.
+ * `lastTurn` (0-based global index of a fixed-length game's final turn) puts an
+ * end flag just after that last player, once it comes into view.
  */
 export function buildItems(
-  players: { id: PlayerId; name: string }[],
+  seq: RibbonTurn[],
   current: number,
-  layout: RoundLayout,
-  lastTurn?: number | null,
-): Item[] {
-  const n = players.length;
-  if (n === 0) {
-    return [];
-  }
-
-  const out: Item[] = [];
+  metrics: RibbonMetrics,
+  opts?: { lastTurn?: number | null },
+): { items: Item[]; currentLeft: number } {
+  const placed = place(seq, metrics);
   const start = Math.max(0, current - 1);
-  const stop =
-    lastTurn == null ? current + AHEAD : Math.min(current + AHEAD, lastTurn);
+  const stop = current + AHEAD;
+  const items: Item[] = [];
+  let currentLeft = 0;
 
-  for (let turn = start; turn <= stop; turn++) {
-    const roundIdx = Math.floor(turn / n);
-    const seat = turn % n;
-    const base = roundIdx * layout.roundWidth;
+  for (const t of placed) {
+    if (t.turn === current) {
+      currentLeft = t.left;
+    }
 
-    if (seat === 0) {
-      out.push({
+    if (t.turn < start || t.turn > stop) {
+      continue;
+    }
+
+    if (t.barLeft !== null) {
+      // A lap's divider dims once that lap has begun.
+      items.push({
         kind: "bar",
-        round: roundIdx + 1,
-        left: base,
-        faded: current >= turn, // hide once this round has begun
+        round: t.lap,
+        turn: t.turn,
+        left: t.barLeft,
+        faded: current >= t.turn,
       });
     }
-    out.push({
+
+    items.push({
       kind: "tag",
-      turn,
-      name: players[seat].name,
-      w: layout.widths[seat],
-      left: base + layout.seatX[seat],
-      firstOfRound: seat === 0,
-      lastOfRound: seat === n - 1,
-      isCurrent: turn === current,
-      faded: turn < current,
+      turn: t.turn,
+      name: metrics.name.get(t.playerId) ?? "",
+      w: t.w,
+      left: t.left,
+      firstOfRound: t.firstOfLap,
+      lastOfRound: t.lastOfLap,
+      isCurrent: t.turn === current,
+      faded: t.turn < current,
     });
   }
 
-  // Cap the ribbon with an end flag once the game's final turn is in view.
-  if (lastTurn != null && lastTurn <= current + AHEAD) {
-    const seat = lastTurn % n;
-    const base = Math.floor(lastTurn / n) * layout.roundWidth;
-    const tagEnd = base + layout.seatX[seat] + layout.widths[seat];
-    out.push({ kind: "end", left: tagEnd + BAR_GAP });
+  const end = endCap(placed, opts?.lastTurn ?? null, stop);
+
+  if (end) {
+    items.push(end);
   }
 
-  return out;
+  return { items, currentLeft };
+}
+
+/** The end-of-game flag, once the final turn of a fixed-length game is in view. */
+function endCap(
+  placed: PlacedTurn[],
+  lastTurn: number | null,
+  stop: number,
+): EndItem | null {
+  if (lastTurn === null || lastTurn > stop) {
+    return null;
+  }
+
+  const last = placed.find(t => t.turn === lastTurn);
+
+  // The sequence stops on that turn, so it is there — unless the table is empty.
+  if (!last) {
+    return null;
+  }
+
+  return { kind: "end", left: last.left + last.w + BAR_GAP };
 }

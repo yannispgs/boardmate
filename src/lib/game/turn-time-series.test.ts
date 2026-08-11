@@ -16,6 +16,7 @@ function turn(playerId: string, round: number, durationS: number): GameTurn {
     waitedS: 0,
     round,
     turnNo: round,
+    stage: null,
     durationS,
     pauseCount: 0,
     pauseDurationS: 0,

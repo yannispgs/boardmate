@@ -82,12 +82,18 @@ export function PlayingGame({
   const atFinalTurn = isFinalTurn(game.turn, perRound, roundLimit);
   const canEnd = roundLimit === null || atFinalTurn;
 
+  // Terraforming Mars is played in generations: the progress label counts them
+  // instead of laps, and whoever is up may step out of the one being played.
+  const stages = game.boardgame.stages;
+  const generations = stages !== null;
+  const stageLabel = stages?.label ?? "Tour";
+
   function pickBlocked(id: PlayerId | null) {
     setBlockedById(id);
     blockedAtRef.current = waitStart(id);
   }
 
-  async function handleNext() {
+  async function handleNext(passing = false) {
     // Snapshot the finished turn's numbers, then restart the timer *immediately*
     // — the new turn's clock starts on the click, not when Supabase replies, so
     // the countdown never keeps ticking during the async persist.
@@ -111,10 +117,19 @@ export function PlayingGame({
           turnMode: game.boardgame.turnMode,
           blockedById: blocked,
           waitedSeconds,
+          generations,
+          passing,
         },
       );
       await play.reload();
     });
+  }
+
+  // Passing costs a player the rest of the generation and the app offers no way
+  // back — the button it comes from has to be held down, so the deliberate press
+  // is the confirmation and nothing more is asked here.
+  function pass() {
+    void handleNext(true);
   }
 
   // Counting the points takes over the whole screen, up to the recap.
@@ -139,7 +154,11 @@ export function PlayingGame({
       />
 
       <p className="text-sm uppercase tracking-wide text-zinc-400">
-        {roundLabel(game.round, roundLimit)}
+        {progressLabel(
+          stageLabel,
+          generations ? game.stage : game.round,
+          roundLimit,
+        )}
       </p>
 
       {/* The whole play block (who's up / countdown / dice) gives way to the
@@ -163,6 +182,7 @@ export function PlayingGame({
           atFinalTurn={atFinalTurn}
           disabled={play.busy}
           onNext={handleNext}
+          onPass={generations ? pass : null}
         />
       )}
 
@@ -206,6 +226,14 @@ function waitedFor(blockedById: PlayerId | null, since: number | null): number {
   return (Date.now() - since) / 1000;
 }
 
-function roundLabel(round: number, limit: number | null): string {
-  return limit === null ? `Tour ${round}` : `Tour ${round} / ${limit}`;
+/**
+ * How far along the game is — a lap count for most games ("Tour 3 / 20"), the
+ * generation for the games that play in them ("Génération 2").
+ */
+function progressLabel(
+  label: string,
+  value: number,
+  limit: number | null,
+): string {
+  return limit === null ? `${label} ${value}` : `${label} ${value} / ${limit}`;
 }
