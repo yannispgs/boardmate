@@ -11,8 +11,10 @@ import type {
   DiceSpec,
   GameStatsRecord,
   PlayerId,
+  RoundGoal,
   ScoreSheetItem,
 } from "@/lib/domain";
+import { composeGoals } from "@/lib/game/extensions";
 import { formatDuration } from "@/lib/game/format-time";
 import {
   computeGlobalStats,
@@ -23,8 +25,10 @@ import {
 import { winnerDirection } from "@/lib/game/scoring";
 import { computeSeatStats, type SeatStat } from "@/lib/game/seat-stats";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
+import { useExtensions } from "@/lib/hooks/use-extensions";
 import { CategoryCharts } from "./CategoryCharts";
 import { GamePlayerTable } from "./GamePlayerTable";
+import { GoalStatsTable } from "./GoalStatsTable";
 import { ScoreDistribution } from "./ScoreDistribution";
 import { SeatStats } from "./SeatStats";
 import { StatsDiceDistribution } from "./StatsDiceDistribution";
@@ -118,9 +122,20 @@ export function GamesTab({
     boardgame?.scoring?.entry === "categories"
       ? (boardgame.scoring.sheet ?? null)
       : null;
-  const categoryRecords = useMemo(
+  // The parties the filters left, for the sections that read a game's own
+  // detail: the category breakdowns and the manche goals.
+  const scopedRecords = useMemo(
     () => filterRecords(records, filters),
     [records, filters],
+  );
+  // Games played on a calendar (Wingspan): the goal tiles they were laid out
+  // with, base game plus whatever its extensions add to the box.
+  const extensions = useExtensions(
+    active === "" ? null : (active as BoardgameId),
+  );
+  const goalCatalogue = useMemo(
+    () => composeGoals(boardgame?.roundGoals ?? [], extensions),
+    [boardgame, extensions],
   );
   const seatStats = useMemo(
     () =>
@@ -181,8 +196,11 @@ export function GamesTab({
           seatStats={seatStats}
           showSeatStats={boardgame?.trackSeatStats ?? false}
           categorySheet={categorySheet}
-          categoryRecords={categoryRecords}
+          scopedRecords={scopedRecords}
           comparePlayers={comparePlayers}
+          goalCatalogue={
+            boardgame?.stages?.advance === "schedule" ? goalCatalogue : null
+          }
         />
       )}
     </div>
@@ -283,8 +301,9 @@ function GameSections({
   seatStats,
   showSeatStats,
   categorySheet,
-  categoryRecords,
+  scopedRecords,
   comparePlayers,
+  goalCatalogue,
 }: Readonly<{
   stats: GlobalStats;
   scored: boolean;
@@ -293,8 +312,10 @@ function GameSections({
   seatStats: SeatStat[];
   showSeatStats: boolean;
   categorySheet: ScoreSheetItem[] | null;
-  categoryRecords: GameStatsRecord[];
+  scopedRecords: GameStatsRecord[];
   comparePlayers: Array<{ id: PlayerId; name: string }> | undefined;
+  /** The goal tiles of a game played on a calendar; null for every other game. */
+  goalCatalogue: RoundGoal[] | null;
 }>) {
   const champion = stats.players.reduce<GlobalStats["players"][number] | null>(
     (best, p) => (p.wins > (best?.wins ?? 0) ? p : best),
@@ -318,9 +339,15 @@ function GameSections({
         <Section title="Répartition des points">
           <CategoryCharts
             sheet={categorySheet}
-            records={categoryRecords}
+            records={scopedRecords}
             comparePlayers={comparePlayers}
           />
+        </Section>
+      ) : null}
+
+      {goalCatalogue ? (
+        <Section title="Objectifs de manche">
+          <GoalStatsTable records={scopedRecords} catalogue={goalCatalogue} />
         </Section>
       ) : null}
 

@@ -56,6 +56,40 @@ export function sheetCategories(sheet: ScoreSheetItem[]): CategoryDef[] {
   return sheet.flatMap(item => (isSubsection(item) ? item.categories : [item]));
 }
 
+/**
+ * The keys of the lines the game counts itself, so the end-of-game sheet shows
+ * them filled in instead of asking for them again (see `CategoryDef.derived`).
+ * Only the play screen reads them: the same sheet used to record a game played
+ * away from the app has nothing to derive from, and stays fully typed by hand.
+ */
+export function derivedKeys(
+  sheet: ScoreSheetItem[],
+  kind: "stageGoals",
+): string[] {
+  return sheetCategories(sheet)
+    .filter(cat => cat.derived === kind)
+    .map(cat => cat.key);
+}
+
+/**
+ * Merges prefilled scoresheet cells from several sources — the milestones taken
+ * during play, the manche goals counted as they closed. Cells are merged player
+ * by player rather than replaced, and a later source wins a shared one.
+ */
+export function mergePrefill(
+  parts: Array<Record<string, Record<string, string>>>,
+): Record<string, Record<string, string>> {
+  const merged: Record<string, Record<string, string>> = {};
+
+  for (const part of parts) {
+    for (const [playerId, cells] of Object.entries(part)) {
+      merged[playerId] = { ...merged[playerId], ...cells };
+    }
+  }
+
+  return merged;
+}
+
 /** Sums a player's per-category points over the sheet's categories (missing = 0). */
 export function categoryTotal(
   sheet: ScoreSheetItem[],

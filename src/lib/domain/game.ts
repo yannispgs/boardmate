@@ -135,6 +135,32 @@ export interface StagePass {
 }
 
 /**
+ * One stage of one game, as it was set up: the goal tile laid out for it, the
+ * values of that tile's parameters, and how many laps it ends up lasting.
+ *
+ * Written at launch, all of them at once, because the whole calendar follows
+ * from the four tiles: a tile that scores nothing lengthens every stage after
+ * it. `turns` is therefore the effective count, not the boardgame's base.
+ */
+export interface GameStage {
+  /** 1-based, in play order. */
+  stage: number;
+  /** The goal tile's key in the boardgame's catalogue. */
+  goalKey: string;
+  /** The chosen value of each of the tile's parameters, by parameter key. */
+  goalParams: Record<string, string>;
+  /** Laps of the table this stage lasts. */
+  turns: number;
+}
+
+/** What one player scored on one stage's goal, entered when the stage ends. */
+export interface StageScore {
+  stage: number;
+  playerId: PlayerId;
+  points: number;
+}
+
+/**
  * One milestone taken, by one player. Claimed during the game and never
  * re-claimable by anybody else, so the set of these *is* the state of the
  * board's milestone row. `stage` is the generation it was taken in — kept for
@@ -201,6 +227,17 @@ export interface PopulatedGame extends Game {
    */
   stagePasses: StagePass[];
   /**
+   * The calendar this game was set up with, in play order — the goal of each
+   * stage and how long it lasts. Empty for every game not played in scheduled
+   * stages.
+   */
+  stages: GameStage[];
+  /**
+   * What each player scored on each stage's goal, filled in as the stages end.
+   * Empty until the first stage is over.
+   */
+  stageScores: StageScore[];
+  /**
    * The milestones claimed this game (empty when the game offers none, or when
    * nobody has taken one yet).
    */
@@ -243,6 +280,20 @@ export interface GameStatsRecord {
   }>;
   /** Summed dice values rolled this game, in draw order (empty when untracked). */
   diceRolls: number[];
+  /**
+   * The goal tiles this game was laid out with and what each player took from
+   * them. Always set by the adapter (empty for a game played in laps or in
+   * generations); optional so lightweight test fixtures can omit it.
+   */
+  stageGoals?: StageGoalRecord[];
+}
+
+/** One manche of a finished game: the tile it scored, and by whom. */
+export interface StageGoalRecord {
+  stage: number;
+  goalKey: string;
+  goalParams: Record<string, string>;
+  points: Array<{ playerId: PlayerId; points: number }>;
 }
 
 export interface NewGame {
@@ -266,6 +317,12 @@ export interface NewGame {
   extensionIds?: ExtensionId[];
   /** For a scenario-based extension, the chosen scenario. */
   scenarioByExtension?: Record<ExtensionId, ExtensionScenarioId>;
+  /**
+   * The calendar of a game played in scheduled stages: one entry per stage, in
+   * order, with the goal tile it is set up with and the laps it lasts. Omitted
+   * for every other game.
+   */
+  stages?: GameStage[];
 }
 
 /** One participant of an already-finished game being recorded after the fact. */

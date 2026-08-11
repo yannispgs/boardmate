@@ -5,6 +5,7 @@ import type { RoundGoal } from "@/lib/domain";
 import {
   formatGoalLabel,
   goalCatalogue,
+  goalGroups,
   goalTemplateLabel,
   isGoalComplete,
 } from "./round-goals";
@@ -128,5 +129,28 @@ describe("goalCatalogue", () => {
 
   it("is just the base game's tiles without extensions", () => {
     expect(goalCatalogue([eggsInHabitat], [])).toEqual([eggsInHabitat]);
+  });
+});
+
+describe("goalGroups", () => {
+  it("sorts the tiles into those that read as they are and those to fill in", () => {
+    const groups = goalGroups([eggsInHabitat, totalBirds, noGoal]);
+
+    expect(groups.map(g => g.label)).toEqual([
+      "Objectifs uniques",
+      "À préciser",
+    ]);
+    expect(groups[0].goals.map(g => g.key)).toEqual(["totalBirds", "noGoal"]);
+    expect(groups[1].goals.map(g => g.key)).toEqual(["eggsInHabitat"]);
+  });
+
+  it("drops a heading no tile falls under", () => {
+    const groups = goalGroups([eggsInHabitat]);
+
+    expect(groups.map(g => g.label)).toEqual(["À préciser"]);
+  });
+
+  it("has nothing to show for an empty catalogue", () => {
+    expect(goalGroups([])).toEqual([]);
   });
 });

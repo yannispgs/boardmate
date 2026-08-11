@@ -54,6 +54,32 @@ export function isGoalComplete(
   });
 }
 
+/** A titled group of goal tiles, as one `<optgroup>` of the setup picker. */
+export interface GoalGroup {
+  label: string;
+  goals: RoundGoal[];
+}
+
+/**
+ * The catalogue split the way the setup picker offers it: the tiles that read
+ * as they are, then those whose variable part still has to be answered. Empty
+ * groups are dropped, so a catalogue of one-offs shows no heading at all.
+ */
+export function goalGroups(catalogue: RoundGoal[]): GoalGroup[] {
+  const groups = [
+    {
+      label: "Objectifs uniques",
+      goals: catalogue.filter(goal => goal.params.length === 0),
+    },
+    {
+      label: "À préciser",
+      goals: catalogue.filter(goal => goal.params.length > 0),
+    },
+  ];
+
+  return groups.filter(group => group.goals.length > 0);
+}
+
 /**
  * The goal tiles a game can be set up with: the base game's catalogue plus the
  * ones each active extension brings, in extension order. A tile an extension

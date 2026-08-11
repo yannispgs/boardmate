@@ -19,6 +19,8 @@ import type {
   Player,
   PlayerId,
   PopulatedGame,
+  StageAdvance,
+  StageGoalRecord,
   TieBreakRecord,
   TurnMode,
 } from "@/lib/domain";
@@ -30,6 +32,7 @@ import {
 } from "@/lib/game/extensions";
 import { activeSeat, generationOver } from "@/lib/game/generation";
 import { optionTargetModifier, winThresholdFrom } from "@/lib/game/scoring";
+import { scheduledPosition } from "@/lib/game/stage";
 import { advanceTurn as nextTurnState } from "@/lib/game/turn";
 import { turnScheduleFrom } from "@/lib/game/turn-schedule";
 import { AlreadyClaimedError } from "@/lib/repositories/errors";
@@ -152,7 +155,39 @@ type StatsRow = {
     overtime_s: number | null;
   }>;
   dice_rolls: Array<{ value: number; created_at: string }>;
+  game_stages: Array<{
+    stage: number;
+    goal_key: string;
+    goal_params: Record<string, string> | null;
+  }>;
+  game_stage_scores: Array<{
+    stage: number;
+    player_id: string;
+    points: number;
+  }>;
 };
+
+/**
+ * The manches of a finished game, each carrying what was scored on its tile.
+ * Joined here rather than in the stats layer: the two tables are always read
+ * together and nothing downstream has any use for one without the other.
+ */
+function toStageGoals(row: StatsRow): StageGoalRecord[] {
+  return [...row.game_stages]
+    .sort((a, b) => a.stage - b.stage)
+    .map(stage => ({
+      stage: stage.stage,
+      goalKey: stage.goal_key,
+      /* c8 ignore next -- `?? {}` guards a row written before the column existed */
+      goalParams: stage.goal_params ?? {},
+      points: row.game_stage_scores
+        .filter(score => score.stage === stage.stage)
+        .map(score => ({
+          playerId: score.player_id as PlayerId,
+          points: score.points,
+        })),
+    }));
+}
 
 function toStatsRecord(row: StatsRow): GameStatsRecord {
   return {
@@ -184,6 +219,7 @@ function toStatsRecord(row: StatsRow): GameStatsRecord {
     diceRolls: [...row.dice_rolls]
       .sort((a, b) => a.created_at.localeCompare(b.created_at))
       .map(d => d.value),
+    stageGoals: toStageGoals(row),
   };
 }
 
@@ -216,6 +252,17 @@ type PopulatedRow = GameRow & {
   }>;
   dice_rolls: Array<{ value: number; created_at: string }>;
   game_stage_passes: Array<{ player_id: string; stage: number }>;
+  game_stages: Array<{
+    stage: number;
+    goal_key: string;
+    goal_params: Record<string, string> | null;
+    turns: number;
+  }>;
+  game_stage_scores: Array<{
+    stage: number;
+    player_id: string;
+    points: number;
+  }>;
   game_milestones: Array<{
     player_id: string;
     milestone_key: string;
@@ -232,6 +279,8 @@ const POPULATED_SELECT =
   "score_events(player_id, score, round, created_at), " +
   "dice_rolls(value, created_at), " +
   "game_stage_passes(player_id, stage), " +
+  "game_stages(stage, goal_key, goal_params, turns), " +
+  "game_stage_scores(stage, player_id, points), " +
   "game_milestones(player_id, milestone_key, stage, created_at)";
 
 /** Where a game stands once the turn that just ended has been recorded. */
@@ -260,7 +309,8 @@ interface FinishedTurn {
   pauseDurationSeconds: number;
   overtimeSeconds: number;
   simultaneous: boolean;
-  generations: boolean;
+  /** The game plays in stages, so the turn is stamped with the one it is in. */
+  staged: boolean;
   /** Simultaneous games only: who the table was waiting on, if anybody. */
   blockedById: PlayerId | null;
   waitedS: number | null;
@@ -289,8 +339,8 @@ async function recordTurn(
     waited_s: turn.waitedS,
     round: game.round,
     turn_no: game.turn,
-    // The generation this turn belongs to, for the per-generation stats.
-    stage: turn.generations ? game.stage : null,
+    // The stage this turn belongs to, for the per-stage stats.
+    stage: turn.staged ? game.stage : null,
     duration_s: Math.max(0, Math.round(turn.elapsedSeconds)),
     pause_count: Math.max(0, Math.round(turn.pauseCount)),
     pause_duration_s: Math.max(0, Math.round(turn.pauseDurationSeconds)),
@@ -321,6 +371,49 @@ function lapTurn(
     // Simultaneous games have no current player.
     /* c8 ignore next -- defensive `?.`/`?? null`; seat index is in range */
     playerId: simultaneous ? null : (seats[next.seatIndex]?.player_id ?? null),
+  };
+}
+
+/**
+ * Where a game played on a calendar moves to (Wingspan's manches). The lap
+ * rotation is the same arithmetic as any lap-based game — everyone plays once
+ * per lap — but the stage that lap falls in is read off the game's own
+ * calendar, and the first-player marker moves one seat along at each new stage.
+ *
+ * The calendar is read from the database rather than taken from the caller: it
+ * was settled at launch, and the screen that advances the turn has no business
+ * saying how long a manche lasts.
+ */
+async function nextScheduledTurn(
+  supabase: SupabaseClient<Database>,
+  id: GameId,
+  seats: Seat[],
+  next: { turn: number; round: number },
+  simultaneous: boolean,
+): Promise<NextTurn> {
+  const { data: calendar, error } = await supabase
+    .from("game_stages")
+    .select("stage, turns")
+    .eq("game_id", id)
+    .order("stage", { ascending: true });
+  /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */
+  if (error) {
+    throw new Error(`Lecture des manches: ${error.message}`);
+  }
+
+  const at = scheduledPosition(
+    next.turn,
+    /* c8 ignore next -- no game on a calendar plays simultaneously today */
+    simultaneous ? 1 : seats.length,
+    calendar.map(s => s.turns),
+  );
+
+  return {
+    turn: next.turn,
+    round: next.round,
+    stage: at.stage,
+    /* c8 ignore next -- defensive `?.`/`?? null`; seat index is in range */
+    playerId: simultaneous ? null : (seats[at.seatIndex]?.player_id ?? null),
   };
 }
 
@@ -391,6 +484,42 @@ async function nextGenerationTurn(
   };
 }
 
+/** How the game rotates, and what the rotation needs to know. */
+interface Rotation {
+  /** How the boardgame's stages end; undefined for a game turning in laps. */
+  advance: StageAdvance | undefined;
+  simultaneous: boolean;
+  /** The current player is stepping out (`pass` games only). */
+  passing: boolean;
+  /** Where the plain lap arithmetic lands, which two of the three follow. */
+  rotated: { turn: number; round: number; seatIndex: number };
+}
+
+/** Where the game stands after the turn that just ended, whichever way it turns. */
+async function nextState(
+  supabase: SupabaseClient<Database>,
+  id: GameId,
+  game: TurnState,
+  seats: Seat[],
+  rotation: Rotation,
+): Promise<NextTurn> {
+  if (rotation.advance === "pass") {
+    return nextGenerationTurn(supabase, id, game, seats, rotation.passing);
+  }
+
+  if (rotation.advance === "schedule") {
+    return nextScheduledTurn(
+      supabase,
+      id,
+      seats,
+      rotation.rotated,
+      rotation.simultaneous,
+    );
+  }
+
+  return lapTurn(game, seats, rotation.rotated, rotation.simultaneous);
+}
+
 /**
  * Supabase-backed `GameRepository`. The only place the Supabase SDK touches
  * games / participations / turn logs. Turn rotation itself is pure domain
@@ -426,7 +555,9 @@ export function createGameRepository(
           "id, boardgame_id, ended_at, boardgame:boardgames(name, dice), " +
             "game_players(player_id, seat_order, is_winner, score, score_breakdown, player:players(name)), " +
             "game_turns(player_id, round, duration_s, pause_duration_s, overtime_s), " +
-            "dice_rolls(value, created_at)",
+            "dice_rolls(value, created_at), " +
+            "game_stages(stage, goal_key, goal_params), " +
+            "game_stage_scores(stage, player_id, points)",
         )
         .eq("status", "ended");
       /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */
@@ -521,6 +652,23 @@ export function createGameRepository(
         .sort((a, b) => a.stage - b.stage)
         .map(p => ({ playerId: p.player_id as PlayerId, stage: p.stage }));
 
+      // The calendar, in play order — the whole game reads it by index.
+      const stages = [...row.game_stages]
+        .sort((a, b) => a.stage - b.stage)
+        .map(s => ({
+          stage: s.stage,
+          goalKey: s.goal_key,
+          /* c8 ignore next -- `?? {}` fallback; the column has a default */
+          goalParams: s.goal_params ?? {},
+          turns: s.turns,
+        }));
+
+      const stageScores = row.game_stage_scores.map(s => ({
+        stage: s.stage,
+        playerId: s.player_id as PlayerId,
+        points: s.points,
+      }));
+
       // Oldest first: the order they were taken in is the order they are read
       // in, and it is what the stats will date each claim by.
       const milestoneClaims = [...row.game_milestones]
@@ -548,6 +696,8 @@ export function createGameRepository(
           null,
         turns: row.game_turns.map(toGameTurn),
         stagePasses,
+        stages,
+        stageScores,
       };
       return populated;
     },
@@ -583,6 +733,29 @@ export function createGameRepository(
         .insert(rows);
       if (gpError) {
         throw new Error(`Ajout des joueurs: ${gpError.message}`);
+      }
+
+      // The whole calendar is written at launch: its stages' lengths follow
+      // from the four goal tiles, which are laid out before anybody plays.
+      const stages = input.stages ?? [];
+
+      if (stages.length > 0) {
+        const stageRows = stages.map(stage => ({
+          game_id: game.id,
+          stage: stage.stage,
+          goal_key: stage.goalKey,
+          goal_params: stage.goalParams as Json,
+          turns: stage.turns,
+        }));
+        const { error: stageError } = await supabase
+          .from("game_stages")
+          .insert(stageRows);
+
+        /* c8 ignore next 3 -- defensive guard: the calendar carries no FK the
+           caller could get wrong, so a healthy insert doesn't error */
+        if (stageError) {
+          throw new Error(`Enregistrement des manches: ${stageError.message}`);
+        }
       }
 
       const extensionIds = input.extensionIds ?? [];
@@ -663,12 +836,12 @@ export function createGameRepository(
         turnMode?: TurnMode;
         blockedById?: PlayerId | null;
         waitedSeconds?: number;
-        generations?: boolean;
+        advance?: StageAdvance;
         passing?: boolean;
       },
     ) {
       const simultaneous = opts?.turnMode === "simultaneous";
-      const generations = opts?.generations === true;
+      const advance = opts?.advance;
       const blockedById = opts?.blockedById ?? null;
       const waitedS =
         simultaneous && blockedById !== null
@@ -703,25 +876,17 @@ export function createGameRepository(
         pauseDurationSeconds,
         overtimeSeconds,
         simultaneous,
-        generations,
+        staged: advance !== undefined,
         blockedById,
         waitedS,
       });
 
-      const next = generations
-        ? await nextGenerationTurn(
-            supabase,
-            id,
-            game,
-            seats,
-            opts?.passing === true,
-          )
-        : lapTurn(
-            game,
-            seats,
-            nextTurnState(game.turn, perRound),
-            simultaneous,
-          );
+      const next = await nextState(supabase, id, game, seats, {
+        advance,
+        simultaneous,
+        passing: opts?.passing === true,
+        rotated: nextTurnState(game.turn, perRound),
+      });
 
       const { error: updateError } = await games()
         .update({
@@ -762,6 +927,28 @@ export function createGameRepository(
       /* c8 ignore next 3 -- defensive guard: insert errors surface via e2e */
       if (eventError) {
         throw new Error(`Historique du score: ${eventError.message}`);
+      }
+    },
+
+    async setStageScores(
+      id: GameId,
+      stage: number,
+      points: Array<{ playerId: PlayerId; points: number }>,
+    ) {
+      // Upserted on (game, stage, player): re-entering a manche's goal points
+      // corrects what was typed instead of stacking a second row beside it.
+      const { error } = await supabase.from("game_stage_scores").upsert(
+        points.map(entry => ({
+          game_id: id,
+          stage,
+          player_id: entry.playerId,
+          points: Math.round(entry.points),
+        })),
+        { onConflict: "game_id,stage,player_id" },
+      );
+      /* c8 ignore next 3 -- defensive guard: upsert errors surface via e2e */
+      if (error) {
+        throw new Error(`Enregistrement de la manche: ${error.message}`);
       }
     },
 

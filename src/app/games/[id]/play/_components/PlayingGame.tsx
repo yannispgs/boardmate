@@ -4,7 +4,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ErrorText } from "@/components/ErrorText";
 import type { PlayerId, PopulatedGame } from "@/lib/domain";
-import { gameProgress } from "@/lib/game/game-progress";
+import { composeGoals } from "@/lib/game/extensions";
+import { gameProgress, playProgress } from "@/lib/game/game-progress";
+import {
+  isLastTurnOfStage,
+  playCalendar,
+  stageGoalLabel,
+} from "@/lib/game/stage";
 import { isFinalTurn, turnsPerRound } from "@/lib/game/turn";
 import { turnDurationForRound } from "@/lib/game/turn-schedule";
 import { useTurnTimer } from "@/lib/hooks/use-turn-timer";
@@ -19,6 +25,7 @@ import { NextTurnControl } from "./NextTurnControl";
 import { namedPlayers } from "./named-players";
 import { PlayBlock } from "./PlayBlock";
 import { PlayStats } from "./PlayStats";
+import { StageGoalPrompt } from "./StageGoalPrompt";
 import { TimeHogBanner } from "./TimeHogBanner";
 import { useDiceLog } from "./use-dice-log";
 import { useEndFlow } from "./use-end-flow";
@@ -26,6 +33,7 @@ import { useLiveScores } from "./use-live-scores";
 import { useMilestones } from "./use-milestones";
 import type { PlayGame } from "./use-play-game";
 import { usePlaySounds } from "./use-play-sounds";
+import { useStageGoals } from "./use-stage-goals";
 
 /**
  * A game in progress. Takes the loaded game, so nothing below has to wonder
@@ -43,8 +51,16 @@ export function PlayingGame({
   const live = useLiveScores(game, play);
   const dice = useDiceLog(game, play);
   const milestones = useMilestones(game);
+  const goals = useStageGoals(game);
 
   usePlaySounds();
+
+  // The end-of-manche goal entry, opened by the button that closes the manche.
+  const [goalPromptOpen, setGoalPromptOpen] = useState(false);
+  const openGoalPrompt = () => setGoalPromptOpen(true);
+  // Every goal tile the game can be set up with — the extensions' included, so
+  // an Oceania tile still reads out by name during a game played with it.
+  const catalogue = composeGoals(game.boardgame.roundGoals, game.extensions);
 
   // A manual duration for the current turn, overriding the schedule.
   const [durationOverride, setDurationOverride] = useState<number | null>(null);
@@ -79,19 +95,31 @@ export function PlayingGame({
 
   const durationS = turnDuration(game, durationOverride);
 
+  // How the game turns: in plain laps, in generations somebody steps out of, or
+  // on a calendar of stages laid out at launch (Wingspan's manches).
+  const stages = game.boardgame.stages;
+  const generations = stages?.advance === "pass";
+  const stageLabel = gameProgress(game, stages).label;
+  const calendar = playCalendar(
+    stages?.advance,
+    game.stages,
+    game.boardgame.roundLimit,
+  );
+
   // Fixed-length games (e.g. Cascadia's 20 rounds) end on the last seat of the
   // last round: no more turns, and the scoring UI takes over. Open-ended games
-  // keep their end controls available throughout.
-  const roundLimit = game.boardgame.roundLimit;
+  // keep their end controls available throughout. A game on a calendar takes
+  // its length from the calendar, not from the box.
+  const roundLimit = calendar.roundLimit;
   const perRound = turnsPerRound(game.boardgame.turnMode, game.players.length);
   const atFinalTurn = isFinalTurn(game.turn, perRound, roundLimit);
   const canEnd = roundLimit === null || atFinalTurn;
 
-  // Terraforming Mars is played in generations: the progress label counts them
-  // instead of laps, and whoever is up may step out of the one being played.
-  const stages = game.boardgame.stages;
-  const generations = stages !== null;
-  const stageLabel = gameProgress(game, stages).label;
+  // The table has just gone round for the last time this manche: the goal tile
+  // is scored now, while the birds are still on the table.
+  const atStageEnd =
+    calendar.scheduled &&
+    isLastTurnOfStage(game.turn, perRound, calendar.turnsPerStage);
 
   // Milestones are handed out during the game, from the left-edge panel — the
   // edge that belongs to the game on the table. Null for every game that has
@@ -127,7 +155,7 @@ export function PlayingGame({
           turnMode: game.boardgame.turnMode,
           blockedById: blocked,
           waitedSeconds,
-          generations,
+          advance: stages?.advance,
           passing,
         },
       );
@@ -140,6 +168,22 @@ export function PlayingGame({
   // is the confirmation and nothing more is asked here.
   function pass() {
     void handleNext(true);
+  }
+
+  /**
+   * Closes a manche: the goal points are written down first, then the table
+   * moves on — unless this was the last manche, where there is nothing to move
+   * on to and the end-of-game flow takes over.
+   */
+  async function endStage(
+    points: Array<{ playerId: PlayerId; points: number }>,
+  ) {
+    setGoalPromptOpen(false);
+    await goals.save(game.stage, points);
+
+    if (!atFinalTurn) {
+      await handleNext();
+    }
   }
 
   // Counting the points takes over the whole screen, up to the recap.
@@ -164,11 +208,7 @@ export function PlayingGame({
       />
 
       <p className="text-sm uppercase tracking-wide text-zinc-400">
-        {progressLabel(
-          stageLabel,
-          generations ? game.stage : game.round,
-          roundLimit,
-        )}
+        {playProgress(game, stages, game.stages, roundLimit)}
       </p>
 
       {/* The whole play block (who's up / countdown / dice) gives way to the
@@ -186,15 +226,34 @@ export function PlayingGame({
       )}
 
       <ErrorText message={play.error} />
+      <ErrorText message={goals.error} />
 
       {entryOpen ? null : (
         <NextTurnControl
           atFinalTurn={atFinalTurn}
           disabled={play.busy}
-          onNext={handleNext}
+          nextLabel={
+            atStageEnd ? `Fin de la ${stageLabel.toLowerCase()} →` : undefined
+          }
+          onNext={atStageEnd ? openGoalPrompt : handleNext}
           onPass={generations ? pass : null}
+          onStageGoal={atStageEnd ? openGoalPrompt : null}
         />
       )}
+
+      {goalPromptOpen ? (
+        <StageGoalPrompt
+          stage={game.stage}
+          stageLabel={stageLabel}
+          goalLabel={stageGoalLabel(game.stages[game.stage - 1], catalogue)}
+          players={namedPlayers(game)}
+          initial={goals.entered(game.stage)}
+          disabled={play.busy || goals.busy}
+          confirmLabel={atFinalTurn ? "Enregistrer" : `${stageLabel} suivante`}
+          onConfirm={points => void endStage(points)}
+          onCancel={() => setGoalPromptOpen(false)}
+        />
+      ) : null}
 
       <FaqPanel boardgame={game.boardgame} extensions={game.extensions} />
 
@@ -221,6 +280,7 @@ export function PlayingGame({
           game={game}
           flow={flow}
           milestoneClaims={milestones.claims}
+          stageScores={goals.scores}
           disabled={play.busy}
         />
       ) : null}
@@ -248,16 +308,4 @@ function waitedFor(blockedById: PlayerId | null, since: number | null): number {
   }
 
   return (Date.now() - since) / 1000;
-}
-
-/**
- * How far along the game is — a lap count for most games ("Tour 3 / 20"), the
- * generation for the games that play in them ("Génération 2").
- */
-function progressLabel(
-  label: string,
-  value: number,
-  limit: number | null,
-): string {
-  return limit === null ? `${label} ${value}` : `${label} ${value} / ${limit}`;
 }

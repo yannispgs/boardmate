@@ -1,5 +1,7 @@
 import type { PlayerId } from "@/lib/domain";
 
+import { scheduledPosition } from "./stage";
+
 /**
  * The order the turn ribbon draws, as an explicit **sequence** of turns.
  *
@@ -65,6 +67,38 @@ export function lapSequence(
   }
 
   return out;
+}
+
+/**
+ * The turns of a game played on a calendar (Wingspan). Everyone still plays
+ * exactly once per lap, so the whole ribbon can be worked out in advance — but
+ * the laps are cut into stages, and the first-player marker moves one seat along
+ * at each new stage, so the sequence is generated rather than counted off.
+ */
+export function stageSequence(
+  seats: PlayerId[],
+  current: number,
+  ahead: number,
+  lastTurn: number | null,
+  turnsPerStage: number[],
+): RibbonTurn[] {
+  const n = seats.length;
+
+  if (n === 0) {
+    return [];
+  }
+
+  const stop =
+    lastTurn === null ? current + ahead : Math.min(current + ahead, lastTurn);
+  const turns: Array<{ turn: number; playerId: PlayerId; stage: number }> = [];
+
+  for (let turn = 0; turn <= stop; turn++) {
+    const at = scheduledPosition(turn + 1, n, turnsPerStage);
+
+    turns.push({ turn, playerId: seats[at.seatIndex], stage: at.stage });
+  }
+
+  return withLaps(seats, turns);
 }
 
 /** What a game played in generations needs to lay its ribbon out. */

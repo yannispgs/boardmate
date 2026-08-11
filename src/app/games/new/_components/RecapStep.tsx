@@ -13,10 +13,12 @@ import type {
   ConfigValues,
   ExtensionId,
   ExtensionScenarioId,
+  GameStage,
   Player,
 } from "@/lib/domain";
-import { composeConfigFields } from "@/lib/game/extensions";
+import { composeConfigFields, composeGoals } from "@/lib/game/extensions";
 import { funnelBoard } from "@/lib/game/funnel-board";
+import { type StagePick, stageCalendar } from "@/lib/game/stage";
 import { type WinTargetView, winTargetView } from "@/lib/game/win-target";
 import { useConfigs } from "@/lib/hooks/use-configs";
 import { useExtensions } from "@/lib/hooks/use-extensions";
@@ -25,6 +27,7 @@ import { ExtensionPicker } from "./ExtensionPicker";
 import { FirstPlayerWheel } from "./FirstPlayerWheel";
 import { FunnelStep } from "./FunnelStep";
 import { RecapSummary } from "./RecapSummary";
+import { StageGoalsStep } from "./StageGoalsStep";
 import { WinTargetBar } from "./WinTargetBar";
 
 /** The fog's preparation list, framed to sit inside the launch confirmation. */
@@ -58,6 +61,7 @@ export function RecapStep({
     values: ConfigValues | null,
     extensionIds: ExtensionId[],
     scenarioByExtension: Record<ExtensionId, ExtensionScenarioId>,
+    stages: GameStage[],
   ) => void;
 }>) {
   const { template, loading } = useConfigs(boardgame.id);
@@ -71,6 +75,10 @@ export function RecapStep({
   const [ready, setReady] = useState<{ values: ConfigValues | null } | null>(
     null,
   );
+  // Which of the post-recap steps is on screen, once the recap checks out.
+  const [extraStep, setExtraStep] = useState(0);
+  // The goal tiles laid on the board, one per manche (Wingspan).
+  const [picks, setPicks] = useState<StagePick[]>([]);
   // Selected extensions and, per scenario-based one, the chosen scenario.
   const [selectedExt, setSelectedExt] = useState<ExtensionId[]>([]);
   const [scenarioByExt, setScenarioByExt] = useState<
@@ -85,6 +93,24 @@ export function RecapStep({
   // one — null for a game the app has no board to offer, which launches from
   // the recap as it always did.
   const board = funnelBoard(boardgame, active, scenarioByExt, players.length);
+
+  // Games played on a calendar (Wingspan) have their goal tiles drawn at setup:
+  // the length of every manche depends on them, so they are asked for before
+  // anybody sits down — and after the recap, since an extension brings its own.
+  const stageSpec = boardgame.stages;
+  const schedule =
+    stageSpec?.advance === "schedule" ? (stageSpec.schedule ?? []) : [];
+  const goalTiles = composeGoals(boardgame.roundGoals, active);
+  const needsGoals = schedule.length > 0 && goalTiles.length > 0;
+  const calendar = needsGoals ? stageCalendar(schedule, picks, goalTiles) : [];
+
+  // What still stands between a checked-out recap and the first turn, in order.
+  const afterRecap = (
+    [
+      board === null ? null : ("board" as const),
+      needsGoals ? ("goals" as const) : null,
+    ] as const
+  ).filter(step => step !== null);
 
   const target = winTargetView(
     boardgame.scoring?.winCondition ?? null,
@@ -126,7 +152,7 @@ export function RecapStep({
         fogZones.length > 0 ? (
           <HiddenMaterial zones={fogZones} className={fogDetailsClass} />
         ) : undefined,
-      onConfirm: () => onLaunch(snapshot, selectedExt, scenarioByExt),
+      onConfirm: () => onLaunch(snapshot, selectedExt, scenarioByExt, calendar),
     });
   }
 
@@ -137,16 +163,37 @@ export function RecapStep({
     }
 
     setInvalid(null);
+    setReady({ values: snapshot.values });
+    setExtraStep(0);
 
-    // What a checked-out recap leads to: the board to set up when the game is
-    // played on one, the confirmation itself otherwise.
-    if (board === null) {
+    // A recap with nothing left to settle leads straight to the confirmation.
+    if (afterRecap.length === 0) {
       confirmLaunch(snapshot.values);
+    }
+  }
+
+  /** Leaves a post-recap step: on to the next one, or to the launch itself. */
+  function stepOn(values: ConfigValues | null) {
+    const next = extraStep + 1;
+
+    if (next >= afterRecap.length) {
+      confirmLaunch(values);
 
       return;
     }
 
-    setReady({ values: snapshot.values });
+    setExtraStep(next);
+  }
+
+  /** Backs out of a post-recap step: to the previous one, or to the recap. */
+  function stepBack() {
+    if (extraStep === 0) {
+      setReady(null);
+
+      return;
+    }
+
+    setExtraStep(extraStep - 1);
   }
 
   /**
@@ -179,15 +226,36 @@ export function RecapStep({
     return { values: parsed.data };
   }
 
-  if (ready !== null && board !== null) {
+  const onScreen = ready === null ? null : (afterRecap[extraStep] ?? null);
+
+  if (ready !== null && onScreen === "board" && board !== null) {
     return (
       <>
         <BoardStep
           board={board}
           creating={creating}
           error={error}
-          onBack={() => setReady(null)}
-          onValidate={() => confirmLaunch(ready.values)}
+          onBack={stepBack}
+          onValidate={() => stepOn(ready.values)}
+        />
+        {confirmDialog}
+      </>
+    );
+  }
+
+  if (ready !== null && onScreen === "goals") {
+    return (
+      <>
+        <StageGoalsStep
+          stageLabel={stageSpec?.label ?? "Manche"}
+          schedule={schedule}
+          catalogue={goalTiles}
+          picks={picks}
+          creating={creating}
+          error={error}
+          onPicks={setPicks}
+          onBack={stepBack}
+          onValidate={() => stepOn(ready.values)}
         />
         {confirmDialog}
       </>
@@ -197,7 +265,7 @@ export function RecapStep({
   return (
     <FunnelStep
       title={
-        board === null
+        afterRecap.length === 0
           ? "4 · Vérifie et lance la partie"
           : "4 · Vérifie la partie"
       }
@@ -209,10 +277,9 @@ export function RecapStep({
           invalid={invalid}
           error={error}
           creating={creating}
-          // A board to draw means one more step before the game actually starts.
-          launchLabel={
-            board === null ? "Lancer la partie" : "Choisis le plateau →"
-          }
+          // A board to draw or tiles to lay means one more step before the game
+          // actually starts.
+          launchLabel={recapActionLabel(afterRecap[0] ?? null)}
           onChangeTarget={value => {
             if (target.field !== null) {
               setField(target.field, value);
@@ -286,6 +353,19 @@ export function RecapStep({
       )}
     </FunnelStep>
   );
+}
+
+/** What the recap's button promises: the launch, or the step it opens onto. */
+function recapActionLabel(next: "board" | "goals" | null): string {
+  if (next === "board") {
+    return "Choisis le plateau →";
+  }
+
+  if (next === "goals") {
+    return "Pose les objectifs →";
+  }
+
+  return "Lancer la partie";
 }
 
 /** The score to reach, whatever is blocking the launch, and the launch button. */

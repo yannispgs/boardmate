@@ -10,9 +10,11 @@ import type {
 import {
   categoryTotal,
   clampScore,
+  derivedKeys,
   finalStandings,
   initialScoreFor,
   isSubsection,
+  mergePrefill,
   optionTargetModifier,
   rankBonusFor,
   rankByTotal,
@@ -222,6 +224,57 @@ describe("category scoresheet helpers", () => {
   it("sums a player's points over the sheet, missing categories as 0", () => {
     expect(categoryTotal(sheet, { ours: 5, pommesDePin: 3 })).toBe(8); // buse absent → 0
     expect(categoryTotal(sheet, {})).toBe(0);
+  });
+});
+
+describe("derivedKeys", () => {
+  const wingspan: ScoreSheetItem[] = [
+    {
+      label: "Oiseaux",
+      categories: [
+        { key: "oiseaux", label: "Oiseaux" },
+        {
+          key: "manches",
+          label: "Objectifs de manche",
+          derived: "stageGoals",
+        },
+      ],
+    },
+    { key: "nectar", label: "Nectar" },
+  ];
+
+  it("lists the lines the game counts itself, subsections included", () => {
+    expect(derivedKeys(wingspan, "stageGoals")).toEqual(["manches"]);
+  });
+
+  it("is empty for a sheet that derives nothing", () => {
+    expect(
+      derivedKeys([{ key: "nectar", label: "Nectar" }], "stageGoals"),
+    ).toEqual([]);
+  });
+});
+
+describe("mergePrefill", () => {
+  it("merges each player's cells rather than replacing them", () => {
+    const merged = mergePrefill([
+      { alice: { jalons: "5" }, bob: { jalons: "0" } },
+      { alice: { manches: "12" } },
+    ]);
+
+    expect(merged).toEqual({
+      alice: { jalons: "5", manches: "12" },
+      bob: { jalons: "0" },
+    });
+  });
+
+  it("lets a later source win a shared cell", () => {
+    expect(
+      mergePrefill([{ alice: { x: "1" } }, { alice: { x: "2" } }]),
+    ).toEqual({ alice: { x: "2" } });
+  });
+
+  it("is empty with nothing to merge", () => {
+    expect(mergePrefill([])).toEqual({});
   });
 });
 

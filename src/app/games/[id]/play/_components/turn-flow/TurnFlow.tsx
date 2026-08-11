@@ -3,7 +3,11 @@
 import { useMemo } from "react";
 
 import type { GameTurn, PlayerId, StagePass } from "@/lib/domain";
-import { generationSequence, lapSequence } from "@/lib/game/turn-ribbon";
+import {
+  generationSequence,
+  lapSequence,
+  stageSequence,
+} from "@/lib/game/turn-ribbon";
 
 import { EndCap } from "./EndCap";
 import { AHEAD, buildItems, measurePlayers, PAD_LEFT, SVG_H } from "./geometry";
@@ -42,6 +46,7 @@ export function TurnFlow({
   round,
   roundLimit,
   generation = null,
+  turnsPerStage = null,
 }: Readonly<{
   /** Everyone at the table, in seat order — nobody is ever dropped. */
   players: { id: PlayerId; name: string }[];
@@ -51,6 +56,8 @@ export function TurnFlow({
   roundLimit: number | null;
   /** Set for a game played in generations, null for one played in plain laps. */
   generation?: GenerationFlow | null;
+  /** Set for a game played on a calendar: the laps each stage lasts, in order. */
+  turnsPerStage?: number[] | null;
 }>) {
   const n = players.length;
   const metrics = useMemo(() => measurePlayers(players), [players]);
@@ -69,6 +76,10 @@ export function TurnFlow({
   const seq = useMemo(() => {
     const seats = players.map(p => p.id);
 
+    if (turnsPerStage) {
+      return stageSequence(seats, current, AHEAD, lastTurn, turnsPerStage);
+    }
+
     if (!generation) {
       return lapSequence(seats, current, AHEAD, lastTurn);
     }
@@ -86,7 +97,7 @@ export function TurnFlow({
       passes: generation.passes,
       ahead: AHEAD,
     });
-  }, [players, generation, current, currentPlayerId, lastTurn]);
+  }, [players, generation, turnsPerStage, current, currentPlayerId, lastTurn]);
 
   const { items, currentLeft } = useMemo(
     () => buildItems(seq, current, metrics, { lastTurn }),

@@ -49,9 +49,20 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
       foret?.scoring?.sheet?.map(i => ("key" in i ? i.key : null)),
     ).toEqual(["cartesHaut", "cartesBas", "cartesCote", "grotte"]);
 
+    // Nectar left the base sheet — it only comes with Océanie — and the
+    // manche goals took its place, as a line the game fills in itself.
     const wingspan = byName("Wingspan");
     expect(wingspan?.scoring?.entry).toBe("categories");
-    expect(wingspan?.scoring?.sheet).toHaveLength(7);
+    expect(
+      wingspan?.scoring?.sheet?.map(i => ("key" in i ? i.key : null)),
+    ).toEqual([
+      "oiseaux",
+      "objectifsManche",
+      "oeufs",
+      "cartesObjectif",
+      "nourritureStockee",
+      "cartesRecouvertes",
+    ]);
     expect(wingspan?.minPlayers).toBe(1);
     expect(wingspan?.maxPlayers).toBe(5);
   });

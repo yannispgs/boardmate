@@ -9,6 +9,7 @@ import type {
 } from "@/lib/domain";
 import {
   composeConfigFields,
+  composeGoals,
   composeScoring,
   extensionEffects,
   extensionShortName,
@@ -176,6 +177,28 @@ describe("composeScoring", () => {
         }),
       ]),
     ).toBe(totalBase);
+  });
+});
+
+describe("composeGoals", () => {
+  const totalBirds = { key: "totalBirds", label: "Oiseaux", params: [] };
+  const noGoal = { key: "noGoal", label: "Pas d'objectif", params: [] };
+
+  it("adds each extension's tiles to the box, in application order", () => {
+    const oceania = ext({ id: "oceania", roundGoals: [noGoal], sortOrder: 1 });
+    const other = ext({
+      id: "other",
+      roundGoals: [{ key: "nectar", label: "Nectar", params: [] }],
+      sortOrder: 0,
+    });
+
+    expect(
+      composeGoals([totalBirds], [oceania, other]).map(g => g.key),
+    ).toEqual(["totalBirds", "nectar", "noGoal"]);
+  });
+
+  it("is the base game's own tiles when nothing is on the table", () => {
+    expect(composeGoals([totalBirds], [])).toEqual([totalBirds]);
   });
 });
 

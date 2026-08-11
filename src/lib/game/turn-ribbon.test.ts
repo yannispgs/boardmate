@@ -6,6 +6,7 @@ import {
   type GenerationRibbon,
   generationSequence,
   lapSequence,
+  stageSequence,
 } from "./turn-ribbon";
 
 const A = "a" as PlayerId;
@@ -59,6 +60,45 @@ describe("lapSequence", () => {
 
   it("keeps announcing turns while the end is out of reach", () => {
     expect(lapSequence(SEATS, 0, 2, 99).at(-1)?.turn).toBe(2);
+  });
+});
+
+describe("stageSequence", () => {
+  // Two laps in the first manche, one in the second.
+  const CALENDAR = [2, 1];
+
+  it("gives nothing for an empty table", () => {
+    expect(stageSequence([], 0, 5, null, CALENDAR)).toEqual([]);
+  });
+
+  it("counts the laps within each manche, and hands the marker on", () => {
+    const seq = stageSequence(SEATS, 0, 8, null, CALENDAR);
+
+    expect(readable(seq)).toEqual([
+      "0 a L1",
+      "1 b L1",
+      "2 c L1",
+      "3 a L2",
+      "4 b L2",
+      "5 c L2",
+      // Manche 2: the marker moved one seat along, and the lap count restarts.
+      "6 b L1",
+      "7 c L1",
+      "8 a L1",
+    ]);
+  });
+
+  it("opens and closes each lap wherever the marker sits", () => {
+    const seq = stageSequence(SEATS, 0, 8, null, CALENDAR);
+
+    expect(seq.filter(t => t.firstOfLap).map(t => t.turn)).toEqual([0, 3, 6]);
+    expect(seq.filter(t => t.lastOfLap).map(t => t.turn)).toEqual([2, 5]);
+  });
+
+  it("stops on the calendar's last turn", () => {
+    const seq = stageSequence(SEATS, 0, 20, 5, CALENDAR);
+
+    expect(seq.at(-1)?.turn).toBe(5);
   });
 });
 

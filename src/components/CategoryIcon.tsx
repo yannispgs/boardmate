@@ -118,6 +118,80 @@ const PATHS: Record<CategoryIconId, ReactNode> = {
       <path d="m17 6.5 2.5-2.5 2.5 2.5" />
     </>
   ),
+  // The three habitats: a canopy, a tuft of grass, a wave. Told apart by their
+  // silhouette alone, since they are read side by side on one row of chips.
+  "habitat-forest": (
+    <>
+      <path d="M12 4 6 13h3.5L6 19h12l-3.5-6H18z" />
+      <path d="M12 19v2" />
+    </>
+  ),
+  "habitat-grassland": (
+    <>
+      <path d="M4 20c0-5 2-8 4-9" />
+      <path d="M12 20V7" />
+      <path d="M20 20c0-5-2-8-4-9" />
+      <path d="M3 20h18" />
+    </>
+  ),
+  "habitat-sea": (
+    <>
+      <path d="M3 9c3-2.5 6 2.5 9 0s6-2.5 9 0" />
+      <path d="M3 15c3-2.5 6 2.5 9 0s6-2.5 9 0" />
+    </>
+  ),
+  // The four nest types: flat, cupped, hollowed out, laid on the ground.
+  "nest-platform": (
+    <>
+      <path d="M3 12h18" />
+      <path d="M6 12v6" />
+      <path d="M18 12v6" />
+      <path d="M9 12V8" />
+      <path d="M15 12V8" />
+    </>
+  ),
+  "nest-bowl": (
+    <>
+      <path d="M4 10a8 8 0 0 0 16 0" />
+      <path d="M3 10h18" />
+    </>
+  ),
+  "nest-cavity": (
+    <>
+      <path d="M4 20V11a8 8 0 0 1 16 0v9" />
+      <circle cx="12" cy="12" r="3.5" />
+    </>
+  ),
+  "nest-ground": (
+    <>
+      <path d="M3 18h18" />
+      <path d="M7 18a5 5 0 0 1 10 0" />
+      <path d="M10 14.5h.01" />
+      <path d="M14 14.5h.01" />
+    </>
+  ),
+  // The three food groups Oceania's goals ask about, drawn as one member each:
+  // a worm, a berry on its stem, a fish.
+  "food-invertebrate": (
+    <>
+      <path d="M4 16c0-3 3-3 3-6s3-3 5-3 5 1 5 4-2 5-5 5-8 1-8 0Z" />
+      <path d="M15 9h.01" />
+    </>
+  ),
+  "food-fruit-seed": (
+    <>
+      <circle cx="12" cy="15" r="5.5" />
+      <path d="M12 9.5V5" />
+      <path d="M12 7c2.5 0 4-1.5 4-4-2.5 0-4 1.5-4 4Z" />
+    </>
+  ),
+  "food-rodent-fish": (
+    <>
+      <path d="M3 12c3-4.5 8-5.5 12-3.5 2 1 3.5 2.5 5 3.5-1.5 1-3 2.5-5 3.5-4 2-9 1-12-3.5Z" />
+      <path d="M7 12h.01" />
+      <path d="M20 8.5v7" />
+    </>
+  ),
 };
 
 /**

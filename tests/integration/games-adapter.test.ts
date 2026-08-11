@@ -340,7 +340,7 @@ describe("games adapter — generations (Terraforming Mars)", () => {
     marsId = data?.id as BoardgameId;
     // The seeded game must actually declare generations, or every assertion
     // below would silently fall back to lap rotation.
-    expect(data?.stages).toEqual({ label: "Génération" });
+    expect(data?.stages).toEqual({ label: "Génération", advance: "pass" });
   });
 
   it("rotates only between the players still in, and opens the next generation on the marker", async () => {
@@ -353,7 +353,7 @@ describe("games adapter — generations (Terraforming Mars)", () => {
 
     const play = (passing = false) => {
       return repo().advanceTurn(game.id, 10, 0, 0, 0, {
-        generations: true,
+        advance: "pass",
         passing,
       });
     };
@@ -430,15 +430,15 @@ describe("games adapter — generations (Terraforming Mars)", () => {
 
     // The generation the claim is stamped with is the one it was taken in.
     await repo().advanceTurn(game.id, 10, 0, 0, 0, {
-      generations: true,
+      advance: "pass",
       passing: true,
     });
     await repo().advanceTurn(game.id, 10, 0, 0, 0, {
-      generations: true,
+      advance: "pass",
       passing: true,
     });
     await repo().advanceTurn(game.id, 10, 0, 0, 0, {
-      generations: true,
+      advance: "pass",
       passing: true,
     });
     await repo().claimMilestone(game.id, playerIds[1], "maire");
@@ -458,6 +458,112 @@ describe("games adapter — generations (Terraforming Mars)", () => {
     expect(
       p?.milestoneClaims.find(c => c.milestoneKey === "terraformeur")?.playerId,
     ).toBe(playerIds[2]);
+  });
+});
+
+describe("games adapter — calendar of manches (Wingspan)", () => {
+  let wingspanId: BoardgameId;
+
+  beforeAll(async () => {
+    const { data } = await serviceClient()
+      .from("boardgames")
+      .select("id, stages")
+      .eq("name", "Wingspan")
+      .single();
+
+    wingspanId = data?.id as BoardgameId;
+    // Without a schedule the rotation would silently fall back to plain laps.
+    expect((data?.stages as { advance?: string })?.advance).toBe("schedule");
+  });
+
+  it("lays out the calendar, turns through it, and records each manche's goal", async () => {
+    // One lap per manche: the point is the hand-over, not the length.
+    const game = await repo().create({
+      boardgameId: wingspanId,
+      configId: null,
+      playerIds,
+      stages: [
+        {
+          stage: 1,
+          goalKey: "eggsInHabitat",
+          goalParams: { habitat: "sea" },
+          turns: 1,
+        },
+        {
+          stage: 2,
+          goalKey: "birdsInHabitat",
+          goalParams: { habitat: "forest" },
+          turns: 1,
+        },
+      ],
+    });
+    gameIds.push(game.id);
+
+    let p = await repo().getPopulated(game.id);
+
+    expect(p?.stages).toEqual([
+      {
+        stage: 1,
+        goalKey: "eggsInHabitat",
+        goalParams: { habitat: "sea" },
+        turns: 1,
+      },
+      {
+        stage: 2,
+        goalKey: "birdsInHabitat",
+        goalParams: { habitat: "forest" },
+        turns: 1,
+      },
+    ]);
+
+    // The manche's goal is scored while the birds are still on the table.
+    await repo().setStageScores(game.id, 1, [
+      { playerId: playerIds[0], points: 4 },
+      { playerId: playerIds[1], points: 2 },
+      { playerId: playerIds[2], points: 0 },
+    ]);
+    // Misheard, then corrected: the same player never holds two rows.
+    await repo().setStageScores(game.id, 1, [
+      { playerId: playerIds[0], points: 5 },
+      { playerId: playerIds[1], points: 2 },
+      { playerId: playerIds[2], points: 0 },
+    ]);
+
+    const play = () => {
+      return repo().advanceTurn(game.id, 10, 0, 0, 0, { advance: "schedule" });
+    };
+
+    await play();
+    await play();
+    await play();
+    p = await repo().getPopulated(game.id);
+
+    // The lap is over, so manche 2 opens — on the moved first-player marker.
+    expect(p?.stage).toBe(2);
+    expect(p?.turn).toBe(4);
+    expect(p?.currentPlayer?.id).toBe(playerIds[1]);
+    expect(p?.stageScores).toHaveLength(3);
+    expect(p?.stageScores.find(s => s.playerId === playerIds[0])?.points).toBe(
+      5,
+    );
+
+    await repo().setStageScores(game.id, 2, [
+      { playerId: playerIds[0], points: 1 },
+      { playerId: playerIds[1], points: 3 },
+      { playerId: playerIds[2], points: 6 },
+    ]);
+    await repo().end(game.id, [playerIds[2]]);
+
+    // What the stats read back: each manche with its tile and its points.
+    const stats = await repo().listStats();
+    const record = stats.find(s => s.gameId === game.id);
+
+    expect(record?.stageGoals?.map(g => g.goalKey)).toEqual([
+      "eggsInHabitat",
+      "birdsInHabitat",
+    ]);
+    expect(record?.stageGoals?.[0].goalParams).toEqual({ habitat: "sea" });
+    expect(record?.stageGoals?.[1].points).toHaveLength(3);
   });
 });
 

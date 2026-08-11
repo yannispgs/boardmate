@@ -75,6 +75,13 @@ export interface CategoryDef {
    * someone who doesn't know the game.
    */
   icon?: string;
+  /**
+   * Marks a line the game has **already counted**, so it is shown filled in and
+   * read-only at the end instead of being asked for again. `stageGoals` sums
+   * what each player scored on the end-of-stage goals, entered stage by stage
+   * during play (Wingspan's « Objectifs de manche »).
+   */
+  derived?: "stageGoals";
 }
 
 /** A titled group of scored lines (e.g. "Animaux"), for the final scoresheet. */
@@ -149,18 +156,30 @@ export interface ScoringSpec {
 }
 
 /**
- * A game played in **generations** — a stage the players leave one by one by
- * *passing*, instead of the plain lap of the table every other game turns in.
- * `label` is what the rulebook calls one (Terraforming Mars: « Génération »),
- * and is the progress label shown during play.
+ * A game played in stages bigger than the lap of the table, and what its
+ * rulebook calls one — Terraforming Mars' « Génération », Wingspan's
+ * « Manche ». `label` is the progress label shown during play; `null` on the
+ * boardgame means plain laps and nothing else, as most games are.
  *
- * `null` means plain laps: everyone takes exactly one turn per lap and nobody
- * can take extra ones. Wingspan's manches are laps too — they are counted in
- * blocks, but no player ever plays more turns than another — so they are not
- * this and never will be.
+ * `advance` is what *closes* a stage, and the two are genuinely different
+ * games:
+ * - `pass`: players step out one by one and the stage ends when the last one
+ *   does, so the turns inside it are unequal and impossible to foresee.
+ * - `schedule`: the stage lasts a counted number of laps; everyone still plays
+ *   exactly once per lap, and the end is known before anyone sits down.
  */
+export type StageAdvance = "pass" | "schedule";
+
 export interface StageSpec {
   label: string;
+  advance: StageAdvance;
+  /**
+   * Laps per stage for a `schedule` game, in order (Wingspan: `[8, 7, 6, 5]`).
+   * The **base** calendar only: what a game actually plays is settled at setup,
+   * since a goal tile can lengthen the stages that follow it (see
+   * `RoundGoal.extraTurn`), and is then recorded per game.
+   */
+  schedule?: number[];
 }
 
 /** One claimable milestone: what it is called and what it takes to claim it. */
