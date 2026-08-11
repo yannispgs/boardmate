@@ -44,11 +44,13 @@ interface Draft {
  * A search field sits at the top because that is how a question arrives
  * mid-game: with a word in mind ("port", "chevalier"), not a place in a list.
  *
- * A « + » beside « Fermer » writes a new one down. Mid-game is when a rule
- * question is actually settled, and a question left unwritten until after the
- * game is a question asked again next time — so the panel takes new entries,
- * and only new ones: rewording and reordering stay on the FAQ screen, where
- * there is room to read what is already there.
+ * A « + » in the bottom corner writes a new one down — down there because that
+ * is where a thumb already is, the panel being read one-handed with the board
+ * in the other. Mid-game is when a rule question is actually settled, and a
+ * question left unwritten until after the game is a question asked again next
+ * time — so the panel takes new entries, and only new ones: rewording and
+ * reordering stay on the FAQ screen, where there is room to read what is
+ * already there.
  */
 export function FaqPanel({
   boardgame,
@@ -132,25 +134,24 @@ export function FaqPanel({
       </button>
 
       <Drawer open={open} onClose={close} label="FAQ">
-        <ModalHeader
-          title="FAQ"
-          hint={boardgame.name}
-          action={
-            draft === null ? (
-              <button
-                type="button"
-                onClick={startAdding}
-                aria-label="Ajouter une question"
-                className="shrink-0 rounded-lg border border-black/10 px-3 py-1 text-base font-semibold leading-5 transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
-              >
-                +
-              </button>
-            ) : undefined
-          }
-          onClose={close}
-        />
+        <ModalHeader title="FAQ" hint={boardgame.name} onClose={close} />
 
-        <div className="flex flex-col gap-4 p-4">
+        {/* Only while the panel is open: the drawer stays mounted when closed
+            (that is what animates it back out), and a fixed child of a closed
+            one would otherwise sit over the game. The extra bottom padding is
+            the room the button takes — without it it covers the last answer. */}
+        {open && draft === null ? (
+          <button
+            type="button"
+            onClick={startAdding}
+            aria-label="Ajouter une question"
+            className="fixed bottom-5 right-5 z-10 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-3xl font-light leading-none text-white shadow-lg transition hover:bg-indigo-500"
+          >
+            +
+          </button>
+        ) : null}
+
+        <div className="flex flex-col gap-4 p-4 pb-24">
           {draft === null ? (
             <>
               <input

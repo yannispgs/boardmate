@@ -95,3 +95,55 @@ test("reads, searches and closes the FAQ during a game", async ({ page }) => {
     await deleteFaqEntries(questions);
   }
 });
+
+/**
+ * Writing a question down without leaving the table (full-suite only): the
+ * corner « + » opens the form, and what it saves is in the list straight away —
+ * even when the search that was running would have hidden it.
+ */
+test("writes a new question from the game's FAQ panel", async ({ page }) => {
+  const players = await seedPlayers(CATAN_MIN_PLAYERS);
+  const asked = "E2E Combien de chevaliers pour l'armée ?";
+  let gameId = "";
+
+  try {
+    gameId = await funnelToPlay(page, players);
+
+    await page.getByRole("button", { name: "Ouvrir la FAQ" }).click();
+
+    const panel = page.getByRole("dialog", { name: "FAQ" });
+
+    // A search left running is no reason to lose the answer just written.
+    await panel
+      .getByPlaceholder("Un mot de la question ou de la réponse")
+      .fill("dragon");
+
+    await panel.getByRole("button", { name: "Ajouter une question" }).click();
+
+    // With no extension on the table there is one section, so nothing is asked.
+    await expect(
+      panel.getByRole("heading", { name: `Nouvelle question · ${CATAN_NAME}` }),
+    ).toBeVisible();
+
+    await panel.getByLabel("Question").fill(asked);
+    await panel.getByLabel("Réponse").fill("Trois.");
+    await panel.getByRole("button", { name: "Ajouter" }).click();
+
+    await expect(panel.getByText(asked)).toBeVisible();
+
+    // It went to the database, not just to the screen: reopening finds it.
+    await panel.getByRole("button", { name: "Fermer" }).click();
+    await page.getByRole("button", { name: "Ouvrir la FAQ" }).click();
+
+    await expect(
+      page.getByRole("dialog", { name: "FAQ" }).getByText(asked),
+    ).toBeVisible();
+  } finally {
+    const admin = adminClient();
+    if (gameId) {
+      await admin.from("games").delete().eq("id", gameId);
+    }
+    await admin.from("players").delete().in("name", players);
+    await deleteFaqEntries([asked]);
+  }
+});
