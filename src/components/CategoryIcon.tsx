@@ -164,7 +164,7 @@ const PATHS: Record<CategoryIconId, ReactNode> = {
     // it rather than sitting at the bottom.
     <path
       fillRule="evenodd"
-      d={`${DISC} M12 5.6a6.4 6.4 0 1 0 0 12.8 6.4 6.4 0 1 0 0-12.8Z M12 8.5a4.6 1.9 0 1 0 0 3.8 4.6 1.9 0 1 0 0-3.8Z`}
+      d={`${DISC} M12 5.6a6.4 6.4 0 1 0 0 12.8 6.4 6.4 0 1 0 0-12.8Z M12 8a4.6 2.4 0 1 0 0 4.8 4.6 2.4 0 1 0 0-4.8Z`}
       fill="currentColor"
       stroke="none"
     />
@@ -172,7 +172,7 @@ const PATHS: Record<CategoryIconId, ReactNode> = {
   "nest-cavity": (
     // A standing trunk split by the hollow, with the egg deep inside it.
     <path
-      d="M14.97 3.5A9 9 0 0 1 14.97 20.5Z M8.4 3.75A9 9 0 0 0 8.4 20.25Z M12.4 9.8a1.7 2.2 0 1 0 0 4.4 1.7 2.2 0 1 0 0-4.4Z"
+      d="M14.97 3.5A9 9 0 0 1 14.97 20.5Z M8.4 3.75A9 9 0 0 0 8.4 20.25Z M11.7 9.8a1.7 2.2 0 1 0 0 4.4 1.7 2.2 0 1 0 0-4.4Z"
       fill="currentColor"
       stroke="none"
     />
@@ -181,7 +181,7 @@ const PATHS: Record<CategoryIconId, ReactNode> = {
     // A clutch of eggs, packed tight and gathered in the middle of the token.
     <path
       fillRule="evenodd"
-      d={`${DISC} M9.4 8.45a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 1 0 0-2.5Z M12 8.45a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 1 0 0-2.5Z M14.6 8.45a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 1 0 0-2.5Z M8.1 10.75a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 1 0 0-2.5Z M10.7 10.75a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 1 0 0-2.5Z M13.3 10.75a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 1 0 0-2.5Z M15.9 10.75a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 1 0 0-2.5Z M9.4 13.05a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 1 0 0-2.5Z M12 13.05a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 1 0 0-2.5Z M14.6 13.05a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 1 0 0-2.5Z`}
+      d={`${DISC} M10.15 7a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z M13.85 7a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z M8.3 10.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z M12 10.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z M15.7 10.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z M10.15 13.4a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z M13.85 13.4a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z`}
       fill="currentColor"
       stroke="none"
     />
