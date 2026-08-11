@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ErrorText } from "@/components/ErrorText";
 import type { PlayerId, PopulatedGame } from "@/lib/domain";
+import { gameProgress } from "@/lib/game/game-progress";
 import { isFinalTurn, turnsPerRound } from "@/lib/game/turn";
 import { turnDurationForRound } from "@/lib/game/turn-schedule";
 import { useTurnTimer } from "@/lib/hooks/use-turn-timer";
@@ -86,7 +87,7 @@ export function PlayingGame({
   // instead of laps, and whoever is up may step out of the one being played.
   const stages = game.boardgame.stages;
   const generations = stages !== null;
-  const stageLabel = stages?.label ?? "Tour";
+  const stageLabel = gameProgress(game, stages).label;
 
   function pickBlocked(id: PlayerId | null) {
     setBlockedById(id);

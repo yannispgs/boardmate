@@ -9,6 +9,12 @@ export const CATAN_MIN_PLAYERS = 3;
 export const CATAN_ID = "78047bc0-5293-4787-be48-ba7339d48c2d";
 
 /**
+ * Terraforming Mars' fixed id (seed migration) — the one game played in
+ * generations, and the one that hands out milestones.
+ */
+export const TERRAFORMING_MARS_ID = "8eab1d62-108c-456a-8282-591195910baf";
+
+/**
  * Service-role client — **BYPASSES RLS**. Used only to seed/clean e2e fixtures
  * (players for a game), never as the app's client and never asserted against.
  */

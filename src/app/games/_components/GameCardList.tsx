@@ -2,6 +2,7 @@
 
 import { ChevronRightIcon } from "@/components/icons";
 import type { Boardgame, BoardgameId, GameListItem } from "@/lib/domain";
+import { gameProgress } from "@/lib/game/game-progress";
 import { GameCard } from "./GameCard";
 
 const headingClass =
@@ -40,6 +41,7 @@ export function GameCardList({
             game={game}
             boardgameName={boardgame?.name ?? "Partie"}
             logoUrl={boardgame?.logoUrl ?? null}
+            progress={gameProgress(game, boardgame?.stages ?? null)}
             ended={ended}
             coop={boardgame?.kind === "cooperative"}
             onAbandon={onAbandon ? () => onAbandon(game) : undefined}
