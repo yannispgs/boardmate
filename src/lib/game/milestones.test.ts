@@ -22,13 +22,28 @@ const SPEC: MilestoneSpec = {
       label: "Terraformeur",
       hint: "NT d'au moins 35",
       icon: "terraforming",
+      color: "#e2703a",
     },
-    { key: "maire", label: "Maire", hint: "Posséder 3 cités", icon: "pas-un" },
+    {
+      key: "maire",
+      label: "Maire",
+      hint: "Posséder 3 cités",
+      icon: "pas-un",
+      color: "red; background: url(x)",
+    },
     { key: "jardinier", label: "Jardinier", hint: "Posséder 3 espaces verts" },
     { key: "batisseur", label: "Bâtisseur", hint: "8 tags Construction" },
     { key: "planificateur", label: "Planificateur", hint: "16 cartes en main" },
   ],
 };
+
+/** The same spec, with one milestone wearing the colour under test. */
+function shortHex(color: string): MilestoneSpec {
+  return {
+    ...SPEC,
+    catalogue: [{ key: "seul", label: "Seul", hint: "—", icon: "star", color }],
+  };
+}
 
 function claim(playerId: PlayerId, milestoneKey: string): MilestoneClaim {
   return { playerId, milestoneKey, stage: 1 };
@@ -55,6 +70,7 @@ describe("milestoneRows", () => {
     expect(first.label).toBe("Terraformeur");
     expect(first.hint).toBe("NT d'au moins 35");
     expect(first.icon).toBe("terraforming");
+    expect(first.color).toBe("#e2703a");
   });
 
   it("drops a drawing the app doesn't ship, rather than rendering a hole", () => {
@@ -62,6 +78,17 @@ describe("milestoneRows", () => {
 
     expect(rows.find(r => r.key === "maire")?.icon).toBeNull();
     expect(rows.find(r => r.key === "jardinier")?.icon).toBeNull();
+  });
+
+  it("lets nothing but a plain hex colour reach the panel", () => {
+    const rows = milestoneRows(SPEC, []);
+
+    // The catalogue is JSONB, so it can hold anything a hand-edited row left.
+    expect(rows.find(r => r.key === "maire")?.color).toBeNull();
+    expect(rows.find(r => r.key === "jardinier")?.color).toBeNull();
+    expect(milestoneRows(shortHex("#0a0"), [])[0].color).toBe("#0a0");
+    expect(milestoneRows(shortHex("#gggggg"), [])[0].color).toBeNull();
+    expect(milestoneRows(shortHex("rebeccapurple"), [])[0].color).toBeNull();
   });
 
   it("names the claimer and closes what is taken", () => {

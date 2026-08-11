@@ -18,7 +18,8 @@ alter table public.boardgames
 
 comment on column public.boardgames.milestones is
   'Claimable milestones, as { "label", "points", "max", "scoreKey", '
-  '"catalogue": [{ "key", "label", "hint", "icon" }] }. Null when the game has none.';
+  '"catalogue": [{ "key", "label", "hint", "icon", "color" }] }. '
+  'Null when the game has none.';
 
 -- One row per milestone claimed, in one game, by one player.
 --
@@ -83,11 +84,11 @@ set milestones = '{
   "max": 3,
   "scoreKey": "jalons",
   "catalogue": [
-    { "key": "terraformeur",   "label": "Terraformeur",   "hint": "NT d''au moins 35",          "icon": "terraforming" },
-    { "key": "maire",          "label": "Maire",          "hint": "Posséder 3 cités",           "icon": "city" },
-    { "key": "jardinier",      "label": "Jardinier",      "hint": "Posséder 3 espaces verts",   "icon": "tree" },
-    { "key": "batisseur",      "label": "Bâtisseur",      "hint": "8 tags Construction",        "icon": "factory" },
-    { "key": "planificateur",  "label": "Planificateur",  "hint": "16 cartes en main",          "icon": "cards-side" }
+    { "key": "terraformeur",   "label": "Terraformeur",   "hint": "NT d''au moins 35",          "icon": "terraforming", "color": "#e2703a" },
+    { "key": "maire",          "label": "Maire",          "hint": "Posséder 3 cités",           "icon": "city",         "color": "#8b93a7" },
+    { "key": "jardinier",      "label": "Jardinier",      "hint": "Posséder 3 espaces verts",   "icon": "tree",         "color": "#4c9a5a" },
+    { "key": "batisseur",      "label": "Bâtisseur",      "hint": "8 tags Construction",        "icon": "factory",      "color": "#a87542" },
+    { "key": "planificateur",  "label": "Planificateur",  "hint": "16 cartes en main",          "icon": "cards-side",   "color": "#4a86c8" }
   ]
 }'::jsonb
 where name = 'Terraforming Mars';

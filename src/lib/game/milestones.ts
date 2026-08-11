@@ -9,6 +9,8 @@ export interface MilestoneRow {
   hint: string;
   /** The drawing shown beside the name, `null` when it reads as text alone. */
   icon: CategoryIconId | null;
+  /** The drawing's colour, `null` to leave it the panel's own. */
+  color: string | null;
   /** Who took it, or `null` while it is still free. */
   claimedBy: PlayerId | null;
   /**
@@ -42,10 +44,23 @@ export function milestoneRows(
       label: milestone.label,
       hint: milestone.hint,
       icon: isCategoryIconId(milestone.icon) ? milestone.icon : null,
+      color: hexColor(milestone.color),
       claimedBy: taken,
       open: taken === null && !full,
     };
   });
+}
+
+/**
+ * A colour the panel may hand to `style`, or `null`. The catalogue lives in
+ * JSONB, so it holds whatever a hand-edited row put there; only a plain hex gets
+ * through, and anything else falls back to the panel's own colour instead of
+ * reaching the DOM.
+ */
+function hexColor(value: string | undefined): string | null {
+  return value !== undefined && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(value)
+    ? value
+    : null;
 }
 
 /** How many more the game may claim before the last one is gone. */

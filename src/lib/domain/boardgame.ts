@@ -177,6 +177,14 @@ export interface Milestone {
    * {@link isCategoryIconId}).
    */
   icon?: string;
+  /**
+   * Optional colour for that drawing (`#rgb` / `#rrggbb`), so five line drawings
+   * are told apart by more than their shape at 28 pixels. Anything else is
+   * ignored and the drawing takes the panel's own colour — the icons stay
+   * single-colour either way, which is what lets them sit on a dark background
+   * without a second set.
+   */
+  color?: string;
 }
 
 /**

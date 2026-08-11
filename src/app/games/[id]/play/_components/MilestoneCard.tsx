@@ -40,11 +40,16 @@ export function MilestoneCard({
     <li className="flex flex-col gap-1.5 border-b border-black/5 pb-3 last:border-0 last:pb-0 dark:border-white/10">
       <div className="flex items-center gap-2">
         {row.icon === null ? null : (
-          <CategoryIcon
-            id={row.icon}
-            title={row.label}
-            className="h-5 w-5 shrink-0 text-indigo-600 dark:text-indigo-300"
-          />
+          <span
+            // Bigger than the text beside it, and coloured: the drawing is what
+            // the eye lands on first when the panel is opened to check one
+            // milestone out of five. Its colour comes from the catalogue, so a
+            // game that replaces its milestones brings its own.
+            style={row.color === null ? undefined : { color: row.color }}
+            className="shrink-0 text-indigo-600 dark:text-indigo-300"
+          >
+            <CategoryIcon id={row.icon} title={row.label} className="h-7 w-7" />
+          </span>
         )}
 
         <span className="font-medium">{row.label}</span>
