@@ -146,39 +146,42 @@ const PATHS: Record<CategoryIconId, ReactNode> = {
   // The four nest types, redrawn after the tokens themselves: a filled disc with
   // the nest punched out of it, rather than the outline the other icons use.
   // `evenodd` is what cuts the hollow, so the shape works on either theme
-  // without ever painting a background colour. The bowl is the exception — it is
-  // drawn as its own silhouette, since the token shows it in profile.
+  // without ever painting a background colour. The bowl is the exception — its
+  // cut runs edge to edge, and a straight band would spill past the disc, so it
+  // is drawn as the two caps it leaves behind.
   "nest-platform": (
-    // A horizontal bar with straight sticks stacked over it.
+    // Three straight twigs laid across the disc, upright: one standing on its
+    // own, two crossing. They run top to bottom, not along the ground.
     <path
       fillRule="evenodd"
-      d={`${DISC} M4.8 15.9h14.4v1.5H4.8Z M12.5 5.2h1.7l-.4 10.1h-1.7Z M9.96 5.24 15.26 14.84 13.94 15.56 8.64 5.96Z M15.65 5.97 10.25 15.57 8.95 14.83 14.35 5.23Z`}
+      d={`${DISC} M13.9 5h1.4v14h-1.4Z M8.92 5.35 10.28 5.05 13.28 18.65 11.92 18.95Z M12.13 5.01 13.47 5.39 9.67 18.99 8.33 18.61Z`}
       fill="currentColor"
       stroke="none"
     />
   ),
   "nest-bowl": (
-    // A bowl seen in profile — straight rim, rounded bottom — and an egg above.
+    // A bowl seen from the side: the lower cap is the bowl itself, straight rim
+    // on top and rounded bottom, with an egg floating over it.
     <path
-      d="M3.33 9.6A9 9 0 0 1 20.67 9.6Z M5.2 14h13.6c0 4.4-3 6.7-6.8 6.7S5.2 18.4 5.2 14Z M12 10.4a2.1 1.4 0 1 0 0 2.8 2.1 1.4 0 1 0 0-2.8Z"
+      d="M3.5 9.03A9 9 0 0 1 20.5 9.03Z M3.75 15.6A9 9 0 0 0 20.25 15.6Z M12 9.9a2.2 1.7 0 1 0 0 3.4 2.2 1.7 0 1 0 0-3.4Z"
       fill="currentColor"
       stroke="none"
     />
   ),
   "nest-cavity": (
-    // An oval hole in an upright trunk.
+    // A standing trunk, hollowed out, with the upright oval of the hole in it.
     <path
       fillRule="evenodd"
-      d={`${DISC} M12 5.3a5.4 6.7 0 1 0 0 13.4 5.4 6.7 0 1 0 0-13.4Z M12 8.1c1.5 1.3 1.5 6.5 0 7.8-1.5-1.3-1.5-6.5 0-7.8Z`}
+      d={`${DISC} M12 5.6a6.4 6.4 0 1 0 0 12.8 6.4 6.4 0 1 0 0-12.8Z M12 7.4a1.9 4.6 0 1 0 0 9.2 1.9 4.6 0 1 0 0-9.2Z`}
       fill="currentColor"
       stroke="none"
     />
   ),
   "nest-ground": (
-    // A clutch of eggs packed together, centred on the token.
+    // A clutch of eggs, packed tight and gathered in the middle of the token.
     <path
       fillRule="evenodd"
-      d={`${DISC} M10.05 5.8a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z M13.95 5.8a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z M8.1 9.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z M12 9.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z M15.9 9.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z M10.05 12.6a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z M13.95 12.6a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z M12 16a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z`}
+      d={`${DISC} M9.4 8.45a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 1 0 0-2.5Z M12 8.45a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 1 0 0-2.5Z M14.6 8.45a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 1 0 0-2.5Z M8.1 10.75a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 1 0 0-2.5Z M10.7 10.75a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 1 0 0-2.5Z M13.3 10.75a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 1 0 0-2.5Z M15.9 10.75a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 1 0 0-2.5Z M9.4 13.05a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 1 0 0-2.5Z M12 13.05a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 1 0 0-2.5Z M14.6 13.05a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 1 0 0-2.5Z`}
       fill="currentColor"
       stroke="none"
     />
