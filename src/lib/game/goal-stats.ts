@@ -110,7 +110,7 @@ function tally(
 /** A stable identity for a set of parameter values, whatever order they came in. */
 function paramSignature(params: Record<string, string>): string {
   return Object.keys(params)
-    .sort()
+    .sort((a, b) => a.localeCompare(b))
     .map(key => `${key}=${params[key]}`)
     .join(",");
 }
