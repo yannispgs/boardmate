@@ -77,8 +77,7 @@ export function MilestonePanel({
             seats={seats}
             points={spec.points}
             disabled={log.busy}
-            onClaim={log.claim}
-            onRelease={log.release}
+            onChange={log.setHolder}
           />
         </div>
       </Drawer>

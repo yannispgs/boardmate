@@ -12,14 +12,14 @@ export interface MilestoneLog {
   busy: boolean;
   /** Why the last tap didn't take, `null` when everything went through. */
   error: string | null;
-  claim: (milestoneKey: string, playerId: PlayerId) => Promise<void>;
-  release: (milestoneKey: string) => Promise<void>;
+  /** Hands a milestone to a player, or to nobody with `null`. */
+  setHolder: (milestoneKey: string, playerId: PlayerId | null) => Promise<void>;
 }
 
 /**
  * The milestones taken during the game (Terraforming Mars): given to a player
- * on a tap, taken back on another, each stamped with the generation it was
- * claimed in.
+ * by picking his name, taken back by picking nobody, each stamped with the
+ * generation it was claimed in.
  *
  * The list is held here and updated before the write lands, so the table sees
  * the milestone change hands at the moment somebody says they take it. A
@@ -60,21 +60,34 @@ export function useMilestones(game: PopulatedGame): MilestoneLog {
     }
   }
 
-  async function claim(milestoneKey: string, playerId: PlayerId) {
+  async function setHolder(milestoneKey: string, playerId: PlayerId | null) {
+    const held = claims.some(c => c.milestoneKey === milestoneKey);
+    const without = claims.filter(c => c.milestoneKey !== milestoneKey);
+
+    if (playerId === null) {
+      await write(without, "Impossible de retirer le jalon.", () =>
+        repo.releaseMilestone(game.id, milestoneKey),
+      );
+
+      return;
+    }
+
     await write(
-      [...claims, { playerId, milestoneKey, stage: game.stage }],
+      [...without, { playerId, milestoneKey, stage: game.stage }],
       "Impossible d'attribuer le jalon.",
-      () => repo.claimMilestone(game.id, playerId, milestoneKey),
+      async () => {
+        // Naming somebody else on a milestone already given is a correction of
+        // a misheard name, so it goes out and comes back rather than being
+        // updated in place: the claim keeps its meaning — an insert nobody else
+        // won — and the unique key still settles two phones claiming at once.
+        if (held) {
+          await repo.releaseMilestone(game.id, milestoneKey);
+        }
+
+        await repo.claimMilestone(game.id, playerId, milestoneKey);
+      },
     );
   }
 
-  async function release(milestoneKey: string) {
-    await write(
-      claims.filter(c => c.milestoneKey !== milestoneKey),
-      "Impossible de retirer le jalon.",
-      () => repo.releaseMilestone(game.id, milestoneKey),
-    );
-  }
-
-  return { claims, busy, error, claim, release };
+  return { claims, busy, error, setHolder };
 }

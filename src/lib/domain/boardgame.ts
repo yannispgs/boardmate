@@ -169,6 +169,14 @@ export interface Milestone {
   label: string;
   /** The rulebook's condition, read at the table before claiming. */
   hint: string;
+  /**
+   * Optional pictogram shown **beside** the name — not instead of it, unlike a
+   * scored line: five milestones are told apart at a glance by their drawing,
+   * but the name is what somebody says out loud when he takes one. Names one of
+   * the drawings the app ships; anything else reads as no icon at all (see
+   * {@link isCategoryIconId}).
+   */
+  icon?: string;
 }
 
 /**

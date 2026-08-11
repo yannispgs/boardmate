@@ -17,8 +17,13 @@ const SPEC: MilestoneSpec = {
   max: 3,
   scoreKey: "jalons",
   catalogue: [
-    { key: "terraformeur", label: "Terraformeur", hint: "NT d'au moins 35" },
-    { key: "maire", label: "Maire", hint: "Posséder 3 cités" },
+    {
+      key: "terraformeur",
+      label: "Terraformeur",
+      hint: "NT d'au moins 35",
+      icon: "terraforming",
+    },
+    { key: "maire", label: "Maire", hint: "Posséder 3 cités", icon: "pas-un" },
     { key: "jardinier", label: "Jardinier", hint: "Posséder 3 espaces verts" },
     { key: "batisseur", label: "Bâtisseur", hint: "8 tags Construction" },
     { key: "planificateur", label: "Planificateur", hint: "16 cartes en main" },
@@ -49,6 +54,14 @@ describe("milestoneRows", () => {
 
     expect(first.label).toBe("Terraformeur");
     expect(first.hint).toBe("NT d'au moins 35");
+    expect(first.icon).toBe("terraforming");
+  });
+
+  it("drops a drawing the app doesn't ship, rather than rendering a hole", () => {
+    const rows = milestoneRows(SPEC, []);
+
+    expect(rows.find(r => r.key === "maire")?.icon).toBeNull();
+    expect(rows.find(r => r.key === "jardinier")?.icon).toBeNull();
   });
 
   it("names the claimer and closes what is taken", () => {

@@ -18,7 +18,7 @@ alter table public.boardgames
 
 comment on column public.boardgames.milestones is
   'Claimable milestones, as { "label", "points", "max", "scoreKey", '
-  '"catalogue": [{ "key", "label", "hint" }] }. Null when the game has none.';
+  '"catalogue": [{ "key", "label", "hint", "icon" }] }. Null when the game has none.';
 
 -- One row per milestone claimed, in one game, by one player.
 --
@@ -71,6 +71,11 @@ grant select, insert, update, delete on public.game_milestones
 
 -- The five milestones of the base game (Tharsis board): three of them at most
 -- are claimed in a game, 5 VP each, and they fill the sheet's « Jalons » line.
+--
+-- Each carries one of the app's own drawings, picked for what the milestone
+-- *requires* — a city, a greenery, a building, a card, the rating going up —
+-- so the five are told apart at a glance, next to the name rather than instead
+-- of it. They are not tracings of the printed board.
 update public.boardgames
 set milestones = '{
   "label": "Jalon",
@@ -78,11 +83,11 @@ set milestones = '{
   "max": 3,
   "scoreKey": "jalons",
   "catalogue": [
-    { "key": "terraformeur",   "label": "Terraformeur",   "hint": "NT d''au moins 35" },
-    { "key": "maire",          "label": "Maire",          "hint": "Posséder 3 cités" },
-    { "key": "jardinier",      "label": "Jardinier",      "hint": "Posséder 3 espaces verts" },
-    { "key": "batisseur",      "label": "Bâtisseur",      "hint": "8 tags Construction" },
-    { "key": "planificateur",  "label": "Planificateur",  "hint": "16 cartes en main" }
+    { "key": "terraformeur",   "label": "Terraformeur",   "hint": "NT d''au moins 35",          "icon": "terraforming" },
+    { "key": "maire",          "label": "Maire",          "hint": "Posséder 3 cités",           "icon": "city" },
+    { "key": "jardinier",      "label": "Jardinier",      "hint": "Posséder 3 espaces verts",   "icon": "tree" },
+    { "key": "batisseur",      "label": "Bâtisseur",      "hint": "8 tags Construction",        "icon": "factory" },
+    { "key": "planificateur",  "label": "Planificateur",  "hint": "16 cartes en main",          "icon": "cards-side" }
   ]
 }'::jsonb
 where name = 'Terraforming Mars';

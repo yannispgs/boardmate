@@ -3,9 +3,10 @@ import type { ReactNode } from "react";
 import type { CategoryIconId } from "@/lib/game/category-icons";
 
 /**
- * The drawings a scored line can wear instead of its label. Same shape as the
- * app's other icons (24×24, `currentColor`, stroked) so they sit at the size of
- * the text they replace and follow the theme on their own.
+ * The drawings a scored line wears instead of its label, and a milestone wears
+ * beside its name. Same shape as the app's other icons (24×24, `currentColor`,
+ * stroked) so they sit at the size of the text they stand next to and follow the
+ * theme on their own.
  *
  * Keyed by a `Record` on purpose: adding an id to `CATEGORY_ICONS` without
  * drawing it here stops the build instead of shipping a blank line.
@@ -91,6 +92,30 @@ const PATHS: Record<CategoryIconId, ReactNode> = {
     <>
       <circle cx="12" cy="12" r="9" />
       <circle cx="12" cy="12" r="4" />
+    </>
+  ),
+  city: (
+    <>
+      <path d="M3 21h18" />
+      <path d="M6 21V9h5v12" />
+      <path d="M13 21V4h5v17" />
+      <path d="M8.5 12h.01" />
+      <path d="M15.5 8h.01" />
+    </>
+  ),
+  factory: (
+    <>
+      <path d="M3 21h18" />
+      <path d="M6 21v-9l5 3v-3l5 3v-3l4 2v7" />
+      <path d="M6 12V5h3v7" />
+    </>
+  ),
+  terraforming: (
+    <>
+      <circle cx="10" cy="14" r="6.5" />
+      <path d="M3.5 14h13" />
+      <path d="M19.5 11V4" />
+      <path d="m17 6.5 2.5-2.5 2.5 2.5" />
     </>
   ),
 };

@@ -56,50 +56,49 @@ test("gives out milestones from the game's left panel", async ({ page }) => {
     const panel = page.getByRole("dialog", { name: "Jalons" });
 
     await expect(panel).toBeVisible();
-    await expect(panel.getByText("Terraformeur")).toBeVisible();
-    await expect(panel.getByText("Encore 3 jalons à prendre")).toBeVisible();
-
-    // The milestone is announced out loud and given in one tap on a name.
     const terraformeur = panel.getByRole("listitem").filter({
       hasText: "Terraformeur",
     });
 
-    await terraformeur.getByRole("button", { name: names[0] }).click();
+    await expect(terraformeur).toBeVisible();
+    await expect(terraformeur.getByText("NT d'au moins 35")).toBeVisible();
+    await expect(panel.getByText("Encore 3 jalons à prendre")).toBeVisible();
+
+    // The milestone is announced out loud, then named on its own picker.
+
+    await panel
+      .getByLabel("Preneur — Terraformeur")
+      .selectOption({ label: names[0] });
 
     await expect(terraformeur.getByText("+5")).toBeVisible();
-    await expect(
-      terraformeur.getByRole("button", { name: "Retirer" }),
-    ).toBeVisible();
     await expect(panel.getByText("Encore 2 jalons à prendre")).toBeVisible();
 
     // The claim is stamped with the generation the game was in, not the lap.
-    const { data: claims } = await admin
-      .from("game_milestones")
-      .select("milestone_key, player_id, stage")
-      .eq("game_id", gameId);
+    // Polled, because the panel shows the milestone taken before the write
+    // lands — that is the point of it, and the row arrives a moment later.
+    await expect
+      .poll(async () => {
+        const { data } = await admin
+          .from("game_milestones")
+          .select("milestone_key, player_id, stage")
+          .eq("game_id", gameId);
 
-    expect(claims).toHaveLength(1);
-    expect(claims?.[0].milestone_key).toBe("terraformeur");
-    expect(claims?.[0].player_id).toBe(ids[0]);
-    expect(claims?.[0].stage).toBe(2);
+        return data ?? [];
+      })
+      .toEqual([
+        { milestone_key: "terraformeur", player_id: ids[0], stage: 2 },
+      ]);
 
     // Taking the last two closes the ones nobody took: the board only ever
-    // gives out three.
+    // gives out three, so the two left over can no longer be named.
+    await panel.getByLabel("Preneur — Maire").selectOption({ label: names[1] });
     await panel
-      .getByRole("listitem")
-      .filter({ hasText: "Maire" })
-      .getByRole("button", { name: names[1] })
-      .click();
-    await panel
-      .getByRole("listitem")
-      .filter({ hasText: "Jardinier" })
-      .getByRole("button", { name: names[2] })
-      .click();
+      .getByLabel("Preneur — Jardinier")
+      .selectOption({ label: names[2] });
 
     await expect(panel.getByText("Les 3 jalons ont été pris.")).toBeVisible();
-    await expect(
-      panel.getByText("Plus aucun jalon ne peut être pris."),
-    ).toHaveCount(2);
+    await expect(panel.getByLabel("Preneur — Bâtisseur")).toBeDisabled();
+    await expect(panel.getByLabel("Preneur — Planificateur")).toBeDisabled();
 
     // It went to the database, not just to the screen: a reload finds it.
     await page.reload();
@@ -107,20 +106,24 @@ test("gives out milestones from the game's left panel", async ({ page }) => {
 
     const reopened = page.getByRole("dialog", { name: "Jalons" });
 
-    await expect(
-      reopened
-        .getByRole("listitem")
-        .filter({ hasText: "Terraformeur" })
-        .getByText(names[0]),
-    ).toBeVisible();
+    await expect(reopened.getByLabel("Preneur — Terraformeur")).toHaveValue(
+      ids[0],
+    );
 
-    // Given to the wrong player, it can be taken back and handed over again.
+    // Given to the wrong player, it goes back to nobody on the same picker.
     await reopened
-      .getByRole("listitem")
-      .filter({ hasText: "Terraformeur" })
-      .getByRole("button", { name: "Retirer" })
-      .click();
+      .getByLabel("Preneur — Terraformeur")
+      .selectOption({ label: "— Personne —" });
 
+    await expect(reopened.getByText("Encore un jalon à prendre")).toBeVisible();
+
+    // Misheard at the table, a claim is moved to the right player in one go —
+    // the milestone stays taken, it just changes hands.
+    await reopened
+      .getByLabel("Preneur — Maire")
+      .selectOption({ label: names[0] });
+
+    await expect(reopened.getByLabel("Preneur — Maire")).toHaveValue(ids[0]);
     await expect(reopened.getByText("Encore un jalon à prendre")).toBeVisible();
 
     await reopened.getByRole("button", { name: "Fermer" }).click();
@@ -131,12 +134,13 @@ test("gives out milestones from the game's left panel", async ({ page }) => {
 
     const sheet = page.getByRole("dialog", { name: "Comptage des points" });
 
-    await expect(sheet.getByLabel(`Jalons — ${names[1]}`)).toHaveValue("5");
-    await expect(sheet.getByLabel(`Jalons — ${names[0]}`)).toHaveValue("");
+    await expect(sheet.getByLabel(`Jalons — ${names[0]}`)).toHaveValue("5");
+    await expect(sheet.getByLabel(`Jalons — ${names[2]}`)).toHaveValue("5");
+    await expect(sheet.getByLabel(`Jalons — ${names[1]}`)).toHaveValue("");
 
-    await sheet.getByLabel(`Jalons — ${names[1]}`).fill("10");
+    await sheet.getByLabel(`Jalons — ${names[0]}`).fill("10");
 
-    await expect(sheet.getByLabel(`Jalons — ${names[1]}`)).toHaveValue("10");
+    await expect(sheet.getByLabel(`Jalons — ${names[0]}`)).toHaveValue("10");
   } finally {
     if (gameId) {
       await admin.from("games").delete().eq("id", gameId);

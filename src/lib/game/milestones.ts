@@ -1,10 +1,14 @@
 import type { MilestoneClaim, MilestoneSpec, PlayerId } from "@/lib/domain";
 
+import { type CategoryIconId, isCategoryIconId } from "./category-icons";
+
 /** A milestone as the panel shows it: its name, and who has it if anyone. */
 export interface MilestoneRow {
   key: string;
   label: string;
   hint: string;
+  /** The drawing shown beside the name, `null` when it reads as text alone. */
+  icon: CategoryIconId | null;
   /** Who took it, or `null` while it is still free. */
   claimedBy: PlayerId | null;
   /**
@@ -37,6 +41,7 @@ export function milestoneRows(
       key: milestone.key,
       label: milestone.label,
       hint: milestone.hint,
+      icon: isCategoryIconId(milestone.icon) ? milestone.icon : null,
       claimedBy: taken,
       open: taken === null && !full,
     };

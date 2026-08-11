@@ -3,10 +3,15 @@ import type { CategoryDef, ScoreSheetItem } from "@/lib/domain";
 import { sheetCategories } from "./scoring";
 
 /**
- * The pictograms a scored line can be labelled with, shipped as SVGs inside the
- * app rather than uploaded images: no public bucket to secure, they stay crisp
- * on any screen, they follow the light/dark theme through `currentColor`, and a
- * sheet can never point at a file somebody deleted.
+ * The pictograms the app ships, shipped as SVGs rather than uploaded images: no
+ * public bucket to secure, they stay crisp on any screen, they follow the
+ * light/dark theme through `currentColor`, and a sheet can never point at a file
+ * somebody deleted.
+ *
+ * One catalogue serves everything a boardgame labels with a drawing — the scored
+ * lines of a final sheet, and the milestones of a game that hands them out —
+ * because the same shapes come up in both (a game scoring « Cités » is a game
+ * whose milestones talk about cities).
  *
  * `name` is what the picker calls the drawing, so the author knows what he is
  * choosing; it is *not* what the score sheet shows — a line always reads under
@@ -27,6 +32,9 @@ export const CATEGORY_ICONS = [
   { id: "wheat", name: "Graine" },
   { id: "star", name: "Étoile" },
   { id: "coin", name: "Jeton" },
+  { id: "city", name: "Cité" },
+  { id: "factory", name: "Construction" },
+  { id: "terraforming", name: "Terraformation" },
 ] as const;
 
 /** One of the drawings the app ships. */

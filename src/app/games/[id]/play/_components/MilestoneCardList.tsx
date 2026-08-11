@@ -9,15 +9,13 @@ export function MilestoneCardList({
   seats,
   points,
   disabled,
-  onClaim,
-  onRelease,
+  onChange,
 }: Readonly<{
   rows: MilestoneRow[];
   seats: ReadonlyArray<{ id: PlayerId; name: string }>;
   points: number;
   disabled: boolean;
-  onClaim: (milestoneKey: string, playerId: PlayerId) => void;
-  onRelease: (milestoneKey: string) => void;
+  onChange: (milestoneKey: string, playerId: PlayerId | null) => void;
 }>) {
   return (
     <ul className="flex flex-col gap-3">
@@ -28,8 +26,7 @@ export function MilestoneCardList({
           seats={seats}
           points={points}
           disabled={disabled}
-          onClaim={playerId => onClaim(row.key, playerId)}
-          onRelease={() => onRelease(row.key)}
+          onChange={playerId => onChange(row.key, playerId)}
         />
       ))}
     </ul>

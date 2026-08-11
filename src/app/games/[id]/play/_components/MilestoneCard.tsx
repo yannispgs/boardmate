@@ -1,112 +1,86 @@
+import { CategoryIcon } from "@/components/CategoryIcon";
+import { fieldClass } from "@/components/ui";
 import type { PlayerId } from "@/lib/domain";
 import type { MilestoneRow } from "@/lib/game/milestones";
 
 /** The table, reduced to what naming a claimer needs. */
 type Seats = ReadonlyArray<{ id: PlayerId; name: string }>;
 
+/** What the picker calls the empty choice — a milestone nobody has taken. */
+const NOBODY = "— Personne —";
+
 /**
- * One milestone: what it is, what it takes, and who has it. Free and still
- * claimable, it shows the table as buttons — the milestone is announced out
- * loud and given in one tap, without a name picker in between. Taken, it shows
- * the holder and the way to take it back, because the wrong name gets tapped.
+ * One milestone: its drawing, its name, what it takes, and a picker naming who
+ * has it.
+ *
+ * A picker rather than one button per player: five seats of buttons wrap onto
+ * three lines and push the next milestone off the screen, where a closed picker
+ * is one line whatever the table's size. It also gives « personne » and « the
+ * other player » the same gesture as claiming — the wrong name gets picked, and
+ * correcting it shouldn't be a different control.
  */
 export function MilestoneCard({
   row,
   seats,
   points,
   disabled,
-  onClaim,
-  onRelease,
+  onChange,
 }: Readonly<{
   row: MilestoneRow;
   seats: Seats;
-  /** What holding it is worth, shown on the claimed card. */
+  /** What holding it is worth, shown once it has a holder. */
   points: number;
-  /** A write is already in flight — no second tap until it lands. */
+  /** A write is already in flight — no second change until it lands. */
   disabled: boolean;
-  onClaim: (playerId: PlayerId) => void;
-  onRelease: () => void;
+  onChange: (playerId: PlayerId | null) => void;
 }>) {
-  const holder = seats.find(s => s.id === row.claimedBy);
+  const claimed = row.claimedBy !== null;
 
   return (
-    <li className="flex flex-col gap-2 rounded-lg border border-black/10 p-3 dark:border-white/15">
-      <div className="flex items-baseline justify-between gap-2">
+    <li className="flex flex-col gap-1.5 border-b border-black/5 pb-3 last:border-0 last:pb-0 dark:border-white/10">
+      <div className="flex items-center gap-2">
+        {row.icon === null ? null : (
+          <CategoryIcon
+            id={row.icon}
+            title={row.label}
+            className="h-5 w-5 shrink-0 text-indigo-600 dark:text-indigo-300"
+          />
+        )}
+
         <span className="font-medium">{row.label}</span>
 
-        {row.claimedBy === null ? null : (
-          <span className="shrink-0 text-sm font-semibold tabular-nums text-indigo-600 dark:text-indigo-300">
+        {claimed ? (
+          <span className="ml-auto shrink-0 text-sm font-semibold tabular-nums text-indigo-600 dark:text-indigo-300">
             {`+${points}`}
           </span>
-        )}
+        ) : null}
       </div>
 
       <p className="text-xs text-zinc-500 dark:text-zinc-400">{row.hint}</p>
 
-      {row.claimedBy !== null ? (
-        <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-sm font-semibold">
-            {holder?.name ?? "Joueur retiré"}
-          </span>
+      <select
+        aria-label={`Preneur — ${row.label}`}
+        value={row.claimedBy ?? ""}
+        // Nobody is the empty value, so the picker has a way back to it.
+        onChange={e => onChange((e.target.value || null) as PlayerId | null)}
+        // Closed once the game has given out its last one: the remaining
+        // milestones stay listed, as the board still shows them, but greyed.
+        disabled={disabled || (!claimed && !row.open)}
+        className={`${fieldClass} w-full bg-transparent disabled:opacity-50`}
+      >
+        <option value="">{NOBODY}</option>
 
-          <button
-            type="button"
-            onClick={onRelease}
-            disabled={disabled}
-            className="shrink-0 rounded-lg border border-black/10 px-2 py-1 text-xs transition hover:bg-black/5 disabled:opacity-50 dark:border-white/15 dark:hover:bg-white/5"
-          >
-            Retirer
-          </button>
-        </div>
-      ) : (
-        <MilestoneClaimRow
-          seats={seats}
-          open={row.open}
-          disabled={disabled}
-          onClaim={onClaim}
-        />
-      )}
+        {seats.map(seat => (
+          <option key={seat.id} value={seat.id}>
+            {seat.name}
+          </option>
+        ))}
+
+        {/* A claimer who has since left the table still has to read back. */}
+        {claimed && !seats.some(s => s.id === row.claimedBy) ? (
+          <option value={row.claimedBy as string}>Joueur retiré</option>
+        ) : null}
+      </select>
     </li>
-  );
-}
-
-/**
- * The way a free milestone is handed out: one button per seat. Once the game
- * has claimed its last milestone the remaining ones can no longer be taken —
- * they stay listed (the board still shows them) but say why instead.
- */
-function MilestoneClaimRow({
-  seats,
-  open,
-  disabled,
-  onClaim,
-}: Readonly<{
-  seats: Seats;
-  open: boolean;
-  disabled: boolean;
-  onClaim: (playerId: PlayerId) => void;
-}>) {
-  if (!open) {
-    return (
-      <p className="text-xs text-zinc-400 dark:text-zinc-500">
-        Plus aucun jalon ne peut être pris.
-      </p>
-    );
-  }
-
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {seats.map(seat => (
-        <button
-          key={seat.id}
-          type="button"
-          onClick={() => onClaim(seat.id)}
-          disabled={disabled}
-          className="rounded-full border border-black/10 px-3 py-1 text-xs transition hover:bg-indigo-600 hover:text-white disabled:opacity-50 dark:border-white/15"
-        >
-          {seat.name}
-        </button>
-      ))}
-    </div>
   );
 }
