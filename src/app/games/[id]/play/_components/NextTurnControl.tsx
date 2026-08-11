@@ -33,32 +33,32 @@ export function NextTurnControl({
   }
 
   return (
-    <div className="flex w-full max-w-xs flex-col gap-3">
+    // Side by side, "Passe" on the left at a third of the width: it is the way
+    // out, not the way on, and the size says so before the label does.
+    <div className="flex w-full max-w-sm items-stretch gap-3">
+      {onPass === null ? null : (
+        <HoldButton
+          onHold={onPass}
+          disabled={disabled}
+          className="flex-1 gap-2 rounded-xl border border-zinc-300 px-3 py-3 text-base font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          <span className="flex flex-col items-center leading-tight">
+            <span>Passe</span>
+            <span className="text-xs font-normal opacity-60">maintenir</span>
+          </span>
+        </HoldButton>
+      )}
+
       {/* Wrapped, not passed straight through: the click event would otherwise
           land as the handler's first argument. */}
       <button
         type="button"
         onClick={() => onNext()}
         disabled={disabled}
-        className="w-full rounded-xl bg-indigo-600 px-6 py-4 text-lg font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
+        className="flex-[2] rounded-xl bg-indigo-600 px-6 py-4 text-lg font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
       >
         Tour suivant →
       </button>
-
-      {onPass === null ? null : (
-        <HoldButton
-          onHold={onPass}
-          disabled={disabled}
-          className="w-full rounded-xl border border-zinc-300 px-6 py-3 text-base font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
-        >
-          <span className="flex flex-col items-center leading-tight">
-            <span>Passe</span>
-            <span className="text-xs font-normal opacity-60">
-              maintenir 1 s
-            </span>
-          </span>
-        </HoldButton>
-      )}
     </div>
   );
 }

@@ -83,11 +83,17 @@ export function HoldButton({
       // selection callout on iOS, both of which abort the hold.
       onContextMenu={e => e.preventDefault()}
       style={{ touchAction: "none" }}
-      className={`relative flex select-none items-center justify-center gap-3 ${className}`}
+      className={`flex select-none items-center justify-center ${className}`}
     >
       {children}
 
-      <svg width={24} height={24} viewBox="0 0 24 24" aria-hidden>
+      <svg
+        width={24}
+        height={24}
+        viewBox="0 0 24 24"
+        className="shrink-0"
+        aria-hidden
+      >
         <title>Progression de l'appui</title>
         <circle
           cx="12"
