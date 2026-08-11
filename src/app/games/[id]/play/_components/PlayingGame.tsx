@@ -2,8 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import type { ConfirmRequest } from "@/components/ConfirmDialog";
-import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ErrorText } from "@/components/ErrorText";
 import type { PlayerId, PopulatedGame } from "@/lib/domain";
 import { isFinalTurn, turnsPerRound } from "@/lib/game/turn";
@@ -50,9 +48,6 @@ export function PlayingGame({
   // holds when they were tapped, to time the wait (tap → advance).
   const [blockedById, setBlockedById] = useState<PlayerId | null>(null);
   const blockedAtRef = useRef<number | null>(null);
-  // Passing costs a player the rest of the generation and the app offers no way
-  // back, so a mistap has to be caught before it lands.
-  const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
 
   // Keep the screen awake while a turn is actively running; let it sleep on
   // pause / once the game ends, to spare the battery.
@@ -130,18 +125,11 @@ export function PlayingGame({
     });
   }
 
-  function askToPass() {
-    setConfirm({
-      // Named by the next stage rather than "the current one": it says the same
-      // thing and reads right whatever the game calls a generation.
-      message: `${game.currentPlayer?.name ?? "Ce joueur"} passe : plus de tour avant ${stageLabel} ${game.stage + 1}. Confirmer ?`,
-      confirmLabel: "Passe",
-      onConfirm: () => {
-        setConfirm(null);
-
-        return handleNext(true);
-      },
-    });
+  // Passing costs a player the rest of the generation and the app offers no way
+  // back — the button it comes from has to be held down, so the deliberate press
+  // is the confirmation and nothing more is asked here.
+  function pass() {
+    void handleNext(true);
   }
 
   // Counting the points takes over the whole screen, up to the recap.
@@ -194,7 +182,7 @@ export function PlayingGame({
           atFinalTurn={atFinalTurn}
           disabled={play.busy}
           onNext={handleNext}
-          onPass={generations ? askToPass : null}
+          onPass={generations ? pass : null}
         />
       )}
 
@@ -211,15 +199,6 @@ export function PlayingGame({
 
       {canEnd ? (
         <EndControls game={game} flow={flow} disabled={play.busy} />
-      ) : null}
-
-      {confirm ? (
-        <ConfirmDialog
-          message={confirm.message}
-          confirmLabel={confirm.confirmLabel}
-          onConfirm={confirm.onConfirm}
-          onCancel={() => setConfirm(null)}
-        />
       ) : null}
     </div>
   );

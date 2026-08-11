@@ -1,5 +1,7 @@
 "use client";
 
+import { HoldButton } from "@/components/HoldButton";
+
 /**
  * Hands the table over to the next player — or, on the last turn of a
  * fixed-length game, says so instead: there is nothing left to advance to and
@@ -7,7 +9,8 @@
  *
  * A game played in generations offers a second way out of the turn: passing,
  * which ends the current player's generation. He is skipped until everyone has
- * passed and the next generation opens.
+ * passed and the next generation opens. Since that cannot be undone, passing
+ * takes a **held** press rather than a tap — see {@link HoldButton}.
  */
 export function NextTurnControl({
   atFinalTurn,
@@ -43,14 +46,18 @@ export function NextTurnControl({
       </button>
 
       {onPass === null ? null : (
-        <button
-          type="button"
-          onClick={() => onPass()}
+        <HoldButton
+          onHold={onPass}
           disabled={disabled}
           className="w-full rounded-xl border border-zinc-300 px-6 py-3 text-base font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
         >
-          Passe
-        </button>
+          <span className="flex flex-col items-center leading-tight">
+            Passe
+            <span className="text-xs font-normal opacity-60">
+              maintenir 1 s
+            </span>
+          </span>
+        </HoldButton>
       )}
     </div>
   );
