@@ -13,13 +13,16 @@ import { EndControls } from "./EndControls";
 import { EndFlow } from "./EndFlow";
 import { FaqPanel } from "./FaqPanel";
 import { LiveScoreSection } from "./LiveScoreSection";
+import { MilestonePanel } from "./MilestonePanel";
 import { NextTurnControl } from "./NextTurnControl";
+import { namedPlayers } from "./named-players";
 import { PlayBlock } from "./PlayBlock";
 import { PlayStats } from "./PlayStats";
 import { TimeHogBanner } from "./TimeHogBanner";
 import { useDiceLog } from "./use-dice-log";
 import { useEndFlow } from "./use-end-flow";
 import { useLiveScores } from "./use-live-scores";
+import { useMilestones } from "./use-milestones";
 import type { PlayGame } from "./use-play-game";
 import { usePlaySounds } from "./use-play-sounds";
 
@@ -38,6 +41,7 @@ export function PlayingGame({
   const flow = useEndFlow(game, play);
   const live = useLiveScores(game, play);
   const dice = useDiceLog(game, play);
+  const milestones = useMilestones(game);
 
   usePlaySounds();
 
@@ -87,6 +91,11 @@ export function PlayingGame({
   const stages = game.boardgame.stages;
   const generations = stages !== null;
   const stageLabel = stages?.label ?? "Tour";
+
+  // Milestones are handed out during the game, from the left-edge panel — the
+  // edge that belongs to the game on the table. Null for every game that has
+  // none, which is every game but Terraforming Mars today.
+  const milestoneSpec = game.boardgame.milestones;
 
   function pickBlocked(id: PlayerId | null) {
     setBlockedById(id);
@@ -188,6 +197,15 @@ export function PlayingGame({
 
       <FaqPanel boardgame={game.boardgame} extensions={game.extensions} />
 
+      {milestoneSpec === null ? null : (
+        <MilestonePanel
+          spec={milestoneSpec}
+          gameName={game.boardgame.name}
+          seats={namedPlayers(game)}
+          log={milestones}
+        />
+      )}
+
       <PlayStats game={game} rolls={dice.rolls} />
 
       <LiveScoreSection
@@ -198,7 +216,12 @@ export function PlayingGame({
       />
 
       {canEnd ? (
-        <EndControls game={game} flow={flow} disabled={play.busy} />
+        <EndControls
+          game={game}
+          flow={flow}
+          milestoneClaims={milestones.claims}
+          disabled={play.busy}
+        />
       ) : null}
     </div>
   );

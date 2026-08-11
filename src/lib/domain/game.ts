@@ -134,6 +134,18 @@ export interface StagePass {
   stage: number;
 }
 
+/**
+ * One milestone taken, by one player. Claimed during the game and never
+ * re-claimable by anybody else, so the set of these *is* the state of the
+ * board's milestone row. `stage` is the generation it was taken in — kept for
+ * the stats, null in a game not played in generations.
+ */
+export interface MilestoneClaim {
+  playerId: PlayerId;
+  milestoneKey: string;
+  stage: number | null;
+}
+
 /** One recorded score change (live scoring), for the evolution timeline. */
 export interface ScoreEvent {
   playerId: PlayerId;
@@ -188,6 +200,11 @@ export interface PopulatedGame extends Game {
    * lap-based game, where nobody can pass).
    */
   stagePasses: StagePass[];
+  /**
+   * The milestones claimed this game (empty when the game offers none, or when
+   * nobody has taken one yet).
+   */
+  milestoneClaims: MilestoneClaim[];
 }
 
 /**

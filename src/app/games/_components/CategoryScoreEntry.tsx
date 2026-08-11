@@ -21,17 +21,24 @@ import {
 export function CategoryScoreEntry({
   players,
   sheet,
+  initial,
   onSubmit,
   onCancel,
   disabled,
 }: Readonly<{
   players: { id: PlayerId; name: string }[];
   sheet: ScoreSheetItem[];
+  /**
+   * Cells the game already knows the answer to (the milestones taken during
+   * play). They open filled in and stay editable like any other — what was
+   * tracked is a head start, not a verdict.
+   */
+  initial?: CategoryRaw;
   onSubmit: (values: Record<string, Record<string, number>>) => void;
   onCancel: () => void;
   disabled: boolean;
 }>) {
-  const [raw, setRaw] = useState<CategoryRaw>({});
+  const [raw, setRaw] = useState<CategoryRaw>(() => initial ?? {});
 
   const remaining = gridRemaining(players, sheet, raw);
   const complete = remaining === 0;

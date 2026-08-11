@@ -8,6 +8,7 @@ import type {
   GameId,
   PlayerId,
 } from "@/lib/domain";
+import { AlreadyClaimedError } from "@/lib/repositories/errors";
 import { createGameRepository } from "@/lib/supabase/repositories/games";
 import {
   authedClient,
@@ -395,6 +396,68 @@ describe("games adapter — generations (Terraforming Mars)", () => {
     expect(p?.turn).toBe(7);
     expect(p?.turns.filter(t => t.stage === 2)).toHaveLength(1);
     expect(p?.currentPlayer?.id).toBe(playerIds[2]);
+  });
+
+  it("hands milestones out one claimer at a time, stamped with the generation", async () => {
+    const game = await repo().create({
+      boardgameId: marsId,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    await repo().claimMilestone(game.id, playerIds[0], "terraformeur");
+
+    let p = await repo().getPopulated(game.id);
+
+    expect(p?.milestoneClaims).toEqual([
+      { playerId: playerIds[0], milestoneKey: "terraformeur", stage: 1 },
+    ]);
+
+    // Two phones tapping at the same moment: only the first one may win, and
+    // the second is told so rather than quietly overwriting the claimer.
+    await expect(
+      repo().claimMilestone(game.id, playerIds[1], "terraformeur"),
+    ).rejects.toThrow(AlreadyClaimedError);
+
+    // Anything else the database refuses stays a plain failure: only a taken
+    // milestone is worth telling the table about specifically.
+    const ghost = "00000000-0000-0000-0000-000000000000" as PlayerId;
+
+    await expect(
+      repo().claimMilestone(game.id, ghost, "maire"),
+    ).rejects.not.toThrow(AlreadyClaimedError);
+
+    // The generation the claim is stamped with is the one it was taken in.
+    await repo().advanceTurn(game.id, 10, 0, 0, 0, {
+      generations: true,
+      passing: true,
+    });
+    await repo().advanceTurn(game.id, 10, 0, 0, 0, {
+      generations: true,
+      passing: true,
+    });
+    await repo().advanceTurn(game.id, 10, 0, 0, 0, {
+      generations: true,
+      passing: true,
+    });
+    await repo().claimMilestone(game.id, playerIds[1], "maire");
+
+    p = await repo().getPopulated(game.id);
+
+    expect(p?.stage).toBe(2);
+    expect(p?.milestoneClaims.map(c => c.stage)).toEqual([1, 2]);
+
+    // Given to the wrong player, it goes back and can be handed over again.
+    await repo().releaseMilestone(game.id, "terraformeur");
+    await repo().claimMilestone(game.id, playerIds[2], "terraformeur");
+
+    p = await repo().getPopulated(game.id);
+
+    expect(p?.milestoneClaims).toHaveLength(2);
+    expect(
+      p?.milestoneClaims.find(c => c.milestoneKey === "terraformeur")?.playerId,
+    ).toBe(playerIds[2]);
   });
 });
 
