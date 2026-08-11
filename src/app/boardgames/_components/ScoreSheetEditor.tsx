@@ -109,7 +109,7 @@ export function ScoreSheetEditor({
         isSubsection(item) ? (
           <SectionRow
             // biome-ignore lint/suspicious/noArrayIndexKey: sections carry no stable id; a section is identified by where it sits.
-            key={`section-${i}`}
+            key={`section-${i}`} // NOSONAR: same reason as the biome-ignore above.
             section={item}
             onChange={s => replace(i, s)}
             onMove={direction => moveAt(i, direction)}

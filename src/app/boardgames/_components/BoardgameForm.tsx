@@ -468,7 +468,7 @@ export function BoardgameForm({
       />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <label className="flex flex-col gap-1 text-xs text-zinc-500">
-          Joueurs min
+          <span>Joueurs min</span>
           <input
             type="number"
             min={1}
@@ -478,7 +478,7 @@ export function BoardgameForm({
           />
         </label>
         <label className="flex flex-col gap-1 text-xs text-zinc-500">
-          Joueurs max
+          <span>Joueurs max</span>
           <input
             type="number"
             min={1}
@@ -488,7 +488,7 @@ export function BoardgameForm({
           />
         </label>
         <label className="flex flex-col gap-1 text-xs text-zinc-500">
-          Conseillé min
+          <span>Conseillé min</span>
           <input
             type="number"
             min={1}
@@ -498,7 +498,7 @@ export function BoardgameForm({
           />
         </label>
         <label className="flex flex-col gap-1 text-xs text-zinc-500">
-          Conseillé max
+          <span>Conseillé max</span>
           <input
             type="number"
             min={1}
@@ -510,7 +510,7 @@ export function BoardgameForm({
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-xs text-zinc-500">
-          Durée moyenne (min)
+          <span>Durée moyenne (min)</span>
           <input
             type="number"
             min={0}
@@ -520,7 +520,7 @@ export function BoardgameForm({
           />
         </label>
         <label className="flex flex-col gap-1 text-xs text-zinc-500">
-          Nombre de tours (vide = illimité)
+          <span>Nombre de tours (vide = illimité)</span>
           <input
             type="number"
             min={1}
@@ -530,7 +530,7 @@ export function BoardgameForm({
           />
         </label>
         <label className="flex flex-col gap-1 text-xs text-zinc-500">
-          Tags (séparés par des virgules)
+          <span>Tags (séparés par des virgules)</span>
           <input
             value={form.tags}
             onChange={e => setForm({ ...form, tags: e.target.value })}
@@ -541,7 +541,7 @@ export function BoardgameForm({
       </div>
 
       <label className="flex flex-col gap-1 text-xs text-zinc-500">
-        Mode de jeu
+        <span>Mode de jeu</span>
         <select
           value={form.turnMode}
           onChange={e =>
@@ -559,7 +559,7 @@ export function BoardgameForm({
       </label>
 
       <label className="flex flex-col gap-1 text-xs text-zinc-500">
-        Type de jeu
+        <span>Type de jeu</span>
         <select
           value={form.kind}
           onChange={e =>
@@ -657,12 +657,12 @@ export function BoardgameForm({
             checked={form.diceTracked}
             onChange={e => setForm({ ...form, diceTracked: e.target.checked })}
           />
-          Suivre les lancers de dés
+          <span>Suivre les lancers de dés</span>
         </label>
         {form.diceTracked ? (
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1 text-xs text-zinc-500">
-              Nombre de dés
+              <span>Nombre de dés</span>
               <input
                 type="number"
                 min={1}
@@ -672,7 +672,7 @@ export function BoardgameForm({
               />
             </label>
             <label className="flex flex-col gap-1 text-xs text-zinc-500">
-              Faces par dé
+              <span>Faces par dé</span>
               <input
                 type="number"
                 min={2}
@@ -743,7 +743,7 @@ export function BoardgameForm({
             checked={form.scored}
             onChange={e => setForm({ ...form, scored: e.target.checked })}
           />
-          Ce jeu se joue avec des points
+          <span>Ce jeu se joue avec des points</span>
         </label>
 
         {form.scored ? (
@@ -778,7 +778,7 @@ export function BoardgameForm({
                 </select>
               </label>
               <label className="flex flex-col gap-1 text-xs text-zinc-500">
-                Condition de victoire
+                <span>Condition de victoire</span>
                 <select
                   value={form.winKind}
                   onChange={e =>
@@ -799,7 +799,7 @@ export function BoardgameForm({
             </div>
 
             <label className="flex flex-col gap-1 text-xs text-zinc-500">
-              Décompte des points
+              <span>Décompte des points</span>
               <select
                 value={form.entry}
                 onChange={e =>
@@ -898,7 +898,7 @@ export function BoardgameForm({
           Annuler
         </button>
         {saved ? (
-          <span
+          <span // NOSONAR: accessibility is out of scope; no <output> here.
             role="status"
             className="flex items-center text-sm font-medium text-emerald-600 dark:text-emerald-400"
           >

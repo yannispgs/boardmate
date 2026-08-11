@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-interface UseTurnTimer {
+export interface UseTurnTimer {
   /** Active seconds elapsed this turn (paused time excluded). */
   elapsedS: number;
   running: boolean;

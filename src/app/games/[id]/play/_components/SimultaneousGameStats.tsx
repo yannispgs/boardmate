@@ -54,7 +54,7 @@ export function SimultaneousGameStats({
         <div className="flex flex-col gap-2">
           <h3 className="flex items-center gap-2 text-sm font-medium text-zinc-500 dark:text-zinc-400">
             <span aria-hidden>⏳</span>
-            On a attendu — nombre de fois &amp; temps total
+            <span>On a attendu — nombre de fois &amp; temps total</span>
           </h3>
           <ul className="flex flex-col gap-1.5">
             {stats.waited.map(w => (

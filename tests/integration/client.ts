@@ -43,7 +43,9 @@ export interface TestUser {
  */
 export async function createTestUser(): Promise<TestUser> {
   const admin = serviceClient();
-  const email = `test_${Date.now()}_${Math.random().toString(36).slice(2)}@example.com`;
+  // This address only has to be unique within a test run, never unguessable —
+  // the password on the next line is a fixed literal anyway.
+  const email = `test_${Date.now()}_${Math.random().toString(36).slice(2)}@example.com`; // NOSONAR
   const password = "test-password-123456";
 
   const { data: created, error: createErr } = await admin.auth.admin.createUser(

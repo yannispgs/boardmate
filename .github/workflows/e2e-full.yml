@@ -34,7 +34,11 @@ jobs:
       - name: Install Playwright browsers & system deps
         # Both engines: Chromium and WebKit. --with-deps pulls the OS libraries
         # and fonts each needs.
-        run: yarn playwright install --with-deps chromium webkit
+        #
+        # Sonar reads the word "install" here as a dependency install and asks
+        # for lifecycle scripts to be disabled; this is Playwright downloading
+        # browsers, and no package is installed at all.
+        run: yarn playwright install --with-deps chromium webkit # NOSONAR
       - name: Start local Supabase (Docker)
         # Same local stack as the integration/critical suites; the mail catcher
         # receives the login OTP that the auth journey reads back.

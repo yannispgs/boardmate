@@ -111,7 +111,7 @@ export function ConfigTemplateEditor({
         {fields.map((field, i) => (
           <li
             // biome-ignore lint/suspicious/noArrayIndexKey: fields carry no stable id while editing
-            key={i}
+            key={i} // NOSONAR: same reason as the biome-ignore above.
             className="flex flex-col gap-2 rounded-lg border border-black/10 p-3 dark:border-white/10"
           >
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -216,7 +216,7 @@ function FieldExtras({
     return (
       <div className="grid grid-cols-3 gap-2">
         <label className="flex flex-col gap-0.5 text-[11px] text-zinc-500">
-          Min
+          <span>Min</span>
           <input
             type="number"
             value={field.min ?? ""}
@@ -225,7 +225,7 @@ function FieldExtras({
           />
         </label>
         <label className="flex flex-col gap-0.5 text-[11px] text-zinc-500">
-          Max
+          <span>Max</span>
           <input
             type="number"
             value={field.max ?? ""}
@@ -234,7 +234,7 @@ function FieldExtras({
           />
         </label>
         <label className="flex flex-col gap-0.5 text-[11px] text-zinc-500">
-          Défaut
+          <span>Défaut</span>
           <input
             type="number"
             value={field.default ?? ""}
@@ -249,7 +249,7 @@ function FieldExtras({
   if (field.type === "text") {
     return (
       <label className="flex flex-col gap-0.5 text-[11px] text-zinc-500">
-        Valeur par défaut
+        <span>Valeur par défaut</span>
         <input
           value={field.default ?? ""}
           onChange={e => patch(i, { default: e.target.value })}
@@ -268,10 +268,12 @@ function FieldExtras({
             checked={field.default === true}
             onChange={e => patch(i, { default: e.target.checked })}
           />
-          Coché par défaut
+          <span>Coché par défaut</span>
         </label>
         <label className="flex flex-col gap-0.5 text-[11px] text-zinc-500">
-          Points ajoutés au score à atteindre quand l&apos;option est active
+          <span>
+            Points ajoutés au score à atteindre quand l&apos;option est active
+          </span>
           <input
             type="number"
             min={0}
@@ -294,7 +296,7 @@ function FieldExtras({
         {options.map((opt, oi) => (
           <div
             // biome-ignore lint/suspicious/noArrayIndexKey: options carry no stable id while editing
-            key={oi}
+            key={oi} // NOSONAR: same reason as the biome-ignore above.
             className="flex gap-2"
           >
             <input

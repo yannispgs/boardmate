@@ -19,4 +19,11 @@ runs:
 
     - name: Install dependencies
       shell: bash
-      run: yarn install --immutable
+      # Sonar asks here for lifecycle scripts to be turned off, on the grounds
+      # that Yarn v2+ enables them by default. That stopped being true: Yarn
+      # 4.16 ships `enableScripts: false` as its own default (`yarn config
+      # enableScripts` reports source `<default>`), so nothing here runs a
+      # package's install script already. Passing `--mode=skip-build` on top
+      # would only restate the default and hide the day a dependency genuinely
+      # needs building.
+      run: yarn install --immutable # NOSONAR
