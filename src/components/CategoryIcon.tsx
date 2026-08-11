@@ -146,33 +146,33 @@ const PATHS: Record<CategoryIconId, ReactNode> = {
   // The four nest types, redrawn after the tokens themselves: a filled disc with
   // the nest punched out of it, rather than the outline the other icons use.
   // `evenodd` is what cuts the hollow, so the shape works on either theme
-  // without ever painting a background colour. The bowl is the exception — its
+  // without ever painting a background colour. The cavity is the exception — its
   // cut runs edge to edge, and a straight band would spill past the disc, so it
   // is drawn as the two caps it leaves behind.
   "nest-platform": (
-    // Three straight twigs laid across the disc, upright: one standing on its
-    // own, two crossing. They run top to bottom, not along the ground.
+    // Three straight twigs laid flat across the disc: one lying on its own, two
+    // crossing over it.
     <path
       fillRule="evenodd"
-      d={`${DISC} M13.9 5h1.4v14h-1.4Z M8.92 5.35 10.28 5.05 13.28 18.65 11.92 18.95Z M12.13 5.01 13.47 5.39 9.67 18.99 8.33 18.61Z`}
+      d={`${DISC} M5 13.9h14v1.4H5Z M18.65 8.92 18.95 10.28 5.35 13.28 5.05 11.92Z M18.99 12.13 18.61 13.47 5.01 9.67 5.39 8.33Z`}
       fill="currentColor"
       stroke="none"
     />
   ),
   "nest-bowl": (
-    // A bowl seen from the side: the lower cap is the bowl itself, straight rim
-    // on top and rounded bottom, with an egg floating over it.
+    // The cup of the bowl hollowed out of the disc, with the egg riding high in
+    // it rather than sitting at the bottom.
     <path
-      d="M3.5 9.03A9 9 0 0 1 20.5 9.03Z M3.75 15.6A9 9 0 0 0 20.25 15.6Z M12 9.9a2.2 1.7 0 1 0 0 3.4 2.2 1.7 0 1 0 0-3.4Z"
+      fillRule="evenodd"
+      d={`${DISC} M12 5.6a6.4 6.4 0 1 0 0 12.8 6.4 6.4 0 1 0 0-12.8Z M12 8.5a4.6 1.9 0 1 0 0 3.8 4.6 1.9 0 1 0 0-3.8Z`}
       fill="currentColor"
       stroke="none"
     />
   ),
   "nest-cavity": (
-    // A standing trunk, hollowed out, with the upright oval of the hole in it.
+    // A standing trunk split by the hollow, with the egg deep inside it.
     <path
-      fillRule="evenodd"
-      d={`${DISC} M12 5.6a6.4 6.4 0 1 0 0 12.8 6.4 6.4 0 1 0 0-12.8Z M12 7.4a1.9 4.6 0 1 0 0 9.2 1.9 4.6 0 1 0 0-9.2Z`}
+      d="M14.97 3.5A9 9 0 0 1 14.97 20.5Z M8.4 3.75A9 9 0 0 0 8.4 20.25Z M12.4 9.8a1.7 2.2 0 1 0 0 4.4 1.7 2.2 0 1 0 0-4.4Z"
       fill="currentColor"
       stroke="none"
     />
