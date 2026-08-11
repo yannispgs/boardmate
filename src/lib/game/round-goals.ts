@@ -54,6 +54,24 @@ export function isGoalComplete(
   });
 }
 
+/**
+ * A tile's identity: the family it belongs to and the values printed on it.
+ * « Œufs dans Mer » and « Œufs dans Forêt » are two tiles of the same family, so
+ * the values are what tell them apart — in a stable order, whatever order they
+ * were answered in.
+ */
+export function goalSignature(
+  goalKey: string,
+  values: RoundGoalParams,
+): string {
+  const params = Object.keys(values)
+    .sort((a, b) => a.localeCompare(b))
+    .map(key => `${key}=${values[key]}`)
+    .join(",");
+
+  return `${goalKey}|${params}`;
+}
+
 /** A titled group of goal tiles, as one `<optgroup>` of the setup picker. */
 export interface GoalGroup {
   label: string;

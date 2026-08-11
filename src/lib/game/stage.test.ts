@@ -9,7 +9,9 @@ import type {
 
 import {
   isCalendarReady,
+  isGoalAvailable,
   isLastTurnOfStage,
+  isParamValueAvailable,
   isStageEnd,
   playCalendar,
   scheduledPosition,
@@ -172,6 +174,84 @@ describe("isCalendarReady", () => {
 
   it("refuses an empty calendar", () => {
     expect(isCalendarReady([], CATALOGUE)).toBe(false);
+  });
+});
+
+describe("isParamValueAvailable", () => {
+  it("offers a value no other stage aims at", () => {
+    expect(isParamValueAvailable("habitat", "sea", [])).toBe(true);
+    expect(isParamValueAvailable("habitat", "sea", [pick("totalBirds")])).toBe(
+      true,
+    );
+  });
+
+  it("withdraws a habitat another goal already targets, family or not", () => {
+    const laid = [pick("birdsInHabitat", { habitat: "sea" })];
+
+    expect(isParamValueAvailable("habitat", "sea", laid)).toBe(false);
+    expect(isParamValueAvailable("habitat", "forest", laid)).toBe(true);
+  });
+
+  it("keeps the parameters apart — a nest never spends a habitat", () => {
+    const laid = [pick("nestsWithEggs", { nest: "bowl" })];
+
+    expect(isParamValueAvailable("habitat", "bowl", laid)).toBe(true);
+  });
+});
+
+describe("isGoalAvailable", () => {
+  const eggs = CATALOGUE[0];
+  const birds = CATALOGUE[1];
+
+  it("offers a tile nothing has taken", () => {
+    expect(isGoalAvailable(birds, [])).toBe(true);
+    expect(isGoalAvailable(birds, [pick("cheapBirds")])).toBe(true);
+  });
+
+  it("withdraws a one-off tile once it is laid", () => {
+    expect(isGoalAvailable(birds, [pick("totalBirds")])).toBe(false);
+  });
+
+  it("keeps a family open while one of its values is still free", () => {
+    const laid = [pick("eggsInHabitat", { habitat: "sea" })];
+
+    expect(isGoalAvailable(eggs, laid)).toBe(true);
+  });
+
+  it("withdraws a family once every value it could aim at is spent", () => {
+    const laid = [
+      pick("eggsInHabitat", { habitat: "sea" }),
+      pick("birdsInHabitat", { habitat: "forest" }),
+    ];
+
+    expect(isGoalAvailable(eggs, laid)).toBe(false);
+  });
+
+  it("spends nothing for a stage still choosing its value", () => {
+    expect(isGoalAvailable(eggs, [pick("eggsInHabitat")])).toBe(true);
+  });
+
+  it("needs a free value on every one of its parameters", () => {
+    const twoParams: RoundGoal = {
+      key: "twoParams",
+      label: "{a} et {b}",
+      params: [
+        {
+          key: "a",
+          label: "A",
+          options: [
+            { value: "a1", label: "A1" },
+            { value: "a2", label: "A2" },
+          ],
+        },
+        { key: "b", label: "B", options: [{ value: "b1", label: "B1" }] },
+      ],
+    };
+
+    expect(isGoalAvailable(twoParams, [pick("other", { b: "b1" })])).toBe(
+      false,
+    );
+    expect(isGoalAvailable(twoParams, [pick("other", { a: "a1" })])).toBe(true);
   });
 });
 

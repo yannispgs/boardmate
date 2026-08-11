@@ -86,6 +86,62 @@ export function isCalendarReady(
   });
 }
 
+/**
+ * What the other stages already aim at, per parameter key: the habitats, the
+ * nest types. Two goals laid on the same game never target the same one, so a
+ * value spent here is spent for the whole calendar — whichever family used it.
+ */
+function targetedValues(taken: readonly StagePick[]): Map<string, Set<string>> {
+  const targeted = new Map<string, Set<string>>();
+
+  for (const pick of taken) {
+    for (const [key, value] of Object.entries(pick.goalParams)) {
+      const values = targeted.get(key) ?? new Set<string>();
+
+      values.add(value);
+      targeted.set(key, values);
+    }
+  }
+
+  return targeted;
+}
+
+/**
+ * Whether a value can still be aimed at for one of a goal's parameters. « Œufs
+ * dans Forêt » on one stage takes the forest off the board for every other
+ * goal, « Oiseaux dans Forêt » included — but leaves the sea and the prairie.
+ */
+export function isParamValueAvailable(
+  paramKey: string,
+  value: string,
+  taken: readonly StagePick[],
+): boolean {
+  return !targetedValues(taken).get(paramKey)?.has(value);
+}
+
+/**
+ * Whether a goal can still be laid, given what the other stages took. A tile
+ * without a variable part goes down once and is then out of the box; a family
+ * stays available as long as each of its parameters has one value left to aim
+ * at, since « Œufs dans Mer » and « Œufs dans Forêt » are two tiles.
+ */
+export function isGoalAvailable(
+  goal: RoundGoal,
+  taken: readonly StagePick[],
+): boolean {
+  if (goal.params.length === 0) {
+    return !taken.some(pick => pick.goalKey === goal.key);
+  }
+
+  const targeted = targetedValues(taken);
+
+  return goal.params.every(param => {
+    return param.options.some(option => {
+      return !targeted.get(param.key)?.has(option.value);
+    });
+  });
+}
+
 /** How many laps of the table the whole game lasts, calendar in hand. */
 export function scheduledRoundLimit(stages: readonly GameStage[]): number {
   return stages.reduce((total, stage) => total + stage.turns, 0);

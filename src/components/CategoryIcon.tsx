@@ -2,6 +2,9 @@ import type { ReactNode } from "react";
 
 import type { CategoryIconId } from "@/lib/game/category-icons";
 
+/** The token the nest symbols are printed on: a full disc, filled edge to edge. */
+const DISC = "M12 3a9 9 0 1 0 0 18 9 9 0 1 0 0-18Z";
+
 /**
  * The drawings a scored line wears instead of its label, and a milestone wears
  * beside its name. Same shape as the app's other icons (24×24, `currentColor`,
@@ -140,35 +143,41 @@ const PATHS: Record<CategoryIconId, ReactNode> = {
       <path d="M3 15c3-2.5 6 2.5 9 0s6-2.5 9 0" />
     </>
   ),
-  // The four nest types: flat, cupped, hollowed out, laid on the ground.
+  // The four nest types, redrawn after the tokens themselves: a filled disc with
+  // the nest punched out of it, rather than the outline the other icons use.
+  // `evenodd` is what cuts the hollow, so the shape works on either theme
+  // without ever painting a background colour.
   "nest-platform": (
-    <>
-      <path d="M3 12h18" />
-      <path d="M6 12v6" />
-      <path d="M18 12v6" />
-      <path d="M9 12V8" />
-      <path d="M15 12V8" />
-    </>
+    <path
+      fillRule="evenodd"
+      d={`${DISC} M12.7 5.1l1.6.2-.6 13.6-1.6-.2Z M9.7 5.2l6.5 13-1.4.7-6.5-13Z M16.2 5.8l-6.5 13-1.4-.7 6.5-13Z`}
+      fill="currentColor"
+      stroke="none"
+    />
   ),
   "nest-bowl": (
-    <>
-      <path d="M4 10a8 8 0 0 0 16 0" />
-      <path d="M3 10h18" />
-    </>
+    <path
+      fillRule="evenodd"
+      d={`${DISC} M12 5.4a6.6 6.6 0 1 0 0 13.2 6.6 6.6 0 1 0 0-13.2Z M12 8.1c1.5 1.3 1.5 6.5 0 7.8-1.5-1.3-1.5-6.5 0-7.8Z`}
+      fill="currentColor"
+      stroke="none"
+    />
   ),
   "nest-cavity": (
-    <>
-      <path d="M4 20V11a8 8 0 0 1 16 0v9" />
-      <circle cx="12" cy="12" r="3.5" />
-    </>
+    <path
+      fillRule="evenodd"
+      d={`${DISC} M3.2 9.9h17.6v4.2H3.2Z M12 10.3a2.3 1.7 0 1 0 0 3.4 2.3 1.7 0 1 0 0-3.4Z`}
+      fill="currentColor"
+      stroke="none"
+    />
   ),
   "nest-ground": (
-    <>
-      <path d="M3 18h18" />
-      <path d="M7 18a5 5 0 0 1 10 0" />
-      <path d="M10 14.5h.01" />
-      <path d="M14 14.5h.01" />
-    </>
+    <path
+      fillRule="evenodd"
+      d={`${DISC} M9.6 7.4a1.9 1.7 0 1 0 0 3.4 1.9 1.7 0 1 0 0-3.4Z M13.6 7.9a1.9 1.7 0 1 0 0 3.4 1.9 1.7 0 1 0 0-3.4Z M8.9 11.5a1.9 1.7 0 1 0 0 3.4 1.9 1.7 0 1 0 0-3.4Z M12.9 11.9a1.9 1.7 0 1 0 0 3.4 1.9 1.7 0 1 0 0-3.4Z M11 15.4a1.9 1.7 0 1 0 0 3.4 1.9 1.7 0 1 0 0-3.4Z`}
+      fill="currentColor"
+      stroke="none"
+    />
   ),
   // The three food groups Oceania's goals ask about, drawn as one member each:
   // a worm, a berry on its stem, a fish.

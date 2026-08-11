@@ -12,7 +12,11 @@
  */
 import type { GameStatsRecord, RoundGoal, StageGoalRecord } from "@/lib/domain";
 
-import { formatGoalLabel, goalTemplateLabel } from "./round-goals";
+import {
+  formatGoalLabel,
+  goalSignature,
+  goalTemplateLabel,
+} from "./round-goals";
 
 /** One goal tile's record over the parties in scope. */
 export interface GoalStat {
@@ -84,7 +88,7 @@ function tally(
   byParams: boolean,
 ): void {
   const id = byParams
-    ? `${goal.goalKey}|${paramSignature(goal.goalParams)}`
+    ? goalSignature(goal.goalKey, goal.goalParams)
     : goal.goalKey;
   const row = tallies.get(id) ?? {
     label: byParams
@@ -105,12 +109,4 @@ function tally(
   }
 
   tallies.set(id, row);
-}
-
-/** A stable identity for a set of parameter values, whatever order they came in. */
-function paramSignature(params: Record<string, string>): string {
-  return Object.keys(params)
-    .sort((a, b) => a.localeCompare(b))
-    .map(key => `${key}=${params[key]}`)
-    .join(",");
 }

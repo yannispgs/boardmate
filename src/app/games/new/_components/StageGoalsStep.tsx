@@ -11,6 +11,8 @@ import {
 } from "@/lib/game/round-goals";
 import {
   isCalendarReady,
+  isGoalAvailable,
+  isParamValueAvailable,
   type StagePick,
   stageCalendar,
 } from "@/lib/game/stage";
@@ -96,7 +98,7 @@ export function StageGoalsStep({
             groups={groups}
             catalogue={catalogue}
             pick={pickAt(picks, index)}
-            takenKeys={picks.filter((_p, i) => i !== index).map(p => p.goalKey)}
+            taken={picks.filter((_p, i) => i !== index)}
             onPick={pick => setPick(index, pick)}
           />
         ))}
@@ -117,7 +119,7 @@ function StageRow({
   groups,
   catalogue,
   pick,
-  takenKeys,
+  taken,
   onPick,
 }: Readonly<{
   label: string;
@@ -125,8 +127,8 @@ function StageRow({
   groups: GoalGroup[];
   catalogue: RoundGoal[];
   pick: StagePick;
-  /** Tiles already laid on another manche — a tile is only in the box once. */
-  takenKeys: string[];
+  /** What the other manches laid — a tile is only in the box once. */
+  taken: StagePick[];
   onPick: (pick: StagePick) => void;
 }>) {
   const goal = catalogue.find(g => g.key === pick.goalKey);
@@ -152,7 +154,7 @@ function StageRow({
               <option
                 key={g.key}
                 value={g.key}
-                disabled={takenKeys.includes(g.key)}
+                disabled={!isGoalAvailable(g, taken)}
               >
                 {goalTemplateLabel(g)}
               </option>
@@ -161,19 +163,24 @@ function StageRow({
         ))}
       </select>
 
-      {goal?.params.map(param => (
-        <ParamChips
-          key={param.key}
-          param={param}
-          value={pick.goalParams[param.key] ?? ""}
-          onPick={value => {
-            onPick({
-              goalKey: pick.goalKey,
-              goalParams: { ...pick.goalParams, [param.key]: value },
-            });
-          }}
-        />
-      ))}
+      {goal === undefined
+        ? null
+        : goal.params.map(param => (
+            <ParamChips
+              key={param.key}
+              param={param}
+              value={pick.goalParams[param.key] ?? ""}
+              isAvailable={value =>
+                isParamValueAvailable(param.key, value, taken)
+              }
+              onPick={value => {
+                onPick({
+                  goalKey: pick.goalKey,
+                  goalParams: { ...pick.goalParams, [param.key]: value },
+                });
+              }}
+            />
+          ))}
     </div>
   );
 }
@@ -186,10 +193,13 @@ function StageRow({
 function ParamChips({
   param,
   value,
+  isAvailable,
   onPick,
 }: Readonly<{
   param: RoundGoalParam;
   value: string;
+  /** Whether the tile that value would complete is still in the box. */
+  isAvailable: (value: string) => boolean;
   onPick: (value: string) => void;
 }>) {
   return (
@@ -202,8 +212,9 @@ function ParamChips({
           <button
             key={option.value}
             type="button"
+            disabled={!isAvailable(option.value)}
             onClick={() => onPick(option.value)}
-            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition ${
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition disabled:opacity-40 ${
               option.value === value
                 ? "border-indigo-500 bg-indigo-600 text-white"
                 : "border-black/15 hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"

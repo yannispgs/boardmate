@@ -6,6 +6,7 @@ import {
   formatGoalLabel,
   goalCatalogue,
   goalGroups,
+  goalSignature,
   goalTemplateLabel,
   isGoalComplete,
 } from "./round-goals";
@@ -129,6 +130,24 @@ describe("goalCatalogue", () => {
 
   it("is just the base game's tiles without extensions", () => {
     expect(goalCatalogue([eggsInHabitat], [])).toEqual([eggsInHabitat]);
+  });
+});
+
+describe("goalSignature", () => {
+  it("tells two tiles of one family apart by their values", () => {
+    expect(goalSignature("eggsInHabitat", { habitat: "sea" })).not.toBe(
+      goalSignature("eggsInHabitat", { habitat: "forest" }),
+    );
+  });
+
+  it("reads a tile the same whatever order its values were answered in", () => {
+    expect(goalSignature("g", { a: "1", b: "2" })).toBe(
+      goalSignature("g", { b: "2", a: "1" }),
+    );
+  });
+
+  it("gives a tile without a variable part its bare key", () => {
+    expect(goalSignature("totalBirds", {})).toBe("totalBirds|");
   });
 });
 
