@@ -52,7 +52,7 @@ export function NextTurnControl({
           className="w-full rounded-xl border border-zinc-300 px-6 py-3 text-base font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
         >
           <span className="flex flex-col items-center leading-tight">
-            Passe
+            <span>Passe</span>
             <span className="text-xs font-normal opacity-60">
               maintenir 1 s
             </span>
