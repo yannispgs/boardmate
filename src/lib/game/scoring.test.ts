@@ -84,6 +84,16 @@ describe("winnerDirection", () => {
       "highest",
     );
   });
+
+  it("hands a threshold game to the lowest total when it says so", () => {
+    expect(
+      winnerDirection({
+        type: "threshold",
+        field: "pointsToEnd",
+        winner: "lowest",
+      }),
+    ).toBe("lowest");
+  });
 });
 
 describe("reachedThreshold", () => {

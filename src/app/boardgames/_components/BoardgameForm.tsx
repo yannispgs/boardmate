@@ -57,6 +57,8 @@ interface FormState {
   entry: "total" | "categories" | "pairs";
   winKind: WinCondition["type"];
   thresholdField: string;
+  /** Who takes a threshold game: the player who got there, or the lowest. */
+  thresholdWinner: "highest" | "lowest";
   allowNegative: boolean;
 }
 
@@ -82,6 +84,7 @@ const EMPTY: FormState = {
   entry: "total",
   winKind: "highest",
   thresholdField: "",
+  thresholdWinner: "highest",
   allowNegative: false,
 };
 
@@ -111,6 +114,10 @@ function fromBoardgame(b: Boardgame): FormState {
     winKind: s?.winCondition.type ?? "highest",
     thresholdField:
       s?.winCondition.type === "threshold" ? s.winCondition.field : "",
+    thresholdWinner:
+      s?.winCondition.type === "threshold"
+        ? (s.winCondition.winner ?? "highest")
+        : "highest",
     allowNegative: s?.allowNegative ?? false,
   };
 }
@@ -154,6 +161,7 @@ function formToScoring(
       ? {
           type: "threshold",
           field: form.thresholdField.trim() || "pointsToWin",
+          winner: form.thresholdWinner,
         }
       : { type: form.winKind };
 
@@ -838,6 +846,40 @@ export function BoardgameForm({
                   placeholder="pointsToWin"
                   className={field}
                 />
+              </label>
+            ) : null}
+
+            {form.winKind === "threshold" ? (
+              <label className="flex flex-col gap-1 text-xs text-zinc-500">
+                <span className="flex items-center gap-1">
+                  Qui gagne quand l&apos;objectif est atteint
+                  <InfoTip label="Qui gagne quand l'objectif est atteint">
+                    <p>
+                      Atteindre l&apos;objectif arrête la partie. Dans la
+                      plupart des jeux, celui qui y arrive gagne (Catan).
+                    </p>
+                    <p>
+                      Dans d&apos;autres, il déclenche seulement la fin et
+                      c&apos;est le plus petit total qui l&apos;emporte (Odin).
+                    </p>
+                  </InfoTip>
+                </span>
+                <select
+                  value={form.thresholdWinner}
+                  onChange={e =>
+                    setForm({
+                      ...form,
+                      thresholdWinner: e.target
+                        .value as FormState["thresholdWinner"],
+                    })
+                  }
+                  className={field}
+                >
+                  <option value="highest">
+                    Celui qui atteint l&apos;objectif
+                  </option>
+                  <option value="lowest">Le plus petit total</option>
+                </select>
               </label>
             ) : null}
 

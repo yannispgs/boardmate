@@ -47,14 +47,19 @@ export function toBoardGenerator(
 /**
  * How the winner is decided by score:
  * - `highest` / `lowest`: best total wins (Cascadia/Wingspan ; Skyjo/Papayoo).
- * - `threshold`: first to reach a target wins (Catan). The target is the value
+ * - `threshold`: reaching a target **stops the game**. The target is the value
  *   of the config `field` (e.g. `pointsToWin`), falling back to that field's
  *   default in the boardgame's config template.
+ *
+ * Reaching the target and winning are two different things. `winner` says which
+ * it is: by default the player who got there takes it (Catan), but a game can
+ * hand it to the lowest instead — in Odin, hitting 15 ends the game and the
+ * player who kept the fewest points wins it.
  */
 export type WinCondition =
   | { type: "highest" }
   | { type: "lowest" }
-  | { type: "threshold"; field: string };
+  | { type: "threshold"; field: string; winner?: "highest" | "lowest" };
 
 /** One scored line on a final scoresheet (e.g. an animal in Cascadia). */
 export interface CategoryDef {
@@ -161,14 +166,19 @@ export interface ScoringSpec {
  * « Manche ». `label` is the progress label shown during play; `null` on the
  * boardgame means plain laps and nothing else, as most games are.
  *
- * `advance` is what *closes* a stage, and the two are genuinely different
+ * `advance` is what *closes* a stage, and the three are genuinely different
  * games:
  * - `pass`: players step out one by one and the stage ends when the last one
  *   does, so the turns inside it are unequal and impossible to foresee.
  * - `schedule`: the stage lasts a counted number of laps; everyone still plays
  *   exactly once per lap, and the end is known before anyone sits down.
+ * - `manual`: the table closes the stage itself, whenever the cards say so
+ *   (Odin: someone empties his hand). Nothing counts the turns inside it and
+ *   nobody knows how many stages the game will run, so such a stage is the
+ *   game's only unit of progress — and the points entered as it closes are the
+ *   game's own scores, summed as the stages go by.
  */
-export type StageAdvance = "pass" | "schedule";
+export type StageAdvance = "pass" | "schedule" | "manual";
 
 export interface StageSpec {
   label: string;

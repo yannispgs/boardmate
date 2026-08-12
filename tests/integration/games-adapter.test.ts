@@ -615,6 +615,68 @@ describe("games adapter — calendar of manches (Wingspan)", () => {
   });
 });
 
+describe("games adapter — manches closed by hand (Odin)", () => {
+  let odinId: BoardgameId;
+
+  beforeAll(async () => {
+    const { data } = await serviceClient()
+      .from("boardgames")
+      .select("id, stages")
+      .eq("name", "Odin")
+      .single();
+
+    odinId = data?.id as BoardgameId;
+    // A by-hand game has no schedule at all: the table says when a manche ends.
+    expect((data?.stages as { advance?: string })?.advance).toBe("manual");
+  });
+
+  it("opens the next manche without recording a turn, and totals the manches", async () => {
+    const game = await repo().create({
+      boardgameId: odinId,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    // Manche 1: one player empties his hand (0), the others keep their cards.
+    await repo().setStageScores(game.id, 1, [
+      { playerId: playerIds[0], points: 0 },
+      { playerId: playerIds[1], points: 7 },
+      { playerId: playerIds[2], points: 4 },
+    ]);
+    await repo().advanceStage(game.id);
+
+    let p = await repo().getPopulated(game.id);
+
+    // Nothing was timed, so the three counters move together and no turn was
+    // written down — a « tour 1 » stuck behind « manche 2 » would read as a bug.
+    expect(p?.stage).toBe(2);
+    expect(p?.turn).toBe(2);
+    expect(p?.round).toBe(2);
+    expect(p?.turns).toHaveLength(0);
+
+    await repo().setStageScores(game.id, 2, [
+      { playerId: playerIds[0], points: 9 },
+      { playerId: playerIds[1], points: 0 },
+      { playerId: playerIds[2], points: 3 },
+    ]);
+    await repo().advanceStage(game.id);
+
+    p = await repo().getPopulated(game.id);
+
+    expect(p?.stage).toBe(3);
+    expect(p?.stageScores).toHaveLength(6);
+
+    // Totals: p0 = 9, p1 = 7, p2 = 7 — the smallest total takes the game, and
+    // two of them are level, which the shared-victory rule settles.
+    await repo().end(game.id, [playerIds[1], playerIds[2]]);
+
+    p = await repo().getPopulated(game.id);
+
+    expect(p?.status).toBe("ended");
+  });
+});
+
 describe("games adapter — removing (abandoning) a game", () => {
   it("deletes the game and its rows, and recomputes has_games", async () => {
     const admin = serviceClient();

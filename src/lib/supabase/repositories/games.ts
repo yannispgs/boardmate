@@ -1021,6 +1021,33 @@ export function createGameRepository(
       }
     },
 
+    async advanceStage(id: GameId) {
+      const { data: game, error } = await games()
+        .select("round, turn, stage")
+        .eq("id", id)
+        .single();
+
+      /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */
+      if (error) {
+        throw new Error(`Lecture de la partie: ${error.message}`);
+      }
+
+      // The manche is this game's only unit, so the three counters move as one
+      // — a « tour 1 » frozen behind a « manche 7 » would read as a bug in
+      // every chart and every recap that goes looking for one of the others.
+      const { error: updateError } = await games()
+        .update({
+          round: game.round + 1,
+          turn: game.turn + 1,
+          stage: game.stage + 1,
+        })
+        .eq("id", id);
+      /* c8 ignore next 3 -- defensive guard: update errors surface via e2e */
+      if (updateError) {
+        throw new Error(`Passage à la manche suivante: ${updateError.message}`);
+      }
+    },
+
     async addDiceRoll(id: GameId, value: number) {
       const { error } = await supabase
         .from("dice_rolls")

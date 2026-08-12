@@ -282,8 +282,16 @@ export function finalStandings(
   return [...top, ...rest];
 }
 
-/** The direction a win condition ranks by (a threshold is a race to the top). */
+/**
+ * The direction a win condition ranks by. A threshold is a race to the top
+ * unless the game says otherwise: reaching it stops the play, and some games
+ * then hand the win to whoever stayed furthest from it (Odin).
+ */
 export function winnerDirection(condition: WinCondition): ScoreDirection {
+  if (condition.type === "threshold") {
+    return condition.winner ?? "highest";
+  }
+
   return condition.type === "lowest" ? "lowest" : "highest";
 }
 

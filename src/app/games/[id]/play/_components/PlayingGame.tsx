@@ -6,6 +6,7 @@ import { ErrorText } from "@/components/ErrorText";
 import type { PlayerId, PopulatedGame } from "@/lib/domain";
 import { composeGoals } from "@/lib/game/extensions";
 import { gameProgress, playProgress } from "@/lib/game/game-progress";
+import { winnerDirection } from "@/lib/game/scoring";
 import {
   isLastTurnOfStage,
   playCalendar,
@@ -26,6 +27,7 @@ import { namedPlayers } from "./named-players";
 import { PlayBlock } from "./PlayBlock";
 import { PlayStats } from "./PlayStats";
 import { SeatOrderPanel } from "./SeatOrderPanel";
+import { StageBoard } from "./StageBoard";
 import { TimeHogBanner } from "./TimeHogBanner";
 import { TurnControls } from "./TurnControls";
 import { useDiceLog } from "./use-dice-log";
@@ -93,10 +95,14 @@ export function PlayingGame({
 
   const durationS = turnDuration(game, durationOverride);
 
-  // How the game turns: in plain laps, in generations somebody steps out of, or
-  // on a calendar of stages laid out at launch (Wingspan's manches).
+  // How the game turns: in plain laps, in generations somebody steps out of, on
+  // a calendar of stages laid out at launch (Wingspan's manches) — or in manches
+  // the table closes itself, which have no turns to speak of (Odin).
   const stages = game.boardgame.stages;
   const generations = stages?.advance === "pass";
+  const byHand = stages?.advance === "manual";
+  const scoring = game.boardgame.scoring;
+  const direction = scoring ? winnerDirection(scoring.winCondition) : "highest";
   const stageLabel = gameProgress(game, stages).label;
   const calendar = playCalendar(
     stages?.advance,
@@ -168,6 +174,16 @@ export function PlayingGame({
     void handleNext(true);
   }
 
+  // Opening the next manche is the whole of a by-hand game's « turn »: nothing
+  // was timed and nobody was up, so there is no turn to record — only one more
+  // manche to deal.
+  async function nextStage() {
+    await play.run("Impossible d'ouvrir la manche suivante.", async () => {
+      await repo.advanceStage(game.id);
+      await play.reload();
+    });
+  }
+
   // Counting the points takes over the whole screen, up to the recap.
   if (flow.outcome !== null && flow.phase !== "play") {
     return (
@@ -194,8 +210,9 @@ export function PlayingGame({
       </p>
 
       {/* The whole play block (who's up / countdown / dice) gives way to the
-          score form once you end the game. */}
-      {entryOpen ? null : (
+          score form once you end the game — and never shows at all for a game
+          that times nothing. */}
+      {entryOpen || byHand ? null : (
         <PlayBlock
           game={game}
           timer={timer}
@@ -210,7 +227,17 @@ export function PlayingGame({
       <ErrorText message={play.error} />
       <ErrorText message={goals.error} />
 
-      {entryOpen ? null : (
+      {entryOpen ? null : byHand ? (
+        <StageBoard
+          game={game}
+          goals={goals}
+          stageLabel={stageLabel}
+          direction={direction}
+          disabled={play.busy || goals.busy}
+          onNextStage={nextStage}
+          onEnd={scores => flow.finishTotals(scores, null)}
+        />
+      ) : (
         <TurnControls
           atFinalTurn={atFinalTurn}
           atStageEnd={atStageEnd}
