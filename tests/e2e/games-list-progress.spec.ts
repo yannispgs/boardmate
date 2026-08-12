@@ -2,9 +2,10 @@ import { expect, test } from "@playwright/test";
 
 import {
   adminClient,
+  boardgameId,
   CATAN_ID,
   seedPlayers,
-  TERRAFORMING_MARS_ID,
+  TERRAFORMING_MARS_NAME,
 } from "./utils/supabase";
 
 /**
@@ -27,14 +28,14 @@ test("counts each game in its own unit in the games list", async ({ page }) => {
       n => (seeded ?? []).find(p => p.name === n)?.id as string,
     );
 
-    for (const [boardgameId, stage] of [
-      [TERRAFORMING_MARS_ID, 4],
+    for (const [boardgame, stage] of [
+      [await boardgameId(TERRAFORMING_MARS_NAME), 4],
       [CATAN_ID, 1],
     ] as const) {
       const { data: game } = await admin
         .from("games")
         .insert({
-          boardgame_id: boardgameId,
+          boardgame_id: boardgame,
           status: "ongoing",
           round: 7,
           turn: 1,
