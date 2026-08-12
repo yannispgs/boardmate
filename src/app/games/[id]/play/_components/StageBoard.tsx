@@ -133,6 +133,7 @@ export function StageBoard({
           players={players}
           initial={goals.entered(entryStage)}
           validate={entries => stageEntryError(entries, maxPoints)}
+          max={maxPoints}
           disabled={disabled}
           confirmLabel="Valider"
           onConfirm={points => void saveEntry(entryStage, points)}

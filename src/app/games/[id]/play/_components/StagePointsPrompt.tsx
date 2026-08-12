@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { Modal } from "@/components/Modal";
+import { NumberStepper } from "@/components/NumberStepper";
 import type { PlayerId } from "@/lib/domain";
 import type { StageEntry } from "@/lib/game/stage-tally";
 
@@ -16,6 +17,9 @@ import type { StageEntry } from "@/lib/game/stage-tally";
  * the hand — so what is entered is the **points** each player takes, not what
  * he counted. Reopening the prompt shows what was typed, which is how a
  * misheard total gets corrected.
+ *
+ * Those points are small numbers, so each one is nudged with a −/+ pair rather
+ * than typed — quicker round a table than a keyboard per player.
  */
 export function StagePointsPrompt({
   stage,
@@ -24,6 +28,7 @@ export function StagePointsPrompt({
   players,
   initial,
   validate,
+  max = null,
   disabled,
   confirmLabel,
   onConfirm,
@@ -43,21 +48,25 @@ export function StagePointsPrompt({
    * went out of, since such a manche cannot have happened.
    */
   validate?: (entries: StageEntry[]) => string | null;
+  /**
+   * The most a stage can pay, when the rules say (Odin: 9). Only the arrows
+   * stop there — a number typed over the cap is left alone, so `validate` gets
+   * to say what is wrong with it instead of the box quietly rewriting it.
+   */
+  max?: number | null;
   disabled: boolean;
   /** What validating does next (« Manche suivante », « Enregistrer »). */
   confirmLabel: string;
   onConfirm: (points: StageEntry[]) => void;
   onCancel: () => void;
 }>) {
-  const [raw, setRaw] = useState<Record<string, string>>(() =>
-    Object.fromEntries(
-      players.map(p => [p.id, String(initial[p.id] ?? 0)] as const),
-    ),
+  const [points, setPoints] = useState<Record<string, number>>(() =>
+    Object.fromEntries(players.map(p => [p.id, initial[p.id] ?? 0] as const)),
   );
 
   const entries = players.map(p => ({
     playerId: p.id,
-    points: parsePoints(raw[p.id]),
+    points: points[p.id] ?? 0,
   }));
   const refused = validate?.(entries) ?? null;
 
@@ -79,14 +88,14 @@ export function StagePointsPrompt({
             className="flex items-center justify-between gap-3 rounded-lg border border-black/10 px-3 py-2 dark:border-white/10"
           >
             <span className="min-w-0 flex-1 truncate text-sm">{p.name}</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={raw[p.id] ?? ""}
-              onChange={event =>
-                setRaw(current => ({ ...current, [p.id]: event.target.value }))
+            <NumberStepper
+              label={p.name}
+              value={points[p.id] ?? 0}
+              max={max}
+              disabled={disabled}
+              onChange={next =>
+                setPoints(current => ({ ...current, [p.id]: next }))
               }
-              className="w-20 rounded-lg border border-black/10 bg-transparent px-2 py-1 text-right text-sm tabular-nums dark:border-white/15"
             />
           </li>
         ))}
@@ -117,11 +126,4 @@ export function StagePointsPrompt({
       </div>
     </Modal>
   );
-}
-
-/** An emptied or half-typed box is worth nothing, never NaN. */
-function parsePoints(value: string | undefined): number {
-  const parsed = Number.parseInt(value ?? "", 10);
-
-  return Number.isFinite(parsed) ? parsed : 0;
 }

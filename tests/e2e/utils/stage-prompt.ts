@@ -1,13 +1,19 @@
 import type { Locator } from "@playwright/test";
 
 /**
- * One player's points box in the end-of-manche prompt. The rows carry no label
- * of their own — the name next to the box is what identifies it — so they are
- * reached through the row they sit on.
+ * One player's points box in the end-of-manche prompt, and the two arrows
+ * either side of it. The box carries the player's name, so both are reached by
+ * it rather than through the row they sit on.
  */
 export function stagePoints(prompt: Locator, name: string): Locator {
-  return prompt
-    .getByRole("listitem")
-    .filter({ hasText: name })
-    .getByRole("spinbutton");
+  return prompt.getByRole("textbox", { name, exact: true });
+}
+
+/** The − / + either side of one player's box. */
+export function stageArrow(
+  prompt: Locator,
+  name: string,
+  direction: "moins" | "plus",
+): Locator {
+  return prompt.getByRole("button", { name: `${name} : un de ${direction}` });
 }

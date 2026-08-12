@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { stagePoints } from "./utils/stage-prompt";
+import { stageArrow, stagePoints } from "./utils/stage-prompt";
 import { adminClient, seedPlayers } from "./utils/supabase";
 
 const PLAYER_COUNT = 3;
@@ -71,8 +71,17 @@ test("counts Odin manche by manche and stops the game at the bar", async ({
 
     const first = page.getByRole("dialog", { name: "Points de la manche 1" });
 
+    // Everyone starts at nothing and is nudged up: a manche's points are small
+    // enough that the arrows beat a keyboard.
+    await expect(stagePoints(first, names[0])).toHaveValue("0");
+    await expect(stageArrow(first, names[0], "moins")).toBeDisabled();
+
+    for (let i = 0; i < 2; i++) {
+      await stageArrow(first, names[0], "plus").click();
+    }
+
     // A manche nobody went out of cannot have happened, so it can't be recorded.
-    await stagePoints(first, names[0]).fill("2");
+    await expect(stagePoints(first, names[0])).toHaveValue("2");
     await stagePoints(first, names[1]).fill("6");
     await stagePoints(first, names[2]).fill("3");
 
@@ -81,7 +90,11 @@ test("counts Odin manche by manche and stops the game at the bar", async ({
     ).toBeVisible();
     await expect(first.getByRole("button", { name: "Valider" })).toBeDisabled();
 
-    await stagePoints(first, names[0]).fill("0");
+    await stageArrow(first, names[0], "moins").click();
+    await stageArrow(first, names[0], "moins").click();
+
+    await expect(stagePoints(first, names[0])).toHaveValue("0");
+
     await first.getByRole("button", { name: "Valider" }).click();
 
     // The recap reads the totals out before anyone deals again.
@@ -99,7 +112,12 @@ test("counts Odin manche by manche and stops the game at the bar", async ({
 
     const fix = page.getByRole("dialog", { name: "Points de la manche 1" });
 
-    // Nine cards are dealt and a hand never grows, so twelve is a miscount.
+    // Nine cards are dealt and a hand never grows, so the + stops at nine — and
+    // twelve, which only a keyboard can reach, is a miscount.
+    await stagePoints(fix, names[1]).fill("9");
+
+    await expect(stageArrow(fix, names[1], "plus")).toBeDisabled();
+
     await stagePoints(fix, names[1]).fill("12");
 
     await expect(
