@@ -4,6 +4,7 @@ import type { PlayerId, RoundGoal } from "@/lib/domain";
 
 import {
   finishedGoals,
+  mergeCells,
   type StageGoalRaw,
   stageGoalSheet,
   stageKey,
@@ -100,6 +101,26 @@ describe("stageGoalSheet", () => {
   });
 });
 
+describe("mergeCells", () => {
+  it("overwrites only the cells the manches own", () => {
+    const merged = mergeCells(
+      { a: { oiseaux: "5", objectifsManche: "2" }, b: { oiseaux: "3" } },
+      { a: { objectifsManche: "9" }, b: { objectifsManche: "6" } },
+    );
+
+    expect(merged).toEqual({
+      a: { oiseaux: "5", objectifsManche: "9" },
+      b: { oiseaux: "3", objectifsManche: "6" },
+    });
+  });
+
+  it("leaves the sheet untouched when there is nothing to carry over", () => {
+    const sheet = { a: { oiseaux: "5" } };
+
+    expect(mergeCells(sheet, {})).toEqual(sheet);
+  });
+});
+
 describe("finishedGoals", () => {
   it("records the calendar and every point once it is all there", () => {
     const goals = finishedGoals(
@@ -113,7 +134,6 @@ describe("finishedGoals", () => {
     expect(goals.tilesReady).toBe(true);
     expect(goals.complete).toBe(true);
     expect(goals.remaining).toBe(0);
-    expect(goals.totals).toEqual({ a: 10, b: 11 });
     expect(goals.scores).toHaveLength(8);
     expect(goals.scores).toContainEqual({ stage: 3, playerId: A, points: 4 });
     expect(goals.stages.map(s => s.goalKey)).toEqual([
@@ -149,7 +169,6 @@ describe("finishedGoals", () => {
     expect(goals.complete).toBe(false);
     expect(goals.remaining).toBe(0);
     expect(goals.scores).toEqual([]);
-    expect(goals.totals).toEqual({});
   });
 
   it("keeps nothing while a tile's own parameter is unanswered", () => {
@@ -192,7 +211,7 @@ describe("finishedGoals", () => {
     );
 
     expect(goals.complete).toBe(true);
-    expect(goals.totals).toEqual({ a: 0 });
+    expect(goals.scores.map(s => s.points)).toEqual([0, 0, 0, 0]);
   });
 
   it("has nothing to record for a game played in no stages at all", () => {

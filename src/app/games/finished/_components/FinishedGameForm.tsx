@@ -12,10 +12,13 @@ import type {
   PlayerId,
 } from "@/lib/domain";
 import { composeGoals, composeScoring } from "@/lib/game/extensions";
-import { finishedGoals, type StageGoalRaw } from "@/lib/game/finished-goals";
+import {
+  finishedGoals,
+  mergeCells,
+  type StageGoalRaw,
+} from "@/lib/game/finished-goals";
 import { localDay } from "@/lib/game/game-filters";
-import { derivedKeys } from "@/lib/game/scoring";
-import type { StagePick } from "@/lib/game/stage";
+import { type StagePick, stageGoalPrefill } from "@/lib/game/stage";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useExtensions } from "@/lib/hooks/use-extensions";
 import { useGames } from "@/lib/hooks/use-games";
@@ -138,11 +141,12 @@ export function FinishedGameForm() {
    * one written down that night wins.
    */
   function fillDerived(nextPicks: StagePick[], nextRaw: StageGoalRaw) {
+    const playerIds = selected.map(p => p.id);
     const next = finishedGoals(
       schedule,
       nextPicks,
       catalogue,
-      selected.map(p => p.id),
+      playerIds,
       nextRaw,
     );
 
@@ -150,24 +154,11 @@ export function FinishedGameForm() {
       return;
     }
 
-    const keys = derivedKeys(scoring.sheet, "stageGoals");
+    // The same cells a game played in the app carries to its end-of-game sheet.
+    const cells = stageGoalPrefill(scoring.sheet, playerIds, next.scores);
 
     setWinnerIds(null);
-    setCatRaw(raw => {
-      const filled = { ...raw };
-
-      for (const p of selected) {
-        const cells = { ...filled[p.id] };
-
-        for (const key of keys) {
-          cells[key] = String(next.totals[p.id] ?? 0);
-        }
-
-        filled[p.id] = cells;
-      }
-
-      return filled;
-    });
+    setCatRaw(raw => mergeCells(raw, cells));
   }
 
   const canSubmit =

@@ -70,8 +70,24 @@ export interface FinishedGoals {
   complete: boolean;
   /** Cells still waiting for a number, so the form can say what is missing. */
   remaining: number;
-  /** Each player's « Objectifs de manche » line — empty while incomplete. */
-  totals: Record<string, number>;
+}
+
+/**
+ * Two sets of per-player cells, the second overwriting the first cell by cell.
+ * Everything already typed on the sheet's other lines is kept: the manches own
+ * the one line they add up to, and nothing else.
+ */
+export function mergeCells(
+  base: StageGoalRaw,
+  extra: StageGoalRaw,
+): StageGoalRaw {
+  const merged = { ...base };
+
+  for (const [playerId, cells] of Object.entries(extra)) {
+    merged[playerId] = { ...merged[playerId], ...cells };
+  }
+
+  return merged;
 }
 
 /**
@@ -119,21 +135,5 @@ export function finishedGoals(
     scores: complete ? entered : [],
     complete,
     remaining,
-    totals: complete ? totalPerPlayer(playerIds, entered) : {},
   };
-}
-
-/** Each player's total across the manches — zero for one who took nothing. */
-function totalPerPlayer(
-  playerIds: readonly PlayerId[],
-  scores: readonly StageScore[],
-): Record<string, number> {
-  return Object.fromEntries(
-    playerIds.map(id => [
-      id,
-      scores
-        .filter(score => score.playerId === id)
-        .reduce((sum, score) => sum + score.points, 0),
-    ]),
-  );
 }
