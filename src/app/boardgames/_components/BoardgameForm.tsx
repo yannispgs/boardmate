@@ -224,6 +224,75 @@ function toInput(
 const field =
   "rounded-lg border border-black/15 bg-white px-3 py-2 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900";
 
+/**
+ * The two settings a points target brings with it: which config field holds it,
+ * and who wins once it is reached. Both only mean anything for a game that has
+ * a target, so they appear and disappear together.
+ */
+function ThresholdFields({
+  form,
+  setForm,
+}: Readonly<{
+  form: FormState;
+  setForm: (next: FormState) => void;
+}>) {
+  if (form.winKind !== "threshold") {
+    return null;
+  }
+
+  return (
+    <>
+      <label className="flex flex-col gap-1 text-xs text-zinc-500">
+        <span className="flex items-center gap-1">
+          Champ de configuration de l&apos;objectif
+          <InfoTip label="À quoi sert le champ d'objectif">
+            <p>
+              Clé du champ de configuration qui fixe le nombre de points à
+              atteindre pour gagner (par défaut&nbsp;: pointsToWin).
+            </p>
+            <p>Sa valeur est réglable par partie dans la configuration.</p>
+          </InfoTip>
+        </span>
+        <input
+          value={form.thresholdField}
+          onChange={e => setForm({ ...form, thresholdField: e.target.value })}
+          placeholder="pointsToWin"
+          className={field}
+        />
+      </label>
+
+      <label className="flex flex-col gap-1 text-xs text-zinc-500">
+        <span className="flex items-center gap-1">
+          Qui gagne quand l&apos;objectif est atteint
+          <InfoTip label="Qui gagne quand l'objectif est atteint">
+            <p>
+              Atteindre l&apos;objectif arrête la partie. Dans la plupart des
+              jeux, celui qui y arrive gagne (Catan).
+            </p>
+            <p>
+              Dans d&apos;autres, il déclenche seulement la fin et c&apos;est le
+              plus petit total qui l&apos;emporte (Odin).
+            </p>
+          </InfoTip>
+        </span>
+        <select
+          value={form.thresholdWinner}
+          onChange={e =>
+            setForm({
+              ...form,
+              thresholdWinner: e.target.value as FormState["thresholdWinner"],
+            })
+          }
+          className={field}
+        >
+          <option value="highest">Celui qui atteint l&apos;objectif</option>
+          <option value="lowest">Le plus petit total</option>
+        </select>
+      </label>
+    </>
+  );
+}
+
 type LogoSource = "file" | "url" | "paste";
 
 /** Image MIME types accepted everywhere a logo can come in (file/paste). */
@@ -824,64 +893,7 @@ export function BoardgameForm({
               </select>
             </label>
 
-            {form.winKind === "threshold" ? (
-              <label className="flex flex-col gap-1 text-xs text-zinc-500">
-                <span className="flex items-center gap-1">
-                  Champ de configuration de l&apos;objectif
-                  <InfoTip label="À quoi sert le champ d'objectif">
-                    <p>
-                      Clé du champ de configuration qui fixe le nombre de points
-                      à atteindre pour gagner (par défaut&nbsp;: pointsToWin).
-                    </p>
-                    <p>
-                      Sa valeur est réglable par partie dans la configuration.
-                    </p>
-                  </InfoTip>
-                </span>
-                <input
-                  value={form.thresholdField}
-                  onChange={e =>
-                    setForm({ ...form, thresholdField: e.target.value })
-                  }
-                  placeholder="pointsToWin"
-                  className={field}
-                />
-              </label>
-            ) : null}
-
-            {form.winKind === "threshold" ? (
-              <label className="flex flex-col gap-1 text-xs text-zinc-500">
-                <span className="flex items-center gap-1">
-                  Qui gagne quand l&apos;objectif est atteint
-                  <InfoTip label="Qui gagne quand l'objectif est atteint">
-                    <p>
-                      Atteindre l&apos;objectif arrête la partie. Dans la
-                      plupart des jeux, celui qui y arrive gagne (Catan).
-                    </p>
-                    <p>
-                      Dans d&apos;autres, il déclenche seulement la fin et
-                      c&apos;est le plus petit total qui l&apos;emporte (Odin).
-                    </p>
-                  </InfoTip>
-                </span>
-                <select
-                  value={form.thresholdWinner}
-                  onChange={e =>
-                    setForm({
-                      ...form,
-                      thresholdWinner: e.target
-                        .value as FormState["thresholdWinner"],
-                    })
-                  }
-                  className={field}
-                >
-                  <option value="highest">
-                    Celui qui atteint l&apos;objectif
-                  </option>
-                  <option value="lowest">Le plus petit total</option>
-                </select>
-              </label>
-            ) : null}
+            <ThresholdFields form={form} setForm={setForm} />
 
             <label className="flex items-center gap-2 text-sm">
               <input

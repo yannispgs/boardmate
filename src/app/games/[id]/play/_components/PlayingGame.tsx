@@ -184,6 +184,47 @@ export function PlayingGame({
     });
   }
 
+  /**
+   * What the table acts on: the turn controls, or — for a game with no turns to
+   * speak of — the manche board. Both give way to the end-of-game score form.
+   */
+  function controls() {
+    if (entryOpen) {
+      return null;
+    }
+
+    if (byHand) {
+      return (
+        <StageBoard
+          game={game}
+          goals={goals}
+          stageLabel={stageLabel}
+          direction={direction}
+          disabled={play.busy || goals.busy}
+          onNextStage={nextStage}
+          onEnd={scores => flow.finishTotals(scores, null)}
+        />
+      );
+    }
+
+    return (
+      <TurnControls
+        atFinalTurn={atFinalTurn}
+        atStageEnd={atStageEnd}
+        goalScores={stageScores(game.stages[game.stage - 1], catalogue)}
+        stage={game.stage}
+        stageLabel={stageLabel}
+        goalLabel={stageGoalLabel(game.stages[game.stage - 1], catalogue)}
+        players={namedPlayers(game)}
+        entered={goals.entered(game.stage)}
+        disabled={play.busy || goals.busy}
+        onNext={handleNext}
+        onPass={generations ? pass : null}
+        onScoreGoal={points => goals.save(game.stage, points)}
+      />
+    );
+  }
+
   // Counting the points takes over the whole screen, up to the recap.
   if (flow.outcome !== null && flow.phase !== "play") {
     return (
@@ -227,32 +268,7 @@ export function PlayingGame({
       <ErrorText message={play.error} />
       <ErrorText message={goals.error} />
 
-      {entryOpen ? null : byHand ? (
-        <StageBoard
-          game={game}
-          goals={goals}
-          stageLabel={stageLabel}
-          direction={direction}
-          disabled={play.busy || goals.busy}
-          onNextStage={nextStage}
-          onEnd={scores => flow.finishTotals(scores, null)}
-        />
-      ) : (
-        <TurnControls
-          atFinalTurn={atFinalTurn}
-          atStageEnd={atStageEnd}
-          goalScores={stageScores(game.stages[game.stage - 1], catalogue)}
-          stage={game.stage}
-          stageLabel={stageLabel}
-          goalLabel={stageGoalLabel(game.stages[game.stage - 1], catalogue)}
-          players={namedPlayers(game)}
-          entered={goals.entered(game.stage)}
-          disabled={play.busy || goals.busy}
-          onNext={handleNext}
-          onPass={generations ? pass : null}
-          onScoreGoal={points => goals.save(game.stage, points)}
-        />
-      )}
+      {controls()}
 
       <FaqPanel boardgame={game.boardgame} extensions={game.extensions} />
 
