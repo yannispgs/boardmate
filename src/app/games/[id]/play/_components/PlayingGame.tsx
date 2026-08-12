@@ -21,12 +21,11 @@ import { EndFlow } from "./EndFlow";
 import { FaqPanel } from "./FaqPanel";
 import { LiveScoreSection } from "./LiveScoreSection";
 import { MilestonePanel } from "./MilestonePanel";
-import { NextTurnControl } from "./NextTurnControl";
 import { namedPlayers } from "./named-players";
 import { PlayBlock } from "./PlayBlock";
 import { PlayStats } from "./PlayStats";
-import { StageGoalPrompt } from "./StageGoalPrompt";
 import { TimeHogBanner } from "./TimeHogBanner";
+import { TurnControls } from "./TurnControls";
 import { useDiceLog } from "./use-dice-log";
 import { useEndFlow } from "./use-end-flow";
 import { useLiveScores } from "./use-live-scores";
@@ -55,9 +54,6 @@ export function PlayingGame({
 
   usePlaySounds();
 
-  // The end-of-manche goal entry, opened by the button that closes the manche.
-  const [goalPromptOpen, setGoalPromptOpen] = useState(false);
-  const openGoalPrompt = () => setGoalPromptOpen(true);
   // Every goal tile the game can be set up with — the extensions' included, so
   // an Oceania tile still reads out by name during a game played with it.
   const catalogue = composeGoals(game.boardgame.roundGoals, game.extensions);
@@ -170,22 +166,6 @@ export function PlayingGame({
     void handleNext(true);
   }
 
-  /**
-   * Closes a manche: the goal points are written down first, then the table
-   * moves on — unless this was the last manche, where there is nothing to move
-   * on to and the end-of-game flow takes over.
-   */
-  async function endStage(
-    points: Array<{ playerId: PlayerId; points: number }>,
-  ) {
-    setGoalPromptOpen(false);
-    await goals.save(game.stage, points);
-
-    if (!atFinalTurn) {
-      await handleNext();
-    }
-  }
-
   // Counting the points takes over the whole screen, up to the recap.
   if (flow.outcome !== null && flow.phase !== "play") {
     return (
@@ -229,31 +209,20 @@ export function PlayingGame({
       <ErrorText message={goals.error} />
 
       {entryOpen ? null : (
-        <NextTurnControl
+        <TurnControls
           atFinalTurn={atFinalTurn}
-          disabled={play.busy}
-          nextLabel={
-            atStageEnd ? `Fin de la ${stageLabel.toLowerCase()} →` : undefined
-          }
-          onNext={atStageEnd ? openGoalPrompt : handleNext}
-          onPass={generations ? pass : null}
-          onStageGoal={atStageEnd ? openGoalPrompt : null}
-        />
-      )}
-
-      {goalPromptOpen ? (
-        <StageGoalPrompt
+          atStageEnd={atStageEnd}
           stage={game.stage}
           stageLabel={stageLabel}
           goalLabel={stageGoalLabel(game.stages[game.stage - 1], catalogue)}
           players={namedPlayers(game)}
-          initial={goals.entered(game.stage)}
+          entered={goals.entered(game.stage)}
           disabled={play.busy || goals.busy}
-          confirmLabel={atFinalTurn ? "Enregistrer" : `${stageLabel} suivante`}
-          onConfirm={points => void endStage(points)}
-          onCancel={() => setGoalPromptOpen(false)}
+          onNext={handleNext}
+          onPass={generations ? pass : null}
+          onScoreGoal={points => goals.save(game.stage, points)}
         />
-      ) : null}
+      )}
 
       <FaqPanel boardgame={game.boardgame} extensions={game.extensions} />
 

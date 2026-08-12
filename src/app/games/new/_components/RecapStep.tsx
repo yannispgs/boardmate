@@ -10,14 +10,19 @@ import { buildDefaults, validateConfigValues } from "@/lib/config/validation";
 import type {
   Boardgame,
   Config,
+  ConfigTemplate,
   ConfigValues,
+  Extension,
   ExtensionId,
   ExtensionScenarioId,
+  FieldSpec,
   GameStage,
   Player,
+  RoundGoal,
+  StageSpec,
 } from "@/lib/domain";
 import { composeConfigFields, composeGoals } from "@/lib/game/extensions";
-import { funnelBoard } from "@/lib/game/funnel-board";
+import { type FunnelBoard, funnelBoard } from "@/lib/game/funnel-board";
 import { type StagePick, stageCalendar } from "@/lib/game/stage";
 import { type WinTargetView, winTargetView } from "@/lib/game/win-target";
 import { useConfigs } from "@/lib/hooks/use-configs";
@@ -98,19 +103,13 @@ export function RecapStep({
   // the length of every manche depends on them, so they are asked for before
   // anybody sits down — and after the recap, since an extension brings its own.
   const stageSpec = boardgame.stages;
-  const schedule =
-    stageSpec?.advance === "schedule" ? (stageSpec.schedule ?? []) : [];
+  const schedule = baseSchedule(stageSpec);
   const goalTiles = composeGoals(boardgame.roundGoals, active);
   const needsGoals = schedule.length > 0 && goalTiles.length > 0;
   const calendar = needsGoals ? stageCalendar(schedule, picks, goalTiles) : [];
 
   // What still stands between a checked-out recap and the first turn, in order.
-  const afterRecap = (
-    [
-      board === null ? null : ("board" as const),
-      needsGoals ? ("goals" as const) : null,
-    ] as const
-  ).filter(step => step !== null);
+  const afterRecap = postRecapSteps(board !== null, needsGoals);
 
   const target = winTargetView(
     boardgame.scoring?.winCondition ?? null,
@@ -140,10 +139,7 @@ export function RecapStep({
   }
 
   function confirmLaunch(snapshot: ConfigValues | null) {
-    // A map that keeps tiles face down needs a pile taken out of the box first,
-    // and the confirmation is the last moment anyone reads before playing.
-    const fogZones =
-      board?.kind === "scenario" ? hiddenMaterial(board.board) : [];
+    const fogZones = fogPile(board);
 
     requestConfirm({
       message: "Tout est prêt ? La partie va démarrer.",
@@ -157,18 +153,27 @@ export function RecapStep({
   }
 
   function handleLaunch() {
-    const snapshot = validatedSnapshot();
-    if (snapshot === null) {
+    const check = checkLaunch(
+      active,
+      scenarioByExt,
+      template ?? null,
+      composedFields,
+      values,
+    );
+
+    if (!check.ok) {
+      setInvalid(check.reason);
+
       return;
     }
 
     setInvalid(null);
-    setReady({ values: snapshot.values });
+    setReady({ values: check.values });
     setExtraStep(0);
 
     // A recap with nothing left to settle leads straight to the confirmation.
     if (afterRecap.length === 0) {
-      confirmLaunch(snapshot.values);
+      confirmLaunch(check.values);
     }
   }
 
@@ -196,58 +201,15 @@ export function RecapStep({
     setExtraStep(extraStep - 1);
   }
 
-  /**
-   * The values to launch with, or null once the reason not to has been shown.
-   * Wrapped rather than returned bare, since "no values at all" is a valid
-   * snapshot for a game with no config template.
-   */
-  function validatedSnapshot(): { values: ConfigValues | null } | null {
-    // A scenario-based extension needs its scenario chosen.
-    if (active.some(e => e.hasScenarios && !scenarioByExt[e.id])) {
-      setInvalid(
-        "Choisis un scénario pour chaque extension qui en demande un.",
-      );
-
-      return null;
-    }
-
-    // No template → nothing to snapshot; carry on with no values at all.
-    if (!template) {
-      return { values: null };
-    }
-
-    const parsed = validateConfigValues(composedFields, values ?? {});
-    if (!parsed.success) {
-      setInvalid("Vérifie les attributs de la partie avant de lancer.");
-
-      return null;
-    }
-
-    return { values: parsed.data };
-  }
-
   const onScreen = ready === null ? null : (afterRecap[extraStep] ?? null);
 
-  if (ready !== null && onScreen === "board" && board !== null) {
+  if (ready !== null && onScreen !== null) {
     return (
       <>
-        <BoardStep
+        <PostRecapStep
+          step={onScreen}
           board={board}
-          creating={creating}
-          error={error}
-          onBack={stepBack}
-          onValidate={() => stepOn(ready.values)}
-        />
-        {confirmDialog}
-      </>
-    );
-  }
-
-  if (ready !== null && onScreen === "goals") {
-    return (
-      <>
-        <StageGoalsStep
-          stageLabel={stageSpec?.label ?? "Manche"}
+          stages={stageSpec}
           schedule={schedule}
           catalogue={goalTiles}
           picks={picks}
@@ -309,13 +271,7 @@ export function RecapStep({
               selected={selectedExt}
               scenarioByExtension={scenarioByExt}
               players={players.length}
-              onToggle={id => {
-                setSelectedExt(prev =>
-                  prev.includes(id)
-                    ? prev.filter(x => x !== id)
-                    : [...prev, id],
-                );
-              }}
+              onToggle={id => setSelectedExt(prev => toggled(prev, id))}
               onPickScenario={(extension, id) => {
                 setScenarioByExt(prev => ({ ...prev, [extension]: id }));
               }}
@@ -355,8 +311,144 @@ export function RecapStep({
   );
 }
 
+/**
+ * Whether the recap can launch, and what with. The values are carried even when
+ * there are none, since "no values at all" is a valid snapshot for a game with
+ * no config template — it is not the same thing as a refusal.
+ */
+type LaunchCheck =
+  | { ok: true; values: ConfigValues | null }
+  | { ok: false; reason: string };
+
+/** Everything the recap insists on before the first turn is dealt. */
+function checkLaunch(
+  active: Extension[],
+  scenarioByExtension: Record<ExtensionId, ExtensionScenarioId>,
+  template: ConfigTemplate | null,
+  fields: FieldSpec[],
+  values: ConfigValues | null,
+): LaunchCheck {
+  // A scenario-based extension needs its scenario chosen.
+  if (active.some(e => e.hasScenarios && !scenarioByExtension[e.id])) {
+    return {
+      ok: false,
+      reason: "Choisis un scénario pour chaque extension qui en demande un.",
+    };
+  }
+
+  // No template → nothing to snapshot; carry on with no values at all.
+  if (template === null) {
+    return { ok: true, values: null };
+  }
+
+  const parsed = validateConfigValues(fields, values ?? {});
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      reason: "Vérifie les attributs de la partie avant de lancer.",
+    };
+  }
+
+  return { ok: true, values: parsed.data };
+}
+
+/**
+ * The material a scenario keeps face down, which has to be taken out of the box
+ * before anyone plays — the launch confirmation is the last thing read.
+ */
+function fogPile(board: FunnelBoard | null) {
+  return board?.kind === "scenario" ? hiddenMaterial(board.board) : [];
+}
+
+/** One thing left to settle after the recap checks out, before the first turn. */
+type PostRecap = "board" | "goals";
+
+/** Those things, in the order they are asked for. */
+function postRecapSteps(hasBoard: boolean, needsGoals: boolean): PostRecap[] {
+  const steps: PostRecap[] = [];
+
+  if (hasBoard) {
+    steps.push("board");
+  }
+
+  if (needsGoals) {
+    steps.push("goals");
+  }
+
+  return steps;
+}
+
+/** The base length of each stage, for a game that is played on a calendar. */
+function baseSchedule(stages: StageSpec | null): number[] {
+  return stages?.advance === "schedule" ? (stages.schedule ?? []) : [];
+}
+
+/** Adds an id to a selection, or takes it back out. */
+function toggled<T>(list: T[], id: T): T[] {
+  return list.includes(id) ? list.filter(x => x !== id) : [...list, id];
+}
+
+/**
+ * Whichever of the post-recap steps is on screen. They are grouped here so the
+ * recap itself only has to know that it has handed over, not which one to.
+ */
+function PostRecapStep({
+  step,
+  board,
+  stages,
+  schedule,
+  catalogue,
+  picks,
+  creating,
+  error,
+  onPicks,
+  onBack,
+  onValidate,
+}: Readonly<{
+  step: PostRecap;
+  board: FunnelBoard | null;
+  stages: StageSpec | null;
+  schedule: number[];
+  catalogue: RoundGoal[];
+  picks: StagePick[];
+  creating: boolean;
+  error: string | null;
+  onPicks: (picks: StagePick[]) => void;
+  onBack: () => void;
+  onValidate: () => void;
+}>) {
+  // A game with no board never lists that step, so the guard is only there to
+  // spare the caller a cast.
+  if (step === "board" && board !== null) {
+    return (
+      <BoardStep
+        board={board}
+        creating={creating}
+        error={error}
+        onBack={onBack}
+        onValidate={onValidate}
+      />
+    );
+  }
+
+  return (
+    <StageGoalsStep
+      stageLabel={stages?.label ?? "Manche"}
+      schedule={schedule}
+      catalogue={catalogue}
+      picks={picks}
+      creating={creating}
+      error={error}
+      onPicks={onPicks}
+      onBack={onBack}
+      onValidate={onValidate}
+    />
+  );
+}
+
 /** What the recap's button promises: the launch, or the step it opens onto. */
-function recapActionLabel(next: "board" | "goals" | null): string {
+function recapActionLabel(next: PostRecap | null): string {
   if (next === "board") {
     return "Choisis le plateau →";
   }

@@ -87,19 +87,18 @@ export function StageGoalsStep({
       </p>
 
       <div className="flex flex-col gap-3">
-        {schedule.map((_, index) => (
+        {stages.map(({ stage, turns }) => (
+          // The stages have no identity of their own: their rank in the
+          // calendar is what tells them apart, and it never moves.
           <StageRow
-            // The stages are a fixed-length sequence with no identity of their
-            // own; their rank is what tells them apart.
-            // biome-ignore lint/suspicious/noArrayIndexKey: positional by nature
-            key={index}
-            label={`${stageLabel} ${index + 1}`}
-            turns={stages[index]?.turns ?? 0}
+            key={stage}
+            label={`${stageLabel} ${stage}`}
+            turns={turns}
             groups={groups}
             catalogue={catalogue}
-            pick={pickAt(picks, index)}
-            taken={picks.filter((_p, i) => i !== index)}
-            onPick={pick => setPick(index, pick)}
+            pick={pickAt(picks, stage - 1)}
+            taken={picks.filter((_p, i) => i !== stage - 1)}
+            onPick={pick => setPick(stage - 1, pick)}
           />
         ))}
       </div>

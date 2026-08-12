@@ -106,15 +106,7 @@ export function stageSequence(
     turns.push({ turn, playerId: seats[at.seatIndex], stage: at.stage });
   }
 
-  const out = withLaps(seats, turns);
-
-  // A stage's last lap does close, unlike the open-ended future `withLaps`
-  // leaves at the end of a run it only guessed at.
-  if (stop === closing) {
-    out[out.length - 1].lastOfLap = true;
-  }
-
-  return out;
+  return withLaps(seats, turns, stop === closing);
 }
 
 /** What a game played in generations needs to lay its ribbon out. */
@@ -199,10 +191,15 @@ function expected(
  * — the next player sits no further round the table than the one who just
  * played — which holds however many players have dropped out, since the seating
  * itself never moves. A new generation always opens a lap of its own.
+ *
+ * `closed` says whether the run's final turn ends its lap. Only a caller that
+ * knows where the run stops can tell: the ribbon is otherwise showing a future
+ * it merely guessed at, which nothing has closed yet.
  */
 function withLaps(
   seats: PlayerId[],
   turns: Array<{ turn: number; playerId: PlayerId; stage: number }>,
+  closed = false,
 ): RibbonTurn[] {
   const n = seats.length;
   const seatOf = new Map(seats.map((id, seat) => [id, seat]));
@@ -234,10 +231,10 @@ function withLaps(
     prevStage = t.stage;
   }
 
-  // A turn closes its lap when the next one opens another. The very last is left
-  // open: the ribbon is showing a future it only guessed at.
-  for (let i = 0; i < out.length - 1; i++) {
-    out[i].lastOfLap = out[i + 1].firstOfLap;
+  // A turn closes its lap when the next one opens another; the very last one
+  // closes its own only if the caller knows the run stops there.
+  for (let i = 0; i < out.length; i++) {
+    out[i].lastOfLap = out[i + 1]?.firstOfLap ?? closed;
   }
 
   return out;
