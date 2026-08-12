@@ -362,7 +362,7 @@ function recapActionLabel(next: "board" | "goals" | null): string {
   }
 
   if (next === "goals") {
-    return "Pose les objectifs →";
+    return "Choix des objectifs →";
   }
 
   return "Lancer la partie";

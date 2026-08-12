@@ -59,7 +59,7 @@ export function StageGoalsStep({
 
   return (
     <FunnelStep
-      title={`5 · Pose les objectifs de ${stageLabel.toLowerCase()}`}
+      title={`5 · Choix des objectifs de ${stageLabel.toLowerCase()}`}
       onBack={onBack}
       footer={
         <>
