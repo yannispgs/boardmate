@@ -92,6 +92,26 @@ test("counts Odin manche by manche and stops the game at the bar", async ({
 
     await expect(page.getByText("Manche 2")).toBeVisible();
 
+    // A manche mis-heard at the time is reopened and put right, without the
+    // game moving: no recap, and nothing asked of the table.
+    await page.getByText("Corriger une manche").click();
+    await page.getByRole("button", { name: /^Manche 1/ }).click();
+
+    const fix = page.getByRole("dialog", { name: "Points de la manche 1" });
+
+    // Nine cards are dealt and a hand never grows, so twelve is a miscount.
+    await stagePoints(fix, names[1]).fill("12");
+
+    await expect(
+      fix.getByText("Une manche ne peut pas rapporter plus de 9 points."),
+    ).toBeVisible();
+    await expect(fix.getByRole("button", { name: "Valider" })).toBeDisabled();
+
+    await stagePoints(fix, names[1]).fill("7");
+    await fix.getByRole("button", { name: "Valider" }).click();
+
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
     // Second manche: the loser of the first crosses the bar, which stops it.
     await page.getByRole("button", { name: "Fin de la manche 2 →" }).click();
 
@@ -109,8 +129,8 @@ test("counts Odin manche by manche and stops the game at the bar", async ({
     ).toBeVisible();
     await last.getByRole("button", { name: "Voir le classement" }).click();
 
-    // Totals: 4, 15, 3 — the game ends on the sums of the manches, with the
-    // smallest total winning and nothing asked of the table a second time.
+    // Totals: 4, 16, 3 — the corrected manche included. The game ends on the
+    // sums of the manches, smallest total winning, nothing asked twice.
     await expect
       .poll(async () => {
         const { data } = await admin
@@ -123,7 +143,7 @@ test("counts Odin manche by manche and stops the game at the bar", async ({
       })
       .toEqual([
         [4, false],
-        [15, false],
+        [16, false],
         [3, true],
       ]);
 

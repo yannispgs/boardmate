@@ -32,11 +32,15 @@ export interface StageEntry {
  * Why a manche's entry can't be validated yet, or `null` when it can.
  *
  * Exactly one player goes out, and everybody else is left holding something:
- * one zero, and no other player below one. Both halves are checked because
- * both are ways of mis-hearing the table, and a wrong total here is carried to
+ * one zero, and no other player below one. `maxPoints` caps the other end when
+ * the rules do (Odin: 9, the whole hand). All three are checked because all
+ * three are ways of mis-hearing the table, and a wrong total here is carried to
  * the end of the game.
  */
-export function stageEntryError(entries: readonly StageEntry[]): string | null {
+export function stageEntryError(
+  entries: readonly StageEntry[],
+  maxPoints: number | null,
+): string | null {
   if (entries.length === 0) {
     return null;
   }
@@ -51,7 +55,46 @@ export function stageEntryError(entries: readonly StageEntry[]): string | null {
     return "Les points d'une manche ne peuvent pas être négatifs.";
   }
 
+  if (maxPoints !== null && entries.some(e => e.points > maxPoints)) {
+    return `Une manche ne peut pas rapporter plus de ${maxPoints} points.`;
+  }
+
   return null;
+}
+
+/** A manche already written down and left behind, with what it cost everyone. */
+export interface ClosedStage {
+  stage: number;
+  /** What each player took that manche, by player id. */
+  points: Record<string, number>;
+}
+
+/**
+ * The manches that are done with, oldest first — everything before the one
+ * being played. They are what the table reopens to fix a miscount noticed three
+ * manches later, so they carry their own numbers rather than a stage number the
+ * caller would have to go and look up.
+ */
+export function closedStages(
+  scores: readonly StageScore[],
+  currentStage: number,
+): ClosedStage[] {
+  const byStage = new Map<number, Record<string, number>>();
+
+  for (const score of scores) {
+    if (score.stage >= currentStage) {
+      continue;
+    }
+
+    const points = byStage.get(score.stage) ?? {};
+
+    points[score.playerId] = score.points;
+    byStage.set(score.stage, points);
+  }
+
+  return [...byStage.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([stage, points]) => ({ stage, points }));
 }
 
 /**

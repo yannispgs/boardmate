@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { PlayerId, PopulatedGame } from "@/lib/domain";
 import type { ScoreDirection } from "@/lib/game/scoring";
 import {
+  closedStages,
   stageEntryError,
   stageFinalScores,
   stageStandings,
@@ -12,6 +13,7 @@ import {
 } from "@/lib/game/stage-tally";
 
 import { namedPlayers } from "./named-players";
+import { PastStageCardList } from "./PastStageCardList";
 import { StagePointsPrompt } from "./StagePointsPrompt";
 import { StageRecap } from "./StageRecap";
 import { StandingCardList } from "./StandingCardList";
@@ -48,7 +50,9 @@ export function StageBoard({
     scores: Array<{ playerId: PlayerId; score: number }>,
   ) => Promise<void>;
 }>) {
-  const [promptOpen, setPromptOpen] = useState(false);
+  // The manche whose points are open for entry: the one being closed, or an
+  // earlier one being put right. Null when the form is shut.
+  const [entryStage, setEntryStage] = useState<number | null>(null);
   // The manche the recap is showing, which is the one that just closed — the
   // game may already have moved on by the time it is dismissed.
   const [recapStage, setRecapStage] = useState<number | null>(null);
@@ -57,6 +61,8 @@ export function StageBoard({
   const seats = players.map(p => p.id);
   const target = game.winThreshold;
   const unit = stageLabel.toLowerCase();
+  const maxPoints = game.boardgame.stages?.maxPoints ?? null;
+  const past = closedStages(goals.scores, game.stage);
 
   const standings = stageStandings(seats, goals.scores, game.stage, direction);
   const recap =
@@ -66,11 +72,20 @@ export function StageBoard({
   const stopped =
     recap !== null && target !== null && stopReached(recap, target);
 
-  /** Writes the manche down, then hands the table its standings. */
-  async function closeStage(points: Parameters<StageGoalLog["save"]>[1]) {
-    setPromptOpen(false);
-    await goals.save(game.stage, points);
-    setRecapStage(game.stage);
+  /** Writes a manche down: the one being closed, or an older one put right. */
+  async function saveEntry(
+    stage: number,
+    points: Parameters<StageGoalLog["save"]>[1],
+  ) {
+    setEntryStage(null);
+    await goals.save(stage, points);
+
+    // Only the manche that just ended calls the table round to read the
+    // standings out; correcting an old one puts them right where they stand,
+    // in a game that has long moved on.
+    if (stage === game.stage) {
+      setRecapStage(stage);
+    }
   }
 
   async function openNextStage() {
@@ -95,27 +110,35 @@ export function StageBoard({
         <button
           type="button"
           disabled={disabled}
-          onClick={() => setPromptOpen(true)}
+          onClick={() => setEntryStage(game.stage)}
           className="rounded-xl bg-indigo-600 px-4 py-3 font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
         >
           Fin de la {unit} {game.stage} →
         </button>
+
+        <PastStageCardList
+          closed={past}
+          stageLabel={stageLabel}
+          players={players}
+          disabled={disabled}
+          onEdit={setEntryStage}
+        />
       </div>
 
-      {promptOpen ? (
+      {entryStage === null ? null : (
         <StagePointsPrompt
-          stage={game.stage}
+          stage={entryStage}
           stageLabel={stageLabel}
-          intro="Points de chacun : 0 pour celui qui termine, au moins 1 pour les autres."
+          intro={pointsIntro(maxPoints)}
           players={players}
-          initial={goals.entered(game.stage)}
-          validate={stageEntryError}
+          initial={goals.entered(entryStage)}
+          validate={entries => stageEntryError(entries, maxPoints)}
           disabled={disabled}
           confirmLabel="Valider"
-          onConfirm={points => void closeStage(points)}
-          onCancel={() => setPromptOpen(false)}
+          onConfirm={points => void saveEntry(entryStage, points)}
+          onCancel={() => setEntryStage(null)}
         />
-      ) : null}
+      )}
 
       {recap === null || recapStage === null ? null : (
         <StageRecap
@@ -132,6 +155,15 @@ export function StageBoard({
       )}
     </>
   );
+}
+
+/** The rule the boxes are filled in by, capped when the rules cap it. */
+function pointsIntro(maxPoints: number | null): string {
+  const rule = "Points de chacun : 0 pour celui qui termine, au moins 1 pour";
+
+  return maxPoints === null
+    ? `${rule} les autres.`
+    : `${rule} les autres, ${maxPoints} au plus.`;
 }
 
 /** What the table is playing to, spelled out above the standings. */

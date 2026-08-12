@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { PlayerId, StageScore } from "@/lib/domain";
 
 import {
+  closedStages,
   stageEntryError,
   stageFinalScores,
   stageStandings,
@@ -28,42 +29,94 @@ const SCORES: StageScore[] = [
 describe("stageEntryError", () => {
   it("accepts one player out and the others holding cards", () => {
     expect(
-      stageEntryError([
-        { playerId: A, points: 0 },
-        { playerId: B, points: 4 },
-      ]),
+      stageEntryError(
+        [
+          { playerId: A, points: 0 },
+          { playerId: B, points: 4 },
+        ],
+        9,
+      ),
     ).toBeNull();
   });
 
   it("refuses a manche nobody went out of", () => {
     expect(
-      stageEntryError([
-        { playerId: A, points: 2 },
-        { playerId: B, points: 4 },
-      ]),
+      stageEntryError(
+        [
+          { playerId: A, points: 2 },
+          { playerId: B, points: 4 },
+        ],
+        9,
+      ),
     ).toBe("Un seul joueur doit finir à 0 point.");
   });
 
   it("refuses two players going out at once", () => {
     expect(
-      stageEntryError([
-        { playerId: A, points: 0 },
-        { playerId: B, points: 0 },
-      ]),
+      stageEntryError(
+        [
+          { playerId: A, points: 0 },
+          { playerId: B, points: 0 },
+        ],
+        9,
+      ),
     ).toBe("Un seul joueur doit finir à 0 point.");
   });
 
   it("refuses negative points", () => {
     expect(
-      stageEntryError([
-        { playerId: A, points: 0 },
-        { playerId: B, points: -2 },
-      ]),
+      stageEntryError(
+        [
+          { playerId: A, points: 0 },
+          { playerId: B, points: -2 },
+        ],
+        9,
+      ),
     ).toBe("Les points d'une manche ne peuvent pas être négatifs.");
   });
 
+  it("refuses more points than a hand can hold", () => {
+    expect(
+      stageEntryError(
+        [
+          { playerId: A, points: 0 },
+          { playerId: B, points: 12 },
+        ],
+        9,
+      ),
+    ).toBe("Une manche ne peut pas rapporter plus de 9 points.");
+  });
+
+  it("lets any total through when the rules cap nothing", () => {
+    expect(
+      stageEntryError(
+        [
+          { playerId: A, points: 0 },
+          { playerId: B, points: 40 },
+        ],
+        null,
+      ),
+    ).toBeNull();
+  });
+
   it("says nothing about an empty table", () => {
-    expect(stageEntryError([])).toBeNull();
+    expect(stageEntryError([], 9)).toBeNull();
+  });
+});
+
+describe("closedStages", () => {
+  it("lists the manches left behind, oldest first, with their points", () => {
+    expect(closedStages(SCORES, 3)).toEqual([
+      { stage: 1, points: { a: 0, b: 4, c: 7 } },
+      { stage: 2, points: { a: 3, b: 5, c: 0 } },
+    ]);
+  });
+
+  it("leaves out the manche being played and anything after it", () => {
+    expect(closedStages(SCORES, 2)).toEqual([
+      { stage: 1, points: { a: 0, b: 4, c: 7 } },
+    ]);
+    expect(closedStages(SCORES, 1)).toEqual([]);
   });
 });
 
