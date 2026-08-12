@@ -18,16 +18,28 @@ const PLAYER_COL = "4.25rem";
 const inputClass =
   "no-spinners w-11 rounded-md border border-black/15 bg-white px-1 py-1 text-right tabular-nums outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900";
 
+// A line the game filled in itself: flat, so the eye reads it as a result
+// already settled rather than a cell somebody forgot.
+const readOnlyClass =
+  "border-transparent bg-black/5 font-semibold focus:border-transparent dark:bg-white/10";
+
 /** Per-player raw text entered per category key. */
 export type CategoryRaw = Record<string, Record<string, string>>;
 
-/** How many cells are still empty (a forgotten score) across the whole sheet. */
+/**
+ * How many cells are still empty (a forgotten score) across the whole sheet.
+ * A read-only line never counts: nobody can fill it, so it must never be what
+ * holds the total back.
+ */
 export function gridRemaining(
   players: { id: PlayerId }[],
   sheet: ScoreSheetItem[],
   raw: CategoryRaw,
+  readOnlyKeys: readonly string[] = [],
 ): number {
-  const categories = sheetCategories(sheet);
+  const categories = sheetCategories(sheet).filter(
+    c => !readOnlyKeys.includes(c.key),
+  );
 
   return players.reduce(
     (n, pl) =>
@@ -80,12 +92,19 @@ export function CategoryScoreGrid({
   raw,
   onCell,
   disabled,
+  readOnlyKeys = [],
 }: Readonly<{
   players: { id: PlayerId; name: string }[];
   sheet: ScoreSheetItem[];
   raw: CategoryRaw;
   onCell: (playerId: PlayerId, key: string, text: string) => void;
   disabled: boolean;
+  /**
+   * Lines the game already counted itself (Wingspan's « Objectifs de manche »,
+   * scored manche by manche): shown filled in, but not typed over. Empty when
+   * the sheet is being filled from memory, where there is nothing to derive.
+   */
+  readOnlyKeys?: readonly string[];
 }>) {
   const gridCols = `${LABEL_COL} repeat(${players.length}, ${PLAYER_COL})`;
 
@@ -151,6 +170,7 @@ export function CategoryScoreGrid({
                         : undefined
                     }
                     disabled={disabled}
+                    readOnly={readOnlyKeys.includes(cat.key)}
                   />
                 ))}
               </Section>
@@ -162,6 +182,7 @@ export function CategoryScoreGrid({
                   value={pid => raw[pid]?.[item.key] ?? ""}
                   onChange={(pid, t) => onCell(pid, item.key, t)}
                   disabled={disabled}
+                  readOnly={readOnlyKeys.includes(item.key)}
                 />
               </Section>
             ),
@@ -230,6 +251,7 @@ function Row({
   onChange,
   bonus,
   disabled,
+  readOnly = false,
 }: Readonly<{
   category: CategoryDef;
   players: { id: PlayerId; name: string }[];
@@ -237,6 +259,8 @@ function Row({
   onChange: (playerId: PlayerId, text: string) => void;
   bonus?: Record<string, number>;
   disabled: boolean;
+  /** The line was counted during the game: shown, not asked for. */
+  readOnly?: boolean;
 }>) {
   const { label, colors } = category;
   const icon = categoryIconOf(category);
@@ -271,8 +295,9 @@ function Row({
               value={value(pl.id)}
               onChange={e => onChange(pl.id, e.target.value)}
               disabled={disabled}
+              readOnly={readOnly}
               aria-label={`${label} — ${pl.name}`}
-              className={inputClass}
+              className={`${inputClass} ${readOnly ? readOnlyClass : ""}`}
             />
             {bonus ? (
               <span className="-translate-y-1/2 absolute top-1/2 left-full ml-0.5 text-xs text-indigo-600 tabular-nums dark:text-indigo-400">

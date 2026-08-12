@@ -35,6 +35,16 @@ export const CATEGORY_ICONS = [
   { id: "city", name: "Cité" },
   { id: "factory", name: "Construction" },
   { id: "terraforming", name: "Terraformation" },
+  { id: "habitat-forest", name: "Écosystème forêt" },
+  { id: "habitat-grassland", name: "Écosystème prairie" },
+  { id: "habitat-sea", name: "Écosystème mer" },
+  { id: "nest-platform", name: "Nid plateforme" },
+  { id: "nest-bowl", name: "Nid coupe" },
+  { id: "nest-cavity", name: "Nid cavité" },
+  { id: "nest-ground", name: "Nid au sol" },
+  { id: "food-invertebrate", name: "Invertébrés" },
+  { id: "food-fruit-seed", name: "Fruits et graines" },
+  { id: "food-rodent-fish", name: "Rongeurs et poissons" },
 ] as const;
 
 /** One of the drawings the app ships. */

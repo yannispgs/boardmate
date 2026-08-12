@@ -5,6 +5,8 @@ import type { RoundGoal } from "@/lib/domain";
 import {
   formatGoalLabel,
   goalCatalogue,
+  goalGroups,
+  goalSignature,
   goalTemplateLabel,
   isGoalComplete,
 } from "./round-goals";
@@ -128,5 +130,46 @@ describe("goalCatalogue", () => {
 
   it("is just the base game's tiles without extensions", () => {
     expect(goalCatalogue([eggsInHabitat], [])).toEqual([eggsInHabitat]);
+  });
+});
+
+describe("goalSignature", () => {
+  it("tells two tiles of one family apart by their values", () => {
+    expect(goalSignature("eggsInHabitat", { habitat: "sea" })).not.toBe(
+      goalSignature("eggsInHabitat", { habitat: "forest" }),
+    );
+  });
+
+  it("reads a tile the same whatever order its values were answered in", () => {
+    expect(goalSignature("g", { a: "1", b: "2" })).toBe(
+      goalSignature("g", { b: "2", a: "1" }),
+    );
+  });
+
+  it("gives a tile without a variable part its bare key", () => {
+    expect(goalSignature("totalBirds", {})).toBe("totalBirds|");
+  });
+});
+
+describe("goalGroups", () => {
+  it("sorts the tiles into those that read as they are and those to fill in", () => {
+    const groups = goalGroups([eggsInHabitat, totalBirds, noGoal]);
+
+    expect(groups.map(g => g.label)).toEqual([
+      "Objectifs uniques",
+      "À préciser",
+    ]);
+    expect(groups[0].goals.map(g => g.key)).toEqual(["totalBirds", "noGoal"]);
+    expect(groups[1].goals.map(g => g.key)).toEqual(["eggsInHabitat"]);
+  });
+
+  it("drops a heading no tile falls under", () => {
+    const groups = goalGroups([eggsInHabitat]);
+
+    expect(groups.map(g => g.label)).toEqual(["À préciser"]);
+  });
+
+  it("has nothing to show for an empty catalogue", () => {
+    expect(goalGroups([])).toEqual([]);
   });
 });

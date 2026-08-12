@@ -2,6 +2,9 @@ import type { ReactNode } from "react";
 
 import type { CategoryIconId } from "@/lib/game/category-icons";
 
+/** The token the nest symbols are printed on: a full disc, filled edge to edge. */
+const DISC = "M12 3a9 9 0 1 0 0 18 9 9 0 1 0 0-18Z";
+
 /**
  * The drawings a scored line wears instead of its label, and a milestone wears
  * beside its name. Same shape as the app's other icons (24×24, `currentColor`,
@@ -116,6 +119,96 @@ const PATHS: Record<CategoryIconId, ReactNode> = {
       <path d="M3.5 14h13" />
       <path d="M19.5 11V4" />
       <path d="m17 6.5 2.5-2.5 2.5 2.5" />
+    </>
+  ),
+  // The three habitats: a canopy, a tuft of grass, a wave. Told apart by their
+  // silhouette alone, since they are read side by side on one row of chips.
+  "habitat-forest": (
+    <>
+      <path d="M12 4 6 13h3.5L6 19h12l-3.5-6H18z" />
+      <path d="M12 19v2" />
+    </>
+  ),
+  "habitat-grassland": (
+    <>
+      <path d="M4 20c0-5 2-8 4-9" />
+      <path d="M12 20V7" />
+      <path d="M20 20c0-5-2-8-4-9" />
+      <path d="M3 20h18" />
+    </>
+  ),
+  "habitat-sea": (
+    <>
+      <path d="M3 9c3-2.5 6 2.5 9 0s6-2.5 9 0" />
+      <path d="M3 15c3-2.5 6 2.5 9 0s6-2.5 9 0" />
+    </>
+  ),
+  // The four nest types, redrawn after the tokens themselves: a filled disc with
+  // the nest punched out of it, rather than the outline the other icons use.
+  // `evenodd` is what cuts the hollow, so the shape works on either theme
+  // without ever painting a background colour. The cavity is the exception — its
+  // cut runs edge to edge, and a straight band would spill past the disc, so it
+  // is drawn as the two caps it leaves behind.
+  "nest-platform": (
+    // Three straight twigs laid flat across the disc: one lying on its own, two
+    // crossing over it.
+    <path
+      fillRule="evenodd"
+      d={`${DISC} M5 13.9h14v1.4H5Z M18.65 8.92 18.95 10.28 5.35 13.28 5.05 11.92Z M18.99 12.13 18.61 13.47 5.01 9.67 5.39 8.33Z`}
+      fill="currentColor"
+      stroke="none"
+    />
+  ),
+  "nest-bowl": (
+    // The cup of the bowl hollowed out of the disc, with the egg riding high in
+    // it rather than sitting at the bottom. The egg is drawn a touch taller than
+    // the token shows it: filled dark on a light page it reads smaller than the
+    // same shape filled light on a dark one, and the light theme is the one that
+    // was losing it.
+    <path
+      fillRule="evenodd"
+      d={`${DISC} M12 5.6a6.4 6.4 0 1 0 0 12.8 6.4 6.4 0 1 0 0-12.8Z M12 7.6a4.6 2.8 0 1 0 0 5.6 4.6 2.8 0 1 0 0-5.6Z`}
+      fill="currentColor"
+      stroke="none"
+    />
+  ),
+  "nest-cavity": (
+    // A standing trunk split by the hollow, with the egg deep inside it.
+    <path
+      d="M14.97 3.5A9 9 0 0 1 14.97 20.5Z M8.4 3.75A9 9 0 0 0 8.4 20.25Z M11.7 9.8a1.7 2.2 0 1 0 0 4.4 1.7 2.2 0 1 0 0-4.4Z"
+      fill="currentColor"
+      stroke="none"
+    />
+  ),
+  "nest-ground": (
+    // A clutch of eggs, packed tight and gathered in the middle of the token.
+    <path
+      fillRule="evenodd"
+      d={`${DISC} M10.15 7a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z M13.85 7a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z M8.3 10.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z M12 10.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z M15.7 10.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z M10.15 13.4a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z M13.85 13.4a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 1 0 0-3.6Z`}
+      fill="currentColor"
+      stroke="none"
+    />
+  ),
+  // The three food groups Oceania's goals ask about, drawn as one member each:
+  // a worm, a berry on its stem, a fish.
+  "food-invertebrate": (
+    <>
+      <path d="M4 16c0-3 3-3 3-6s3-3 5-3 5 1 5 4-2 5-5 5-8 1-8 0Z" />
+      <path d="M15 9h.01" />
+    </>
+  ),
+  "food-fruit-seed": (
+    <>
+      <circle cx="12" cy="15" r="5.5" />
+      <path d="M12 9.5V5" />
+      <path d="M12 7c2.5 0 4-1.5 4-4-2.5 0-4 1.5-4 4Z" />
+    </>
+  ),
+  "food-rodent-fish": (
+    <>
+      <path d="M3 12c3-4.5 8-5.5 12-3.5 2 1 3.5 2.5 5 3.5-1.5 1-3 2.5-5 3.5-4 2-9 1-12-3.5Z" />
+      <path d="M7 12h.01" />
+      <path d="M20 8.5v7" />
     </>
   ),
 };

@@ -543,6 +543,74 @@ export type Database = {
           },
         ]
       }
+      game_stage_scores: {
+        Row: {
+          game_id: string
+          player_id: string
+          points: number
+          stage: number
+        }
+        Insert: {
+          game_id: string
+          player_id: string
+          points?: number
+          stage: number
+        }
+        Update: {
+          game_id?: string
+          player_id?: string
+          points?: number
+          stage?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_stage_scores_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_stage_scores_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_stages: {
+        Row: {
+          game_id: string
+          goal_key: string
+          goal_params: Json
+          stage: number
+          turns: number
+        }
+        Insert: {
+          game_id: string
+          goal_key: string
+          goal_params?: Json
+          stage: number
+          turns: number
+        }
+        Update: {
+          game_id?: string
+          goal_key?: string
+          goal_params?: Json
+          stage?: number
+          turns?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_stages_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       game_turns: {
         Row: {
           blocked_by_player_id: string | null

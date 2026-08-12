@@ -3,8 +3,11 @@ import type {
   ExtensionScenarioId,
   FieldSpec,
   PlayedExtension,
+  RoundGoal,
   ScoringSpec,
 } from "@/lib/domain";
+
+import { goalCatalogue } from "./round-goals";
 
 /** `2 scénarios` / `1 scénario` — French plural on the noun only. */
 function count(n: number, noun: string): string {
@@ -136,6 +139,21 @@ export function composeScoring(
   }
 
   return { ...base, sheet: [...base.sheet, ...additions] };
+}
+
+/**
+ * The end-of-stage goal tiles a game can be set up with: the base game's, plus
+ * the ones each active extension brings (Oceania's six). See
+ * {@link goalCatalogue} for what happens to a key an extension re-declares.
+ */
+export function composeGoals(
+  base: RoundGoal[],
+  exts: Extension[],
+): RoundGoal[] {
+  return goalCatalogue(
+    base,
+    ordered(exts).map(e => e.roundGoals),
+  );
 }
 
 /**

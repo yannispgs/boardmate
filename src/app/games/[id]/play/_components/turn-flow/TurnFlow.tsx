@@ -3,23 +3,35 @@
 import { useMemo } from "react";
 
 import type { GameTurn, PlayerId, StagePass } from "@/lib/domain";
-import { generationSequence, lapSequence } from "@/lib/game/turn-ribbon";
+import { stageEndTurn } from "@/lib/game/stage";
+import {
+  generationSequence,
+  lapSequence,
+  stageSequence,
+} from "@/lib/game/turn-ribbon";
 
 import { EndCap } from "./EndCap";
 import { AHEAD, buildItems, measurePlayers, PAD_LEFT, SVG_H } from "./geometry";
 import { RoundBar } from "./RoundBar";
+import { StageEndCap } from "./StageEndCap";
 import { Tag } from "./Tag";
 
 /** What a game played in generations needs the ribbon to know. */
 export interface GenerationFlow {
   /** The generation being played. */
   stage: number;
-  /** The play screen's 1-based global turn counter. */
-  turn: number;
   /** The turn log, which is where the ribbon reads the past from. */
   turns: GameTurn[];
   /** Every pass recorded this game, of any generation. */
   passes: StagePass[];
+}
+
+/** What a game played on a calendar needs the ribbon to know. */
+export interface CalendarFlow {
+  /** What the box calls one stage — « Manche ». */
+  label: string;
+  /** The laps each stage lasts, in order. */
+  turnsPerStage: number[];
 }
 
 /**
@@ -39,35 +51,47 @@ export interface GenerationFlow {
 export function TurnFlow({
   players,
   currentPlayerId,
-  round,
+  turn,
   roundLimit,
   generation = null,
+  calendar = null,
 }: Readonly<{
   /** Everyone at the table, in seat order — nobody is ever dropped. */
   players: { id: PlayerId; name: string }[];
   currentPlayerId: PlayerId | null;
-  round: number;
+  /** The play screen's 1-based global turn counter. */
+  turn: number;
   /** Fixed game length in rounds, or null for an open-ended game. */
   roundLimit: number | null;
   /** Set for a game played in generations, null for one played in plain laps. */
   generation?: GenerationFlow | null;
+  /** Set for a game played on a calendar, null for one that follows none. */
+  calendar?: CalendarFlow | null;
 }>) {
   const n = players.length;
   const metrics = useMemo(() => measurePlayers(players), [players]);
 
-  const curSeat = Math.max(
-    0,
-    players.findIndex(p => p.id === currentPlayerId),
-  );
-  // Global turn index. A generation game reads it off its own counter: its laps
-  // hold different players, so seat arithmetic no longer places a turn.
-  const current = generation ? generation.turn - 1 : (round - 1) * n + curSeat;
+  // Global turn index, read off the game's own counter. Seat arithmetic would
+  // not do: a generation's laps hold different players, and a calendar hands the
+  // first-player marker on at each new stage, so the seat a turn falls on is no
+  // longer where the lap started.
+  const current = turn - 1;
   // 0-based index of the game's very last turn (last seat of the last round).
   const lastTurn =
     roundLimit !== null && !generation ? roundLimit * n - 1 : null;
 
   const seq = useMemo(() => {
     const seats = players.map(p => p.id);
+
+    if (calendar) {
+      return stageSequence(
+        seats,
+        current,
+        AHEAD,
+        lastTurn,
+        calendar.turnsPerStage,
+      );
+    }
 
     if (!generation) {
       return lapSequence(seats, current, AHEAD, lastTurn);
@@ -86,11 +110,25 @@ export function TurnFlow({
       passes: generation.passes,
       ahead: AHEAD,
     });
-  }, [players, generation, current, currentPlayerId, lastTurn]);
+  }, [players, generation, calendar, current, currentPlayerId, lastTurn]);
+
+  // Where the manche being played stops, and what to write there.
+  const stageEnd = useMemo(() => {
+    if (!calendar || n === 0) {
+      return null;
+    }
+
+    const at = stageEndTurn(turn, n, calendar.turnsPerStage);
+
+    return {
+      turn: at.turn - 1,
+      label: `Fin ${calendar.label.toLowerCase()} ${at.stage}`,
+    };
+  }, [calendar, n, turn]);
 
   const { items, currentLeft } = useMemo(
-    () => buildItems(seq, current, metrics, { lastTurn }),
-    [seq, current, metrics, lastTurn],
+    () => buildItems(seq, current, metrics, { lastTurn, stageEnd }),
+    [seq, current, metrics, lastTurn, stageEnd],
   );
 
   if (n === 0) {
@@ -134,6 +172,16 @@ export function TurnFlow({
 
           if (item.kind === "end") {
             return <EndCap key="end" left={item.left} />;
+          }
+
+          if (item.kind === "stage-end") {
+            return (
+              <StageEndCap
+                key="stage-end"
+                label={item.label}
+                left={item.left}
+              />
+            );
           }
 
           return <Tag key={`turn-${item.turn}`} item={item} />;

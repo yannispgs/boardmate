@@ -39,6 +39,7 @@ import type {
   PlayerId,
   PlayerUpdate,
   PopulatedGame,
+  StageAdvance,
   TieBreakRecord,
   TurnMode,
 } from "@/lib/domain";
@@ -158,10 +159,12 @@ export interface GameRepository {
    * turn is recorded with no owner, and `opts.blockedById` optionally flags the
    * player the table waited on — for `opts.waitedSeconds` (tap → advance).
    *
-   * A game played in generations (`opts.generations`) rotates only between the
-   * players still in: `opts.passing` ends the current player's generation, and
-   * once the last one has passed the next generation opens on the seat holding
-   * the first-player marker.
+   * `opts.advance` is how the boardgame's stages end, when it has any (see
+   * `StageSpec`). `"pass"` rotates only between the players still in:
+   * `opts.passing` ends the current player's generation, and once the last one
+   * has passed the next generation opens on the seat holding the first-player
+   * marker. `"schedule"` follows the game's own calendar — a stage lasts its
+   * recorded number of laps, and the marker moves along at each new one.
    */
   advanceTurn(
     id: GameId,
@@ -173,11 +176,21 @@ export interface GameRepository {
       turnMode?: TurnMode;
       blockedById?: PlayerId | null;
       waitedSeconds?: number;
-      /** The boardgame declares `stages` — rotate by generation, not by lap. */
-      generations?: boolean;
+      /** How the boardgame's stages end; omitted for a game turning in laps. */
+      advance?: StageAdvance;
       /** The player who just played passes: no more turns this generation. */
       passing?: boolean;
     },
+  ): Promise<void>;
+  /**
+   * Records what each player scored on one stage's goal, at the moment that
+   * stage ends. Replaces whatever was entered for that stage, so a mistyped
+   * total can be corrected without leaving a second row behind.
+   */
+  setStageScores(
+    id: GameId,
+    stage: number,
+    points: Array<{ playerId: PlayerId; points: number }>,
   ): Promise<void>;
   /** Sets one player's current score (live scoring), logged at the given tour. */
   setScore(

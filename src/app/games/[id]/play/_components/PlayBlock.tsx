@@ -2,6 +2,7 @@
 
 import type { PlayerId, PopulatedGame } from "@/lib/domain";
 import { diceStats, diceValues } from "@/lib/game/dice";
+import { playCalendar } from "@/lib/game/stage";
 import type { UseTurnTimer } from "@/lib/hooks/use-turn-timer";
 import { DiceBar } from "./DiceBar";
 import { DurationEditor } from "./DurationEditor";
@@ -35,16 +36,23 @@ export function PlayBlock({
   const players = game.players.map(p => p.player);
   const spec = game.boardgame.dice;
   const range = spec ? diceValues(spec) : [];
+  const stages = game.boardgame.stages;
   // A game played in generations keeps every player on the ribbon: whoever has
   // passed is simply not given a turn until the next generation opens.
   const generation =
-    game.boardgame.stages !== null
-      ? {
-          stage: game.stage,
-          turn: game.turn,
-          turns: game.turns,
-          passes: game.stagePasses,
-        }
+    stages?.advance === "pass"
+      ? { stage: game.stage, turns: game.turns, passes: game.stagePasses }
+      : null;
+  // A game on a calendar is laid out in advance, stage by stage: its length and
+  // the seat each turn belongs to both come from the calendar, not from the box.
+  const calendar = playCalendar(
+    stages?.advance,
+    game.stages,
+    game.boardgame.roundLimit,
+  );
+  const schedule =
+    stages && calendar.scheduled
+      ? { label: stages.label, turnsPerStage: calendar.turnsPerStage }
       : null;
 
   return (
@@ -61,9 +69,10 @@ export function PlayBlock({
         <TurnFlow
           players={players}
           currentPlayerId={game.currentPlayerId}
-          round={game.round}
-          roundLimit={game.boardgame.roundLimit}
+          turn={game.turn}
+          roundLimit={calendar.roundLimit}
           generation={generation}
+          calendar={schedule}
         />
       )}
 

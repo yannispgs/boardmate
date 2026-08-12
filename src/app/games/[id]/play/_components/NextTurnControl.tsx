@@ -15,20 +15,42 @@ import { HoldButton } from "@/components/HoldButton";
 export function NextTurnControl({
   atFinalTurn,
   disabled,
+  nextLabel,
   onNext,
   onPass,
+  onStageGoal,
 }: Readonly<{
   atFinalTurn: boolean;
   disabled: boolean;
+  /** What the button says, when the turn ends something bigger than itself. */
+  nextLabel?: string;
   onNext: () => void;
   /** Null for a game with no generations, where nobody can pass. */
   onPass: (() => void) | null;
+  /**
+   * Set on the last turn of a stage that is also the game's last: the goal is
+   * still scored, but there is no next stage to move on to.
+   */
+  onStageGoal?: (() => void) | null;
 }>) {
   if (atFinalTurn) {
     return (
-      <p className="text-center text-sm font-semibold text-amber-600 dark:text-amber-400">
-        Dernier tour — terminez la partie pour compter les points.
-      </p>
+      <div className="flex flex-col items-center gap-3">
+        <p className="text-center text-sm font-semibold text-amber-600 dark:text-amber-400">
+          Dernier tour — terminez la partie pour compter les points.
+        </p>
+
+        {onStageGoal ? (
+          <button
+            type="button"
+            onClick={onStageGoal}
+            disabled={disabled}
+            className="rounded-xl border border-zinc-300 px-5 py-3 text-base font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            Noter l&apos;objectif de la manche
+          </button>
+        ) : null}
+      </div>
     );
   }
 
@@ -57,7 +79,7 @@ export function NextTurnControl({
         disabled={disabled}
         className="flex-[2] rounded-xl bg-indigo-600 px-6 py-4 text-lg font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
       >
-        Tour suivant →
+        {nextLabel ?? "Tour suivant →"}
       </button>
     </div>
   );

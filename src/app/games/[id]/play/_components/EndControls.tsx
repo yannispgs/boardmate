@@ -5,10 +5,12 @@ import type {
   MilestoneClaim,
   PlayerId,
   PopulatedGame,
+  StageScore,
   WinCondition,
 } from "@/lib/domain";
 import { milestonePrefill } from "@/lib/game/milestones";
-import { winnerDirection } from "@/lib/game/scoring";
+import { derivedKeys, mergePrefill, winnerDirection } from "@/lib/game/scoring";
+import { stageGoalPrefill } from "@/lib/game/stage";
 import { loneLeader } from "@/lib/game/tie-break";
 import { CategoryScoreEntry } from "../../../_components/CategoryScoreEntry";
 import { PairScoreEntry } from "../../../_components/PairScoreEntry";
@@ -24,6 +26,7 @@ export function EndControls({
   game,
   flow,
   milestoneClaims,
+  stageScores,
   disabled,
 }: Readonly<{
   game: PopulatedGame;
@@ -34,6 +37,11 @@ export function EndControls({
    * moment the points are counted.
    */
   milestoneClaims: MilestoneClaim[];
+  /**
+   * The manche goals scored so far, likewise held live: the last manche is
+   * entered on the very turn the game ends, with no reload in between.
+   */
+  stageScores: StageScore[];
   disabled: boolean;
 }>) {
   const players = namedPlayers(game);
@@ -83,11 +91,17 @@ export function EndControls({
           <CategoryScoreEntry
             players={players}
             sheet={finalScoring.sheet}
-            initial={
+            initial={mergePrefill([
               milestones === null
-                ? undefined
-                : milestonePrefill(milestones, milestoneClaims)
-            }
+                ? {}
+                : milestonePrefill(milestones, milestoneClaims),
+              stageGoalPrefill(
+                finalScoring.sheet,
+                players.map(p => p.id),
+                stageScores,
+              ),
+            ])}
+            readOnlyKeys={derivedKeys(finalScoring.sheet, "stageGoals")}
             onSubmit={flow.finishCategories}
             onCancel={() => flow.setEntryOpen(false)}
             disabled={disabled}

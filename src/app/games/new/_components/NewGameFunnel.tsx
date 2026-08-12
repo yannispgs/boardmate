@@ -9,6 +9,7 @@ import type {
   ConfigValues,
   ExtensionId,
   ExtensionScenarioId,
+  GameStage,
   Player,
   PlayerId,
 } from "@/lib/domain";
@@ -38,6 +39,7 @@ export function NewGameFunnel() {
     configValues: ConfigValues | null,
     extensionIds: ExtensionId[],
     scenarioByExtension: Record<ExtensionId, ExtensionScenarioId>,
+    stages: GameStage[],
   ) {
     if (!boardgame) {
       return;
@@ -54,6 +56,7 @@ export function NewGameFunnel() {
         initialScore: initialScoreFor(boardgame.scoring),
         extensionIds,
         scenarioByExtension,
+        stages,
       });
       router.push(`/games/${game.id}/play`);
     } catch {

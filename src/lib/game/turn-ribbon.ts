@@ -1,5 +1,7 @@
 import type { PlayerId } from "@/lib/domain";
 
+import { scheduledPosition, stageEndTurn } from "./stage";
+
 /**
  * The order the turn ribbon draws, as an explicit **sequence** of turns.
  *
@@ -65,6 +67,46 @@ export function lapSequence(
   }
 
   return out;
+}
+
+/**
+ * The turns of a game played on a calendar (Wingspan). Everyone still plays
+ * exactly once per lap, so the whole ribbon can be worked out in advance — but
+ * the laps are cut into stages, and the first-player marker moves one seat along
+ * at each new stage, so the sequence is generated rather than counted off.
+ *
+ * It stops at the end of the stage being played. What follows the table's last
+ * lap is not another player's turn but the goal tile being scored, and offering
+ * the next manche's opener would promise a turn nobody is about to take.
+ */
+export function stageSequence(
+  seats: PlayerId[],
+  current: number,
+  ahead: number,
+  lastTurn: number | null,
+  turnsPerStage: number[],
+): RibbonTurn[] {
+  const n = seats.length;
+
+  if (n === 0) {
+    return [];
+  }
+
+  const closing = stageEndTurn(current + 1, n, turnsPerStage).turn - 1;
+  const stop = Math.min(
+    lastTurn ?? Number.POSITIVE_INFINITY,
+    current + ahead,
+    closing,
+  );
+  const turns: Array<{ turn: number; playerId: PlayerId; stage: number }> = [];
+
+  for (let turn = 0; turn <= stop; turn++) {
+    const at = scheduledPosition(turn + 1, n, turnsPerStage);
+
+    turns.push({ turn, playerId: seats[at.seatIndex], stage: at.stage });
+  }
+
+  return withLaps(seats, turns, stop === closing);
 }
 
 /** What a game played in generations needs to lay its ribbon out. */
@@ -149,10 +191,15 @@ function expected(
  * — the next player sits no further round the table than the one who just
  * played — which holds however many players have dropped out, since the seating
  * itself never moves. A new generation always opens a lap of its own.
+ *
+ * `closed` says whether the run's final turn ends its lap. Only a caller that
+ * knows where the run stops can tell: the ribbon is otherwise showing a future
+ * it merely guessed at, which nothing has closed yet.
  */
 function withLaps(
   seats: PlayerId[],
   turns: Array<{ turn: number; playerId: PlayerId; stage: number }>,
+  closed = false,
 ): RibbonTurn[] {
   const n = seats.length;
   const seatOf = new Map(seats.map((id, seat) => [id, seat]));
@@ -184,10 +231,10 @@ function withLaps(
     prevStage = t.stage;
   }
 
-  // A turn closes its lap when the next one opens another. The very last is left
-  // open: the ribbon is showing a future it only guessed at.
-  for (let i = 0; i < out.length - 1; i++) {
-    out[i].lastOfLap = out[i + 1].firstOfLap;
+  // A turn closes its lap when the next one opens another; the very last one
+  // closes its own only if the caller knows the run stops there.
+  for (let i = 0; i < out.length; i++) {
+    out[i].lastOfLap = out[i + 1]?.firstOfLap ?? closed;
   }
 
   return out;

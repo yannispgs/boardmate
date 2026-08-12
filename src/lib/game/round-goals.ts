@@ -55,6 +55,50 @@ export function isGoalComplete(
 }
 
 /**
+ * A tile's identity: the family it belongs to and the values printed on it.
+ * « Œufs dans Mer » and « Œufs dans Forêt » are two tiles of the same family, so
+ * the values are what tell them apart — in a stable order, whatever order they
+ * were answered in.
+ */
+export function goalSignature(
+  goalKey: string,
+  values: RoundGoalParams,
+): string {
+  const params = Object.keys(values)
+    .sort((a, b) => a.localeCompare(b))
+    .map(key => `${key}=${values[key]}`)
+    .join(",");
+
+  return `${goalKey}|${params}`;
+}
+
+/** A titled group of goal tiles, as one `<optgroup>` of the setup picker. */
+export interface GoalGroup {
+  label: string;
+  goals: RoundGoal[];
+}
+
+/**
+ * The catalogue split the way the setup picker offers it: the tiles that read
+ * as they are, then those whose variable part still has to be answered. Empty
+ * groups are dropped, so a catalogue of one-offs shows no heading at all.
+ */
+export function goalGroups(catalogue: RoundGoal[]): GoalGroup[] {
+  const groups = [
+    {
+      label: "Objectifs uniques",
+      goals: catalogue.filter(goal => goal.params.length === 0),
+    },
+    {
+      label: "À préciser",
+      goals: catalogue.filter(goal => goal.params.length > 0),
+    },
+  ];
+
+  return groups.filter(group => group.goals.length > 0);
+}
+
+/**
  * The goal tiles a game can be set up with: the base game's catalogue plus the
  * ones each active extension brings, in extension order. A tile an extension
  * re-declares under a key the base already has is ignored — the base game's

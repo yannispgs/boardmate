@@ -22,6 +22,7 @@ export function CategoryScoreEntry({
   players,
   sheet,
   initial,
+  readOnlyKeys,
   onSubmit,
   onCancel,
   disabled,
@@ -34,13 +35,19 @@ export function CategoryScoreEntry({
    * tracked is a head start, not a verdict.
    */
   initial?: CategoryRaw;
+  /**
+   * The exception to the above: lines counted line by line as the game went on
+   * (Wingspan's « Objectifs de manche »), which are shown but not re-typed —
+   * they are corrected where they were entered, manche by manche.
+   */
+  readOnlyKeys?: readonly string[];
   onSubmit: (values: Record<string, Record<string, number>>) => void;
   onCancel: () => void;
   disabled: boolean;
 }>) {
   const [raw, setRaw] = useState<CategoryRaw>(() => initial ?? {});
 
-  const remaining = gridRemaining(players, sheet, raw);
+  const remaining = gridRemaining(players, sheet, raw, readOnlyKeys);
   const complete = remaining === 0;
 
   function setCell(playerId: PlayerId, key: string, text: string) {
@@ -66,6 +73,7 @@ export function CategoryScoreEntry({
           raw={raw}
           onCell={setCell}
           disabled={disabled}
+          readOnlyKeys={readOnlyKeys}
         />
       </div>
 
