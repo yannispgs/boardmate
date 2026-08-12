@@ -47,15 +47,15 @@ const option = (key: string, modifier: number, label = key): FieldSpec =>
 
 describe("winTargetView", () => {
   it("shows no bar when the game does not aim at a target", () => {
-    expect(winTargetView({ type: "highest" }, [], null, [], {})).toEqual({
+    expect(winTargetView(null, [], null, [], {})).toEqual({
       field: null,
       bar: null,
     });
   });
 
-  it("shows no bar when the threshold field is missing from the template", () => {
+  it("shows no bar when the target field is missing from the template", () => {
     const view = winTargetView(
-      { type: "threshold", field: "pointsToWin" },
+      { type: "scoreTarget", field: "pointsToWin" },
       [],
       null,
       [],
@@ -68,7 +68,7 @@ describe("winTargetView", () => {
 
   it("reads the editable target, its bounds and no lock", () => {
     const view = winTargetView(
-      { type: "threshold", field: "pointsToWin" },
+      { type: "scoreTarget", field: "pointsToWin" },
       [target(5, 20)],
       { pointsToWin: 12 },
       [],
@@ -87,7 +87,7 @@ describe("winTargetView", () => {
 
   it("leaves the value empty while the field is being cleared", () => {
     const view = winTargetView(
-      { type: "threshold", field: "pointsToWin" },
+      { type: "scoreTarget", field: "pointsToWin" },
       [target()],
       { pointsToWin: "" },
       [],
@@ -101,7 +101,7 @@ describe("winTargetView", () => {
 
   it("leaves the value empty while the form has no values yet", () => {
     const view = winTargetView(
-      { type: "threshold", field: "pointsToWin" },
+      { type: "scoreTarget", field: "pointsToWin" },
       [target(5, 20)],
       null,
       [],
@@ -114,7 +114,7 @@ describe("winTargetView", () => {
 
   it("spells out what the options switched on add to the base", () => {
     const view = winTargetView(
-      { type: "threshold", field: "pointsToWin" },
+      { type: "scoreTarget", field: "pointsToWin" },
       [target(), option("harbour", 1, "Maître du port"), option("off", 2)],
       { pointsToWin: 10, harbour: true, off: false },
       [],
@@ -130,7 +130,7 @@ describe("winTargetView", () => {
 
   it("drops the bonus while the base is being cleared", () => {
     const view = winTargetView(
-      { type: "threshold", field: "pointsToWin" },
+      { type: "scoreTarget", field: "pointsToWin" },
       [target(), option("harbour", 1)],
       { pointsToWin: "", harbour: true },
       [],
@@ -151,7 +151,7 @@ describe("winTargetView", () => {
     });
 
     const view = winTargetView(
-      { type: "threshold", field: "pointsToWin" },
+      { type: "scoreTarget", field: "pointsToWin" },
       [target(), option("harbour", 1, "Maître du port")],
       { pointsToWin: 10, harbour: true },
       [marins],
@@ -165,7 +165,7 @@ describe("winTargetView", () => {
     );
   });
 
-  it("shows a scenario's target even when the game names no threshold field", () => {
+  it("shows a scenario's target even when the game names no target field", () => {
     const marins = ext({
       id: "marins",
       hasScenarios: true,
@@ -174,7 +174,7 @@ describe("winTargetView", () => {
       ],
     });
 
-    const view = winTargetView({ type: "highest" }, [], null, [marins], {
+    const view = winTargetView(null, [], null, [marins], {
       marins: "s1" as ExtensionScenarioId,
     });
 

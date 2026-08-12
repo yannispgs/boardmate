@@ -621,13 +621,21 @@ describe("games adapter — manches closed by hand (Odin)", () => {
   beforeAll(async () => {
     const { data } = await serviceClient()
       .from("boardgames")
-      .select("id, stages")
+      .select("id, stages, scoring")
       .eq("name", "Odin")
       .single();
 
     odinId = data?.id as BoardgameId;
-    // A by-hand game has no schedule at all: the table says when a manche ends.
-    expect((data?.stages as { advance?: string })?.advance).toBe("manual");
+    // A by-hand game has no schedule at all: the table says when a manche ends,
+    // and a manche can't cost more than the nine cards you were dealt.
+    expect(data?.stages).toMatchObject({ advance: "manual", maxPoints: 9 });
+
+    // The one game where stopping and winning part ways: 15 points end it, and
+    // the smallest total takes it.
+    expect(data?.scoring).toMatchObject({
+      stopCondition: { type: "scoreTarget", field: "pointsToEnd" },
+      winCondition: { type: "lowest" },
+    });
   });
 
   it("opens the next manche without recording a turn, and totals the manches", async () => {
@@ -746,13 +754,16 @@ describe("games adapter — listing & ending", () => {
     const listed = ongoing.find(g => g.id === game.id);
     expect(listed?.players.map(p => p.id)).toEqual(playerIds);
 
-    // Catan is live/threshold; with no config, the target resolves from the
-    // config template's `pointsToWin` default (10).
+    // Catan is live and stops on a target; with no config, that target resolves
+    // from the config template's `pointsToWin` default (10).
     let populated = await repo().getPopulated(game.id);
     expect(populated?.boardgame.scoring?.timing).toBe("live");
-    expect(populated?.boardgame.scoring?.winCondition).toEqual({
-      type: "threshold",
+    expect(populated?.boardgame.scoring?.stopCondition).toEqual({
+      type: "scoreTarget",
       field: "pointsToWin",
+    });
+    expect(populated?.boardgame.scoring?.winCondition).toEqual({
+      type: "highest",
     });
     expect(populated?.winThreshold).toBe(10);
 

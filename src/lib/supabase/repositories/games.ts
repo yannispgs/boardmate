@@ -34,7 +34,7 @@ import {
   winTargetWithModifiers,
 } from "@/lib/game/extensions";
 import { activeSeat, generationOver } from "@/lib/game/generation";
-import { optionTargetModifier, winThresholdFrom } from "@/lib/game/scoring";
+import { optionTargetModifier, stopTargetFrom } from "@/lib/game/scoring";
 import { scheduledPosition } from "@/lib/game/stage";
 import { advanceTurn as nextTurnState } from "@/lib/game/turn";
 import { turnScheduleFrom } from "@/lib/game/turn-schedule";
@@ -696,8 +696,8 @@ export function createGameRepository(
       const baseTarget =
         scenarioTarget(extensions, scenarioBy) ??
         (scoring
-          ? winThresholdFrom(
-              scoring.winCondition,
+          ? stopTargetFrom(
+              scoring.stopCondition,
               effectiveValues,
               templateFields,
             )
