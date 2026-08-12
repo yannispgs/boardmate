@@ -161,10 +161,13 @@ const PATHS: Record<CategoryIconId, ReactNode> = {
   ),
   "nest-bowl": (
     // The cup of the bowl hollowed out of the disc, with the egg riding high in
-    // it rather than sitting at the bottom.
+    // it rather than sitting at the bottom. The egg is drawn a touch taller than
+    // the token shows it: filled dark on a light page it reads smaller than the
+    // same shape filled light on a dark one, and the light theme is the one that
+    // was losing it.
     <path
       fillRule="evenodd"
-      d={`${DISC} M12 5.6a6.4 6.4 0 1 0 0 12.8 6.4 6.4 0 1 0 0-12.8Z M12 8a4.6 2.4 0 1 0 0 4.8 4.6 2.4 0 1 0 0-4.8Z`}
+      d={`${DISC} M12 5.6a6.4 6.4 0 1 0 0 12.8 6.4 6.4 0 1 0 0-12.8Z M12 7.6a4.6 2.8 0 1 0 0 5.6 4.6 2.8 0 1 0 0-5.6Z`}
       fill="currentColor"
       stroke="none"
     />
