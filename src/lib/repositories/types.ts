@@ -192,6 +192,17 @@ export interface GameRepository {
     stage: number,
     points: Array<{ playerId: PlayerId; points: number }>,
   ): Promise<void>;
+  /**
+   * Puts the table back in the right order, for a seating mis-entered at
+   * launch. `playerIds` is the new seat order and must name every player of the
+   * game exactly once — it is a permutation of the table, never a way to add or
+   * drop somebody.
+   *
+   * Only for a game still in progress: on a game scored in shared piles the
+   * seating is the pairing, so moving it after the scores are in would silently
+   * change them (see `canReorderSeats`).
+   */
+  setSeatOrder(id: GameId, playerIds: PlayerId[]): Promise<void>;
   /** Sets one player's current score (live scoring), logged at the given tour. */
   setScore(
     id: GameId,

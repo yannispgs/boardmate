@@ -24,6 +24,7 @@ import { MilestonePanel } from "./MilestonePanel";
 import { namedPlayers } from "./named-players";
 import { PlayBlock } from "./PlayBlock";
 import { PlayStats } from "./PlayStats";
+import { SeatOrderPanel } from "./SeatOrderPanel";
 import { TimeHogBanner } from "./TimeHogBanner";
 import { TurnControls } from "./TurnControls";
 import { useDiceLog } from "./use-dice-log";
@@ -234,6 +235,14 @@ export function PlayingGame({
           log={milestones}
         />
       )}
+
+      <SeatOrderPanel
+        gameId={game.id}
+        turnMode={game.boardgame.turnMode}
+        turnsPlayed={game.turns.length}
+        seats={namedPlayers(game)}
+        onSaved={play.reload}
+      />
 
       <PlayStats game={game} rolls={dice.rolls} />
 

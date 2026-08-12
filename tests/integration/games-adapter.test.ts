@@ -190,6 +190,54 @@ describe("games adapter — creation & population", () => {
     });
   });
 
+  it("puts the table back in order, seat numbers and current player with it", async () => {
+    const created = await repo().create({
+      boardgameId: CATAN_ID,
+      configId,
+      playerIds,
+    });
+    gameIds.push(created.id);
+
+    // Two neighbours swapped: the naive update would collide on the seat each
+    // is moving into, which is why the whole permutation goes down at once.
+    const corrected = [playerIds[1], playerIds[0], playerIds[2]];
+    await repo().setSeatOrder(created.id, corrected);
+
+    const populated = await repo().getPopulated(created.id);
+    expect(populated?.players.map(p => p.playerId)).toEqual(corrected);
+    expect(populated?.players.map(p => p.seatOrder)).toEqual([0, 1, 2]);
+    expect(populated?.currentPlayer?.id).toBe(playerIds[1]);
+  });
+
+  it("refuses a seating that doesn't name the whole table exactly once", async () => {
+    const created = await repo().create({
+      boardgameId: CATAN_ID,
+      configId,
+      playerIds,
+    });
+    gameIds.push(created.id);
+
+    const partial = [playerIds[0], playerIds[1]];
+    await expect(repo().setSeatOrder(created.id, partial)).rejects.toThrow(
+      /Ordre des joueurs/,
+    );
+
+    const twice = [playerIds[0], playerIds[0], playerIds[1]];
+    await expect(repo().setSeatOrder(created.id, twice)).rejects.toThrow(
+      /Ordre des joueurs/,
+    );
+
+    const outsider = [playerIds[0], playerIds[1], crypto.randomUUID()];
+    await expect(
+      repo().setSeatOrder(created.id, outsider as PlayerId[]),
+    ).rejects.toThrow(/Ordre des joueurs/);
+
+    // Every refusal rolled back: the seating is untouched, nobody parked.
+    const populated = await repo().getPopulated(created.id);
+    expect(populated?.players.map(p => p.playerId)).toEqual(playerIds);
+    expect(populated?.players.map(p => p.seatOrder)).toEqual([0, 1, 2]);
+  });
+
   it("returns null from getPopulated for an unknown id", async () => {
     const missing = crypto.randomUUID() as GameId;
 
