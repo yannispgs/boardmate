@@ -18,6 +18,7 @@ import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useConfigs } from "@/lib/hooks/use-configs";
 import { useGames } from "@/lib/hooks/use-games";
 import { usePlayers } from "@/lib/hooks/use-players";
+import { toggled } from "@/lib/ui/selection";
 import { FunnelStep } from "./FunnelStep";
 import { PlayerPickCardList } from "./PlayerPickCardList";
 import { RecapStep } from "./RecapStep";
@@ -208,9 +209,7 @@ function PlayersStep({
   const active = players.filter(p => p.isActive);
 
   function toggle(id: PlayerId) {
-    setSelected(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id],
-    );
+    setSelected(prev => toggled(prev, id));
   }
 
   const tooFew = minPlayers != null && selected.length < minPlayers;

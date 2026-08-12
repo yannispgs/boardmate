@@ -12,6 +12,7 @@ import { milestonePrefill } from "@/lib/game/milestones";
 import { derivedKeys, mergePrefill, winnerDirection } from "@/lib/game/scoring";
 import { stageGoalPrefill } from "@/lib/game/stage";
 import { loneLeader } from "@/lib/game/tie-break";
+import { toggled } from "@/lib/ui/selection";
 import { CategoryScoreEntry } from "../../../_components/CategoryScoreEntry";
 import { PairScoreEntry } from "../../../_components/PairScoreEntry";
 import { namedPlayers } from "./named-players";
@@ -151,9 +152,7 @@ function WinnerPicker({
   const [picked, setPicked] = useState<PlayerId[]>([]);
 
   const toggle = (id: PlayerId) => {
-    setPicked(ids =>
-      ids.includes(id) ? ids.filter(w => w !== id) : [...ids, id],
-    );
+    setPicked(ids => toggled(ids, id));
   };
 
   if (!open) {

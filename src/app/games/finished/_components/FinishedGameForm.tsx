@@ -11,25 +11,25 @@ import type {
   Player,
   PlayerId,
 } from "@/lib/domain";
-import { composeGoals, composeScoring } from "@/lib/game/extensions";
 import {
   finishedGoals,
   mergeCells,
   type StageGoalRaw,
 } from "@/lib/game/finished-goals";
+import { finishedSetup } from "@/lib/game/finished-setup";
 import { localDay } from "@/lib/game/game-filters";
 import { type StagePick, stageGoalPrefill } from "@/lib/game/stage";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useExtensions } from "@/lib/hooks/use-extensions";
 import { useGames } from "@/lib/hooks/use-games";
 import { usePlayers } from "@/lib/hooks/use-players";
+import { toggled } from "@/lib/ui/selection";
 import type { CategoryRaw } from "../../_components/CategoryScoreGrid";
 import { ExtensionPicker } from "../../_components/ExtensionPicker";
+import { BoardgamePicker } from "./BoardgamePicker";
 import { type EntryMode, finishedEntry } from "./finished-entry";
 import { PlayerSeatPicker } from "./PlayerSeatPicker";
-import { ScoreEntrySection } from "./ScoreEntrySection";
-import { StageGoalsSection } from "./StageGoalsSection";
-import { WinnerChoice } from "./WinnerChoice";
+import { ResultSection } from "./ResultSection";
 
 /** Today where the reader is, for the default end-date field. */
 function today(): string {
@@ -70,16 +70,13 @@ export function FinishedGameForm() {
 
   const games = boardgames.filter(b => b.isActive && b.kind === "competitive");
   const extensions = useExtensions(boardgame?.id ?? null);
-  const active = extensions.filter(e => extensionIds.includes(e.id));
   // A game played with Oceania is scored on Oceania's sheet and was laid out
   // with its tiles, exactly as it would have been at launch.
-  const scoring = composeScoring(boardgame?.scoring ?? null, active);
-  const catalogue = composeGoals(boardgame?.roundGoals ?? [], active);
+  const { scoring, catalogue, schedule, stageLabel } = finishedSetup(
+    boardgame,
+    extensions.filter(e => extensionIds.includes(e.id)),
+  );
 
-  const schedule =
-    boardgame?.stages?.advance === "schedule"
-      ? (boardgame.stages.schedule ?? [])
-      : [];
   const goals = finishedGoals(
     schedule,
     picks,
@@ -202,25 +199,12 @@ export function FinishedGameForm() {
 
   return (
     <div className="flex flex-col gap-6">
-      <section className={sectionClass}>
-        <h2 className="text-sm font-semibold">Jeu</h2>
-        <div className="flex flex-wrap gap-2">
-          {games.map(b => (
-            <button
-              key={b.id}
-              type="button"
-              onClick={() => chooseBoardgame(b)}
-              className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
-                boardgame?.id === b.id
-                  ? "border-indigo-500 bg-indigo-600 text-white"
-                  : "border-black/15 hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
-              }`}
-            >
-              {b.name}
-            </button>
-          ))}
-        </div>
-      </section>
+      <BoardgamePicker
+        boardgames={games}
+        selected={boardgame}
+        className={sectionClass}
+        onPick={chooseBoardgame}
+      />
 
       {boardgame && extensions.length > 0 ? (
         <ExtensionPicker
@@ -230,9 +214,7 @@ export function FinishedGameForm() {
           players={selected.length}
           onToggle={id => {
             setWinnerIds(null);
-            setExtensionIds(prev =>
-              prev.includes(id) ? prev.filter(e => e !== id) : [...prev, id],
-            );
+            setExtensionIds(prev => toggled(prev, id));
           }}
           onPickScenario={(extension, id) => {
             setScenarioByExtension(prev => ({ ...prev, [extension]: id }));
@@ -250,92 +232,58 @@ export function FinishedGameForm() {
       ) : null}
 
       {boardgame && selected.length >= 2 ? (
-        <section className={sectionClass}>
-          <h2 className="text-sm font-semibold">Résultat</h2>
+        <ResultSection
+          className={sectionClass}
+          endedAt={endedAt}
+          maxDay={today()}
+          players={selected}
+          scoring={scoring}
+          entry={entry}
+          entryMode={entryMode}
+          stageLabel={stageLabel}
+          catalogue={catalogue}
+          schedule={schedule}
+          picks={picks}
+          stageRaw={stageRaw}
+          goals={goals}
+          totals={totals}
+          catRaw={catRaw}
+          piles={piles}
+          winners={effectiveWinners}
+          needsWinnerChoice={needsWinnerChoice}
+          disabled={submitting}
+          onEndedAt={setEndedAt}
+          onPicks={next => {
+            setPicks(next);
+            fillDerived(next, stageRaw);
+          }}
+          onStageCell={(id, key, text) => {
+            const next: StageGoalRaw = {
+              ...stageRaw,
+              [id]: { ...stageRaw[id], [key]: text },
+            };
 
-          <label className="flex items-center justify-between gap-2 text-sm">
-            <span>Date de fin</span>
-            <input
-              type="date"
-              value={endedAt}
-              max={today()}
-              onChange={e => setEndedAt(e.target.value)}
-              className="rounded-lg border border-black/15 bg-white px-2 py-1 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900"
-            />
-          </label>
-
-          {schedule.length > 0 && catalogue.length > 0 ? (
-            <StageGoalsSection
-              stageLabel={boardgame.stages?.label ?? "Manche"}
-              players={selected}
-              catalogue={catalogue}
-              picks={picks}
-              raw={stageRaw}
-              goals={goals}
-              disabled={submitting}
-              onPicks={next => {
-                setPicks(next);
-                fillDerived(next, stageRaw);
-              }}
-              onCell={(id, key, text) => {
-                const next: StageGoalRaw = {
-                  ...stageRaw,
-                  [id]: { ...stageRaw[id], [key]: text },
-                };
-
-                setStageRaw(next);
-                fillDerived(picks, next);
-              }}
-            />
-          ) : null}
-
-          {scoring !== null ? (
-            <ScoreEntrySection
-              scoring={scoring}
-              entry={entry}
-              players={selected}
-              entryMode={entryMode}
-              totals={totals}
-              catRaw={catRaw}
-              piles={piles}
-              disabled={submitting}
-              onEntryMode={mode => {
-                setWinnerIds(null);
-                setEntryMode(mode);
-              }}
-              onTotal={(id, text) => {
-                setWinnerIds(null);
-                setTotals(t => ({ ...t, [id]: text }));
-              }}
-              onCell={(id, key, text) => {
-                setWinnerIds(null);
-                setCatRaw(r => ({
-                  ...r,
-                  [id]: { ...r[id], [key]: text },
-                }));
-              }}
-              onPile={(key, value) => {
-                setWinnerIds(null);
-                setPiles(p => ({ ...p, [key]: value }));
-              }}
-            />
-          ) : null}
-
-          {needsWinnerChoice ? (
-            <WinnerChoice
-              candidates={entry.winnerCandidates}
-              winners={effectiveWinners}
-              scored={scoring !== null}
-              onToggle={id => {
-                setWinnerIds(
-                  effectiveWinners.includes(id)
-                    ? effectiveWinners.filter(w => w !== id)
-                    : [...effectiveWinners, id],
-                );
-              }}
-            />
-          ) : null}
-        </section>
+            setStageRaw(next);
+            fillDerived(picks, next);
+          }}
+          onEntryMode={mode => {
+            setWinnerIds(null);
+            setEntryMode(mode);
+          }}
+          onTotal={(id, text) => {
+            setWinnerIds(null);
+            setTotals(t => ({ ...t, [id]: text }));
+          }}
+          onCell={(id, key, text) => {
+            setWinnerIds(null);
+            setCatRaw(r => ({ ...r, [id]: { ...r[id], [key]: text } }));
+          }}
+          onPile={(key, value) => {
+            setWinnerIds(null);
+            setPiles(p => ({ ...p, [key]: value }));
+          }}
+          onWinner={id => setWinnerIds(toggled(effectiveWinners, id))}
+        />
       ) : null}
 
       <ErrorText message={error} />
