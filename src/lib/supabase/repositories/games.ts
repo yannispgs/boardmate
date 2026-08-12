@@ -952,6 +952,20 @@ export function createGameRepository(
       }
     },
 
+    async setSeatOrder(id: GameId, playerIds: PlayerId[]) {
+      // A database function rather than a series of updates: the seats are
+      // unique per game, so any swap collides on the seat it moves into unless
+      // the whole permutation lands in one transaction (see the migration).
+      const { error } = await supabase.rpc("set_game_seat_order", {
+        p_game: id,
+        p_players: playerIds,
+      });
+
+      if (error) {
+        throw new Error(`Ordre des joueurs: ${error.message}`);
+      }
+    },
+
     async addDiceRoll(id: GameId, value: number) {
       const { error } = await supabase
         .from("dice_rolls")

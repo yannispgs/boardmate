@@ -1,5 +1,6 @@
 "use client";
 
+import { MoveButtons } from "@/components/MoveButtons";
 import { useConfirm } from "@/components/use-confirm";
 import type {
   CategoryDef,
@@ -24,8 +25,6 @@ const removeBtn =
   "shrink-0 rounded-md border border-black/10 px-2 py-1 text-xs text-zinc-500 transition hover:border-red-400 hover:text-red-600 dark:border-white/15";
 const addBtn =
   "rounded-md border border-black/10 px-3 py-1 text-xs font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5";
-const moveBtn =
-  "rounded-md border border-black/10 px-1.5 py-1 text-xs leading-none text-zinc-500 transition enabled:hover:border-indigo-400 enabled:hover:text-indigo-600 disabled:opacity-30 dark:border-white/15";
 
 /** A fresh, stable key for a new field — labels can change, this never does. */
 function newKey(): string {
@@ -171,46 +170,6 @@ function ScoredLines({
         </li>
       ))}
     </ul>
-  );
-}
-
-/**
- * The `↑` / `↓` pair that reorders whatever row it sits on. Buttons rather than
- * drag-and-drop: this is a phone-first form that scrolls, and dragging a row in
- * a scrolling form fights the scroll instead of moving the row.
- */
-function MoveButtons({
-  onMove,
-  canUp,
-  canDown,
-}: Readonly<{
-  onMove: (direction: MoveDirection) => void;
-  canUp: boolean;
-  canDown: boolean;
-}>) {
-  return (
-    <div className="flex shrink-0 items-center gap-1">
-      <button
-        type="button"
-        onClick={() => onMove("up")}
-        disabled={!canUp}
-        aria-label="Monter"
-        title="Monter"
-        className={moveBtn}
-      >
-        ↑
-      </button>
-      <button
-        type="button"
-        onClick={() => onMove("down")}
-        disabled={!canDown}
-        aria-label="Descendre"
-        title="Descendre"
-        className={moveBtn}
-      >
-        ↓
-      </button>
-    </div>
   );
 }
 

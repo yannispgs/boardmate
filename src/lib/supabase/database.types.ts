@@ -832,6 +832,10 @@ export type Database = {
           retry_after_s: number
         }[]
       }
+      set_game_seat_order: {
+        Args: { p_game: string; p_players: string[] }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
