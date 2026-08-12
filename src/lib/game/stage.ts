@@ -67,6 +67,22 @@ export function stageCalendar(
   });
 }
 
+/** The tile chosen for one stage, or the empty pick before anything is chosen. */
+export function pickAt(picks: readonly StagePick[], index: number): StagePick {
+  return picks[index] ?? { goalKey: "", goalParams: {} };
+}
+
+/**
+ * The picks of every stage but this one — what the picker must treat as spent,
+ * since a tile is only in the box once.
+ */
+export function otherPicks(
+  picks: readonly StagePick[],
+  index: number,
+): StagePick[] {
+  return picks.filter((_pick, i) => i !== index);
+}
+
 /**
  * Whether the calendar is ready to launch a game: every stage has a tile from
  * the catalogue, and every one of that tile's parameters has been answered.

@@ -347,4 +347,17 @@ export interface NewFinishedGame {
   /** Usually one player; several on a shared victory (ex æquo). */
   winnerIds: PlayerId[];
   players: FinishedGameEntry[];
+  /** Extensions it was played with (empty when none). */
+  extensionIds?: ExtensionId[];
+  /** For a scenario-based extension, the scenario played. */
+  scenarioByExtension?: Record<ExtensionId, ExtensionScenarioId>;
+  /**
+   * The stages it was played on, when the table still remembers them. Optional
+   * and all-or-nothing: a half-recalled calendar would make the goal stats read
+   * as if the missing manches had scored nothing. `turns` is reconstructed from
+   * the tiles by the same rule the launch funnel applies.
+   */
+  stages?: GameStage[];
+  /** What each player took from each stage's goal — one per stage per player. */
+  stageScores?: StageScore[];
 }

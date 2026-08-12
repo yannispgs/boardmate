@@ -1116,6 +1116,103 @@ describe("games adapter — recording a finished game", () => {
     expect(populated?.tieBreak?.steps).toEqual([]);
   });
 
+  it("stores the manches of a finished game entered with its goal detail", async () => {
+    // Only Catan carries a written-down id; every game seeded since draws one
+    // at insert, so it has to be looked up by name.
+    const { data: wingspan } = await serviceClient()
+      .from("boardgames")
+      .select("id")
+      .eq("name", "Wingspan")
+      .single();
+
+    const game = await repo().createFinished({
+      boardgameId: wingspan?.id as BoardgameId,
+      endedAt: new Date().toISOString(),
+      winnerIds: [playerIds[0]],
+      players: playerIds.map((id, i) => ({
+        playerId: id,
+        seatOrder: i,
+        score: i === 0 ? 90 : 70,
+        breakdown: null,
+      })),
+      stages: [
+        { stage: 1, goalKey: "totalBirds", goalParams: {}, turns: 8 },
+        {
+          stage: 2,
+          goalKey: "eggsInHabitat",
+          goalParams: { habitat: "sea" },
+          turns: 7,
+        },
+      ],
+      stageScores: [
+        { stage: 1, playerId: playerIds[0], points: 4 },
+        { stage: 1, playerId: playerIds[1], points: 1 },
+        { stage: 2, playerId: playerIds[0], points: 3 },
+        { stage: 2, playerId: playerIds[1], points: 0 },
+      ],
+    });
+    gameIds.push(game.id);
+
+    const populated = await repo().getPopulated(game.id);
+
+    expect(populated?.stages).toHaveLength(2);
+    expect(populated?.stages[1]).toMatchObject({
+      stage: 2,
+      goalKey: "eggsInHabitat",
+      goalParams: { habitat: "sea" },
+      turns: 7,
+    });
+    expect(populated?.stageScores).toHaveLength(4);
+
+    // The goal detail is what the stats read a tile's worth from, so a game
+    // entered after the fact must reach them exactly like a game played live.
+    const record = (await repo().listStats()).find(r => r.gameId === game.id);
+
+    expect(record?.stageGoals).toHaveLength(2);
+    expect(record?.stageGoals?.[0]?.points).toContainEqual({
+      playerId: playerIds[0],
+      points: 4,
+    });
+  });
+
+  it("rejects a manche score attributed to someone who wasn't there", async () => {
+    const admin = serviceClient();
+    const { data: wingspan } = await admin
+      .from("boardgames")
+      .select("id")
+      .eq("name", "Wingspan")
+      .single();
+    const before = new Set(
+      ((await admin.from("games").select("id")).data ?? []).map(g => g.id),
+    );
+
+    await expect(
+      repo().createFinished({
+        boardgameId: wingspan?.id as BoardgameId,
+        endedAt: new Date().toISOString(),
+        winnerIds: [playerIds[0]],
+        players: playerIds.map((id, i) => ({
+          playerId: id,
+          seatOrder: i,
+          score: 50,
+          breakdown: null,
+        })),
+        stages: [{ stage: 1, goalKey: "totalBirds", goalParams: {}, turns: 8 }],
+        stageScores: [
+          { stage: 1, playerId: crypto.randomUUID() as PlayerId, points: 4 },
+        ],
+      }),
+    ).rejects.toThrow(/Enregistrement des objectifs/);
+
+    // Track the orphan game (inserted before game_stage_scores failed).
+    const after = (await admin.from("games").select("id")).data ?? [];
+    for (const g of after) {
+      if (!before.has(g.id)) {
+        gameIds.push(g.id as GameId);
+      }
+    }
+  });
+
   it("rejects a bad boardgame id, then an unknown player (FK violations)", async () => {
     await expect(
       repo().createFinished({

@@ -13,6 +13,8 @@ import {
   isLastTurnOfStage,
   isParamValueAvailable,
   isStageEnd,
+  otherPicks,
+  pickAt,
   playCalendar,
   scheduledPosition,
   scheduledRoundLimit,
@@ -133,6 +135,29 @@ describe("stageCalendar", () => {
 
   it("returns nothing for a game without a schedule", () => {
     expect(stageCalendar([], [pick("noGoal")], CATALOGUE)).toEqual([]);
+  });
+});
+
+describe("pickAt", () => {
+  it("gives the tile chosen for that stage", () => {
+    expect(pickAt([pick("totalBirds"), pick("cheapBirds")], 1)).toEqual(
+      pick("cheapBirds"),
+    );
+  });
+
+  it("gives an empty pick for a stage nobody has answered yet", () => {
+    expect(pickAt([pick("totalBirds")], 2)).toEqual({
+      goalKey: "",
+      goalParams: {},
+    });
+  });
+});
+
+describe("otherPicks", () => {
+  it("leaves out the stage being answered, keeping the tiles it must avoid", () => {
+    const picks = [pick("totalBirds"), pick("cheapBirds"), pick("noGoal")];
+
+    expect(otherPicks(picks, 1)).toEqual([pick("totalBirds"), pick("noGoal")]);
   });
 });
 

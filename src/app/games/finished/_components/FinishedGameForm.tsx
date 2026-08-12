@@ -4,15 +4,28 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { ErrorText } from "@/components/ErrorText";
-import type { Boardgame, Player, PlayerId } from "@/lib/domain";
+import type {
+  Boardgame,
+  ExtensionId,
+  ExtensionScenarioId,
+  Player,
+  PlayerId,
+} from "@/lib/domain";
+import { composeGoals, composeScoring } from "@/lib/game/extensions";
+import { finishedGoals, type StageGoalRaw } from "@/lib/game/finished-goals";
 import { localDay } from "@/lib/game/game-filters";
+import { derivedKeys } from "@/lib/game/scoring";
+import type { StagePick } from "@/lib/game/stage";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
+import { useExtensions } from "@/lib/hooks/use-extensions";
 import { useGames } from "@/lib/hooks/use-games";
 import { usePlayers } from "@/lib/hooks/use-players";
 import type { CategoryRaw } from "../../_components/CategoryScoreGrid";
+import { ExtensionPicker } from "../../_components/ExtensionPicker";
 import { type EntryMode, finishedEntry } from "./finished-entry";
 import { PlayerSeatPicker } from "./PlayerSeatPicker";
 import { ScoreEntrySection } from "./ScoreEntrySection";
+import { StageGoalsSection } from "./StageGoalsSection";
 import { WinnerChoice } from "./WinnerChoice";
 
 /** Today where the reader is, for the default end-date field. */
@@ -24,9 +37,9 @@ const sectionClass =
   "flex flex-col gap-3 rounded-xl border border-black/10 p-4 dark:border-white/10";
 
 /**
- * Records a game that was played away from the app — pick the game, the table
- * in seat order, the day it ended, then whatever was written down: the final
- * totals, or the sheet the game is really scored on.
+ * Records a game that was played away from the app — pick the game and what it
+ * was played with, the table in seat order, the day it ended, then whatever was
+ * written down: the final totals, or the sheet the game is really scored on.
  */
 export function FinishedGameForm() {
   const router = useRouter();
@@ -41,15 +54,39 @@ export function FinishedGameForm() {
   const [entryMode, setEntryMode] = useState<EntryMode>("total");
   const [catRaw, setCatRaw] = useState<CategoryRaw>({});
   const [piles, setPiles] = useState<Record<string, number>>({});
+  const [extensionIds, setExtensionIds] = useState<ExtensionId[]>([]);
+  const [scenarioByExtension, setScenarioByExtension] = useState<
+    Record<ExtensionId, ExtensionScenarioId>
+  >({});
+  const [picks, setPicks] = useState<StagePick[]>([]);
+  const [stageRaw, setStageRaw] = useState<StageGoalRaw>({});
   // Null while the form's own suggestion stands; set once the table picks.
   const [winnerIds, setWinnerIds] = useState<PlayerId[] | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const games = boardgames.filter(b => b.isActive && b.kind === "competitive");
-  const scoring = boardgame?.scoring ?? null;
+  const extensions = useExtensions(boardgame?.id ?? null);
+  const active = extensions.filter(e => extensionIds.includes(e.id));
+  // A game played with Oceania is scored on Oceania's sheet and was laid out
+  // with its tiles, exactly as it would have been at launch.
+  const scoring = composeScoring(boardgame?.scoring ?? null, active);
+  const catalogue = composeGoals(boardgame?.roundGoals ?? [], active);
+
+  const schedule =
+    boardgame?.stages?.advance === "schedule"
+      ? (boardgame.stages.schedule ?? [])
+      : [];
+  const goals = finishedGoals(
+    schedule,
+    picks,
+    catalogue,
+    selected.map(p => p.id),
+    stageRaw,
+  );
+
   const entry = finishedEntry(
-    boardgame,
+    scoring,
     selected,
     entryMode,
     totals,
@@ -71,6 +108,10 @@ export function FinishedGameForm() {
     setTotals({});
     setCatRaw({});
     setPiles({});
+    setExtensionIds([]);
+    setScenarioByExtension({});
+    setPicks([]);
+    setStageRaw({});
     // A category sheet is long to fill in after the fact, so it opens on the
     // total. Shared piles are the opposite: they are what was on the table, and
     // the total is the multiplication the app is there to do.
@@ -88,6 +129,45 @@ export function FinishedGameForm() {
         ? prev.filter(s => s.id !== p.id)
         : [...prev, p],
     );
+  }
+
+  /**
+   * Writes the manches' sum into the sheet's « Objectifs de manche » line. The
+   * line stays typeable afterwards: the detail proposes the total it implies,
+   * it doesn't own it — a sheet and a board can legitimately disagree, and the
+   * one written down that night wins.
+   */
+  function fillDerived(nextPicks: StagePick[], nextRaw: StageGoalRaw) {
+    const next = finishedGoals(
+      schedule,
+      nextPicks,
+      catalogue,
+      selected.map(p => p.id),
+      nextRaw,
+    );
+
+    if (!next.complete || scoring?.sheet === undefined) {
+      return;
+    }
+
+    const keys = derivedKeys(scoring.sheet, "stageGoals");
+
+    setWinnerIds(null);
+    setCatRaw(raw => {
+      const filled = { ...raw };
+
+      for (const p of selected) {
+        const cells = { ...filled[p.id] };
+
+        for (const key of keys) {
+          cells[key] = String(next.totals[p.id] ?? 0);
+        }
+
+        filled[p.id] = cells;
+      }
+
+      return filled;
+    });
   }
 
   const canSubmit =
@@ -116,6 +196,11 @@ export function FinishedGameForm() {
           score: entry.scoreOf(p.id),
           breakdown: entry.breakdownOf(p.id),
         })),
+        extensionIds,
+        scenarioByExtension,
+        // All or nothing: a half-remembered calendar is not recorded at all.
+        stages: goals.complete ? goals.stages : [],
+        stageScores: goals.scores,
       });
       router.push("/games");
     } catch {
@@ -146,6 +231,24 @@ export function FinishedGameForm() {
         </div>
       </section>
 
+      {boardgame && extensions.length > 0 ? (
+        <ExtensionPicker
+          extensions={extensions}
+          selected={extensionIds}
+          scenarioByExtension={scenarioByExtension}
+          players={selected.length}
+          onToggle={id => {
+            setWinnerIds(null);
+            setExtensionIds(prev =>
+              prev.includes(id) ? prev.filter(e => e !== id) : [...prev, id],
+            );
+          }}
+          onPickScenario={(extension, id) => {
+            setScenarioByExtension(prev => ({ ...prev, [extension]: id }));
+          }}
+        />
+      ) : null}
+
       {boardgame ? (
         <PlayerSeatPicker
           className={sectionClass}
@@ -169,6 +272,31 @@ export function FinishedGameForm() {
               className="rounded-lg border border-black/15 bg-white px-2 py-1 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900"
             />
           </label>
+
+          {schedule.length > 0 && catalogue.length > 0 ? (
+            <StageGoalsSection
+              stageLabel={boardgame.stages?.label ?? "Manche"}
+              players={selected}
+              catalogue={catalogue}
+              picks={picks}
+              raw={stageRaw}
+              goals={goals}
+              disabled={submitting}
+              onPicks={next => {
+                setPicks(next);
+                fillDerived(next, stageRaw);
+              }}
+              onCell={(id, key, text) => {
+                const next: StageGoalRaw = {
+                  ...stageRaw,
+                  [id]: { ...stageRaw[id], [key]: text },
+                };
+
+                setStageRaw(next);
+                fillDerived(picks, next);
+              }}
+            />
+          ) : null}
 
           {scoring !== null ? (
             <ScoreEntrySection
