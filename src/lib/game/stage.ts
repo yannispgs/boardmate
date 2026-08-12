@@ -251,6 +251,36 @@ export function isLastTurnOfStage(
   );
 }
 
+/** The turn a stage closes on, and the stage it closes. */
+export interface StageEnd {
+  /** Global turn number of the stage's very last turn. */
+  turn: number;
+  /** 1-based stage that turn closes. */
+  stage: number;
+}
+
+/**
+ * Where the stage a given turn belongs to comes to an end. A calendar is laid
+ * out before anybody sits down, so this is plain arithmetic: count the laps up
+ * to and including that stage, and take their last seat.
+ *
+ * A turn past the calendar closes on itself rather than in the past — the last
+ * stage is open-ended (see {@link stagePosition}), and a ribbon must not be told
+ * a manche ended before the turn being played.
+ */
+export function stageEndTurn(
+  turn: number,
+  seatCount: number,
+  turnsPerStage: readonly number[],
+): StageEnd {
+  const at = scheduledPosition(turn, seatCount, turnsPerStage);
+  const laps = turnsPerStage
+    .slice(0, at.stage)
+    .reduce((total, value) => total + value, 0);
+
+  return { turn: Math.max(turn, laps * seatCount), stage: at.stage };
+}
+
 /**
  * How a stage's goal reads at the table — « Œufs dans Mer ». Empty when the
  * calendar names a tile the catalogue no longer offers, which reads as no goal

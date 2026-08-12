@@ -1,6 +1,6 @@
 import type { PlayerId } from "@/lib/domain";
 
-import { scheduledPosition } from "./stage";
+import { scheduledPosition, stageEndTurn } from "./stage";
 
 /**
  * The order the turn ribbon draws, as an explicit **sequence** of turns.
@@ -74,6 +74,10 @@ export function lapSequence(
  * exactly once per lap, so the whole ribbon can be worked out in advance — but
  * the laps are cut into stages, and the first-player marker moves one seat along
  * at each new stage, so the sequence is generated rather than counted off.
+ *
+ * It stops at the end of the stage being played. What follows the table's last
+ * lap is not another player's turn but the goal tile being scored, and offering
+ * the next manche's opener would promise a turn nobody is about to take.
  */
 export function stageSequence(
   seats: PlayerId[],
@@ -88,8 +92,12 @@ export function stageSequence(
     return [];
   }
 
-  const stop =
-    lastTurn === null ? current + ahead : Math.min(current + ahead, lastTurn);
+  const closing = stageEndTurn(current + 1, n, turnsPerStage).turn - 1;
+  const stop = Math.min(
+    lastTurn ?? Number.POSITIVE_INFINITY,
+    current + ahead,
+    closing,
+  );
   const turns: Array<{ turn: number; playerId: PlayerId; stage: number }> = [];
 
   for (let turn = 0; turn <= stop; turn++) {
@@ -98,7 +106,15 @@ export function stageSequence(
     turns.push({ turn, playerId: seats[at.seatIndex], stage: at.stage });
   }
 
-  return withLaps(seats, turns);
+  const out = withLaps(seats, turns);
+
+  // A stage's last lap does close, unlike the open-ended future `withLaps`
+  // leaves at the end of a run it only guessed at.
+  if (stop === closing) {
+    out[out.length - 1].lastOfLap = true;
+  }
+
+  return out;
 }
 
 /** What a game played in generations needs to lay its ribbon out. */

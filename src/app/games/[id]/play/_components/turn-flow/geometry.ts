@@ -49,7 +49,14 @@ export interface EndItem {
   left: number;
 }
 
-export type Item = TagItem | BarItem | EndItem;
+/** End-of-stage note (« Fin manche 2 »), placed where the ribbon stops. */
+export interface StageEndItem {
+  kind: "stage-end";
+  label: string;
+  left: number;
+}
+
+export type Item = TagItem | BarItem | EndItem | StageEndItem;
 
 /** What each player's tag is called and how wide its rectangle is. */
 export interface RibbonMetrics {
@@ -133,13 +140,17 @@ function place(seq: RibbonTurn[], metrics: RibbonMetrics): PlacedTurn[] {
  * with the current turn's x so the ribbon knows how far to scroll.
  *
  * `lastTurn` (0-based global index of a fixed-length game's final turn) puts an
- * end flag just after that last player, once it comes into view.
+ * end flag just after that last player, once it comes into view; `stageEnd` does
+ * the same with a « Fin manche N » note where a stage stops.
  */
 export function buildItems(
   seq: RibbonTurn[],
   current: number,
   metrics: RibbonMetrics,
-  opts?: { lastTurn?: number | null },
+  opts?: {
+    lastTurn?: number | null;
+    stageEnd?: { turn: number; label: string } | null;
+  },
 ): { items: Item[]; currentLeft: number } {
   const placed = place(seq, metrics);
   const start = Math.max(0, current - 1);
@@ -180,31 +191,43 @@ export function buildItems(
     });
   }
 
-  const end = endCap(placed, opts?.lastTurn ?? null, stop);
+  const lastTurn = opts?.lastTurn ?? null;
+  const endLeft = capLeft(placed, lastTurn, stop);
 
-  if (end) {
-    items.push(end);
+  if (endLeft !== null) {
+    items.push({ kind: "end", left: endLeft });
+  }
+
+  const stageEnd = opts?.stageEnd ?? null;
+
+  // The finish flag wins when both fall on the same turn: a game that is over is
+  // over, and the manche closing with it says nothing more.
+  if (stageEnd !== null && stageEnd.turn !== lastTurn) {
+    const left = capLeft(placed, stageEnd.turn, stop);
+
+    if (left !== null) {
+      items.push({ kind: "stage-end", label: stageEnd.label, left });
+    }
   }
 
   return { items, currentLeft };
 }
 
-/** The end-of-game flag, once the final turn of a fixed-length game is in view. */
-function endCap(
+/**
+ * Where a cap sits — just past the turn it closes — once that turn is in view.
+ * Null when it is still too far ahead to announce.
+ */
+function capLeft(
   placed: PlacedTurn[],
-  lastTurn: number | null,
+  turn: number | null,
   stop: number,
-): EndItem | null {
-  if (lastTurn === null || lastTurn > stop) {
+): number | null {
+  if (turn === null || turn > stop) {
     return null;
   }
 
-  const last = placed.find(t => t.turn === lastTurn);
+  const last = placed.find(t => t.turn === turn);
 
   // The sequence stops on that turn, so it is there — unless the table is empty.
-  if (!last) {
-    return null;
-  }
-
-  return { kind: "end", left: last.left + last.w + BAR_GAP };
+  return last ? last.left + last.w + BAR_GAP : null;
 }

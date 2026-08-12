@@ -72,7 +72,7 @@ describe("stageSequence", () => {
   });
 
   it("counts the laps within each manche, and hands the marker on", () => {
-    const seq = stageSequence(SEATS, 0, 8, null, CALENDAR);
+    const seq = stageSequence(SEATS, 6, 8, null, CALENDAR);
 
     expect(readable(seq)).toEqual([
       "0 a L1",
@@ -89,16 +89,26 @@ describe("stageSequence", () => {
   });
 
   it("opens and closes each lap wherever the marker sits", () => {
-    const seq = stageSequence(SEATS, 0, 8, null, CALENDAR);
+    const seq = stageSequence(SEATS, 6, 8, null, CALENDAR);
 
     expect(seq.filter(t => t.firstOfLap).map(t => t.turn)).toEqual([0, 3, 6]);
-    expect(seq.filter(t => t.lastOfLap).map(t => t.turn)).toEqual([2, 5]);
+    expect(seq.filter(t => t.lastOfLap).map(t => t.turn)).toEqual([2, 5, 8]);
   });
 
-  it("stops on the calendar's last turn", () => {
-    const seq = stageSequence(SEATS, 0, 20, 5, CALENDAR);
+  it("stops where the manche being played ends", () => {
+    // Manche 1 lasts two laps: the ribbon closes there rather than announcing
+    // manche 2, which nobody opens until the goal tile has been scored.
+    const seq = stageSequence(SEATS, 0, 8, null, CALENDAR);
 
     expect(seq.at(-1)?.turn).toBe(5);
+    expect(seq.at(-1)?.lastOfLap).toBe(true);
+  });
+
+  it("stops on the calendar's last turn, leaving the lap open", () => {
+    const seq = stageSequence(SEATS, 0, 20, 4, CALENDAR);
+
+    expect(seq.at(-1)?.turn).toBe(4);
+    expect(seq.at(-1)?.lastOfLap).toBe(false);
   });
 });
 

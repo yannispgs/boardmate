@@ -17,6 +17,7 @@ import {
   scheduledPosition,
   scheduledRoundLimit,
   stageCalendar,
+  stageEndTurn,
   stageGoalLabel,
   stageGoalPrefill,
   stageGoalTotals,
@@ -409,6 +410,28 @@ describe("isLastTurnOfStage", () => {
 
   it("never closes a stage the calendar doesn't describe", () => {
     expect(isLastTurnOfStage(4, 4, [])).toBe(false);
+  });
+});
+
+describe("stageEndTurn", () => {
+  it("ends a stage on the last seat of its last lap", () => {
+    // Stage 1 is 8 laps of 4 seats, so it runs to turn 32.
+    expect(stageEndTurn(1, 4, WINGSPAN)).toEqual({ turn: 32, stage: 1 });
+    expect(stageEndTurn(32, 4, WINGSPAN)).toEqual({ turn: 32, stage: 1 });
+  });
+
+  it("counts the stages before it in", () => {
+    // Stage 2 adds its 7 laps to stage 1's 8: 15 laps, so turn 60.
+    expect(stageEndTurn(33, 4, WINGSPAN)).toEqual({ turn: 60, stage: 2 });
+  });
+
+  it("ends the last stage where the game ends", () => {
+    expect(stageEndTurn(104, 4, WINGSPAN)).toEqual({ turn: 104, stage: 4 });
+  });
+
+  it("never ends a stage before the turn being played", () => {
+    // A turn past the calendar belongs to the last stage, which is open-ended.
+    expect(stageEndTurn(120, 4, WINGSPAN)).toEqual({ turn: 120, stage: 4 });
   });
 });
 
