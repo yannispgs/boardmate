@@ -229,6 +229,10 @@ describe("stageScores", () => {
 
     expect(stageScores(first, CATALOGUE)).toBe(true);
   });
+
+  it("says a game played on no calendar at all scores", () => {
+    expect(stageScores(undefined, CATALOGUE)).toBe(true);
+  });
 });
 
 describe("isParamValueAvailable", () => {

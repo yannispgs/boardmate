@@ -108,13 +108,14 @@ export function isCalendarReady(
  * Oceania's « Pas d'objectif » is laid like any other tile and lengthens the
  * manches that follow it, but nothing is scored on it — so there is nothing to
  * ask the table for that manche, and nothing to record but zero. A stage still
- * waiting for its tile scores until told otherwise.
+ * waiting for its tile — or a game that has no calendar at all — scores until
+ * told otherwise.
  */
 export function stageScores(
-  stage: GameStage,
+  stage: GameStage | undefined,
   catalogue: readonly RoundGoal[],
 ): boolean {
-  const goal = catalogue.find(g => g.key === stage.goalKey);
+  const goal = catalogue.find(g => g.key === stage?.goalKey);
 
   return goal?.scores ?? true;
 }

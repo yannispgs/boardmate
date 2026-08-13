@@ -16,6 +16,7 @@ export function NextTurnControl({
   atFinalTurn,
   disabled,
   nextLabel,
+  stageGoalLabel = "Noter l'objectif de la manche",
   onNext,
   onPass,
   onStageGoal,
@@ -24,6 +25,11 @@ export function NextTurnControl({
   disabled: boolean;
   /** What the button says, when the turn ends something bigger than itself. */
   nextLabel?: string;
+  /**
+   * What closing the last manche is called. Noting its goal, normally — but a
+   * manche laid with « Pas d'objectif » has none to note, only an end.
+   */
+  stageGoalLabel?: string;
   onNext: () => void;
   /** Null for a game with no generations, where nobody can pass. */
   onPass: (() => void) | null;
@@ -47,7 +53,7 @@ export function NextTurnControl({
             disabled={disabled}
             className="rounded-xl border border-zinc-300 px-5 py-3 text-base font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
-            Noter l&apos;objectif de la manche
+            {stageGoalLabel}
           </button>
         ) : null}
       </div>

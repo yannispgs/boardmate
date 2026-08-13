@@ -18,10 +18,14 @@ export type GoalPoints = Array<{ playerId: PlayerId; points: number }>;
  * the tile is scored while the birds are still on the table, and only once
  * those points are down does the table move on. The prompt's open/closed state
  * belongs here, since nothing above has anything to do while it is up.
+ *
+ * Unless the manche was laid with « Pas d'objectif » (Oceania): it pays nobody,
+ * so nothing is asked and the manche closes on zero for everyone.
  */
 export function TurnControls({
   atFinalTurn,
   atStageEnd,
+  goalScores,
   stage,
   stageLabel,
   goalLabel,
@@ -35,6 +39,8 @@ export function TurnControls({
   atFinalTurn: boolean;
   /** The table has gone round for the last time this manche. */
   atStageEnd: boolean;
+  /** Whether this manche's tile is worth anything to anybody. */
+  goalScores: boolean;
   stage: number;
   /** What the box calls a stage (« Manche »). */
   stageLabel: string;
@@ -50,7 +56,21 @@ export function TurnControls({
   onScoreGoal: (points: GoalPoints) => Promise<void>;
 }>) {
   const [promptOpen, setPromptOpen] = useState(false);
-  const openPrompt = () => setPromptOpen(true);
+
+  /**
+   * Ending a manche: ask the table what the tile paid — or, when it pays
+   * nobody, write everyone's zero down and move on without a word. A manche
+   * with no goal is still a manche, and its zeros are still recorded.
+   */
+  function endStage() {
+    if (goalScores) {
+      setPromptOpen(true);
+
+      return;
+    }
+
+    void closeStage(players.map(p => ({ playerId: p.id, points: 0 })));
+  }
 
   /**
    * Closes a manche: the goal points are written down first, then the table
@@ -74,9 +94,14 @@ export function TurnControls({
         nextLabel={
           atStageEnd ? `Fin de la ${stageLabel.toLowerCase()} →` : undefined
         }
-        onNext={atStageEnd ? openPrompt : () => void onNext()}
+        stageGoalLabel={
+          goalScores
+            ? undefined
+            : `Terminer la ${stageLabel.toLowerCase()} (sans objectif)`
+        }
+        onNext={atStageEnd ? endStage : () => void onNext()}
         onPass={onPass}
-        onStageGoal={atStageEnd ? openPrompt : null}
+        onStageGoal={atStageEnd ? endStage : null}
       />
 
       {promptOpen ? (

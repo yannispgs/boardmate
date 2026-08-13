@@ -22,67 +22,9 @@ test("scores each manche's goal and carries the total to the sheet", async ({
   let gameId = "";
 
   try {
-    const { data: seeded } = await admin
-      .from("players")
-      .select("id, name")
-      .in("name", names);
-    const ids = names.map(
-      n => (seeded ?? []).find(p => p.name === n)?.id as string,
-    );
-
-    const { data: boardgame } = await admin
-      .from("boardgames")
-      .select("id")
-      .eq("name", "Wingspan")
-      .single();
-    const { data: extension } = await admin
-      .from("extensions")
-      .select("id")
-      .eq("name", "Wingspan - Océanie")
-      .single();
-
-    // Sat down at the last turn of the first manche, so the button that closes
-    // it is the first thing on screen.
-    const { data: game } = await admin
-      .from("games")
-      .insert({
-        boardgame_id: boardgame?.id as string,
-        status: "ongoing",
-        round: 1,
-        turn: 2,
-        stage: 1,
-        current_player_id: ids[1],
-      })
-      .select("id")
-      .single();
-    gameId = game?.id as string;
-
-    await admin.from("game_players").insert(
-      ids.map((player_id, i) => ({
-        game_id: gameId,
-        player_id,
-        seat_order: i,
-      })),
-    );
-    await admin.from("game_extensions").insert({
-      game_id: gameId,
-      extension_id: extension?.id as string,
-    });
-    await admin.from("game_stages").insert([
-      {
-        game_id: gameId,
-        stage: 1,
-        goal_key: "eggsInHabitat",
-        goal_params: { habitat: "sea" },
-        turns: 1,
-      },
-      {
-        game_id: gameId,
-        stage: 2,
-        goal_key: "birdsInHabitat",
-        goal_params: { habitat: "forest" },
-        turns: 1,
-      },
+    gameId = await seedStageGame(admin, names, [
+      { goalKey: "eggsInHabitat", goalParams: { habitat: "sea" } },
+      { goalKey: "birdsInHabitat", goalParams: { habitat: "forest" } },
     ]);
 
     await page.goto(`/games/${gameId}/play`);
@@ -154,6 +96,120 @@ test("scores each manche's goal and carries the total to the sheet", async ({
     await admin.from("players").delete().in("name", names);
   }
 });
+
+/**
+ * A manche laid with « Pas d'objectif » (Océanie, full-suite only — untagged):
+ * it pays nobody, so closing it asks the table nothing at all — it records
+ * everyone's zero and deals the next manche on the spot.
+ */
+test("closes a « pas d'objectif » manche without asking for a single point", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const names = await seedPlayers(PLAYER_COUNT);
+  let gameId = "";
+
+  try {
+    gameId = await seedStageGame(admin, names, [
+      { goalKey: "noGoal", goalParams: {} },
+      { goalKey: "birdsInHabitat", goalParams: { habitat: "forest" } },
+    ]);
+
+    await page.goto(`/games/${gameId}/play`);
+
+    await page.getByRole("button", { name: "Fin de la manche →" }).click();
+
+    // No prompt at any point, and the table is already on the next manche.
+    await expect(page.getByText("Manche 2 · Tour 1")).toBeVisible();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    // The manche was still recorded, at zero for everybody.
+    await expect
+      .poll(async () => {
+        const { data } = await admin
+          .from("game_stage_scores")
+          .select("stage, points")
+          .eq("game_id", gameId)
+          .eq("stage", 1);
+
+        return (data ?? []).map(s => s.points);
+      })
+      .toEqual([0, 0]);
+  } finally {
+    if (gameId) {
+      await admin.from("games").delete().eq("id", gameId);
+    }
+    await admin.from("players").delete().in("name", names);
+  }
+});
+
+/**
+ * A two-manche Wingspan with Océanie, one lap each, sat down at the last turn
+ * of manche 1 — so the button that closes it is the first thing on screen, and
+ * the journey is about closing a manche rather than sitting through the sixteen
+ * turns the game really lasts.
+ */
+async function seedStageGame(
+  admin: ReturnType<typeof adminClient>,
+  names: string[],
+  tiles: Array<{ goalKey: string; goalParams: Record<string, string> }>,
+): Promise<string> {
+  const { data: seeded } = await admin
+    .from("players")
+    .select("id, name")
+    .in("name", names);
+  const ids = names.map(
+    n => (seeded ?? []).find(p => p.name === n)?.id as string,
+  );
+
+  const { data: boardgame } = await admin
+    .from("boardgames")
+    .select("id")
+    .eq("name", "Wingspan")
+    .single();
+  const { data: extension } = await admin
+    .from("extensions")
+    .select("id")
+    .eq("name", "Wingspan - Océanie")
+    .single();
+
+  const { data: game } = await admin
+    .from("games")
+    .insert({
+      boardgame_id: boardgame?.id as string,
+      status: "ongoing",
+      round: 1,
+      turn: 2,
+      stage: 1,
+      current_player_id: ids[1],
+    })
+    .select("id")
+    .single();
+  const gameId = game?.id as string;
+
+  await admin.from("game_players").insert(
+    ids.map((player_id, i) => ({
+      game_id: gameId,
+      player_id,
+      seat_order: i,
+    })),
+  );
+  await admin.from("game_extensions").insert({
+    game_id: gameId,
+    extension_id: extension?.id as string,
+  });
+  await admin.from("game_stages").insert(
+    tiles.map((tile, i) => ({
+      game_id: gameId,
+      stage: i + 1,
+      goal_key: tile.goalKey,
+      goal_params: tile.goalParams,
+      turns: 1,
+    })),
+  );
+
+  return gameId;
+}
 
 /** One player's points box in the end-of-manche prompt (the rows carry no label). */
 function goalPoints(prompt: Locator, name: string): Locator {
