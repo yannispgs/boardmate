@@ -32,6 +32,7 @@ import {
   type TallyPointsBar,
   tallyPointsHistogram,
 } from "@/lib/game/tally-averages";
+import { tracksPlayerTime } from "@/lib/game/turn-time";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useExtensions } from "@/lib/hooks/use-extensions";
 import { CategoryCharts } from "./CategoryCharts";
@@ -161,6 +162,10 @@ export function GamesTab({
   // time tiles would read zero — the manches take their place, plus the two
   // breakdowns only several parties can show.
   const tallyMode = boardgame?.stages?.advance === "manual";
+  // Whether a per-player time figure means anything here. « Tous les jeux »
+  // mixes games that time a player with games that don't, so the figures stay
+  // (they average only the parties that recorded one).
+  const timed = boardgame === null || tracksPlayerTime(boardgame);
   const tally = useMemo(
     () =>
       tallyMode
@@ -227,6 +232,7 @@ export function GamesTab({
           goalCatalogue={
             boardgame?.stages?.advance === "schedule" ? goalCatalogue : null
           }
+          timed={timed}
           tally={tally}
         />
       )}
@@ -387,6 +393,7 @@ function GameSections({
   scopedRecords,
   comparePlayers,
   goalCatalogue,
+  timed,
   tally,
 }: Readonly<{
   stats: GlobalStats;
@@ -400,6 +407,8 @@ function GameSections({
   comparePlayers: Array<{ id: PlayerId; name: string }> | undefined;
   /** The goal tiles of a game played on a calendar; null for every other game. */
   goalCatalogue: RoundGoal[] | null;
+  /** Whether this game attributes the time it records to a single player. */
+  timed: boolean;
   /** The manche figures of a game counted that way; null for every other game. */
   tally: {
     averages: TallyAverages | null;
@@ -467,13 +476,14 @@ function GameSections({
         title={
           <>
             Statistiques des joueurs sur ce jeu
-            {tally ? null : <TimeIndexInfo />}
+            {timed ? <TimeIndexInfo /> : null}
           </>
         }
       >
         <GamePlayerTable
           players={stats.players}
           scored={scored}
+          timed={timed}
           exits={tally?.exits ?? null}
         />
       </Section>

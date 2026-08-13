@@ -1,6 +1,7 @@
 import { StatTile } from "@/components/StatTile";
 import type { Boardgame, GameStatsRecord } from "@/lib/domain";
 import type { GameBreakdown, PlayerAggregate } from "@/lib/game/global-stats";
+import { tracksPlayerTime } from "@/lib/game/turn-time";
 import { CategoryCharts } from "./CategoryCharts";
 import { TimeIndexInfo } from "./TimeIndexInfo";
 
@@ -10,7 +11,14 @@ function fmtIndex(index: number | null): string {
 }
 
 /** One boardgame line in the player's per-game breakdown. */
-function GameRow({ game }: Readonly<{ game: GameBreakdown }>) {
+function GameRow({
+  game,
+  timed,
+}: Readonly<{
+  game: GameBreakdown;
+  /** Whether this game attributes the time it records to a single player. */
+  timed: boolean;
+}>) {
   return (
     <li className="flex flex-col gap-2 rounded-xl border border-black/10 bg-white p-3 dark:border-white/10 dark:bg-zinc-900">
       <div className="flex items-center gap-3">
@@ -35,7 +43,7 @@ function GameRow({ game }: Readonly<{ game: GameBreakdown }>) {
         <span>
           Score moy. {game.avgScore === null ? "—" : game.avgScore.toFixed(1)}
         </span>
-        <span>Part du temps {fmtIndex(game.timeIndex)}</span>
+        {timed ? <span>Part du temps {fmtIndex(game.timeIndex)}</span> : null}
       </div>
     </li>
   );
@@ -71,6 +79,12 @@ export function PlayerDetail({
       ),
     }))
     .filter(c => c.games.length > 0);
+
+  // Games that never attribute a turn to a player (Splito, Odin): their line
+  // drops « Part du temps » rather than showing a dash nobody can read.
+  const timedGames = new Set(
+    boardgames.filter(tracksPlayerTime).map(b => b.id),
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -131,7 +145,11 @@ export function PlayerDetail({
         </h3>
         <ul className="flex flex-col gap-2">
           {player.byGame.map(game => (
-            <GameRow key={game.boardgameId} game={game} />
+            <GameRow
+              key={game.boardgameId}
+              game={game}
+              timed={timedGames.has(game.boardgameId)}
+            />
           ))}
         </ul>
       </div>

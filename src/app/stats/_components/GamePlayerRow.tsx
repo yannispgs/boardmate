@@ -16,19 +16,24 @@ const MEDALS = ["🥇", "🥈", "🥉"];
 
 /**
  * One player's line within a single game's stats: their record on THIS game
- * only (win rate, games, wins, mean score, then either the time figures or —
- * for a game counted manche by manche, which times nothing — the manches they
- * sat through and the ones they closed).
+ * only (win rate, games, wins, mean score), followed by whatever the game
+ * actually measures about the person — the time figures when it times each
+ * player, the manches they sat through and the ones they closed when it counts
+ * manches, and nothing at all when it does neither (a simultaneous game plays
+ * as one table, so no share of its time belongs to anybody).
  */
 export function GamePlayerRow({
   rank,
   player,
   scored,
+  timed,
   tally,
 }: Readonly<{
   rank: number;
   player: PlayerAggregate;
   scored: boolean;
+  /** Whether this game attributes the time it records to a single player. */
+  timed: boolean;
   /** This player's manches, or null for a game that counts turns instead. */
   tally: { stages: number; exits: number } | null;
 }>) {
@@ -67,7 +72,8 @@ export function GamePlayerRow({
             <Cell label="Manches" value={String(tally.stages)} />
             <Cell label="Sorties" value={String(tally.exits)} />
           </>
-        ) : (
+        ) : null}
+        {timed ? (
           <>
             <Cell label="Tour moy." value={formatDuration(player.avgTurnS)} />
             <Cell
@@ -79,7 +85,7 @@ export function GamePlayerRow({
               }
             />
           </>
-        )}
+        ) : null}
       </div>
     </li>
   );

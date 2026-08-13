@@ -284,6 +284,92 @@ test("charts the score distribution for a scored game", async ({ page }) => {
 });
 
 /**
+ * A simultaneous game (Splito, full-suite only — untagged): everyone plays at
+ * once, so a round is one shared turn owned by nobody. No share of the time
+ * belongs to a player, and the per-player figures that would divide it say so
+ * by not being there — on the game's own tab and on a player's breakdown alike.
+ */
+test("drops the per-player time figures on a simultaneous game", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const names = await seedPlayers(3);
+  let gameId = "";
+
+  try {
+    const { data: seeded } = await admin
+      .from("players")
+      .select("id, name")
+      .in("name", names);
+    const ids = (seeded ?? []).map(p => p.id as string);
+
+    const { data: game } = await admin
+      .from("games")
+      .insert({
+        boardgame_id: await boardgameId("Splito"),
+        status: "ended",
+        round: 2,
+        turn: 2,
+        ended_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+    gameId = game?.id as string;
+
+    await admin.from("game_players").insert(
+      ids.map((player_id, i) => ({
+        game_id: gameId,
+        player_id,
+        seat_order: i,
+        is_winner: i === 0,
+        score: 30 - i * 5,
+      })),
+    );
+
+    // Two rounds, each a single turn the whole table played at once.
+    await admin.from("game_turns").insert(
+      [1, 2].map(round => ({
+        game_id: gameId,
+        player_id: null,
+        round,
+        turn_no: round,
+        duration_s: 120,
+      })),
+    );
+
+    await page.goto("/stats");
+
+    // A player's breakdown: the Splito line stops at the score.
+    await page
+      .getByRole("listitem")
+      .filter({ hasText: names[0] })
+      .first()
+      .click();
+
+    const splitoLine = page.getByRole("listitem").filter({ hasText: "Splito" });
+
+    await expect(splitoLine).toBeVisible();
+    await expect(splitoLine).not.toContainText("Part du temps");
+
+    // The game's own tab: same rule, and the explanation of an index nobody can
+    // read here goes with it.
+    await page.goto("/stats");
+    await page.getByRole("button", { name: "Jeux", exact: true }).click();
+    await page.getByRole("button", { name: "Splito", exact: true }).click();
+
+    await expect(
+      page.getByText("Statistiques des joueurs sur ce jeu"),
+    ).toBeVisible();
+    await expect(page.getByText("Part du temps")).toHaveCount(0);
+  } finally {
+    if (gameId) {
+      await admin.from("games").delete().eq("id", gameId);
+    }
+    await admin.from("players").delete().in("name", names);
+  }
+});
+
+/**
  * A game counted manche by manche (Odin, full-suite only — untagged): it records
  * no turn at all, so the tab drops the time tiles it would fill with zeros and
  * reads the manches instead — how long a party runs, what a manche costs, and
