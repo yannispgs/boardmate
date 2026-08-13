@@ -1,4 +1,9 @@
-import type { Boardgame, Player, PlayerId, ScoreSheetItem } from "@/lib/domain";
+import type {
+  Player,
+  PlayerId,
+  ScoreSheetItem,
+  ScoringSpec,
+} from "@/lib/domain";
 import {
   pairBreakdown,
   pilesRemaining,
@@ -50,14 +55,13 @@ export interface FinishedEntry {
  * genuine zero.
  */
 export function finishedEntry(
-  boardgame: Boardgame | null,
+  scoring: ScoringSpec | null,
   selected: Player[],
   entryMode: EntryMode,
   totals: Record<string, string>,
   catRaw: CategoryRaw,
   piles: Record<string, number>,
 ): FinishedEntry {
-  const scoring = boardgame?.scoring ?? null;
   const sheet =
     scoring?.entry === "categories" ? (scoring.sheet ?? null) : null;
   const pairs = scoring?.entry === "pairs";
@@ -140,7 +144,7 @@ export function finishedEntry(
  * game has no score, so its winner is always picked (everyone).
  */
 function leaders(
-  scoring: Boardgame["scoring"] | null,
+  scoring: ScoringSpec | null,
   readHighest: boolean,
   scoresComplete: boolean,
   selected: Player[],

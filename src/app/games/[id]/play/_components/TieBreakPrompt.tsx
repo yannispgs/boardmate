@@ -16,6 +16,7 @@ import {
   resolveTieBreak,
   tieBreakRecord,
 } from "@/lib/game/tie-break";
+import { toggled } from "@/lib/ui/selection";
 
 /** One line of the recap: "Le plus de jetons nature — Alice 5, Bob 3". */
 function StepLine({
@@ -112,11 +113,7 @@ export function TieBreakPrompt({
           winners={winners}
           nameOf={nameOf}
           onToggle={id => {
-            setPicked(
-              winners.includes(id)
-                ? winners.filter(w => w !== id)
-                : [...winners, id],
-            );
+            setPicked(toggled(winners, id));
           }}
         />
       )}

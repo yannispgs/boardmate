@@ -13,6 +13,8 @@ import {
   isLastTurnOfStage,
   isParamValueAvailable,
   isStageEnd,
+  otherPicks,
+  pickAt,
   playCalendar,
   scheduledPosition,
   scheduledRoundLimit,
@@ -22,6 +24,7 @@ import {
   stageGoalPrefill,
   stageGoalTotals,
   stagePosition,
+  stageScores,
 } from "./stage";
 
 const WINGSPAN = [8, 7, 6, 5];
@@ -136,6 +139,29 @@ describe("stageCalendar", () => {
   });
 });
 
+describe("pickAt", () => {
+  it("gives the tile chosen for that stage", () => {
+    expect(pickAt([pick("totalBirds"), pick("cheapBirds")], 1)).toEqual(
+      pick("cheapBirds"),
+    );
+  });
+
+  it("gives an empty pick for a stage nobody has answered yet", () => {
+    expect(pickAt([pick("totalBirds")], 2)).toEqual({
+      goalKey: "",
+      goalParams: {},
+    });
+  });
+});
+
+describe("otherPicks", () => {
+  it("leaves out the stage being answered, keeping the tiles it must avoid", () => {
+    const picks = [pick("totalBirds"), pick("cheapBirds"), pick("noGoal")];
+
+    expect(otherPicks(picks, 1)).toEqual([pick("totalBirds"), pick("noGoal")]);
+  });
+});
+
 describe("isCalendarReady", () => {
   const ready = stageCalendar(
     WINGSPAN,
@@ -175,6 +201,37 @@ describe("isCalendarReady", () => {
 
   it("refuses an empty calendar", () => {
     expect(isCalendarReady([], CATALOGUE)).toBe(false);
+  });
+});
+
+describe("stageScores", () => {
+  const stages = stageCalendar(
+    WINGSPAN,
+    [
+      pick("totalBirds"),
+      pick("noGoal"),
+      pick("cheapBirds"),
+      pick("eggsInHabitat", { habitat: "sea" }),
+    ],
+    CATALOGUE,
+  );
+
+  it("says a manche laid with « pas d'objectif » pays nobody", () => {
+    expect(stageScores(stages[1], CATALOGUE)).toBe(false);
+  });
+
+  it("says every other tile scores", () => {
+    expect(stageScores(stages[0], CATALOGUE)).toBe(true);
+  });
+
+  it("assumes a manche still without a tile will score", () => {
+    const [first] = stageCalendar(WINGSPAN, [], CATALOGUE);
+
+    expect(stageScores(first, CATALOGUE)).toBe(true);
+  });
+
+  it("says a game played on no calendar at all scores", () => {
+    expect(stageScores(undefined, CATALOGUE)).toBe(true);
   });
 });
 

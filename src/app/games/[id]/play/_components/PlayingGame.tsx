@@ -10,6 +10,7 @@ import {
   isLastTurnOfStage,
   playCalendar,
   stageGoalLabel,
+  stageScores,
 } from "@/lib/game/stage";
 import { isFinalTurn, turnsPerRound } from "@/lib/game/turn";
 import { turnDurationForRound } from "@/lib/game/turn-schedule";
@@ -213,6 +214,7 @@ export function PlayingGame({
         <TurnControls
           atFinalTurn={atFinalTurn}
           atStageEnd={atStageEnd}
+          goalScores={stageScores(game.stages[game.stage - 1], catalogue)}
           stage={game.stage}
           stageLabel={stageLabel}
           goalLabel={stageGoalLabel(game.stages[game.stage - 1], catalogue)}

@@ -27,8 +27,9 @@ import { type StagePick, stageCalendar } from "@/lib/game/stage";
 import { type WinTargetView, winTargetView } from "@/lib/game/win-target";
 import { useConfigs } from "@/lib/hooks/use-configs";
 import { useExtensions } from "@/lib/hooks/use-extensions";
+import { toggled } from "@/lib/ui/selection";
+import { ExtensionPicker } from "../../_components/ExtensionPicker";
 import { BoardStep } from "./BoardStep";
-import { ExtensionPicker } from "./ExtensionPicker";
 import { FirstPlayerWheel } from "./FirstPlayerWheel";
 import { FunnelStep } from "./FunnelStep";
 import { RecapSummary } from "./RecapSummary";
@@ -382,11 +383,6 @@ function postRecapSteps(hasBoard: boolean, needsGoals: boolean): PostRecap[] {
 /** The base length of each stage, for a game that is played on a calendar. */
 function baseSchedule(stages: StageSpec | null): number[] {
   return stages?.advance === "schedule" ? (stages.schedule ?? []) : [];
-}
-
-/** Adds an id to a selection, or takes it back out. */
-function toggled<T>(list: T[], id: T): T[] {
-  return list.includes(id) ? list.filter(x => x !== id) : [...list, id];
 }
 
 /**

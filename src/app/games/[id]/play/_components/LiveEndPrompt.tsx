@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { Modal } from "@/components/Modal";
 import type { PlayerId, TieBreakRecord } from "@/lib/domain";
+import { toggled } from "@/lib/ui/selection";
 
 /**
  * Shown when a live threshold game reaches (or overshoots) its target. The
@@ -34,9 +35,7 @@ export function LiveEndPrompt({
   const [winnerIds, setWinnerIds] = useState<PlayerId[]>(defaultWinnerIds);
 
   const toggle = (id: PlayerId) => {
-    setWinnerIds(ids =>
-      ids.includes(id) ? ids.filter(w => w !== id) : [...ids, id],
-    );
+    setWinnerIds(ids => toggled(ids, id));
   };
   const appliedRule = tieBreak?.steps.at(-1)?.label ?? null;
 

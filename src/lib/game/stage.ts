@@ -67,6 +67,22 @@ export function stageCalendar(
   });
 }
 
+/** The tile chosen for one stage, or the empty pick before anything is chosen. */
+export function pickAt(picks: readonly StagePick[], index: number): StagePick {
+  return picks[index] ?? { goalKey: "", goalParams: {} };
+}
+
+/**
+ * The picks of every stage but this one — what the picker must treat as spent,
+ * since a tile is only in the box once.
+ */
+export function otherPicks(
+  picks: readonly StagePick[],
+  index: number,
+): StagePick[] {
+  return picks.filter((_pick, i) => i !== index);
+}
+
 /**
  * Whether the calendar is ready to launch a game: every stage has a tile from
  * the catalogue, and every one of that tile's parameters has been answered.
@@ -84,6 +100,24 @@ export function isCalendarReady(
 
     return goal !== undefined && isGoalComplete(goal, stage.goalParams);
   });
+}
+
+/**
+ * Whether a stage's tile is worth anything to anybody.
+ *
+ * Oceania's « Pas d'objectif » is laid like any other tile and lengthens the
+ * manches that follow it, but nothing is scored on it — so there is nothing to
+ * ask the table for that manche, and nothing to record but zero. A stage still
+ * waiting for its tile — or a game that has no calendar at all — scores until
+ * told otherwise.
+ */
+export function stageScores(
+  stage: GameStage | undefined,
+  catalogue: readonly RoundGoal[],
+): boolean {
+  const goal = catalogue.find(g => g.key === stage?.goalKey);
+
+  return goal?.scores ?? true;
 }
 
 /**

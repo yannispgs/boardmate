@@ -2,8 +2,9 @@ import { expect, test } from "@playwright/test";
 
 import {
   adminClient,
+  boardgameId,
   seedPlayers,
-  TERRAFORMING_MARS_ID,
+  TERRAFORMING_MARS_NAME,
 } from "./utils/supabase";
 
 const PLAYER_COUNT = 3;
@@ -31,7 +32,7 @@ test("gives out milestones from the game's left panel", async ({ page }) => {
     const { data: game } = await admin
       .from("games")
       .insert({
-        boardgame_id: TERRAFORMING_MARS_ID,
+        boardgame_id: await boardgameId(TERRAFORMING_MARS_NAME),
         status: "ongoing",
         round: 1,
         turn: 1,

@@ -4,12 +4,14 @@ import type {
   BoardgameId,
   ConfigId,
   ConfigValues,
+  ExtensionId,
   ExtensionScenarioId,
   FieldSpec,
   Game,
   GameId,
   GameListItem,
   GamePlayer,
+  GameStage,
   GameStatsRecord,
   GameStatus,
   GameTurn,
@@ -21,6 +23,7 @@ import type {
   PopulatedGame,
   StageAdvance,
   StageGoalRecord,
+  StageScore,
   TieBreakRecord,
   TurnMode,
 } from "@/lib/domain";
@@ -530,6 +533,77 @@ export function createGameRepository(
 ): GameRepository {
   const games = () => supabase.from("games");
 
+  /**
+   * The calendar of a game played in stages. Shared by the launch funnel and by
+   * a game entered after the fact: both write the same rows, one from the tiles
+   * laid on the table, the other from the tiles the table remembers.
+   */
+  async function insertStages(gameId: string, stages: readonly GameStage[]) {
+    if (stages.length === 0) {
+      return;
+    }
+
+    const { error } = await supabase.from("game_stages").insert(
+      stages.map(stage => ({
+        game_id: gameId,
+        stage: stage.stage,
+        goal_key: stage.goalKey,
+        goal_params: stage.goalParams as Json,
+        turns: stage.turns,
+      })),
+    );
+
+    /* c8 ignore next 3 -- defensive guard: the calendar carries no FK the
+       caller could get wrong, so a healthy insert doesn't error */
+    if (error) {
+      throw new Error(`Enregistrement des manches: ${error.message}`);
+    }
+  }
+
+  /** What each player took from each stage's goal (entered at once, after the fact). */
+  async function insertStageScores(
+    gameId: string,
+    scores: readonly StageScore[],
+  ) {
+    if (scores.length === 0) {
+      return;
+    }
+
+    const { error } = await supabase.from("game_stage_scores").insert(
+      scores.map(score => ({
+        game_id: gameId,
+        stage: score.stage,
+        player_id: score.playerId,
+        points: score.points,
+      })),
+    );
+    if (error) {
+      throw new Error(`Enregistrement des objectifs: ${error.message}`);
+    }
+  }
+
+  /** The extensions a game was played with, and the scenario each was played on. */
+  async function insertExtensions(
+    gameId: string,
+    extensionIds: readonly ExtensionId[],
+    byExtension: Record<string, ExtensionScenarioId | undefined>,
+  ) {
+    if (extensionIds.length === 0) {
+      return;
+    }
+
+    const { error } = await supabase.from("game_extensions").insert(
+      extensionIds.map(extensionId => ({
+        game_id: gameId,
+        extension_id: extensionId,
+        scenario_id: byExtension[extensionId] ?? null,
+      })),
+    );
+    if (error) {
+      throw new Error(`Ajout des extensions: ${error.message}`);
+    }
+  }
+
   return {
     async list(filter?: { status?: GameStatus }) {
       const status = filter?.status ?? "ongoing";
@@ -737,43 +811,12 @@ export function createGameRepository(
 
       // The whole calendar is written at launch: its stages' lengths follow
       // from the four goal tiles, which are laid out before anybody plays.
-      const stages = input.stages ?? [];
-
-      if (stages.length > 0) {
-        const stageRows = stages.map(stage => ({
-          game_id: game.id,
-          stage: stage.stage,
-          goal_key: stage.goalKey,
-          goal_params: stage.goalParams as Json,
-          turns: stage.turns,
-        }));
-        const { error: stageError } = await supabase
-          .from("game_stages")
-          .insert(stageRows);
-
-        /* c8 ignore next 3 -- defensive guard: the calendar carries no FK the
-           caller could get wrong, so a healthy insert doesn't error */
-        if (stageError) {
-          throw new Error(`Enregistrement des manches: ${stageError.message}`);
-        }
-      }
-
-      const extensionIds = input.extensionIds ?? [];
-
-      if (extensionIds.length > 0) {
-        const byExt = input.scenarioByExtension ?? {};
-        const extRows = extensionIds.map(extensionId => ({
-          game_id: game.id,
-          extension_id: extensionId,
-          scenario_id: byExt[extensionId] ?? null,
-        }));
-        const { error: geError } = await supabase
-          .from("game_extensions")
-          .insert(extRows);
-        if (geError) {
-          throw new Error(`Ajout des extensions: ${geError.message}`);
-        }
-      }
+      await insertStages(game.id, input.stages ?? []);
+      await insertExtensions(
+        game.id,
+        input.extensionIds ?? [],
+        input.scenarioByExtension ?? {},
+      );
 
       return toGame(game);
     },
@@ -815,6 +858,18 @@ export function createGameRepository(
       if (gpError) {
         throw new Error(`Ajout des joueurs: ${gpError.message}`);
       }
+
+      // A game played away from the app leaves the same trail as one played in
+      // it, when the table remembers that much: what it was played with, and
+      // what each manche's goal paid.
+      await insertExtensions(
+        game.id,
+        input.extensionIds ?? [],
+        input.scenarioByExtension ?? {},
+      );
+      await insertStages(game.id, input.stages ?? []);
+      await insertStageScores(game.id, input.stageScores ?? []);
+
       return toGame(game);
     },
 

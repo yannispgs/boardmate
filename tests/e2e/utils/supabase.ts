@@ -8,11 +8,8 @@ export const CATAN_MIN_PLAYERS = 3;
 /** Catan's fixed id (from the seed migration) — lets us attach configs to it. */
 export const CATAN_ID = "78047bc0-5293-4787-be48-ba7339d48c2d";
 
-/**
- * Terraforming Mars' fixed id (seed migration) — the one game played in
- * generations, and the one that hands out milestones.
- */
-export const TERRAFORMING_MARS_ID = "8eab1d62-108c-456a-8282-591195910baf";
+/** Terraforming Mars — played in generations, and the one handing out milestones. */
+export const TERRAFORMING_MARS_NAME = "Terraforming Mars";
 
 /**
  * Service-role client — **BYPASSES RLS**. Used only to seed/clean e2e fixtures
@@ -23,6 +20,25 @@ export function adminClient(): SupabaseClient {
   return createClient(url, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+}
+
+/**
+ * The id of a seeded boardgame, by name. Only Catan carries a written-down id;
+ * every game seeded since draws one at insert, so an id copied out of one
+ * database names nothing in the next one.
+ */
+export async function boardgameId(name: string): Promise<string> {
+  const { data, error } = await adminClient()
+    .from("boardgames")
+    .select("id")
+    .eq("name", name)
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to find boardgame ${name}: ${error.message}`);
+  }
+
+  return data.id as string;
 }
 
 /**
