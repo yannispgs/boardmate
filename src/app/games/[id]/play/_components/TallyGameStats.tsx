@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { StatTile } from "@/components/StatTile";
 import type { PopulatedGame } from "@/lib/domain";
 import { statDelta } from "@/lib/game/stat-delta";
+import type { TallyAverages } from "@/lib/game/tally-averages";
 import { computeTallyAverages } from "@/lib/game/tally-averages";
 import {
   buildStageTotalsSeries,
@@ -14,6 +15,20 @@ import { useGameStats } from "@/lib/hooks/use-game-stats";
 
 import { ScoreChart } from "./ScoreChart";
 import { TallyPlayerCardList } from "./TallyPlayerCardList";
+
+/**
+ * What the figures above are being compared to — the plural falls on the noun
+ * and on the participle alike, so both read from the same count.
+ */
+function caption(name: string, averages: TallyAverages | null): string {
+  if (averages === null) {
+    return `Première partie de ${name} — rien à quoi la comparer pour l'instant.`;
+  }
+
+  const s = averages.games > 1 ? "s" : "";
+
+  return `Comparé à ${averages.games} partie${s} de ${name} déjà jouée${s}.`;
+}
 
 /**
  * End-of-game statistics for a game counted manche by manche (Odin).
@@ -91,13 +106,7 @@ export function TallyGameStats({ game }: Readonly<{ game: PopulatedGame }>) {
       </div>
 
       <p className="text-center text-xs text-zinc-500 dark:text-zinc-400">
-        {averages === null
-          ? `Première partie de ${game.boardgame.name} — rien à quoi la comparer pour l'instant.`
-          : `Comparé à ${averages.games} partie${
-              averages.games > 1 ? "s" : ""
-            } de ${game.boardgame.name} déjà jouée${
-              averages.games > 1 ? "s" : ""
-            }.`}
+        {caption(game.boardgame.name, averages)}
       </p>
 
       {stats.worstStage ? (

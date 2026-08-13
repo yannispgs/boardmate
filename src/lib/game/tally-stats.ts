@@ -85,9 +85,13 @@ export function computeTallyStats({
   const stages = stageNumbers(scores);
   const lines = players.map(player => tallyLine(player, scores));
 
+  // Sorted in place on purpose, as its own statement: `lines` was just built
+  // here, so nobody else can be holding the unsorted order.
+  lines.sort(byExitsThenCost);
+
   return {
     stageCount: stages.length,
-    players: lines.sort(byExitsThenCost),
+    players: lines,
     worstStage: worstStage(players, scores),
     avgPointsPerStage:
       stages.length === 0
