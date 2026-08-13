@@ -172,6 +172,29 @@ test("counts Odin manche by manche and stops the game at the bar", async ({
       .single();
 
     expect(ended?.status).toBe("ended");
+
+    // Back on the finished game: the stats read the manches, never a clock —
+    // nothing was ever timed, so a « Temps de jeu » here would be a zero
+    // dressed up as a figure.
+    await page.goto(`/games/${gameId}/play`);
+
+    await expect(page.getByText("Statistiques de la partie")).toBeVisible();
+    await expect(page.getByText("Temps de jeu")).toHaveCount(0);
+    await expect(page.getByText("Manches", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText(`${names[1]} a ramassé 9 points d'un coup à la manche 2`),
+    ).toBeVisible();
+    await expect(
+      page.getByText("La manche 2 a arrêté la partie"),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Sorties — du plus souvent sorti au moins souvent"),
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        "8.0 pts/manche hors sortie · pire manche : 9 · 16 pts au total",
+      ),
+    ).toBeVisible();
   } finally {
     if (gameId) {
       await admin.from("games").delete().eq("id", gameId);

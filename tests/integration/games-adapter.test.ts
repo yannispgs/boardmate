@@ -682,6 +682,20 @@ describe("games adapter — manches closed by hand (Odin)", () => {
     p = await repo().getPopulated(game.id);
 
     expect(p?.status).toBe("ended");
+
+    // Such a game lays no tile, so it has no `game_stages` row and its manches
+    // are invisible to `stageGoals`. The stats read them raw instead — without
+    // them the end-of-game panel has nothing at all to show.
+    const record = (await repo().listStats()).find(r => r.gameId === game.id);
+
+    expect(record?.stageGoals).toEqual([]);
+    expect(record?.stageScores).toHaveLength(6);
+    expect(record?.stageScores?.[0]?.stage).toBe(1);
+    expect(record?.stageScores).toContainEqual({
+      stage: 2,
+      playerId: playerIds[0],
+      points: 9,
+    });
   });
 });
 

@@ -16,16 +16,21 @@ const MEDALS = ["🥇", "🥈", "🥉"];
 
 /**
  * One player's line within a single game's stats: their record on THIS game
- * only (win rate, games, wins, mean score, mean turn, time index).
+ * only (win rate, games, wins, mean score, then either the time figures or —
+ * for a game counted manche by manche, which times nothing — the manches they
+ * sat through and the ones they closed).
  */
 export function GamePlayerRow({
   rank,
   player,
   scored,
+  tally,
 }: Readonly<{
   rank: number;
   player: PlayerAggregate;
   scored: boolean;
+  /** This player's manches, or null for a game that counts turns instead. */
+  tally: { stages: number; exits: number } | null;
 }>) {
   const medal = MEDALS[rank - 1] ?? `${rank}.`;
 
@@ -57,15 +62,24 @@ export function GamePlayerRow({
             value={player.avgScore === null ? "—" : player.avgScore.toFixed(1)}
           />
         ) : null}
-        <Cell label="Tour moy." value={formatDuration(player.avgTurnS)} />
-        <Cell
-          label="Part du temps"
-          value={
-            player.timeIndex === null
-              ? "—"
-              : String(Math.round(player.timeIndex))
-          }
-        />
+        {tally ? (
+          <>
+            <Cell label="Manches" value={String(tally.stages)} />
+            <Cell label="Sorties" value={String(tally.exits)} />
+          </>
+        ) : (
+          <>
+            <Cell label="Tour moy." value={formatDuration(player.avgTurnS)} />
+            <Cell
+              label="Part du temps"
+              value={
+                player.timeIndex === null
+                  ? "—"
+                  : String(Math.round(player.timeIndex))
+              }
+            />
+          </>
+        )}
       </div>
     </li>
   );

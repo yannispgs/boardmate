@@ -286,6 +286,15 @@ export interface GameStatsRecord {
    * generations); optional so lightweight test fixtures can omit it.
    */
   stageGoals?: StageGoalRecord[];
+  /**
+   * What each player took on each manche, raw. Carried alongside `stageGoals`
+   * because a game counted manche by manche (Odin) writes these rows without
+   * ever laying a tile: it has no calendar, so `stageGoals` — which is built
+   * from one — would read as if the game had no manche at all. Always set by
+   * the adapter (empty for a game played in laps); optional so lightweight test
+   * fixtures can omit it.
+   */
+  stageScores?: StageScore[];
 }
 
 /** One manche of a finished game: the tile it scored, and by whom. */

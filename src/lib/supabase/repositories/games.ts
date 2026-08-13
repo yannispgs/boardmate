@@ -223,6 +223,13 @@ function toStatsRecord(row: StatsRow): GameStatsRecord {
       .sort((a, b) => a.created_at.localeCompare(b.created_at))
       .map(d => d.value),
     stageGoals: toStageGoals(row),
+    stageScores: [...row.game_stage_scores]
+      .sort((a, b) => a.stage - b.stage)
+      .map(score => ({
+        stage: score.stage,
+        playerId: score.player_id as PlayerId,
+        points: score.points,
+      })),
   };
 }
 
