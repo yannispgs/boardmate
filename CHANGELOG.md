@@ -1,5 +1,45 @@
 # Changelog
 
+## [1.2.0](https://github.com/yannispgs/boardmate/compare/v1.1.0...v1.2.0) (2026-08-13)
+
+
+### Features
+
+* attribution des jalons de Terraforming Mars en partie ([1daf754](https://github.com/yannispgs/boardmate/commit/1daf754a48b5b18e021a70b67918d3b2a2ea44d3))
+* count each game in its own unit in the games list ([6262ced](https://github.com/yannispgs/boardmate/commit/6262ceddf7d4665119b6ce25f601ffc8c371a60a))
+* count each game in its own unit in the games list ([af72aa9](https://github.com/yannispgs/boardmate/commit/af72aa99391425b44840b22edcb2f2a28b576a3a))
+* **finished:** détail des objectifs de manche et extensions sur une partie déjà jouée ([06a9af6](https://github.com/yannispgs/boardmate/commit/06a9af642e48f4fb0fbf66df4312a8633969a95a))
+* **finished:** record a finished game's manche goals and extensions ([0dd6947](https://github.com/yannispgs/boardmate/commit/0dd6947691fdae58187b3083a6030e42293ab8d4))
+* **finished:** score a « pas d'objectif » manche at zero, uneditable ([8fe6494](https://github.com/yannispgs/boardmate/commit/8fe6494a2a41e2f8d7bae38571d10463a07a1ee4))
+* **games:** name the goal step « Choix des objectifs » ([f620e64](https://github.com/yannispgs/boardmate/commit/f620e648a429c9ae693de3965b7d50a89e93e754))
+* hand out Terraforming Mars milestones during the game ([4efafaa](https://github.com/yannispgs/boardmate/commit/4efafaa0562316968263efa81e695af4a9f2e0f6))
+* lay two goals of one family, on different targets ([3810c17](https://github.com/yannispgs/boardmate/commit/3810c17505d986751e5e9a98f6433260ee0de276))
+* **milestones:** draw each milestone and pick its holder from a list ([27507e7](https://github.com/yannispgs/boardmate/commit/27507e75b221b0fd15776c64af93a13a42adb087))
+* **milestones:** give each milestone drawing a size and a colour of its own ([676e988](https://github.com/yannispgs/boardmate/commit/676e988a072b0d8afe20c5078ef9e7bf2dfa0537))
+* Odin, une partie comptée manche par manche ([739ee5d](https://github.com/yannispgs/boardmate/commit/739ee5d9147b2e0720299136f4bb6c381c85415f))
+* play Odin, counted manche by manche until someone hits the bar ([de6a4bc](https://github.com/yannispgs/boardmate/commit/de6a4bce8db187b66cd6398e8ee362c20a90ca61))
+* play Wingspan on a calendar of manches, with Océanie ([1209e5a](https://github.com/yannispgs/boardmate/commit/1209e5a712cbac74d6e4e0b8786b533f5037f9c9))
+* **play:** close a « pas d'objectif » manche without asking for points ([6e9be43](https://github.com/yannispgs/boardmate/commit/6e9be43ccfba3b011599103e48148ddf6db0dd6b))
+* **play:** close the turn ribbon on the manche being played ([183c693](https://github.com/yannispgs/boardmate/commit/183c693460106d0f43c5301a9ab342a8b2e28282))
+* **play:** correct the seating of a game already under way ([b6e46ac](https://github.com/yannispgs/boardmate/commit/b6e46ac46fe7b0a53682f8694d9f49329b87a549))
+* **play:** corriger l'ordre des joueurs d'une partie en cours ([0245a01](https://github.com/yannispgs/boardmate/commit/0245a01007c64a16f2a800eaed795bcb54f29505))
+* **play:** nudge a manche's points rather than type them ([a62cefa](https://github.com/yannispgs/boardmate/commit/a62cefa95d5b1fddb2e54f8b1a4bd5d14ff2c92f))
+* **play:** reopen a past manche, and cap what one can cost ([1d3074d](https://github.com/yannispgs/boardmate/commit/1d3074de0dfc286b6791eeaf26fe70bb7e1ca33e))
+* **stats:** read Odin's parties in manches, not in time ([86d4909](https://github.com/yannispgs/boardmate/commit/86d4909de6bd0b19c190eb42e1f11232ab275dbf))
+* Wingspan sur un calendrier de manches, avec l'extension Océanie ([99d7e86](https://github.com/yannispgs/boardmate/commit/99d7e862581396afd66243fd1a10f1935d2769d8))
+
+
+### Bug Fixes
+
+* **e2e:** look Terraforming Mars up by name instead of a copied id ([95dee46](https://github.com/yannispgs/boardmate/commit/95dee4691ecd8373edef67ec3b8226fa561ed8a3))
+* hold the bowl's egg open on a light background ([63f1288](https://github.com/yannispgs/boardmate/commit/63f12887f3f5c9193713a21d5a729b480508fbf5))
+* redraw the nest symbols after the owner's reading of the tokens ([6005f82](https://github.com/yannispgs/boardmate/commit/6005f82858d21d93b3046b5a029740f02ca3cc92))
+* redraw the nest symbols upright, after the tokens ([39edefc](https://github.com/yannispgs/boardmate/commit/39edefcd1cd0d6d89f86cdf01fcc4413f018d937))
+* sort goal parameter keys with an explicit comparator ([b792711](https://github.com/yannispgs/boardmate/commit/b792711c5035ced00eb857747726ed015f933059))
+* **stats:** drop the per-player time figures a game never measured ([2b07466](https://github.com/yannispgs/boardmate/commit/2b07466f78943c81a7010e22beb49e7b3f111330))
+* tune the nest symbols after the owner's reading ([0d1aeb7](https://github.com/yannispgs/boardmate/commit/0d1aeb71103ad189a0407d9574e04e21a74b3134))
+* turn the nest symbols upright and swap bowl and cavity ([bbb6b87](https://github.com/yannispgs/boardmate/commit/bbb6b87d95982ed372b0f745205dd726ccb1bc0f))
+
 ## [1.1.0](https://github.com/yannispgs/boardmate/compare/v1.0.0...v1.1.0) (2026-08-11)
 
 
