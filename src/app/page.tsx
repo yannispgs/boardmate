@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { signOut } from "@/lib/auth/actions";
+import { getMyPermissions } from "@/lib/auth/permissions";
 import { getCurrentUser } from "@/lib/auth/session";
 import pkg from "../../package.json";
 
@@ -7,6 +8,8 @@ const TOOLS: {
   name: string;
   emoji: string;
   href?: string;
+  /** Only shown to an account holding this permission. */
+  permission?: string;
 }[] = [
   { name: "Joueurs", emoji: "👥", href: "/players" },
   { name: "Jeux", emoji: "🎲", href: "/boardgames" },
@@ -20,6 +23,12 @@ const TOOLS: {
   },
   { name: "FAQ", emoji: "❓", href: "/faq" },
   { name: "Retours", emoji: "📝", href: "/feedback" },
+  {
+    name: "Administration",
+    emoji: "🔐",
+    href: "/admin",
+    permission: "roles.read",
+  },
 ];
 
 // Short commit hash of the deployed build, when running on Vercel.
@@ -29,7 +38,17 @@ const cardClass =
   "flex flex-col items-center gap-1 rounded-xl border border-black/10 bg-white p-4 text-center dark:border-white/10 dark:bg-zinc-900";
 
 export default async function Home() {
-  const user = await getCurrentUser();
+  const [user, permissions] = await Promise.all([
+    getCurrentUser(),
+    getMyPermissions(),
+  ]);
+
+  // Hiding a tile spares the reader a screen he can do nothing with; the RLS
+  // policies behind it are what actually refuse him.
+  const tools = TOOLS.filter(
+    tool =>
+      tool.permission === undefined || permissions.includes(tool.permission),
+  );
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center gap-10 px-6 py-16">
@@ -57,7 +76,7 @@ export default async function Home() {
       </header>
 
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {TOOLS.map(tool => {
+        {tools.map(tool => {
           const content = (
             <>
               <span aria-hidden className="text-2xl">

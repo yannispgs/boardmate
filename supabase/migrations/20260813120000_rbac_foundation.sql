@@ -78,6 +78,13 @@ create index role_permissions_permission_key_idx
 -- The argument is a constant at every call site, never a column, so Postgres
 -- evaluates this once per statement rather than once per row. Call it wrapped
 -- in `(select …)` in policies to make that explicit.
+--
+-- An `is_admin` role answers yes to everything, without holding a single
+-- `role_permissions` row. Owner's rule (2026-08-13): « permet aux admin de tout
+-- faire ». Written into the function rather than seeded as rows, because rows
+-- would have to be re-seeded by every future migration that adds a permission —
+-- and the day one forgets, the account meant to hold them all quietly stops
+-- holding one.
 create function public.has_permission(p_key text)
 returns boolean
 language sql
@@ -86,6 +93,12 @@ security definer
 set search_path = public, pg_temp
 as $$
   select exists (
+    select 1
+    from public.user_roles ur
+    join public.roles r on r.id = ur.role_id
+    where ur.user_id = (select auth.uid())
+      and r.is_admin
+  ) or exists (
     select 1
     from public.user_roles ur
     join public.role_permissions rp on rp.role_id = ur.role_id
@@ -103,16 +116,46 @@ stable
 security definer
 set search_path = public, pg_temp
 as $$
+  select p.key
+  from public.permissions p
+  where exists (
+    select 1
+    from public.user_roles ur
+    join public.roles r on r.id = ur.role_id
+    where ur.user_id = (select auth.uid())
+      and r.is_admin
+  )
+  union
   select distinct rp.permission_key
   from public.user_roles ur
   join public.role_permissions rp on rp.role_id = ur.role_id
   where ur.user_id = (select auth.uid());
 $$;
 
+-- Is this role an administrator one? Needed by the delete policy on
+-- `user_roles`, which must decide on a role it may not be able to read: a
+-- subquery over `public.roles` inside a policy runs under the *caller's* RLS, so
+-- a caller who cannot see the row would read « not an admin role » and slip
+-- through the guard. SECURITY DEFINER removes that hole.
+create function public.is_admin_role(p_role_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select coalesce(
+    (select r.is_admin from public.roles r where r.id = p_role_id),
+    false
+  );
+$$;
+
 revoke execute on function public.has_permission(text) from anon;
 revoke execute on function public.my_permissions() from anon;
+revoke execute on function public.is_admin_role(uuid) from anon;
 grant execute on function public.has_permission(text) to authenticated;
 grant execute on function public.my_permissions() to authenticated;
+grant execute on function public.is_admin_role(uuid) to authenticated;
 
 -- A billable permission belongs to an admin role and nowhere else. Owner's
 -- rule (2026-08-13): the features that cost money per use are admin-only. Said
@@ -146,44 +189,58 @@ create trigger role_permissions_billable_is_admin_only
   before insert or update on public.role_permissions
   for each row execute function public.enforce_billable_is_admin_only();
 
--- Never let the last administrator go. Without this, one unticked box or one
--- removed assignment bricks the application for everybody, with no way back
--- through the app itself.
+-- An administrator assignment is never taken back from inside the application —
+-- not even by another administrator. Owner's rule (2026-08-13): revoking admin
+-- goes through the database.
 --
--- The service role is exempt, and deliberately so: the guard exists to stop the
--- *app* from locking itself out, and the app only ever runs as `anon` or
--- `authenticated`. Without the exemption a test that seeds an administrator
--- could never tear it down, and an operator holding the keys to the database
--- would have no way to hand the last account over to somebody else.
-create function public.enforce_last_admin_survives()
+-- This is stronger than counting the survivors, and simpler: a rule that says
+-- « at least one must remain » still lets the grid be emptied down to one
+-- account, which may be the wrong one, and it has to be re-checked on every path
+-- that touches the table. « None of them, ever, from the app » has no edge case.
+-- It is carried by the delete policy on `user_roles` further down, so the app
+-- cannot even express the deletion.
+--
+-- The consequence, stated plainly: an admin badge handed out by mistake can only
+-- be taken back with a hand on the database. That is the trade the owner chose.
+--
+-- The guard is only worth as much as the flag it reads, so the flag itself is
+-- put out of the app's reach here. Without this, the rule has an obvious way
+-- round it: flip `is_admin` off, delete the assignment the policy now allows,
+-- flip it back. `is_system` travels with it — it protects the seeded role from
+-- being dropped, and a protection you can switch off is not one.
+create function public.enforce_admin_flag_not_app_writable()
 returns trigger
 language plpgsql
 security definer
 set search_path = public, pg_temp
 as $$
 begin
-  if current_setting('role', true) = 'service_role' then
-    return null;
+  -- The application connects as `authenticated`; a hand on the database does
+  -- not. This is the same door the owner's rule points at.
+  if current_setting('role', true) is distinct from 'authenticated' then
+    return new;
   end if;
 
-  if not exists (
-    select 1
-    from public.user_roles ur
-    join public.roles r on r.id = ur.role_id
-    where r.is_admin
-  ) then
-    raise exception 'il doit rester au moins un compte administrateur'
-      using errcode = 'check_violation';
+  if tg_op = 'INSERT' and (new.is_admin or new.is_system) then
+    raise exception 'un rôle administrateur se crée en base de données'
+      using errcode = 'insufficient_privilege';
   end if;
 
-  return null;
+  if tg_op = 'UPDATE'
+    and (new.is_admin is distinct from old.is_admin
+      or new.is_system is distinct from old.is_system)
+  then
+    raise exception 'le caractère administrateur d''un rôle se modifie en base de données'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  return new;
 end;
 $$;
 
-create constraint trigger user_roles_last_admin_survives
-  after delete or update on public.user_roles
-  deferrable initially deferred
-  for each row execute function public.enforce_last_admin_survives();
+create trigger roles_admin_flag_not_app_writable
+  before insert or update on public.roles
+  for each row execute function public.enforce_admin_flag_not_app_writable();
 
 -- System roles are seeded by migration; the app may rename them, never drop
 -- them, or the grid would lose the rows the seeds below refer to.
@@ -194,6 +251,10 @@ security definer
 set search_path = public, pg_temp
 as $$
 begin
+  if current_setting('role', true) is distinct from 'authenticated' then
+    return old;
+  end if;
+
   if old.is_system then
     raise exception 'le rôle « % » est fourni par l''application', old.label
       using errcode = 'check_violation';
@@ -246,53 +307,15 @@ insert into public.permissions (key, section, action, label, sort_order) values
   ('roles.update',      'Administration',        'update', 'Modifier un rôle',               82),
   ('roles.delete',      'Administration',        'delete', 'Supprimer un rôle',              83);
 
+-- One seeded role, and only one. Every other role is the owner's to compose in
+-- the administration screen once he has read the catalogue above — a role
+-- shipped by migration would be a guess at what he wants, and the grid would
+-- start out saying something he never said.
+-- No `role_permissions` rows go with it: `is_admin` *is* the grant, resolved in
+-- `has_permission` above. The grid renders this role with every box ticked and
+-- none of them touchable, which is the truth rather than a copy of it.
 insert into public.roles (key, label, is_admin, is_system) values
-  ('admin',        'Administrateur', true,  true),
-  ('gestionnaire', 'Gestionnaire',   false, true),
-  ('joueur',       'Joueur',         false, true);
-
--- Administrateur: everything, by construction rather than by listing — a
--- permission added later must not silently skip the role that is meant to hold
--- them all.
-insert into public.role_permissions (role_id, permission_key)
-select r.id, p.key
-from public.roles r
-cross join public.permissions p
-where r.key = 'admin';
-
--- Gestionnaire: the catalogue and the games, but neither the roles nor the
--- deletions that destroy history.
-insert into public.role_permissions (role_id, permission_key)
-select r.id, p.key
-from public.roles r
-cross join public.permissions p
-where r.key = 'gestionnaire'
-  and p.key in (
-    'boardgames.create', 'boardgames.read', 'boardgames.update',
-    'faq.create', 'faq.read', 'faq.update', 'faq.delete',
-    'extensions.create', 'extensions.read', 'extensions.update', 'extensions.delete',
-    'players.create', 'players.read', 'players.update',
-    'games.create', 'games.read', 'games.update',
-    'stats.read',
-    'feedback.create', 'feedback.read'
-  );
-
--- Joueur: play, look, and say what he thinks. Reads the catalogue because the
--- new-game funnel and the in-game FAQ need it; changes none of it.
-insert into public.role_permissions (role_id, permission_key)
-select r.id, p.key
-from public.roles r
-cross join public.permissions p
-where r.key = 'joueur'
-  and p.key in (
-    'boardgames.read',
-    'faq.read',
-    'extensions.read',
-    'players.read',
-    'games.create', 'games.read', 'games.update',
-    'stats.read',
-    'feedback.create'
-  );
+  ('admin', 'Administrateur', true, true);
 
 -- Bootstrap. Deny by default means somebody has to be able to open the door
 -- from the inside, and only an existing account can be it. Guarded by a lookup
@@ -344,8 +367,15 @@ create policy user_roles_read_all on public.user_roles
   for select to authenticated using ((select public.has_permission('roles.read')));
 create policy user_roles_insert on public.user_roles
   for insert to authenticated with check ((select public.has_permission('roles.update')));
+-- …but an administrator assignment is not his to take back. `is_admin_role`
+-- runs as the function owner on purpose (see its comment): asked from here, a
+-- plain subquery over `public.roles` would answer « no » to anyone who cannot
+-- read the row, and the guard would open instead of closing.
 create policy user_roles_delete on public.user_roles
-  for delete to authenticated using ((select public.has_permission('roles.update')));
+  for delete to authenticated using (
+    (select public.has_permission('roles.update'))
+    and not public.is_admin_role(role_id)
+  );
 
 grant select, insert, update, delete
   on public.permissions, public.roles, public.role_permissions, public.user_roles

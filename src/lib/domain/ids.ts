@@ -16,3 +16,4 @@ export type FeedbackId = Id<"feedback">;
 export type ExtensionId = Id<"extension">;
 export type ExtensionScenarioId = Id<"extensionScenario">;
 export type FaqEntryId = Id<"faqEntry">;
+export type RoleId = Id<"role">;

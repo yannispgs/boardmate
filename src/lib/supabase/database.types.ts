@@ -748,6 +748,33 @@ export type Database = {
           },
         ]
       }
+      permissions: {
+        Row: {
+          action: string
+          billable: boolean
+          key: string
+          label: string
+          section: string
+          sort_order: number
+        }
+        Insert: {
+          action: string
+          billable?: boolean
+          key: string
+          label: string
+          section: string
+          sort_order?: number
+        }
+        Update: {
+          action?: string
+          billable?: boolean
+          key?: string
+          label?: string
+          section?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       players: {
         Row: {
           created_at: string
@@ -769,6 +796,63 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+        }
+        Relationships: []
+      }
+      role_permissions: {
+        Row: {
+          permission_key: string
+          role_id: string
+        }
+        Insert: {
+          permission_key: string
+          role_id: string
+        }
+        Update: {
+          permission_key?: string
+          role_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_permission_key_fkey"
+            columns: ["permission_key"]
+            isOneToOne: false
+            referencedRelation: "permissions"
+            referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "role_permissions_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roles: {
+        Row: {
+          created_at: string
+          id: string
+          is_admin: boolean
+          is_system: boolean
+          key: string
+          label: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_admin?: boolean
+          is_system?: boolean
+          key: string
+          label: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_admin?: boolean
+          is_system?: boolean
+          key?: string
+          label?: string
         }
         Relationships: []
       }
@@ -814,6 +898,32 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          role_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          role_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          role_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -832,6 +942,9 @@ export type Database = {
           retry_after_s: number
         }[]
       }
+      has_permission: { Args: { p_key: string }; Returns: boolean }
+      is_admin_role: { Args: { p_role_id: string }; Returns: boolean }
+      my_permissions: { Args: never; Returns: string[] }
       set_game_seat_order: {
         Args: { p_game: string; p_players: string[] }
         Returns: undefined

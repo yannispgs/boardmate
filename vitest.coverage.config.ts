@@ -30,6 +30,7 @@ export default defineConfig({
         // unit-tested and measured.
         "src/lib/auth/actions.ts",
         "src/lib/auth/session.ts",
+        "src/lib/auth/permissions.ts",
         "src/lib/auth/rate-limit.ts",
         "src/lib/supabase/client.ts",
         "src/lib/supabase/server.ts",

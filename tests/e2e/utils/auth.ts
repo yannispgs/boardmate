@@ -1,6 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 
 import { clearMailbox, waitForLoginCode } from "./mailpit";
+import { createAdminAccount } from "./supabase";
 
 /** A throwaway, unique e-mail so each login mints a fresh local user. */
 export function uniqueEmail(prefix = "e2e"): string {
@@ -16,7 +17,15 @@ export function uniqueEmail(prefix = "e2e"): string {
  * on the home page. This is the genuine OTP round-trip (OWASP A07 surface), not
  * a programmatic session injection.
  */
-export async function loginViaOtp(page: Page, email: string): Promise<void> {
+export async function loginViaOtp(
+  page: Page,
+  email: string,
+  { asAdmin = true }: { asAdmin?: boolean } = {},
+): Promise<void> {
+  if (asAdmin) {
+    await createAdminAccount(email);
+  }
+
   await clearMailbox();
 
   await page.goto("/login");

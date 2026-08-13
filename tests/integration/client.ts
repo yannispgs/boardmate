@@ -37,11 +37,23 @@ export interface TestUser {
   accessToken: string;
 }
 
+export interface CreateTestUserOptions {
+  /**
+   * Give the account the seeded administrator role. On by default: since RBAC
+   * landed, a bare account holds **nothing**, and a suite asserting that
+   * authenticated CRUD works needs a subject allowed to do it. Pass `false` to
+   * get the other axis — signed in, and still refused.
+   */
+  admin?: boolean;
+}
+
 /**
  * Mints a real authenticated session entirely server-side (no inbox needed):
  * admin-creates a confirmed user, then signs in to obtain an access token.
  */
-export async function createTestUser(): Promise<TestUser> {
+export async function createTestUser({
+  admin: asAdmin = true,
+}: CreateTestUserOptions = {}): Promise<TestUser> {
   const admin = serviceClient();
   // This address only has to be unique within a test run, never unguessable —
   // the password on the next line is a fixed literal anyway.
@@ -53,6 +65,21 @@ export async function createTestUser(): Promise<TestUser> {
   );
   if (createErr || !created.user) {
     throw createErr ?? new Error("admin.createUser returned no user");
+  }
+
+  if (asAdmin) {
+    const { data: role } = await admin
+      .from("roles")
+      .select("id")
+      .eq("key", "admin")
+      .single();
+
+    const { error: grantErr } = await admin
+      .from("user_roles")
+      .insert({ user_id: created.user.id, role_id: role?.id as string });
+    if (grantErr) {
+      throw grantErr;
+    }
   }
 
   const { data: signIn, error: signInErr } =

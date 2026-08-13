@@ -35,10 +35,12 @@ import type {
   NewFinishedGame,
   NewGame,
   NewPlayer,
+  Permission,
   Player,
   PlayerId,
   PlayerUpdate,
   PopulatedGame,
+  Role,
   StageAdvance,
   TieBreakRecord,
   TurnMode,
@@ -324,8 +326,24 @@ export interface FaqRepository {
   reorder(changes: Array<{ id: FaqEntryId; sortOrder: number }>): Promise<void>;
 }
 
+export interface AccessRepository {
+  /**
+   * The permission catalogue. Readable by anyone signed in: the grid has to
+   * render, and knowing that a permission exists grants nothing.
+   */
+  listPermissions(): Promise<Permission[]>;
+  /** Every role with the permissions it grants. Needs `roles.read`. */
+  listRoles(): Promise<Role[]>;
+  /**
+   * The permissions of the signed-in account, for the UI to hide what it must.
+   * Hiding is comfort only — the policies are the gate.
+   */
+  myPermissions(): Promise<string[]>;
+}
+
 /** Aggregate of all repositories, resolved by the active adapter. */
 export interface Repositories {
+  access: AccessRepository;
   players: PlayerRepository;
   boardgames: BoardgameRepository;
   configs: ConfigRepository;

@@ -23,6 +23,50 @@ export function adminClient(): SupabaseClient {
 }
 
 /**
+ * Creates `email` as a confirmed account already holding the seeded
+ * administrator role, ready for the UI to log into.
+ *
+ * Since RBAC landed, a freshly-minted account holds **nothing** — every screen
+ * would come back empty. The journeys under test are about playing games, not
+ * about who may; they run as an administrator so the permission model is
+ * asserted where it belongs (the integration suite) instead of colouring every
+ * scenario here.
+ *
+ * The account is created here rather than looked up after the login because
+ * that hands back its id directly. Requesting a code for an address that
+ * already exists is the same round-trip as for a new one, so the OTP coverage
+ * is untouched.
+ */
+export async function createAdminAccount(email: string): Promise<void> {
+  const admin = adminClient();
+
+  const { data: created, error: createErr } = await admin.auth.admin.createUser(
+    { email, email_confirm: true },
+  );
+  if (createErr || !created.user) {
+    throw new Error(
+      `Failed to create ${email}: ${createErr?.message ?? "no user returned"}`,
+    );
+  }
+
+  const { data: role, error: roleErr } = await admin
+    .from("roles")
+    .select("id")
+    .eq("key", "admin")
+    .single();
+  if (roleErr) {
+    throw new Error(`Failed to find the admin role: ${roleErr.message}`);
+  }
+
+  const { error } = await admin
+    .from("user_roles")
+    .insert({ user_id: created.user.id, role_id: role.id as string });
+  if (error) {
+    throw new Error(`Failed to grant the admin role: ${error.message}`);
+  }
+}
+
+/**
  * The id of a seeded boardgame, by name. Only Catan carries a written-down id;
  * every game seeded since draws one at insert, so an id copied out of one
  * database names nothing in the next one.
