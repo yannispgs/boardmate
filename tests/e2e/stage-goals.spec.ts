@@ -1,5 +1,6 @@
-import { expect, type Locator, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
+import { stagePoints } from "./utils/stage-prompt";
 import { adminClient, seedPlayers } from "./utils/supabase";
 
 const PLAYER_COUNT = 2;
@@ -33,12 +34,12 @@ test("scores each manche's goal and carries the total to the sheet", async ({
     // was laid on it.
     await page.getByRole("button", { name: "Fin de la manche →" }).click();
 
-    const first = page.getByRole("dialog", { name: "Objectif de la manche 1" });
+    const first = page.getByRole("dialog", { name: "Points de la manche 1" });
 
     await expect(first.getByText("Objectif : Œufs dans Mer")).toBeVisible();
 
-    await goalPoints(first, names[0]).fill("4");
-    await goalPoints(first, names[1]).fill("2");
+    await stagePoints(first, names[0]).fill("4");
+    await stagePoints(first, names[1]).fill("2");
     await first.getByRole("button", { name: "Manche suivante" }).click();
 
     // The table moved on: the next manche is up, with its own tile.
@@ -52,15 +53,15 @@ test("scores each manche's goal and carries the total to the sheet", async ({
       .click();
 
     const second = page.getByRole("dialog", {
-      name: "Objectif de la manche 2",
+      name: "Points de la manche 2",
     });
 
     await expect(
       second.getByText("Objectif : Oiseaux dans Forêt"),
     ).toBeVisible();
 
-    await goalPoints(second, names[0]).fill("3");
-    await goalPoints(second, names[1]).fill("5");
+    await stagePoints(second, names[0]).fill("3");
+    await stagePoints(second, names[1]).fill("5");
     await second.getByRole("button", { name: "Enregistrer" }).click();
 
     // Both manches went to the database, one row per player per manche.
@@ -209,12 +210,4 @@ async function seedStageGame(
   );
 
   return gameId;
-}
-
-/** One player's points box in the end-of-manche prompt (the rows carry no label). */
-function goalPoints(prompt: Locator, name: string): Locator {
-  return prompt
-    .getByRole("listitem")
-    .filter({ hasText: name })
-    .getByRole("spinbutton");
 }

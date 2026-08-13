@@ -615,6 +615,90 @@ describe("games adapter — calendar of manches (Wingspan)", () => {
   });
 });
 
+describe("games adapter — manches closed by hand (Odin)", () => {
+  let odinId: BoardgameId;
+
+  beforeAll(async () => {
+    const { data } = await serviceClient()
+      .from("boardgames")
+      .select("id, stages, scoring")
+      .eq("name", "Odin")
+      .single();
+
+    odinId = data?.id as BoardgameId;
+    // A by-hand game has no schedule at all: the table says when a manche ends,
+    // and a manche can't cost more than the nine cards you were dealt.
+    expect(data?.stages).toMatchObject({ advance: "manual", maxPoints: 9 });
+
+    // The one game where stopping and winning part ways: 15 points end it, and
+    // the smallest total takes it.
+    expect(data?.scoring).toMatchObject({
+      stopCondition: { type: "scoreTarget", field: "pointsToEnd" },
+      winCondition: { type: "lowest" },
+    });
+  });
+
+  it("opens the next manche without recording a turn, and totals the manches", async () => {
+    const game = await repo().create({
+      boardgameId: odinId,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    // Manche 1: one player empties his hand (0), the others keep their cards.
+    await repo().setStageScores(game.id, 1, [
+      { playerId: playerIds[0], points: 0 },
+      { playerId: playerIds[1], points: 7 },
+      { playerId: playerIds[2], points: 4 },
+    ]);
+    await repo().advanceStage(game.id);
+
+    let p = await repo().getPopulated(game.id);
+
+    // Nothing was timed, so the three counters move together and no turn was
+    // written down — a « tour 1 » stuck behind « manche 2 » would read as a bug.
+    expect(p?.stage).toBe(2);
+    expect(p?.turn).toBe(2);
+    expect(p?.round).toBe(2);
+    expect(p?.turns).toHaveLength(0);
+
+    await repo().setStageScores(game.id, 2, [
+      { playerId: playerIds[0], points: 9 },
+      { playerId: playerIds[1], points: 0 },
+      { playerId: playerIds[2], points: 3 },
+    ]);
+    await repo().advanceStage(game.id);
+
+    p = await repo().getPopulated(game.id);
+
+    expect(p?.stage).toBe(3);
+    expect(p?.stageScores).toHaveLength(6);
+
+    // Totals: p0 = 9, p1 = 7, p2 = 7 — the smallest total takes the game, and
+    // two of them are level, which the shared-victory rule settles.
+    await repo().end(game.id, [playerIds[1], playerIds[2]]);
+
+    p = await repo().getPopulated(game.id);
+
+    expect(p?.status).toBe("ended");
+
+    // Such a game lays no tile, so it has no `game_stages` row and its manches
+    // are invisible to `stageGoals`. The stats read them raw instead — without
+    // them the end-of-game panel has nothing at all to show.
+    const record = (await repo().listStats()).find(r => r.gameId === game.id);
+
+    expect(record?.stageGoals).toEqual([]);
+    expect(record?.stageScores).toHaveLength(6);
+    expect(record?.stageScores?.[0]?.stage).toBe(1);
+    expect(record?.stageScores).toContainEqual({
+      stage: 2,
+      playerId: playerIds[0],
+      points: 9,
+    });
+  });
+});
+
 describe("games adapter — removing (abandoning) a game", () => {
   it("deletes the game and its rows, and recomputes has_games", async () => {
     const admin = serviceClient();
@@ -684,13 +768,16 @@ describe("games adapter — listing & ending", () => {
     const listed = ongoing.find(g => g.id === game.id);
     expect(listed?.players.map(p => p.id)).toEqual(playerIds);
 
-    // Catan is live/threshold; with no config, the target resolves from the
-    // config template's `pointsToWin` default (10).
+    // Catan is live and stops on a target; with no config, that target resolves
+    // from the config template's `pointsToWin` default (10).
     let populated = await repo().getPopulated(game.id);
     expect(populated?.boardgame.scoring?.timing).toBe("live");
-    expect(populated?.boardgame.scoring?.winCondition).toEqual({
-      type: "threshold",
+    expect(populated?.boardgame.scoring?.stopCondition).toEqual({
+      type: "scoreTarget",
       field: "pointsToWin",
+    });
+    expect(populated?.boardgame.scoring?.winCondition).toEqual({
+      type: "highest",
     });
     expect(populated?.winThreshold).toBe(10);
 

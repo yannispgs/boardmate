@@ -56,7 +56,10 @@ interface FormState {
   // multiplied (Splito) — nothing to author, the rule is the same everywhere.
   entry: "total" | "categories" | "pairs";
   winKind: WinCondition["type"];
-  thresholdField: string;
+  /** The game stops as soon as a score reaches a target (Catan, Odin). */
+  stopsAtTarget: boolean;
+  /** The config field holding that target, when there is one. */
+  stopField: string;
   allowNegative: boolean;
 }
 
@@ -81,7 +84,8 @@ const EMPTY: FormState = {
   scoreTiming: "final",
   entry: "total",
   winKind: "highest",
-  thresholdField: "",
+  stopsAtTarget: false,
+  stopField: "",
   allowNegative: false,
 };
 
@@ -109,8 +113,8 @@ function fromBoardgame(b: Boardgame): FormState {
     scoreTiming: s?.timing ?? "final",
     entry: s?.entry ?? "total",
     winKind: s?.winCondition.type ?? "highest",
-    thresholdField:
-      s?.winCondition.type === "threshold" ? s.winCondition.field : "",
+    stopsAtTarget: Boolean(s?.stopCondition),
+    stopField: s?.stopCondition?.field ?? "",
     allowNegative: s?.allowNegative ?? false,
   };
 }
@@ -149,20 +153,18 @@ function formToScoring(
     return null;
   }
 
-  const winCondition: WinCondition =
-    form.winKind === "threshold"
-      ? {
-          type: "threshold",
-          field: form.thresholdField.trim() || "pointsToWin",
-        }
-      : { type: form.winKind };
-
   const categories = form.entry === "categories";
 
   return {
     timing: form.scoreTiming,
     entry: form.entry,
-    winCondition,
+    stopCondition: form.stopsAtTarget
+      ? {
+          type: "scoreTarget",
+          field: form.stopField.trim() || "pointsToWin",
+        }
+      : null,
+    winCondition: { type: form.winKind },
     allowNegative: form.allowNegative,
     ...(categories ? { sheet: cleanSheet(sheet) } : {}),
   };
@@ -215,6 +217,65 @@ function toInput(
 
 const field =
   "rounded-lg border border-black/15 bg-white px-3 py-2 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900";
+
+/**
+ * What stops the game, asked apart from who wins it. The two line up on their
+ * own most of the time — reach 10 points at Catan and you are both the one who
+ * ended it and the highest — so the target is a switch, and the direction stays
+ * the « Condition de victoire » select next to it.
+ */
+function StopConditionFields({
+  form,
+  setForm,
+}: Readonly<{
+  form: FormState;
+  setForm: (next: FormState) => void;
+}>) {
+  return (
+    <>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={form.stopsAtTarget}
+          onChange={e => setForm({ ...form, stopsAtTarget: e.target.checked })}
+        />
+        La partie s&apos;arrête à un objectif de points
+        <InfoTip label="Objectif de points">
+          <p>
+            La partie s&apos;arrête dès qu&apos;un joueur atteint le nombre de
+            points visé (Catan&nbsp;: 10, Odin&nbsp;: 15).
+          </p>
+          <p>
+            C&apos;est la fin de la partie, pas la victoire&nbsp;: celle-ci
+            revient au total le plus grand ou le plus petit, selon la condition
+            de victoire ci-dessus.
+          </p>
+        </InfoTip>
+      </label>
+
+      {form.stopsAtTarget ? (
+        <label className="flex flex-col gap-1 text-xs text-zinc-500">
+          <span className="flex items-center gap-1">
+            Champ de configuration de l&apos;objectif
+            <InfoTip label="À quoi sert le champ d'objectif">
+              <p>
+                Clé du champ de configuration qui fixe le nombre de points à
+                atteindre (par défaut&nbsp;: pointsToWin).
+              </p>
+              <p>Sa valeur est réglable par partie dans la configuration.</p>
+            </InfoTip>
+          </span>
+          <input
+            value={form.stopField}
+            onChange={e => setForm({ ...form, stopField: e.target.value })}
+            placeholder="pointsToWin"
+            className={field}
+          />
+        </label>
+      ) : null}
+    </>
+  );
+}
 
 type LogoSource = "file" | "url" | "paste";
 
@@ -791,9 +852,6 @@ export function BoardgameForm({
                 >
                   <option value="highest">Le plus de points gagne</option>
                   <option value="lowest">Le moins de points gagne</option>
-                  <option value="threshold">
-                    Atteindre un objectif de points
-                  </option>
                 </select>
               </label>
             </div>
@@ -816,30 +874,7 @@ export function BoardgameForm({
               </select>
             </label>
 
-            {form.winKind === "threshold" ? (
-              <label className="flex flex-col gap-1 text-xs text-zinc-500">
-                <span className="flex items-center gap-1">
-                  Champ de configuration de l&apos;objectif
-                  <InfoTip label="À quoi sert le champ d'objectif">
-                    <p>
-                      Clé du champ de configuration qui fixe le nombre de points
-                      à atteindre pour gagner (par défaut&nbsp;: pointsToWin).
-                    </p>
-                    <p>
-                      Sa valeur est réglable par partie dans la configuration.
-                    </p>
-                  </InfoTip>
-                </span>
-                <input
-                  value={form.thresholdField}
-                  onChange={e =>
-                    setForm({ ...form, thresholdField: e.target.value })
-                  }
-                  placeholder="pointsToWin"
-                  className={field}
-                />
-              </label>
-            ) : null}
+            <StopConditionFields form={form} setForm={setForm} />
 
             <label className="flex items-center gap-2 text-sm">
               <input

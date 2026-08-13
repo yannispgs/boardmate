@@ -13,6 +13,7 @@ import { PlayerStatCardList } from "./PlayerStatCardList";
 import { ScoreChart } from "./ScoreChart";
 import { ScorePaceStats } from "./ScorePaceStats";
 import { SimultaneousGameStats } from "./SimultaneousGameStats";
+import { TallyGameStats } from "./TallyGameStats";
 import { TurnTimeChart } from "./TurnTimeChart";
 
 /**
@@ -21,6 +22,12 @@ import { TurnTimeChart } from "./TurnTimeChart";
  * turn log by `computeGameStats`; nothing here needs the network.
  */
 export function GameStats({ game }: Readonly<{ game: PopulatedGame }>) {
+  // A game counted manche by manche (Odin) records no turn at all: every figure
+  // below would be a zero. Its manches are the summary.
+  if (game.boardgame.stages?.advance === "manual") {
+    return <TallyGameStats game={game} />;
+  }
+
   // Simultaneous games have no per-player turns — a different summary applies.
   if (game.boardgame.turnMode === "simultaneous") {
     return <SimultaneousGameStats game={game} />;

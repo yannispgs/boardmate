@@ -34,7 +34,7 @@ import {
   winTargetWithModifiers,
 } from "@/lib/game/extensions";
 import { activeSeat, generationOver } from "@/lib/game/generation";
-import { optionTargetModifier, winThresholdFrom } from "@/lib/game/scoring";
+import { optionTargetModifier, stopTargetFrom } from "@/lib/game/scoring";
 import { scheduledPosition } from "@/lib/game/stage";
 import { advanceTurn as nextTurnState } from "@/lib/game/turn";
 import { turnScheduleFrom } from "@/lib/game/turn-schedule";
@@ -223,6 +223,13 @@ function toStatsRecord(row: StatsRow): GameStatsRecord {
       .sort((a, b) => a.created_at.localeCompare(b.created_at))
       .map(d => d.value),
     stageGoals: toStageGoals(row),
+    stageScores: [...row.game_stage_scores]
+      .sort((a, b) => a.stage - b.stage)
+      .map(score => ({
+        stage: score.stage,
+        playerId: score.player_id as PlayerId,
+        points: score.points,
+      })),
   };
 }
 
@@ -696,8 +703,8 @@ export function createGameRepository(
       const baseTarget =
         scenarioTarget(extensions, scenarioBy) ??
         (scoring
-          ? winThresholdFrom(
-              scoring.winCondition,
+          ? stopTargetFrom(
+              scoring.stopCondition,
               effectiveValues,
               templateFields,
             )
@@ -1018,6 +1025,33 @@ export function createGameRepository(
 
       if (error) {
         throw new Error(`Ordre des joueurs: ${error.message}`);
+      }
+    },
+
+    async advanceStage(id: GameId) {
+      const { data: game, error } = await games()
+        .select("round, turn, stage")
+        .eq("id", id)
+        .single();
+
+      /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */
+      if (error) {
+        throw new Error(`Lecture de la partie: ${error.message}`);
+      }
+
+      // The manche is this game's only unit, so the three counters move as one
+      // — a « tour 1 » frozen behind a « manche 7 » would read as a bug in
+      // every chart and every recap that goes looking for one of the others.
+      const { error: updateError } = await games()
+        .update({
+          round: game.round + 1,
+          turn: game.turn + 1,
+          stage: game.stage + 1,
+        })
+        .eq("id", id);
+      /* c8 ignore next 3 -- defensive guard: update errors surface via e2e */
+      if (updateError) {
+        throw new Error(`Passage à la manche suivante: ${updateError.message}`);
       }
     },
 

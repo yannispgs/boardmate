@@ -24,6 +24,15 @@ import {
 } from "@/lib/game/global-stats";
 import { winnerDirection } from "@/lib/game/scoring";
 import { computeSeatStats, type SeatStat } from "@/lib/game/seat-stats";
+import {
+  computeTallyAverages,
+  computeTallyExits,
+  type TallyAverages,
+  type TallyExitStat,
+  type TallyPointsBar,
+  tallyPointsHistogram,
+} from "@/lib/game/tally-averages";
+import { tracksPlayerTime } from "@/lib/game/turn-time";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useExtensions } from "@/lib/hooks/use-extensions";
 import { CategoryCharts } from "./CategoryCharts";
@@ -32,6 +41,8 @@ import { GoalStatsTable } from "./GoalStatsTable";
 import { ScoreDistribution } from "./ScoreDistribution";
 import { SeatStats } from "./SeatStats";
 import { StatsDiceDistribution } from "./StatsDiceDistribution";
+import { TallyExitCardList } from "./TallyExitCardList";
+import { TallyPointsChart } from "./TallyPointsChart";
 import { TimeIndexInfo } from "./TimeIndexInfo";
 
 /** Distinct boardgames present in the records, sorted by name. */
@@ -147,6 +158,26 @@ export function GamesTab({
       ),
     [records, filters, boardgame],
   );
+  // Games counted manche by manche (Odin): they record no turn at all, so the
+  // time tiles would read zero — the manches take their place, plus the two
+  // breakdowns only several parties can show.
+  const tallyMode = boardgame?.stages?.advance === "manual";
+  // Whether a per-player time figure means anything here. « Tous les jeux »
+  // mixes games that time a player with games that don't, so the figures stay
+  // (they average only the parties that recorded one).
+  const timed = boardgame === null || tracksPlayerTime(boardgame);
+  const tally = useMemo(
+    () =>
+      tallyMode
+        ? {
+            averages: computeTallyAverages(scopedRecords),
+            exits: computeTallyExits(scopedRecords),
+            histogram: tallyPointsHistogram(scopedRecords),
+          }
+        : null,
+    [tallyMode, scopedRecords],
+  );
+
   // The picked players, to compare against the table on the category charts.
   const comparePlayers = useMemo(
     () =>
@@ -201,6 +232,8 @@ export function GamesTab({
           goalCatalogue={
             boardgame?.stages?.advance === "schedule" ? goalCatalogue : null
           }
+          timed={timed}
+          tally={tally}
         />
       )}
     </div>
@@ -272,6 +305,62 @@ function OverallTiles({
   );
 }
 
+/**
+ * The overall figures of a game counted manche by manche. No time anywhere:
+ * such a game records no turn, so « Temps de jeu moy. » and the two tour tiles
+ * would all read zero. What replaces them is the length of a party in manches
+ * and how heavy a manche usually is.
+ */
+function TallyOverallTiles({
+  stats,
+  averages,
+}: Readonly<{ stats: GlobalStats; averages: TallyAverages | null }>) {
+  return (
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+      <StatTile label="Parties" value={String(stats.gameCount)} accent />
+      <StatTile
+        label="Manches moy."
+        value={averages === null ? "—" : averages.avgStages.toFixed(1)}
+        info={
+          <InfoTip label="Manches moyennes">
+            <p>
+              Nombre moyen de <strong>manches</strong> par partie — une manche
+              se termine quand un joueur se débarrasse de toutes ses cartes.
+            </p>
+            <p>
+              Rien n&apos;est chronométré dans ce jeu : il n&apos;y a donc ni
+              temps de jeu ni durée de tour à afficher.
+            </p>
+          </InfoTip>
+        }
+      />
+      <StatTile
+        label="Points / manche"
+        value={averages === null ? "—" : averages.avgPointsPerStage.toFixed(1)}
+        info={
+          <InfoTip label="Points par manche">
+            Points ramassés par <strong>toute la table</strong> sur une manche,
+            en moyenne. Plus le chiffre est haut, plus les manches sont
+            douloureuses.
+          </InfoTip>
+        }
+      />
+      <StatTile
+        label="Score gagnant moy."
+        value={
+          averages?.avgWinnerScore === null || averages === null
+            ? "—"
+            : averages.avgWinnerScore.toFixed(1)
+        }
+      />
+      <StatTile
+        label="Score moy."
+        value={stats.avgScore === null ? "—" : stats.avgScore.toFixed(1)}
+      />
+    </div>
+  );
+}
+
 /** The player with the most wins on this game, when there is one. */
 function ChampionBanner({
   champion,
@@ -304,6 +393,8 @@ function GameSections({
   scopedRecords,
   comparePlayers,
   goalCatalogue,
+  timed,
+  tally,
 }: Readonly<{
   stats: GlobalStats;
   scored: boolean;
@@ -316,6 +407,14 @@ function GameSections({
   comparePlayers: Array<{ id: PlayerId; name: string }> | undefined;
   /** The goal tiles of a game played on a calendar; null for every other game. */
   goalCatalogue: RoundGoal[] | null;
+  /** Whether this game attributes the time it records to a single player. */
+  timed: boolean;
+  /** The manche figures of a game counted that way; null for every other game. */
+  tally: {
+    averages: TallyAverages | null;
+    exits: TallyExitStat[];
+    histogram: TallyPointsBar[];
+  } | null;
 }>) {
   const champion = stats.players.reduce<GlobalStats["players"][number] | null>(
     (best, p) => (p.wins > (best?.wins ?? 0) ? p : best),
@@ -324,12 +423,28 @@ function GameSections({
 
   return (
     <>
-      <OverallTiles stats={stats} scored={scored} />
+      {tally ? (
+        <TallyOverallTiles stats={stats} averages={tally.averages} />
+      ) : (
+        <OverallTiles stats={stats} scored={scored} />
+      )}
       <ChampionBanner champion={champion} />
 
       {scored && scores.length > 0 ? (
         <Section title="Répartition des scores">
           <ScoreDistribution scores={scores} />
+        </Section>
+      ) : null}
+
+      {tally && tally.exits.length > 0 ? (
+        <Section title="Qui sort le plus souvent">
+          <TallyExitCardList stats={tally.exits} />
+        </Section>
+      ) : null}
+
+      {tally && tally.histogram.length > 0 ? (
+        <Section title="Ce que coûte une manche">
+          <TallyPointsChart bars={tally.histogram} />
         </Section>
       ) : null}
 
@@ -361,11 +476,16 @@ function GameSections({
         title={
           <>
             Statistiques des joueurs sur ce jeu
-            <TimeIndexInfo />
+            {timed ? <TimeIndexInfo /> : null}
           </>
         }
       >
-        <GamePlayerTable players={stats.players} scored={scored} />
+        <GamePlayerTable
+          players={stats.players}
+          scored={scored}
+          timed={timed}
+          exits={tally?.exits ?? null}
+        />
       </Section>
     </>
   );

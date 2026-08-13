@@ -23,8 +23,8 @@ import {
   scoreCategories,
   scoreFloor,
   sheetCategories,
+  stopTargetFrom,
   winnerDirection,
-  winThresholdFrom,
 } from "./scoring";
 
 const p = (n: string) => n as PlayerId;
@@ -77,12 +77,9 @@ describe("clampScore", () => {
 });
 
 describe("winnerDirection", () => {
-  it("maps each win condition to a direction (threshold races to the top)", () => {
+  it("maps each win condition to the end of the range that takes it", () => {
     expect(winnerDirection({ type: "highest" })).toBe("highest");
     expect(winnerDirection({ type: "lowest" })).toBe("lowest");
-    expect(winnerDirection({ type: "threshold", field: "pointsToWin" })).toBe(
-      "highest",
-    );
   });
 });
 
@@ -106,7 +103,7 @@ describe("reachedThreshold", () => {
   });
 });
 
-describe("winThresholdFrom", () => {
+describe("stopTargetFrom", () => {
   const fields: FieldSpec[] = [
     {
       key: "pointsToWin",
@@ -117,25 +114,24 @@ describe("winThresholdFrom", () => {
       default: 10,
     },
   ];
-  const threshold = { type: "threshold", field: "pointsToWin" } as const;
+  const target = { type: "scoreTarget", field: "pointsToWin" } as const;
 
   it("prefers the config value", () => {
-    expect(winThresholdFrom(threshold, { pointsToWin: 12 }, fields)).toBe(12);
+    expect(stopTargetFrom(target, { pointsToWin: 12 }, fields)).toBe(12);
   });
 
   it("falls back to the template default when the config lacks it", () => {
-    expect(winThresholdFrom(threshold, null, fields)).toBe(10);
-    expect(winThresholdFrom(threshold, { other: 1 }, fields)).toBe(10);
+    expect(stopTargetFrom(target, null, fields)).toBe(10);
+    expect(stopTargetFrom(target, { other: 1 }, fields)).toBe(10);
   });
 
-  it("is null for a non-threshold condition", () => {
-    expect(
-      winThresholdFrom({ type: "highest" }, { pointsToWin: 12 }, fields),
-    ).toBeNull();
+  it("is null for a game nothing stops", () => {
+    expect(stopTargetFrom(null, { pointsToWin: 12 }, fields)).toBeNull();
+    expect(stopTargetFrom(undefined, { pointsToWin: 12 }, fields)).toBeNull();
   });
 
   it("is null when neither config nor template supplies a number", () => {
-    expect(winThresholdFrom(threshold, null, [])).toBeNull();
+    expect(stopTargetFrom(target, null, [])).toBeNull();
   });
 });
 

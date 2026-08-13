@@ -113,7 +113,7 @@ export function RecapStep({
   const afterRecap = postRecapSteps(board !== null, needsGoals);
 
   const target = winTargetView(
-    boardgame.scoring?.winCondition ?? null,
+    boardgame.scoring?.stopCondition ?? null,
     composedFields,
     values,
     active,

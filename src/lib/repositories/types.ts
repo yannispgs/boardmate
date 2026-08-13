@@ -203,6 +203,13 @@ export interface GameRepository {
    * change them (see `canReorderSeats`).
    */
   setSeatOrder(id: GameId, playerIds: PlayerId[]): Promise<void>;
+  /**
+   * Opens the next stage of a game whose stages the table closes itself
+   * (`manual`). No turn is recorded because none was ever timed: such a game
+   * counts manches, not turns, so all three counters move together and the
+   * manche stays the only thing the screen has to show.
+   */
+  advanceStage(id: GameId): Promise<void>;
   /** Sets one player's current score (live scoring), logged at the given tour. */
   setScore(
     id: GameId,

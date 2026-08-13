@@ -45,16 +45,28 @@ export function toBoardGenerator(
 }
 
 /**
- * How the winner is decided by score:
- * - `highest` / `lowest`: best total wins (Cascadia/Wingspan ; Skyjo/Papayoo).
- * - `threshold`: first to reach a target wins (Catan). The target is the value
- *   of the config `field` (e.g. `pointsToWin`), falling back to that field's
- *   default in the boardgame's config template.
+ * What **stops** a game, when its own scoring is what stops it:
+ * - `scoreTarget`: a score reaching a target ends the game there and then. The
+ *   target is the value of the config `field` (e.g. `pointsToWin`), falling
+ *   back to that field's default in the boardgame's config template.
+ *
+ * `null` — most games — means the scoring stops nothing: the game runs out its
+ * rounds, or the table calls it.
  */
-export type WinCondition =
-  | { type: "highest" }
-  | { type: "lowest" }
-  | { type: "threshold"; field: string };
+export type StopCondition = { type: "scoreTarget"; field: string };
+
+/**
+ * Which end of the score range takes the game: the biggest total (Catan,
+ * Cascadia, Wingspan) or the smallest (Odin, Skyjo, Papayoo).
+ *
+ * Deliberately separate from {@link StopCondition}, because *stopping* and
+ * *winning* are two questions. Most of the time the answers line up on their
+ * own: whoever reaches a target is by definition the highest, so a game that
+ * stops on a target and pays the highest needs to say nothing more (Catan).
+ * Odin is the one that pulls them apart — reaching 15 ends the game and the
+ * player who stayed lowest wins it.
+ */
+export type WinCondition = { type: "highest" } | { type: "lowest" };
 
 /** One scored line on a final scoresheet (e.g. an animal in Cascadia). */
 export interface CategoryDef {
@@ -125,6 +137,11 @@ export type ScoreSheetItem = CategorySubsection | CategoryDef;
 export interface ScoringSpec {
   timing: "final" | "live";
   entry: "total" | "categories" | "pairs";
+  /**
+   * What ends the game, when the scoring is what ends it. Omitted / `null` for
+   * a game the rounds or the table stop (see {@link StopCondition}).
+   */
+  stopCondition?: StopCondition | null;
   winCondition: WinCondition;
   /**
    * Whether a score can go below zero. Defaults to `false` (positive-only, e.g.
@@ -161,14 +178,19 @@ export interface ScoringSpec {
  * « Manche ». `label` is the progress label shown during play; `null` on the
  * boardgame means plain laps and nothing else, as most games are.
  *
- * `advance` is what *closes* a stage, and the two are genuinely different
+ * `advance` is what *closes* a stage, and the three are genuinely different
  * games:
  * - `pass`: players step out one by one and the stage ends when the last one
  *   does, so the turns inside it are unequal and impossible to foresee.
  * - `schedule`: the stage lasts a counted number of laps; everyone still plays
  *   exactly once per lap, and the end is known before anyone sits down.
+ * - `manual`: the table closes the stage itself, whenever the cards say so
+ *   (Odin: someone empties his hand). Nothing counts the turns inside it and
+ *   nobody knows how many stages the game will run, so such a stage is the
+ *   game's only unit of progress — and the points entered as it closes are the
+ *   game's own scores, summed as the stages go by.
  */
-export type StageAdvance = "pass" | "schedule";
+export type StageAdvance = "pass" | "schedule" | "manual";
 
 export interface StageSpec {
   label: string;
@@ -180,6 +202,13 @@ export interface StageSpec {
    * `RoundGoal.extraTurn`), and is then recorded per game.
    */
   schedule?: number[];
+  /**
+   * The most one player can score on a single stage, when the rules cap it —
+   * Odin: 9, the hand you are dealt. You lay at least one card and take at most
+   * one back, so a hand never grows and nine is everything you could still be
+   * holding. Omitted when nothing caps a stage.
+   */
+  maxPoints?: number;
 }
 
 /** One claimable milestone: what it is called and what it takes to claim it. */

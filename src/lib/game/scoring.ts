@@ -6,6 +6,7 @@ import type {
   PlayerId,
   ScoreSheetItem,
   ScoringSpec,
+  StopCondition,
   WinCondition,
 } from "@/lib/domain";
 
@@ -282,9 +283,13 @@ export function finalStandings(
   return [...top, ...rest];
 }
 
-/** The direction a win condition ranks by (a threshold is a race to the top). */
+/**
+ * The direction a win condition ranks by — which end of the range takes it.
+ * A seam of its own, rather than reading `condition.type` at each call site, so
+ * a win condition that isn't a plain direction stays possible.
+ */
 export function winnerDirection(condition: WinCondition): ScoreDirection {
-  return condition.type === "lowest" ? "lowest" : "highest";
+  return condition.type;
 }
 
 /**
@@ -305,16 +310,16 @@ export function reachedThreshold(
 }
 
 /**
- * Resolves a threshold win condition's target: the game's config value for the
- * referenced field, else that field's default in the config template. Null for
- * non-threshold conditions or when nothing supplies a number.
+ * Resolves the score a stop condition is aiming at: the game's config value for
+ * the referenced field, else that field's default in the config template. Null
+ * for a game nothing stops, or when neither supplies a number.
  */
-export function winThresholdFrom(
-  condition: WinCondition,
+export function stopTargetFrom(
+  condition: StopCondition | null | undefined,
   configValues: ConfigValues | null | undefined,
   templateFields: FieldSpec[],
 ): number | null {
-  if (condition.type !== "threshold") {
+  if (!condition) {
     return null;
   }
 

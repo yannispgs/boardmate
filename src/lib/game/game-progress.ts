@@ -34,7 +34,8 @@ export function gameProgress(
  * The line the play screen leads with. Three ways of playing, three sentences:
  *
  * - plain laps, counted against the game's length — « Tour 3 / 20 » ;
- * - generations, which nobody can see the end of — « Génération 2 » ;
+ * - stages nobody can see the end of, whether they close on the last player
+ *   passing or on the table's say-so — « Génération 2 », « Manche 2 » ;
  * - a calendar, which needs both, since the lap count restarts on every new
  *   stage and each stage has its own length — « Manche 2 · Tour 3 / 7 ».
  */
@@ -48,7 +49,7 @@ export function playProgress(
     return counted("Tour", game.round, roundLimit);
   }
 
-  if (stages.advance === "pass") {
+  if (stages.advance !== "schedule") {
     return `${stages.label} ${game.stage}`;
   }
 

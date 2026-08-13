@@ -3,12 +3,13 @@
 import { useState } from "react";
 
 import type { PlayerId } from "@/lib/domain";
+import type { StageEntry } from "@/lib/game/stage-tally";
 
 import { NextTurnControl } from "./NextTurnControl";
-import { StageGoalPrompt } from "./StageGoalPrompt";
+import { StagePointsPrompt } from "./StagePointsPrompt";
 
 /** What one player took on the manche's goal tile. */
-export type GoalPoints = Array<{ playerId: PlayerId; points: number }>;
+export type GoalPoints = StageEntry[];
 
 /**
  * What the table does with the turn it is on: hand it to the next player, step
@@ -105,10 +106,10 @@ export function TurnControls({
       />
 
       {promptOpen ? (
-        <StageGoalPrompt
+        <StagePointsPrompt
           stage={stage}
           stageLabel={stageLabel}
-          goalLabel={goalLabel}
+          intro={goalIntro(goalLabel)}
           players={players}
           initial={entered}
           disabled={disabled}
@@ -119,4 +120,11 @@ export function TurnControls({
       ) : null}
     </>
   );
+}
+
+/** The prompt's opening line: the tile read out, when the calendar names one. */
+function goalIntro(goalLabel: string): string {
+  return goalLabel === ""
+    ? "Points marqués par chacun sur l'objectif."
+    : `Objectif : ${goalLabel}. Points marqués par chacun.`;
 }

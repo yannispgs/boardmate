@@ -4,7 +4,7 @@ import type {
   Extension,
   ExtensionScenarioId,
   FieldSpec,
-  WinCondition,
+  StopCondition,
 } from "@/lib/domain";
 import { scenarioTarget, winTargetWithModifiers } from "./extensions";
 import { optionTargetModifier } from "./scoring";
@@ -25,7 +25,7 @@ export interface WinTargetBarView {
 
 export interface WinTargetView {
   /**
-   * The config field the win condition counts against, when there is one. The
+   * The config field the stop condition counts against, when there is one. The
    * recap keeps it out of the generic attribute list and edits it through the
    * bar instead, so the number the game aims at has a single home.
    */
@@ -36,9 +36,9 @@ export interface WinTargetView {
 
 /**
  * Resolves the score a game is played to, from the four things that can move
- * it: the game's own threshold field, the value set for this game, the options
- * switched on (Catan's « Maître du port » = +1) and the scenario an extension
- * imposes.
+ * it: the game's own stop-condition field, the value set for this game, the
+ * options switched on (Catan's « Maître du port » = +1) and the scenario an
+ * extension imposes.
  *
  * A scenario's target wins over the editable field and is read-only; options
  * and extension modifiers raise it either way. The field always holds the
@@ -46,13 +46,13 @@ export interface WinTargetView {
  * silently rewriting what was typed.
  */
 export function winTargetView(
-  winCondition: WinCondition | null,
+  stopCondition: StopCondition | null,
   fields: FieldSpec[],
   values: ConfigValues | null,
   active: Extension[],
   scenarioByExtension: Record<string, ExtensionScenarioId | undefined>,
 ): WinTargetView {
-  const field = winCondition?.type === "threshold" ? winCondition.field : null;
+  const field = stopCondition?.field ?? null;
   const spec =
     field === null ? null : (fields.find(f => f.key === field) ?? null);
 

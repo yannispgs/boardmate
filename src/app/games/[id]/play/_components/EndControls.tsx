@@ -11,6 +11,7 @@ import type {
 import { milestonePrefill } from "@/lib/game/milestones";
 import { derivedKeys, mergePrefill, winnerDirection } from "@/lib/game/scoring";
 import { stageGoalPrefill } from "@/lib/game/stage";
+import { stageFinalScores } from "@/lib/game/stage-tally";
 import { loneLeader } from "@/lib/game/tie-break";
 import { toggled } from "@/lib/ui/selection";
 import { CategoryScoreEntry } from "../../../_components/CategoryScoreEntry";
@@ -109,6 +110,25 @@ export function EndControls({
           />
         ) : null}
       </>
+    );
+  }
+
+  // A game counted manche by manche has already been scored, manche after
+  // manche: asking for a total at the end would ask the table to add up what
+  // the app is holding. It ends on those sums, and on nothing else.
+  if (finalScoring && game.boardgame.stages?.advance === "manual") {
+    return (
+      <EndGameButton
+        onClick={() =>
+          void flow.finishTotals(
+            stageFinalScores(
+              players.map(p => p.id),
+              stageScores,
+            ),
+            null,
+          )
+        }
+      />
     );
   }
 

@@ -16,16 +16,26 @@ const MEDALS = ["🥇", "🥈", "🥉"];
 
 /**
  * One player's line within a single game's stats: their record on THIS game
- * only (win rate, games, wins, mean score, mean turn, time index).
+ * only (win rate, games, wins, mean score), followed by whatever the game
+ * actually measures about the person — the time figures when it times each
+ * player, the manches they sat through and the ones they closed when it counts
+ * manches, and nothing at all when it does neither (a simultaneous game plays
+ * as one table, so no share of its time belongs to anybody).
  */
 export function GamePlayerRow({
   rank,
   player,
   scored,
+  timed,
+  tally,
 }: Readonly<{
   rank: number;
   player: PlayerAggregate;
   scored: boolean;
+  /** Whether this game attributes the time it records to a single player. */
+  timed: boolean;
+  /** This player's manches, or null for a game that counts turns instead. */
+  tally: { stages: number; exits: number } | null;
 }>) {
   const medal = MEDALS[rank - 1] ?? `${rank}.`;
 
@@ -57,15 +67,25 @@ export function GamePlayerRow({
             value={player.avgScore === null ? "—" : player.avgScore.toFixed(1)}
           />
         ) : null}
-        <Cell label="Tour moy." value={formatDuration(player.avgTurnS)} />
-        <Cell
-          label="Part du temps"
-          value={
-            player.timeIndex === null
-              ? "—"
-              : String(Math.round(player.timeIndex))
-          }
-        />
+        {tally ? (
+          <>
+            <Cell label="Manches" value={String(tally.stages)} />
+            <Cell label="Sorties" value={String(tally.exits)} />
+          </>
+        ) : null}
+        {timed ? (
+          <>
+            <Cell label="Tour moy." value={formatDuration(player.avgTurnS)} />
+            <Cell
+              label="Part du temps"
+              value={
+                player.timeIndex === null
+                  ? "—"
+                  : String(Math.round(player.timeIndex))
+              }
+            />
+          </>
+        ) : null}
       </div>
     </li>
   );

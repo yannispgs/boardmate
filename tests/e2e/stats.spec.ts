@@ -1,6 +1,11 @@
 import { expect, test } from "@playwright/test";
 
-import { adminClient, CATAN_ID, seedPlayers } from "./utils/supabase";
+import {
+  adminClient,
+  boardgameId,
+  CATAN_ID,
+  seedPlayers,
+} from "./utils/supabase";
 
 /**
  * The global statistics page (full-suite only — untagged): averages of every
@@ -270,6 +275,192 @@ test("charts the score distribution for a scored game", async ({ page }) => {
     await expect(
       page.getByRole("img", { name: "Nuage de points des scores" }),
     ).toBeVisible();
+  } finally {
+    for (const id of gameIds) {
+      await admin.from("games").delete().eq("id", id);
+    }
+    await admin.from("players").delete().in("name", names);
+  }
+});
+
+/**
+ * A simultaneous game (Splito, full-suite only — untagged): everyone plays at
+ * once, so a round is one shared turn owned by nobody. No share of the time
+ * belongs to a player, and the per-player figures that would divide it say so
+ * by not being there — on the game's own tab and on a player's breakdown alike.
+ */
+test("drops the per-player time figures on a simultaneous game", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const names = await seedPlayers(3);
+  let gameId = "";
+
+  try {
+    const { data: seeded } = await admin
+      .from("players")
+      .select("id, name")
+      .in("name", names);
+    const ids = (seeded ?? []).map(p => p.id as string);
+
+    const { data: game } = await admin
+      .from("games")
+      .insert({
+        boardgame_id: await boardgameId("Splito"),
+        status: "ended",
+        round: 2,
+        turn: 2,
+        ended_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+    gameId = game?.id as string;
+
+    await admin.from("game_players").insert(
+      ids.map((player_id, i) => ({
+        game_id: gameId,
+        player_id,
+        seat_order: i,
+        is_winner: i === 0,
+        score: 30 - i * 5,
+      })),
+    );
+
+    // Two rounds, each a single turn the whole table played at once.
+    await admin.from("game_turns").insert(
+      [1, 2].map(round => ({
+        game_id: gameId,
+        player_id: null,
+        round,
+        turn_no: round,
+        duration_s: 120,
+      })),
+    );
+
+    await page.goto("/stats");
+
+    // A player's breakdown: the Splito line stops at the score.
+    await page
+      .getByRole("listitem")
+      .filter({ hasText: names[0] })
+      .first()
+      .click();
+
+    const splitoLine = page.getByRole("listitem").filter({ hasText: "Splito" });
+
+    await expect(splitoLine).toBeVisible();
+    await expect(splitoLine).not.toContainText("Part du temps");
+
+    // The game's own tab: same rule, and the explanation of an index nobody can
+    // read here goes with it.
+    await page.goto("/stats");
+    await page.getByRole("button", { name: "Jeux", exact: true }).click();
+    await page.getByRole("button", { name: "Splito", exact: true }).click();
+
+    await expect(
+      page.getByText("Statistiques des joueurs sur ce jeu"),
+    ).toBeVisible();
+    await expect(page.getByText("Part du temps")).toHaveCount(0);
+  } finally {
+    if (gameId) {
+      await admin.from("games").delete().eq("id", gameId);
+    }
+    await admin.from("players").delete().in("name", names);
+  }
+});
+
+/**
+ * A game counted manche by manche (Odin, full-suite only — untagged): it records
+ * no turn at all, so the tab drops the time tiles it would fill with zeros and
+ * reads the manches instead — how long a party runs, what a manche costs, and
+ * who gets out of them.
+ */
+test("reads Odin's parties in manches rather than in time", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const names = await seedPlayers(3);
+  const gameIds: string[] = [];
+
+  try {
+    const { data: seeded } = await admin
+      .from("players")
+      .select("id, name")
+      .in("name", names);
+    const ids = (seeded ?? []).map(p => p.id as string);
+    const odinId = await boardgameId("Odin");
+
+    /** One ended party, its manches written down one row per player. */
+    async function seedOdin(manches: number[][]) {
+      const { data: game } = await admin
+        .from("games")
+        .insert({
+          boardgame_id: odinId,
+          status: "ended",
+          round: 1,
+          turn: 1,
+          stage: manches.length,
+          ended_at: new Date().toISOString(),
+        })
+        .select("id")
+        .single();
+      const gameId = game?.id as string;
+      gameIds.push(gameId);
+
+      const totals = ids.map((_id, i) =>
+        manches.reduce((sum, points) => sum + points[i], 0),
+      );
+      const best = Math.min(...totals);
+
+      await admin.from("game_players").insert(
+        ids.map((player_id, i) => ({
+          game_id: gameId,
+          player_id,
+          seat_order: i,
+          is_winner: totals[i] === best,
+          score: totals[i],
+        })),
+      );
+      await admin.from("game_stage_scores").insert(
+        manches.flatMap((points, stage) =>
+          ids.map((player_id, i) => ({
+            game_id: gameId,
+            stage: stage + 1,
+            player_id,
+            points: points[i],
+          })),
+        ),
+      );
+    }
+
+    // Five manches over two parties, 39 points picked up in all.
+    await seedOdin([
+      [0, 4, 3],
+      [5, 0, 2],
+    ]);
+    await seedOdin([
+      [0, 2, 6],
+      [3, 0, 1],
+      [9, 4, 0],
+    ]);
+
+    await page.goto("/stats");
+    await page.getByRole("button", { name: "Jeux", exact: true }).click();
+    await page.getByRole("button", { name: "Odin", exact: true }).click();
+
+    // Nothing timed, so nothing about time — the manches take those tiles.
+    await expect(page.getByText("Temps de jeu moy.")).toHaveCount(0);
+    await expect(page.getByText("Tour moy.")).toHaveCount(0);
+    await expect(page.getByText("Manches moy.")).toBeVisible();
+    await expect(page.getByText("2.5")).toBeVisible();
+    await expect(page.getByText("Points / manche")).toBeVisible();
+    await expect(page.getByText("7.8")).toBeVisible();
+
+    // The two breakdowns only several parties can show.
+    await expect(page.getByText("Qui sort le plus souvent")).toBeVisible();
+    await expect(page.getByText("1 sortie sur 5 manches")).toBeVisible();
+    await expect(page.getByText("Ce que coûte une manche")).toBeVisible();
+    await expect(page.getByText(/15 manches de joueur/)).toBeVisible();
   } finally {
     for (const id of gameIds) {
       await admin.from("games").delete().eq("id", id);
