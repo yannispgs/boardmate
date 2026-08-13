@@ -23,7 +23,12 @@ import type {
 } from "@/lib/domain";
 
 import { formatGoalLabel } from "./round-goals";
-import { isCalendarReady, type StagePick, stageCalendar } from "./stage";
+import {
+  isCalendarReady,
+  type StagePick,
+  stageCalendar,
+  stageScores,
+} from "./stage";
 
 /** Per-player points entered per stage, keyed `player → stage key → text`. */
 export type StageGoalRaw = Record<string, Record<string, string>>;
@@ -56,6 +61,36 @@ export function stageGoalSheet(
           : `${stageLabel} ${stage.stage} · ${name}`,
     };
   });
+}
+
+/**
+ * The manches nobody scores — Oceania's « Pas d'objectif ».
+ *
+ * Such a manche still has a line on the grid: it was played, and it lengthens
+ * the ones that follow. But it is worth zero to everyone, so the form fills the
+ * line in itself and locks it rather than asking the table for a number that
+ * could only ever be zero.
+ */
+export function unscoredStageKeys(
+  stages: readonly GameStage[],
+  catalogue: readonly RoundGoal[],
+): string[] {
+  return stages
+    .filter(stage => !stageScores(stage, catalogue))
+    .map(stage => stageKey(stage.stage));
+}
+
+/** Those same manches as cells, so the grid shows the zero it recorded. */
+export function unscoredStageCells(
+  stages: readonly GameStage[],
+  catalogue: readonly RoundGoal[],
+  playerIds: readonly PlayerId[],
+): StageGoalRaw {
+  const cells = Object.fromEntries(
+    unscoredStageKeys(stages, catalogue).map(key => [key, "0"]),
+  );
+
+  return Object.fromEntries(playerIds.map(id => [id, { ...cells }]));
 }
 
 /** The goals of a recorded game, and whether they are complete enough to keep. */
@@ -113,6 +148,14 @@ export function finishedGoals(
 
   for (const playerId of playerIds) {
     for (const stage of stages) {
+      // A manche laid with « Pas d'objectif » pays nobody: its line is worth
+      // zero for everyone and is never asked for, so it can't be what holds
+      // the block back either.
+      if (!stageScores(stage, catalogue)) {
+        entered.push({ stage: stage.stage, playerId, points: 0 });
+        continue;
+      }
+
       const text = raw[playerId]?.[stageKey(stage.stage)] ?? "";
       const points = Number.parseInt(text, 10);
 

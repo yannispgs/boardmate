@@ -3,7 +3,12 @@
 import { ChevronRightIcon } from "@/components/icons";
 import type { Player, PlayerId, RoundGoal } from "@/lib/domain";
 import type { FinishedGoals, StageGoalRaw } from "@/lib/game/finished-goals";
-import { stageGoalSheet } from "@/lib/game/finished-goals";
+import {
+  mergeCells,
+  stageGoalSheet,
+  unscoredStageCells,
+  unscoredStageKeys,
+} from "@/lib/game/finished-goals";
 import { goalGroups } from "@/lib/game/round-goals";
 import { otherPicks, pickAt, type StagePick } from "@/lib/game/stage";
 import { CategoryScoreGrid } from "../../_components/CategoryScoreGrid";
@@ -44,6 +49,19 @@ export function StageGoalsSection({
   const groups = goalGroups(catalogue);
   const sheet = stageGoalSheet(stageLabel, goals.stages, catalogue);
   const lower = stageLabel.toLowerCase();
+
+  // A « Pas d'objectif » manche pays nobody: its line is shown filled with the
+  // zero it is recorded as, and locked. Derived from the tiles laid, so undoing
+  // the tile hands the line straight back to the table.
+  const unscored = unscoredStageKeys(goals.stages, catalogue);
+  const cells = mergeCells(
+    raw,
+    unscoredStageCells(
+      goals.stages,
+      catalogue,
+      players.map(p => p.id),
+    ),
+  );
 
   function setPick(index: number, pick: StagePick) {
     onPicks(
@@ -89,7 +107,8 @@ export function StageGoalsSection({
         <CategoryScoreGrid
           players={players.map(p => ({ id: p.id, name: p.name }))}
           sheet={sheet}
-          raw={raw}
+          raw={cells}
+          readOnlyKeys={unscored}
           disabled={disabled}
           onCell={onCell}
         />

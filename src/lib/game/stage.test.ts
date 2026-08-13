@@ -24,6 +24,7 @@ import {
   stageGoalPrefill,
   stageGoalTotals,
   stagePosition,
+  stageScores,
 } from "./stage";
 
 const WINGSPAN = [8, 7, 6, 5];
@@ -200,6 +201,33 @@ describe("isCalendarReady", () => {
 
   it("refuses an empty calendar", () => {
     expect(isCalendarReady([], CATALOGUE)).toBe(false);
+  });
+});
+
+describe("stageScores", () => {
+  const stages = stageCalendar(
+    WINGSPAN,
+    [
+      pick("totalBirds"),
+      pick("noGoal"),
+      pick("cheapBirds"),
+      pick("eggsInHabitat", { habitat: "sea" }),
+    ],
+    CATALOGUE,
+  );
+
+  it("says a manche laid with « pas d'objectif » pays nobody", () => {
+    expect(stageScores(stages[1], CATALOGUE)).toBe(false);
+  });
+
+  it("says every other tile scores", () => {
+    expect(stageScores(stages[0], CATALOGUE)).toBe(true);
+  });
+
+  it("assumes a manche still without a tile will score", () => {
+    const [first] = stageCalendar(WINGSPAN, [], CATALOGUE);
+
+    expect(stageScores(first, CATALOGUE)).toBe(true);
   });
 });
 

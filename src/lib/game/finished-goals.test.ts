@@ -8,6 +8,8 @@ import {
   type StageGoalRaw,
   stageGoalSheet,
   stageKey,
+  unscoredStageCells,
+  unscoredStageKeys,
 } from "./finished-goals";
 import { stageCalendar } from "./stage";
 
@@ -121,6 +123,48 @@ describe("mergeCells", () => {
   });
 });
 
+describe("unscoredStageKeys", () => {
+  const stages = stageCalendar(
+    WINGSPAN,
+    [pick("noGoal"), pick("totalBirds"), pick("cheapBirds"), pick("noGoal")],
+    CATALOGUE,
+  );
+
+  it("names the manches laid with « pas d'objectif »", () => {
+    expect(unscoredStageKeys(stages, CATALOGUE)).toEqual([
+      "stage-1",
+      "stage-4",
+    ]);
+  });
+
+  it("names none when every tile scores", () => {
+    const scoring = stageCalendar(WINGSPAN, FULL_PICKS, CATALOGUE);
+
+    expect(unscoredStageKeys(scoring, CATALOGUE)).toEqual([]);
+  });
+});
+
+describe("unscoredStageCells", () => {
+  it("fills those manches in with a zero, for everybody at the table", () => {
+    const stages = stageCalendar(
+      WINGSPAN,
+      [pick("totalBirds"), pick("noGoal"), pick("cheapBirds"), pick("noGoal")],
+      CATALOGUE,
+    );
+
+    expect(unscoredStageCells(stages, CATALOGUE, [A, B])).toEqual({
+      a: { "stage-2": "0", "stage-4": "0" },
+      b: { "stage-2": "0", "stage-4": "0" },
+    });
+  });
+
+  it("leaves an all-scoring calendar's cells to the table", () => {
+    const stages = stageCalendar(WINGSPAN, FULL_PICKS, CATALOGUE);
+
+    expect(unscoredStageCells(stages, CATALOGUE, [A])).toEqual({ a: {} });
+  });
+});
+
 describe("finishedGoals", () => {
   it("records the calendar and every point once it is all there", () => {
     const goals = finishedGoals(
@@ -212,6 +256,37 @@ describe("finishedGoals", () => {
 
     expect(goals.complete).toBe(true);
     expect(goals.scores.map(s => s.points)).toEqual([0, 0, 0, 0]);
+  });
+
+  it("scores a « pas d'objectif » manche at zero without being told", () => {
+    const goals = finishedGoals(
+      WINGSPAN,
+      [pick("totalBirds"), pick("noGoal"), pick("cheapBirds"), pick("noGoal")],
+      CATALOGUE,
+      [A, B],
+      {
+        a: { "stage-1": "3", "stage-3": "4" },
+        b: { "stage-1": "1", "stage-3": "2" },
+      },
+    );
+
+    // Nothing was typed on manches 2 and 4, and nothing was waited for either.
+    expect(goals.remaining).toBe(0);
+    expect(goals.complete).toBe(true);
+    expect(goals.scores).toContainEqual({ stage: 2, playerId: A, points: 0 });
+    expect(goals.scores).toContainEqual({ stage: 4, playerId: B, points: 0 });
+  });
+
+  it("ignores whatever was typed on a manche that pays nobody", () => {
+    const goals = finishedGoals(
+      WINGSPAN,
+      [pick("noGoal"), pick("totalBirds"), pick("cheapBirds"), pick("noGoal")],
+      CATALOGUE,
+      [A],
+      filled({ a: [5, 2, 3, 5] }),
+    );
+
+    expect(goals.scores.map(s => s.points)).toEqual([0, 2, 3, 0]);
   });
 
   it("has nothing to record for a game played in no stages at all", () => {

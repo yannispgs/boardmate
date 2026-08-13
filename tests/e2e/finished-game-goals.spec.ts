@@ -63,8 +63,10 @@ test("records the goal detail of a finished game, and fills the sheet from it", 
     await stagePicker(page, 4).selectOption({ label: "Œufs dans X" });
     await page.getByRole("button", { name: "Mer" }).click();
 
-    // … nor until every cell of the grid carries a number.
-    await expect(page.getByText("Encore 8 cases à remplir")).toBeVisible();
+    // … nor until every cell of the grid carries a number. Manche 3 is not one
+    // of them: « Pas d'objectif » pays nobody, so its line is already worth zero
+    // (6 cells left, not 8).
+    await expect(page.getByText("Encore 6 cases à remplir")).toBeVisible();
 
     const points: Record<string, number[]> = {
       [names[0]]: [4, 2, 0, 3],
@@ -79,7 +81,17 @@ test("records the goal detail of a finished game, and fills the sheet from it", 
 
     for (const name of names) {
       for (const [i, label] of labels.entries()) {
-        await stageCell(page, label, name).fill(String(points[name][i]));
+        const cell = stageCell(page, label, name);
+
+        // The manche nobody scored on is filled in by the form and locked: it
+        // already reads zero, and the table is not asked to type it.
+        if (label.includes("Pas d'objectif")) {
+          await expect(cell).toHaveValue("0");
+          await expect(cell).toHaveAttribute("readonly", "");
+          continue;
+        }
+
+        await cell.fill(String(points[name][i]));
       }
     }
 
