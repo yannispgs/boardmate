@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { ScoringSpec } from "@/lib/domain";
-import { roundPlayedOut, stopsAtRoundEnd, stopTurn } from "./stop-condition";
+import {
+  closingRound,
+  lastRound,
+  roundPlayedOut,
+  stopsAtRoundEnd,
+} from "./stop-condition";
 
 const scoring = (timing?: "immediate" | "roundEnd"): ScoringSpec => ({
   timing: "live",
@@ -29,15 +34,14 @@ describe("stopsAtRoundEnd", () => {
   });
 });
 
-describe("stopTurn", () => {
-  it("ends the lap the target was first reached in", () => {
-    // 3 seats: lap 2 runs on turns 4–6, so the game dies on turn 6.
+describe("closingRound", () => {
+  it("closes the lap the target was first reached in", () => {
     const events = [
       { score: 12, round: 2 },
       { score: 15, round: 2 },
     ];
 
-    expect(stopTurn(events, [15, 9, 4], 15, 3)).toBe(6);
+    expect(closingRound(events, [15, 9, 4], 15)).toBe(2);
   });
 
   it("keeps the first lap that reached it, not the latest", () => {
@@ -46,15 +50,15 @@ describe("stopTurn", () => {
       { score: 17, round: 4 },
     ];
 
-    expect(stopTurn(events, [17, 3], 15, 2)).toBe(4);
+    expect(closingRound(events, [17, 3], 15)).toBe(2);
   });
 
-  it("aims at nothing while the target is out of reach", () => {
-    expect(stopTurn([{ score: 12, round: 3 }], [12, 8], 15, 3)).toBeNull();
+  it("closes nothing while the target is out of reach", () => {
+    expect(closingRound([{ score: 12, round: 3 }], [12, 8], 15)).toBeNull();
   });
 
-  it("aims at nothing when the game has no target at all", () => {
-    expect(stopTurn([{ score: 40, round: 3 }], [40], null, 3)).toBeNull();
+  it("closes nothing when the game has no target at all", () => {
+    expect(closingRound([{ score: 40, round: 3 }], [40], null)).toBeNull();
   });
 
   it("lets a correction call the ending off", () => {
@@ -62,18 +66,30 @@ describe("stopTurn", () => {
     // record for good, the standing is what says the game goes on.
     const events = [{ score: 15, round: 2 }];
 
-    expect(stopTurn(events, [11, 9], 15, 2)).toBeNull();
+    expect(closingRound(events, [11, 9], 15)).toBeNull();
   });
 
   it("waits for the record when the standing is ahead of it", () => {
     // The score has just been typed and the screen already shows it, but the
     // event it is being saved as hasn't come back yet: nothing says which lap
     // to end, so the game keeps running until it does.
-    expect(stopTurn([], [15, 9], 15, 2)).toBeNull();
+    expect(closingRound([], [15, 9], 15)).toBeNull();
+  });
+});
+
+describe("lastRound", () => {
+  it("takes whichever ending comes first", () => {
+    expect(lastRound(8, 5)).toBe(5);
+    expect(lastRound(4, 6)).toBe(4);
   });
 
-  it("ends the shared turn itself in a simultaneous game", () => {
-    expect(stopTurn([{ score: 15, round: 4 }], [15], 15, 1)).toBe(4);
+  it("falls back on the one ending the game has", () => {
+    expect(lastRound(null, 5)).toBe(5);
+    expect(lastRound(8, null)).toBe(8);
+  });
+
+  it("leaves an open-ended game with no end in sight", () => {
+    expect(lastRound(null, null)).toBeNull();
   });
 });
 

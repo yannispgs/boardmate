@@ -20,8 +20,8 @@ export interface ScoredRound {
 }
 
 /**
- * The last turn such a game may run: the end of the lap in which the target was
- * first reached. `null` while the game has no reason to stop.
+ * The lap that closes the game: the one the target was first reached in. `null`
+ * while the game has no reason to stop.
  *
  * Read off what is **recorded** rather than remembered in a flag raised at the
  * moment it happened, so a tab reloaded in the middle of the final lap still
@@ -31,11 +31,10 @@ export interface ScoredRound {
  * mistake and corrected back down leaves its event behind for good, and without
  * this the game would keep insisting on ending a lap nobody won.
  */
-export function stopTurn(
+export function closingRound(
   events: readonly ScoredRound[],
   scores: readonly number[],
   threshold: number | null,
-  seatCount: number,
 ): number | null {
   if (threshold === null || !scores.some(score => score >= threshold)) {
     return null;
@@ -45,7 +44,27 @@ export function stopTurn(
     .filter(event => event.score >= threshold)
     .map(event => event.round);
 
-  return reached.length === 0 ? null : Math.min(...reached) * seatCount;
+  return reached.length === 0 ? null : Math.min(...reached);
+}
+
+/**
+ * The lap the turn order cannot go past — what the ribbon needs to draw its
+ * finish flag: the game's own fixed length, the lap about to close it, or
+ * whichever of the two comes first.
+ */
+export function lastRound(
+  roundLimit: number | null,
+  closing: number | null,
+): number | null {
+  if (roundLimit === null) {
+    return closing;
+  }
+
+  if (closing === null) {
+    return roundLimit;
+  }
+
+  return Math.min(roundLimit, closing);
 }
 
 /**

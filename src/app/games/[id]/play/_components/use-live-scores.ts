@@ -4,11 +4,11 @@ import { useState } from "react";
 import type { PlayerId, PopulatedGame } from "@/lib/domain";
 import { clampScore } from "@/lib/game/scoring";
 import {
+  closingRound,
   roundPlayedOut,
   stopsAtRoundEnd,
-  stopTurn,
 } from "@/lib/game/stop-condition";
-import { closesRound, turnsPerRound } from "@/lib/game/turn";
+import { turnsPerRound } from "@/lib/game/turn";
 import { getGameRepository } from "@/lib/repositories";
 import type { PlayGame } from "./use-play-game";
 
@@ -26,6 +26,11 @@ export interface LiveScores {
    * to be told, since the app is holding an ending it can already see coming.
    */
   lastLap: boolean;
+  /**
+   * That same lap, as a number, for the turn order to draw its finish line on —
+   * null for a game with no ending in sight.
+   */
+  closingRound: number | null;
   setScore: (playerId: PlayerId, raw: number) => Promise<void>;
 }
 
@@ -49,16 +54,12 @@ export function useLiveScores(game: PopulatedGame, play: PlayGame): LiveScores {
   const scoring = game.boardgame.scoring;
   const perRound = turnsPerRound(game.boardgame.turnMode, game.players.length);
   const waits = stopsAtRoundEnd(scoring);
-  // Which turn the game dies on, from what is recorded — so this survives a
-  // reload mid-lap. Null for every game that ends on the spot.
-  const stop = waits
-    ? stopTurn(
-        game.scoreEvents,
-        Object.values(scores),
-        game.winThreshold,
-        perRound,
-      )
+  // Which lap the game dies at the end of, from what is recorded — so this
+  // survives a reload mid-lap. Null for every game that ends on the spot.
+  const closing = waits
+    ? closingRound(game.scoreEvents, Object.values(scores), game.winThreshold)
     : null;
+  const stop = closing === null ? null : closing * perRound;
 
   // The lap is over: everybody has answered, so ask now. Derived while
   // rendering rather than from an effect — the prompt is a function of where
@@ -67,6 +68,12 @@ export function useLiveScores(game: PopulatedGame, play: PlayGame): LiveScores {
     setAsked(stop);
     setPromptOpen(true);
   }
+
+  // Waved off, the ending is called off with it: the table said it keeps
+  // playing, so the banner and the turn order's finish flag have to stop
+  // announcing an end that is not coming — and the ribbon would otherwise be
+  // asked to draw a finish line the current turn has already gone past.
+  const announced = asked === stop ? null : closing;
 
   // Sets a player's absolute total (clamped for positive-only games), persists
   // it, then offers to end when the target is reached OR exceeded — a turn can
@@ -84,14 +91,12 @@ export function useLiveScores(game: PopulatedGame, play: PlayGame): LiveScores {
       return;
     }
 
-    // A game that plays the lap out keeps going, unless the player who just
-    // reached the target was the last to play in it: there is nobody left to
-    // answer, so the lap is over the moment he scores.
-    if (waits && !closesRound(game.turn, perRound)) {
-      // Nothing else reloads before the turn advances, and the closing lap is
-      // read off what is recorded — so without this the players still to play,
-      // the very ones the lap is being played out for, would be told only once
-      // the next player is already up.
+    // A game that plays the lap out keeps going, whoever crossed the target —
+    // the player who just scored is owed the rest of his turn as much as the
+    // others are owed theirs, so the game only stops once the turn has moved
+    // past the lap. Reloading is what makes the closing lap known: it is read
+    // off what is recorded, and nothing else reloads before the turn advances.
+    if (waits) {
       await play.reload();
 
       return;
@@ -99,7 +104,6 @@ export function useLiveScores(game: PopulatedGame, play: PlayGame): LiveScores {
 
     // Close the score sheet and let the end prompt (which can override the
     // winner) take over — the two modals never stack.
-    setAsked(game.round * perRound);
     setPanelOpen(false);
     setPromptOpen(true);
   }
@@ -110,7 +114,8 @@ export function useLiveScores(game: PopulatedGame, play: PlayGame): LiveScores {
     setPanelOpen,
     promptOpen,
     setPromptOpen,
-    lastLap: stop !== null,
+    lastLap: announced !== null,
+    closingRound: announced,
     setScore,
   };
 }

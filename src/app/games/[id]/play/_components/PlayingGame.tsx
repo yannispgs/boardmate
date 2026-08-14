@@ -265,6 +265,7 @@ export function PlayingGame({
           blockedById={blockedById}
           onPickBlocked={pickBlocked}
           dice={dice}
+          closingRound={live.closingRound}
         />
       )}
 
