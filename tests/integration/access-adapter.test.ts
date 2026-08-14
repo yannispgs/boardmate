@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { MAX_ROLE_DESCRIPTION } from "@/lib/domain";
 import { createAccessRepository } from "@/lib/supabase/repositories/access";
 import {
   authedClient,
@@ -96,8 +97,12 @@ describe("access adapter", () => {
 describe("access adapter — composing a role", () => {
   const created: string[] = [];
 
-  async function compose(label: string, keys: string[]) {
-    const role = await repo(admin).createRole(label, keys);
+  async function compose(
+    label: string,
+    keys: string[],
+    description: string | null = null,
+  ) {
+    const role = await repo(admin).createRole(label, description, keys);
     created.push(role.id);
 
     return role;
@@ -161,14 +166,51 @@ describe("access adapter — composing a role", () => {
   });
 
   it("renames a role and leaves the key it is filed under alone", async () => {
-    const role = await compose(`Ancien ${Date.now()}`, []);
+    const role = await compose(`Ancien ${Date.now()}`, [], "Ce qu'il fait.");
 
-    await repo(admin).renameRole(role.id, "Nouveau nom");
+    expect(role.description).toBe("Ce qu'il fait.");
+
+    await repo(admin).updateRoleIdentity(
+      role.id,
+      "Nouveau nom",
+      "Autre chose.",
+    );
 
     const listed = (await repo(admin).listRoles()).find(r => r.id === role.id);
 
     expect(listed?.label).toBe("Nouveau nom");
+    expect(listed?.description).toBe("Autre chose.");
     expect(listed?.key).toBe(role.key);
+  });
+
+  it("clears a description that is taken back", async () => {
+    const role = await compose(`Bavard ${Date.now()}`, [], "Trop de mots.");
+
+    await repo(admin).updateRoleIdentity(role.id, role.label, null);
+
+    const listed = (await repo(admin).listRoles()).find(r => r.id === role.id);
+
+    expect(listed?.description).toBeNull();
+  });
+
+  it("refuses a description longer than the app lets anyone type", async () => {
+    // `maxLength` on the textarea is a courtesy to whoever types; the limit
+    // that counts is the check constraint, which is what anything speaking to
+    // PostgREST straight runs into.
+    const role = await compose(`Prolixe ${Date.now()}`, []);
+    const tooLong = "a".repeat(MAX_ROLE_DESCRIPTION + 1);
+
+    await expect(
+      repo(admin).updateRoleIdentity(role.id, role.label, tooLong),
+    ).rejects.toThrow(/Modification du rôle/);
+
+    await expect(
+      repo(admin).createRole(`Verbeux ${Date.now()}`, tooLong, []),
+    ).rejects.toThrow(/Création du rôle/);
+
+    const listed = (await repo(admin).listRoles()).find(r => r.id === role.id);
+
+    expect(listed?.description).toBeNull();
   });
 
   it("deletes a role nobody wears", async () => {
@@ -225,10 +267,10 @@ describe("access adapter — composing a role", () => {
 
     // An insert refused by RLS errors; an update or a delete refused by RLS
     // touches zero rows and reports success — hence the row asked back.
-    await expect(repo(nobody).createRole("Intrus", [])).rejects.toThrow();
-    await expect(repo(nobody).renameRole(role.id, "Intrus")).rejects.toThrow(
-      /refusé/,
-    );
+    await expect(repo(nobody).createRole("Intrus", null, [])).rejects.toThrow();
+    await expect(
+      repo(nobody).updateRoleIdentity(role.id, "Intrus", null),
+    ).rejects.toThrow(/refusée/);
     await expect(
       repo(nobody).setRolePermissions(role.id, ["faq.read"]),
     ).rejects.toThrow(/Attribution/);

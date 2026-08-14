@@ -29,6 +29,7 @@ function toRole(
     id: row.id as RoleId,
     key: row.key,
     label: row.label,
+    description: row.description,
     isAdmin: row.is_admin,
     isSystem: row.is_system,
     permissionKeys: row.role_permissions.map(link => link.permission_key),
@@ -90,10 +91,10 @@ export function createAccessRepository(
       return data;
     },
 
-    async createRole(label, permissionKeys) {
+    async createRole(label, description, permissionKeys) {
       const { data, error } = await supabase
         .from("roles")
-        .insert({ key: roleKeyFrom(label), label })
+        .insert({ key: roleKeyFrom(label), label, description })
         .select("*")
         .single();
 
@@ -110,19 +111,19 @@ export function createAccessRepository(
       });
     },
 
-    async renameRole(roleId, label) {
+    async updateRoleIdentity(roleId, label, description) {
       const { data, error } = await supabase
         .from("roles")
-        .update({ label })
+        .update({ label, description })
         .eq("id", roleId)
         .select("id");
-      /* c8 ignore next 3 -- defensive guard: a refused rename touches no row */
+
       if (error) {
-        throw new Error(`Renommage du rôle: ${error.message}`);
+        throw new Error(`Modification du rôle: ${error.message}`);
       }
 
       if (data.length === 0) {
-        throw new Error("Renommage du rôle: refusé");
+        throw new Error("Modification du rôle: refusée");
       }
     },
 

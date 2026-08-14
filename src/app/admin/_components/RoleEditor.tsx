@@ -8,6 +8,7 @@ import { ModalHeader } from "@/components/ModalHeader";
 import { fieldClass, modalCardClass } from "@/components/ui";
 import { useConfirm } from "@/components/use-confirm";
 import {
+  MAX_ROLE_DESCRIPTION,
   type Permission,
   permissionDiff,
   type Role,
@@ -43,20 +44,32 @@ export function RoleEditor({
   takenKeys: string[];
   saving: boolean;
   error: string | null;
-  onSave: (label: string, permissionKeys: string[]) => void;
+  onSave: (
+    label: string,
+    description: string | null,
+    permissionKeys: string[],
+  ) => void;
   onClose: () => void;
 }>) {
   const [label, setLabel] = useState(role?.label ?? "");
+  const [description, setDescription] = useState(role?.description ?? "");
   const [ticked, setTicked] = useState<string[]>(role?.permissionKeys ?? []);
   const { requestConfirm, confirmDialog } = useConfirm();
 
   const trimmed = label.trim();
+  // An empty box means « no sentence », not « the empty sentence » — the column
+  // is nullable and the card decides on `null`, not on the length.
+  const explained = description.trim() === "" ? null : description.trim();
   const key = roleKeyFrom(trimmed);
   const before = role?.permissionKeys ?? [];
   const diff = permissionDiff(before, ticked, permissions);
   const renamed = trimmed !== (role?.label ?? "");
+  const rewritten = explained !== (role?.description ?? null);
   const untouched =
-    !renamed && diff.added.length === 0 && diff.removed.length === 0;
+    !renamed &&
+    !rewritten &&
+    diff.added.length === 0 &&
+    diff.removed.length === 0;
 
   // Caught while typing rather than on the way back: at creation the key is
   // unique in the database and both cases end in the same opaque error, and a
@@ -89,11 +102,13 @@ export function RoleEditor({
         <RoleChangeRecap
           previousLabel={role?.label ?? null}
           label={trimmed}
+          descriptionChanged={role !== null && rewritten}
+          description={explained}
           diff={diff}
           permissions={permissions}
         />
       ),
-      onConfirm: () => onSave(trimmed, ticked),
+      onConfirm: () => onSave(trimmed, explained, ticked),
     });
   }
 
@@ -128,11 +143,30 @@ export function RoleEditor({
             />
           </label>
 
+          <label className="flex flex-col gap-1">
+            <span className="flex items-baseline justify-between gap-2">
+              <span className="text-sm font-medium">Description</span>
+
+              <span className="text-xs text-zinc-400 tabular-nums">
+                {description.length} / {MAX_ROLE_DESCRIPTION}
+              </span>
+            </span>
+
+            <textarea
+              value={description}
+              onChange={event => setDescription(event.target.value)}
+              placeholder="À quoi sert ce rôle, en une phrase."
+              maxLength={MAX_ROLE_DESCRIPTION}
+              rows={2}
+              className={`${fieldClass} resize-none bg-white dark:bg-zinc-900`}
+            />
+          </label>
+
           {role?.isAdmin ? (
             <p className="rounded-xl border border-indigo-500/30 bg-indigo-500/5 p-3 text-sm text-indigo-800 dark:text-indigo-200">
               Rôle administrateur : il porte toutes les permissions, y compris
-              celles ajoutées plus tard. Il n&apos;y a rien à cocher, seul son
-              nom se modifie ici.
+              celles ajoutées plus tard. Il n&apos;y a rien à cocher : seuls son
+              nom et sa description se modifient ici.
             </p>
           ) : (
             <PermissionCardList

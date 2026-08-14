@@ -62,15 +62,19 @@ export function AccessManager() {
     setEditing(next);
   }
 
-  async function save(label: string, permissionKeys: string[]) {
+  async function save(
+    label: string,
+    description: string | null,
+    permissionKeys: string[],
+  ) {
     setFormError(null);
     setSaving(true);
 
     try {
       if (edited === null) {
-        await createRole(label, permissionKeys);
+        await createRole(label, description, permissionKeys);
       } else {
-        await saveRole(edited, label, permissionKeys);
+        await saveRole(edited, label, description, permissionKeys);
       }
 
       setEditing(null);

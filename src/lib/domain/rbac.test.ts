@@ -29,6 +29,7 @@ function role(overrides: Partial<Role> = {}): Role {
     id: "role-1" as RoleId,
     key: "reader",
     label: "Lecteur",
+    description: null,
     isAdmin: false,
     isSystem: false,
     permissionKeys: [],

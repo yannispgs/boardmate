@@ -57,10 +57,12 @@ test("shows a composed role beside the seeded administrator", async ({
       .getByRole("listitem")
       .filter({ hasText: "Lecteur E2E" })
       .first();
-    await expect(composed.getByText("1 permission")).toBeVisible();
+    await expect(composed.getByText("Permissions (1)")).toBeVisible();
 
     // The roles tab is where a permission's holders are named, so the keys are
-    // listed here and nowhere else.
+    // listed here and nowhere else — one tap into the disclosure that keeps a
+    // card readable when a role hands out thirty of them.
+    await composed.getByText("Permissions (1)").click();
     await expect(composed.getByText("faq.read")).toBeVisible();
   } finally {
     await admin.from("roles").delete().eq("id", roleId);

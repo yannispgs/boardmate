@@ -832,6 +832,7 @@ export type Database = {
       roles: {
         Row: {
           created_at: string
+          description: string | null
           id: string
           is_admin: boolean
           is_system: boolean
@@ -840,6 +841,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          description?: string | null
           id?: string
           is_admin?: boolean
           is_system?: boolean
@@ -848,6 +850,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          description?: string | null
           id?: string
           is_admin?: boolean
           is_system?: boolean
@@ -929,6 +932,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assert_activation_permission: {
+        Args: { p_family: string; p_now: boolean; p_was: boolean }
+        Returns: undefined
+      }
       check_auth_rate_limit: {
         Args: {
           p_base_block_s?: number
@@ -942,6 +949,7 @@ export type Database = {
           retry_after_s: number
         }[]
       }
+      game_is_ongoing: { Args: { p_game_id: string }; Returns: boolean }
       has_permission: { Args: { p_key: string }; Returns: boolean }
       is_admin_role: { Args: { p_role_id: string }; Returns: boolean }
       my_permissions: { Args: never; Returns: string[] }

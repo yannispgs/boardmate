@@ -12,10 +12,15 @@ interface UseAccess {
   mine: string[];
   loading: boolean;
   error: string | null;
-  createRole: (label: string, permissionKeys: string[]) => Promise<void>;
+  createRole: (
+    label: string,
+    description: string | null,
+    permissionKeys: string[],
+  ) => Promise<void>;
   saveRole: (
     role: Role,
     label: string,
+    description: string | null,
     permissionKeys: string[],
   ) => Promise<void>;
   removeRole: (role: Role) => Promise<void>;
@@ -64,17 +69,26 @@ export function useAccess(): UseAccess {
   // permission the database refused is simply not there.
 
   const createRole = useCallback(
-    async (label: string, permissionKeys: string[]) => {
-      await repo.createRole(label, permissionKeys);
+    async (
+      label: string,
+      description: string | null,
+      permissionKeys: string[],
+    ) => {
+      await repo.createRole(label, description, permissionKeys);
       await refresh();
     },
     [repo, refresh],
   );
 
   const saveRole = useCallback(
-    async (role: Role, label: string, permissionKeys: string[]) => {
-      if (label !== role.label) {
-        await repo.renameRole(role.id, label);
+    async (
+      role: Role,
+      label: string,
+      description: string | null,
+      permissionKeys: string[],
+    ) => {
+      if (label !== role.label || description !== role.description) {
+        await repo.updateRoleIdentity(role.id, label, description);
       }
 
       // An administrator role grants everything by being one; it has no links to

@@ -345,9 +345,20 @@ export interface AccessRepository {
    * `roles.create`, plus `roles.update` for the grants themselves — the two
    * halves are written under the policies that own them, never as one.
    */
-  createRole(label: string, permissionKeys: string[]): Promise<Role>;
-  /** Renames a role. The key it was filed under never moves. */
-  renameRole(roleId: RoleId, label: string): Promise<void>;
+  createRole(
+    label: string,
+    description: string | null,
+    permissionKeys: string[],
+  ): Promise<Role>;
+  /**
+   * Rewrites what a role is called and what it is for. The key it was filed
+   * under never moves, so whatever already refers to it still finds it.
+   */
+  updateRoleIdentity(
+    roleId: RoleId,
+    label: string,
+    description: string | null,
+  ): Promise<void>;
   /**
    * Brings a role's grants to exactly `permissionKeys`, writing only the
    * difference: the database records an insert and a delete, which is what the

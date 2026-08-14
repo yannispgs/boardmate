@@ -14,12 +14,18 @@ import type { Permission, PermissionDiff } from "@/lib/domain";
 export function RoleChangeRecap({
   previousLabel,
   label,
+  descriptionChanged,
+  description,
   diff,
   permissions,
 }: Readonly<{
   /** The name it goes by today, or `null` when the role is being created. */
   previousLabel: string | null;
   label: string;
+  /** Whether the sentence under the name is being rewritten (edits only). */
+  descriptionChanged: boolean;
+  /** What it will say, `null` when it is being cleared or was never written. */
+  description: string | null;
   diff: PermissionDiff;
   permissions: Permission[];
 }>) {
@@ -44,6 +50,13 @@ export function RoleChangeRecap({
       {renamed ? (
         <p className="text-zinc-600 dark:text-zinc-300">
           Nom : « {previousLabel} » → « {label} »
+        </p>
+      ) : null}
+
+      {descriptionChanged ? (
+        <p className="text-zinc-600 dark:text-zinc-300">
+          Description :{" "}
+          {description === null ? "retirée." : `« ${description} »`}
         </p>
       ) : null}
 

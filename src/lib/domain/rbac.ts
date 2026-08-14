@@ -32,6 +32,11 @@ export interface Role {
   key: string;
   label: string;
   /**
+   * What the role is for, in one sentence, shown under its name. `null` for the
+   * roles composed before there was anywhere to write it.
+   */
+  description: string | null;
+  /**
    * Holds every permission, present and future, without listing any of them.
    * Neither the flag nor an assignment of such a role can be undone from the
    * app — that goes through the database.
@@ -129,6 +134,13 @@ export function roleDeleteBlocker(role: Role): string | null {
 
   return null;
 }
+
+/**
+ * How long a role's sentence may be. Restated by a check constraint in the
+ * database, which is where it is actually enforced — this one only stops the
+ * typing.
+ */
+export const MAX_ROLE_DESCRIPTION = 150;
 
 /** What a round of ticking and unticking actually changes. */
 export interface PermissionDiff {

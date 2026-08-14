@@ -1,6 +1,6 @@
 "use client";
 
-import { PencilIcon, TrashIcon } from "@/components/icons";
+import { ChevronRightIcon, PencilIcon, TrashIcon } from "@/components/icons";
 import { dangerIconButtonClass, iconButtonClass } from "@/components/ui";
 import {
   groupBySection,
@@ -16,7 +16,7 @@ function held(count: number): string {
     return "Aucune permission pour l'instant.";
   }
 
-  return `${count} permission${count > 1 ? "s" : ""}`;
+  return `Permissions (${count})`;
 }
 
 /**
@@ -49,13 +49,53 @@ export function RoleCard({
 
   return (
     <li className="flex flex-col gap-2 rounded-xl border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
+      {/* The name takes the width it needs and the buttons keep theirs: without
+          `min-w-0` a long role name pushes them out past the card's edge, which
+          on a phone puts them off-screen entirely. */}
       <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-0.5">
+        <div className="flex min-w-0 flex-col gap-0.5">
           <span className="font-medium">{role.label}</span>
           <code className="text-xs text-zinc-400">{role.key}</code>
         </div>
 
-        <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
+        {onEdit || onDelete ? (
+          <div className="flex shrink-0 gap-1.5">
+            {onEdit ? (
+              <button
+                type="button"
+                onClick={() => onEdit(role)}
+                aria-label={`Modifier ${role.label}`}
+                className={iconButtonClass}
+              >
+                <PencilIcon />
+              </button>
+            ) : null}
+
+            {onDelete ? (
+              <button
+                type="button"
+                onClick={() => onDelete(role)}
+                disabled={blocker !== null}
+                aria-label={`Supprimer ${role.label}`}
+                className={`${dangerIconButtonClass} disabled:opacity-40`}
+              >
+                <TrashIcon />
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+
+      {role.description !== null ? (
+        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          {role.description}
+        </p>
+      ) : null}
+
+      {/* Badges sit on their own line now: crammed in beside the buttons they
+          were the thing that overflowed, and they are the least urgent part. */}
+      {role.isAdmin || role.isSystem ? (
+        <div className="flex flex-wrap gap-1.5">
           {role.isAdmin ? (
             <span className="rounded-full bg-indigo-500/10 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:text-indigo-300">
               Administrateur
@@ -66,31 +106,8 @@ export function RoleCard({
               Fourni par l&apos;app
             </span>
           ) : null}
-
-          {onEdit ? (
-            <button
-              type="button"
-              onClick={() => onEdit(role)}
-              aria-label={`Modifier ${role.label}`}
-              className={iconButtonClass}
-            >
-              <PencilIcon />
-            </button>
-          ) : null}
-
-          {onDelete ? (
-            <button
-              type="button"
-              onClick={() => onDelete(role)}
-              disabled={blocker !== null}
-              aria-label={`Supprimer ${role.label}`}
-              className={`${dangerIconButtonClass} disabled:opacity-40`}
-            >
-              <TrashIcon />
-            </button>
-          ) : null}
         </div>
-      </div>
+      ) : null}
 
       {onDelete && blocker !== null ? (
         <span className="text-xs text-zinc-500 dark:text-zinc-400">
@@ -104,29 +121,50 @@ export function RoleCard({
           rôle ni son attribution ne se retirent depuis l&apos;application.
         </p>
       ) : (
-        <div className="flex flex-col gap-2">
-          <span className="text-sm text-zinc-500 dark:text-zinc-400">
-            {held(granted.length)}
-          </span>
-
-          {groupBySection(granted).map(section => (
-            <div key={section.name} className="flex flex-col gap-1">
-              <span className="text-xs text-zinc-400">{section.name}</span>
-
-              <ul className="flex flex-wrap gap-1.5">
-                {section.permissions.map(permission => (
-                  <li
-                    key={permission.key}
-                    className="rounded-full border border-black/10 px-2 py-0.5 dark:border-white/15"
-                  >
-                    <code className="text-xs">{permission.key}</code>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
+        <RolePermissions permissions={granted} summary={held(granted.length)} />
       )}
     </li>
+  );
+}
+
+/**
+ * What the role hands out, folded away. Open, it reads as running text rather
+ * than a wall of framed chips: on a card that already carries a name, a
+ * sentence and two buttons, thirty-five outlined pills were the loudest thing
+ * on screen and the least often looked at.
+ */
+function RolePermissions({
+  permissions,
+  summary,
+}: Readonly<{ permissions: Permission[]; summary: string }>) {
+  if (permissions.length === 0) {
+    return (
+      <span className="text-sm text-zinc-500 dark:text-zinc-400">
+        {summary}
+      </span>
+    );
+  }
+
+  return (
+    <details className="group">
+      <summary className="flex cursor-pointer list-none items-center gap-2">
+        <ChevronRightIcon className="h-4 w-4 shrink-0 text-zinc-400 transition-transform group-open:rotate-90" />
+        <span className="text-sm text-zinc-500 dark:text-zinc-400">
+          {summary}
+        </span>
+      </summary>
+
+      <div className="flex flex-col gap-2 pt-2 pl-6">
+        {groupBySection(permissions).map(section => (
+          <div key={section.name} className="flex flex-col gap-0.5">
+            <span className="text-xs text-zinc-400">{section.name}</span>
+
+            <p className="text-xs break-words text-zinc-600 dark:text-zinc-300">
+              {section.permissions.map(permission => permission.key).join(", ")}
+            </p>
+          </div>
+        ))}
+      </div>
+    </details>
   );
 }

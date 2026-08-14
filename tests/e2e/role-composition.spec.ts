@@ -36,6 +36,9 @@ test("composes a role, reads the change back, then edits and deletes it", async 
     const editor = page.getByRole("dialog", { name: "Nouveau rôle" });
     await editor.getByLabel("Nom du rôle").fill(label);
     await editor
+      .getByLabel("Description")
+      .fill("Ce qu'il a le droit de faire.");
+    await editor
       .getByRole("checkbox", { name: "faq.read", exact: true })
       .check();
 
@@ -48,8 +51,18 @@ test("composes a role, reads the change back, then edits and deletes it", async 
     await creation.getByRole("button", { name: "Enregistrer" }).click();
 
     const composed = card(page, label);
-    await expect(composed.getByText("1 permission")).toBeVisible();
+    await expect(
+      composed.getByText("Ce qu'il a le droit de faire."),
+    ).toBeVisible();
+
+    // The keys are folded away now: the count is what shows, the list is one
+    // tap further in. Folded back at the end, because the card is keyed by the
+    // role's id — React reuses the same element across a save, so an open
+    // disclosure stays open and the next click would be closing it.
+    await expect(composed.getByText("faq.read")).toBeHidden();
+    await composed.getByText("Permissions (1)").click();
     await expect(composed.getByText("faq.read")).toBeVisible();
+    await composed.getByText("Permissions (1)").click();
 
     // Editing: renaming and swapping one permission for another, which the
     // recap has to state as one gain and one loss.
@@ -57,6 +70,7 @@ test("composes a role, reads the change back, then edits and deletes it", async 
 
     const editing = page.getByRole("dialog", { name: "Modifier le rôle" });
     await editing.getByLabel("Nom du rôle").fill(renamed);
+    await editing.getByLabel("Description").fill("Version corrigée.");
     await editing
       .getByRole("checkbox", { name: "faq.read", exact: true })
       .uncheck();
@@ -66,6 +80,7 @@ test("composes a role, reads the change back, then edits and deletes it", async 
     await editing.getByRole("button", { name: "Enregistrer" }).click();
 
     const change = recap(page, /Enregistrer les modifications/);
+    await expect(change).toContainText("Version corrigée.");
     await expect(change).toContainText("1 permission ajoutée");
     await expect(change).toContainText("games.read");
     await expect(change).toContainText("1 permission retirée");
@@ -73,6 +88,9 @@ test("composes a role, reads the change back, then edits and deletes it", async 
     await change.getByRole("button", { name: "Enregistrer" }).click();
 
     const edited = card(page, renamed);
+    await expect(edited.getByText("Version corrigée.")).toBeVisible();
+
+    await edited.getByText("Permissions (1)").click();
     await expect(edited.getByText("games.read")).toBeVisible();
     await expect(edited.getByText("faq.read")).toHaveCount(0);
 
