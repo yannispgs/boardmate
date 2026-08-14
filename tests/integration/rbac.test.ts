@@ -37,6 +37,38 @@ afterAll(async () => {
   );
 });
 
+/**
+ * An account holding exactly the listed permissions and nothing else, through a
+ * throwaway role. Returns a `dispose` so each test drops what it created — the
+ * grid is global state, and a leftover role would answer for the next test.
+ */
+async function userWith(keys: string[]) {
+  const service = serviceClient();
+  const user = await createTestUser({ admin: false });
+  const suffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  const { data: role } = await service
+    .from("roles")
+    .insert({ key: `spec-${suffix}`, label: `Rôle ${suffix}` })
+    .select("*")
+    .single();
+  const roleId = role?.id as string;
+
+  await service
+    .from("role_permissions")
+    .insert(keys.map(key => ({ role_id: roleId, permission_key: key })));
+  await service
+    .from("user_roles")
+    .insert({ user_id: user.id, role_id: roleId });
+
+  return {
+    db: authedClient(user.accessToken),
+    async dispose() {
+      await deleteTestUser(user.id);
+      await service.from("roles").delete().eq("id", roleId);
+    },
+  };
+}
+
 describe("RBAC — a signed-in account with no role holds nothing", () => {
   it("reads no boardgame, though the catalogue is seeded", async () => {
     const db = authedClient(nobody.accessToken);
@@ -185,6 +217,211 @@ describe("RBAC — the administrator door only closes from the database", () => 
       .select("*");
 
     expect(del.error?.code).toBe("23514"); // check_violation, raised by trigger
+  });
+});
+
+// The four keys the catalogue deliberately splits finer than CRUD. Each pair is
+// only worth its extra line if holding one really does refuse the other.
+describe("RBAC — keys finer than CRUD", () => {
+  it("separates the game being played from the game already filed", async () => {
+    const service = serviceClient();
+    const { data: boardgame } = await service
+      .from("boardgames")
+      .insert({ name: `Split-${Date.now()}` })
+      .select("*")
+      .single();
+    const boardgameId = boardgame?.id as string;
+    const { data: created } = await service
+      .from("games")
+      .insert([
+        { boardgame_id: boardgameId, status: "ongoing" },
+        {
+          boardgame_id: boardgameId,
+          status: "ended",
+          ended_at: new Date().toISOString(),
+        },
+      ])
+      .select("*");
+    const live = created?.find(game => game.status === "ongoing")?.id as string;
+    const done = created?.find(game => game.status === "ended")?.id as string;
+
+    const player = await userWith(["games.read", "games.updateLive"]);
+    const archivist = await userWith(["games.read", "games.updateDone"]);
+
+    try {
+      const played = await player.db
+        .from("games")
+        .update({ round: 2 })
+        .eq("id", live)
+        .select("*");
+      expect(played.data?.length).toBe(1);
+
+      const rewritten = await player.db
+        .from("games")
+        .update({ round: 9 })
+        .eq("id", done)
+        .select("*");
+      expect(rewritten.data).toEqual([]);
+
+      const corrected = await archivist.db
+        .from("games")
+        .update({ round: 3 })
+        .eq("id", done)
+        .select("*");
+      expect(corrected.data?.length).toBe(1);
+
+      const meddled = await archivist.db
+        .from("games")
+        .update({ round: 9 })
+        .eq("id", live)
+        .select("*");
+      expect(meddled.data).toEqual([]);
+    } finally {
+      await Promise.all([player.dispose(), archivist.dispose()]);
+      await service.from("games").delete().eq("boardgame_id", boardgameId);
+      await service.from("boardgames").delete().eq("id", boardgameId);
+    }
+  });
+
+  it("carries the parent's status down to the rows hanging off it", async () => {
+    const service = serviceClient();
+    const { data: boardgame } = await service
+      .from("boardgames")
+      .insert({ name: `Child-${Date.now()}` })
+      .select("*")
+      .single();
+    const boardgameId = boardgame?.id as string;
+    const { data: created } = await service
+      .from("games")
+      .insert([
+        { boardgame_id: boardgameId, status: "ongoing" },
+        {
+          boardgame_id: boardgameId,
+          status: "ended",
+          ended_at: new Date().toISOString(),
+        },
+      ])
+      .select("*");
+    const live = created?.find(game => game.status === "ongoing")?.id as string;
+    const done = created?.find(game => game.status === "ended")?.id as string;
+
+    const player = await userWith(["games.read", "games.updateLive"]);
+
+    try {
+      const turn = { round: 1, turn_no: 1, duration_s: 30 };
+
+      const onLive = await player.db
+        .from("game_turns")
+        .insert({ game_id: live, ...turn })
+        .select("*");
+      expect(onLive.error).toBeNull();
+
+      const onDone = await player.db
+        .from("game_turns")
+        .insert({ game_id: done, ...turn })
+        .select("*");
+      expect(onDone.error?.code).toBe("42501");
+    } finally {
+      await player.dispose();
+      await service.from("games").delete().eq("boardgame_id", boardgameId);
+      await service.from("boardgames").delete().eq("id", boardgameId);
+    }
+  });
+
+  it("separates a game's fiche from its barème, column by column", async () => {
+    const service = serviceClient();
+    const { data: boardgame } = await service
+      .from("boardgames")
+      .insert({ name: `Fiche-${Date.now()}` })
+      .select("*")
+      .single();
+    const id = boardgame?.id as string;
+
+    const editor = await userWith(["boardgames.read", "boardgames.update"]);
+    const scorer = await userWith([
+      "boardgames.read",
+      "boardgames.updateScoring",
+    ]);
+
+    try {
+      const renamed = await editor.db
+        .from("boardgames")
+        .update({ name: `Fiche-renamed-${Date.now()}` })
+        .eq("id", id)
+        .select("*");
+      expect(renamed.data?.length).toBe(1);
+
+      // Same row, same UPDATE — only the column tells them apart, which is why
+      // this one is refused by a trigger and not by the policy.
+      const rescored = await editor.db
+        .from("boardgames")
+        .update({ scoring: { mode: "final" } })
+        .eq("id", id)
+        .select("*");
+      expect(rescored.error?.code).toBe("42501");
+
+      const scored = await scorer.db
+        .from("boardgames")
+        .update({ scoring: { mode: "final" } })
+        .eq("id", id)
+        .select("*");
+      expect(scored.data?.length).toBe(1);
+
+      const misnamed = await scorer.db
+        .from("boardgames")
+        .update({ name: `Nope-${Date.now()}` })
+        .eq("id", id)
+        .select("*");
+      expect(misnamed.error?.code).toBe("42501");
+    } finally {
+      await Promise.all([editor.dispose(), scorer.dispose()]);
+      await service.from("boardgames").delete().eq("id", id);
+    }
+  });
+
+  it("separates composing a role from handing it out", async () => {
+    const service = serviceClient();
+    const composer = await userWith(["roles.read", "roles.update"]);
+    const granter = await userWith(["roles.read", "roles.assign"]);
+    const subject = await createTestUser({ admin: false });
+    const { data: role } = await service
+      .from("roles")
+      .insert({ key: `handout-${Date.now()}`, label: "À distribuer" })
+      .select("*")
+      .single();
+    const roleId = role?.id as string;
+
+    try {
+      const composed = await composer.db
+        .from("role_permissions")
+        .insert({ role_id: roleId, permission_key: "faq.read" })
+        .select("*");
+      expect(composed.error).toBeNull();
+
+      const handedOut = await composer.db
+        .from("user_roles")
+        .insert({ user_id: subject.id, role_id: roleId })
+        .select("*");
+      expect(handedOut.error?.code).toBe("42501");
+
+      const granted = await granter.db
+        .from("user_roles")
+        .insert({ user_id: subject.id, role_id: roleId })
+        .select("*");
+      expect(granted.error).toBeNull();
+
+      // …and the admin door stays shut in this direction too, or `roles.assign`
+      // would be a one-step promotion to administrator.
+      const promoted = await granter.db
+        .from("user_roles")
+        .insert({ user_id: subject.id, role_id: adminRoleId })
+        .select("*");
+      expect(promoted.error?.code).toBe("42501");
+    } finally {
+      await Promise.all([composer.dispose(), granter.dispose()]);
+      await deleteTestUser(subject.id);
+      await service.from("roles").delete().eq("id", roleId);
+    }
   });
 });
 

@@ -1,12 +1,7 @@
 "use client";
 
 import { sectionHeadingClass } from "@/components/ui";
-import {
-  groupBySection,
-  type Permission,
-  type Role,
-  roleGrants,
-} from "@/lib/domain";
+import { groupBySection, type Permission } from "@/lib/domain";
 import { PermissionCard } from "./PermissionCard";
 
 /**
@@ -16,10 +11,9 @@ import { PermissionCard } from "./PermissionCard";
  */
 export function PermissionCardList({
   permissions,
-  roles,
-}: Readonly<{ permissions: Permission[]; roles: Role[] }>) {
+}: Readonly<{ permissions: Permission[] }>) {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       {groupBySection(permissions).map(section => (
         <section key={section.name} className="flex flex-col">
           <h2
@@ -28,15 +22,9 @@ export function PermissionCardList({
             {section.name} · {section.permissions.length}
           </h2>
 
-          <ul className="flex flex-col gap-2">
+          <ul className="divide-y divide-black/5 rounded-xl border border-black/10 bg-white dark:divide-white/5 dark:border-white/10 dark:bg-zinc-900">
             {section.permissions.map(permission => (
-              <PermissionCard
-                key={permission.key}
-                permission={permission}
-                grantedBy={roles
-                  .filter(role => roleGrants(role, permission.key))
-                  .map(role => role.label)}
-              />
+              <PermissionCard key={permission.key} permission={permission} />
             ))}
           </ul>
         </section>

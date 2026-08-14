@@ -9,23 +9,23 @@ import { adminClient } from "./utils/supabase";
 test("lists the permission catalogue by section", async ({ page }) => {
   await page.goto("/admin");
 
+  // Level 1, because « Administration » is also one of the sections below.
   await expect(
-    page.getByRole("heading", { name: "Administration" }),
+    page.getByRole("heading", { name: "Administration", level: 1 }),
   ).toBeVisible();
 
   // A section heading, and a permission under it.
   await expect(page.getByText(/Jeux & barèmes · \d+/)).toBeVisible();
-  await expect(
-    page.getByRole("listitem").filter({ hasText: "boardgames.update" }),
-  ).toBeVisible();
 
-  // Every permission names the roles handing it out — here, the seeded one.
-  await expect(
-    page
-      .getByRole("listitem")
-      .filter({ hasText: "boardgames.update" })
-      .getByText("Administrateur"),
-  ).toBeVisible();
+  const row = page
+    .getByRole("listitem")
+    .filter({ hasText: "boardgames.updateScoring" });
+  await expect(row).toBeVisible();
+
+  // The line is the key and its CRUD family; the sentence lives in the bubble.
+  await expect(row.getByText("update", { exact: true })).toBeVisible();
+  await row.getByRole("button", { name: "boardgames.updateScoring" }).click();
+  await expect(page.getByTestId("info-bubble")).toContainText("barème");
 });
 
 test("shows a composed role beside the seeded administrator", async ({
@@ -58,6 +58,10 @@ test("shows a composed role beside the seeded administrator", async ({
       .filter({ hasText: "Lecteur E2E" })
       .first();
     await expect(composed.getByText("1 permission")).toBeVisible();
+
+    // The roles tab is where a permission's holders are named, so the keys are
+    // listed here and nowhere else.
+    await expect(composed.getByText("faq.read")).toBeVisible();
   } finally {
     await admin.from("roles").delete().eq("id", roleId);
   }

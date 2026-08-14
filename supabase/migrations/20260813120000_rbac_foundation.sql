@@ -21,7 +21,15 @@
 create table public.permissions (
   key         text primary key,
   section     text    not null,
+  -- CRUD is the *family*, not the verb. The key carries the verb and may be
+  -- finer than CRUD when one operation is dangerous and its neighbour is not
+  -- (`games.updateLive` vs `games.updateDone`); `action` says which of the four
+  -- families it belongs to, which is what the grid colours and sorts by. Owner's
+  -- rule (2026-08-14): « base-toi sur du CRUD mais élargis-le au besoin, comme
+  -- les permissions IAM de GCP ».
   action      text    not null check (action in ('create', 'read', 'update', 'delete')),
+  -- Read as a description, not a title: the screen shows the key and keeps this
+  -- behind an info bubble.
   label       text    not null,
   -- A permission that spends real money on an external service. Such a
   -- permission may only ever be attached to an admin role — enforced below by
@@ -150,12 +158,36 @@ as $$
   );
 $$;
 
+-- Is that game still being played? The nine tables hanging off `games` carry a
+-- `game_id` and no status of their own, so their policies have to ask the parent
+-- which of `games.updateLive` / `games.updateDone` applies. Same reason as
+-- `is_admin_role` for the SECURITY DEFINER: read under the caller's RLS, a game
+-- he cannot see would answer « not ongoing » and quietly route him to the wrong
+-- permission.
+--
+-- A missing parent answers `false`: there is no row to protect, and the foreign
+-- key refuses the write a moment later anyway.
+create function public.game_is_ongoing(p_game_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select coalesce(
+    (select g.status = 'ongoing' from public.games g where g.id = p_game_id),
+    false
+  );
+$$;
+
 revoke execute on function public.has_permission(text) from anon;
 revoke execute on function public.my_permissions() from anon;
 revoke execute on function public.is_admin_role(uuid) from anon;
+revoke execute on function public.game_is_ongoing(uuid) from anon;
 grant execute on function public.has_permission(text) to authenticated;
 grant execute on function public.my_permissions() to authenticated;
 grant execute on function public.is_admin_role(uuid) to authenticated;
+grant execute on function public.game_is_ongoing(uuid) to authenticated;
 
 -- A billable permission belongs to an admin role and nowhere else. Owner's
 -- rule (2026-08-13): the features that cost money per use are admin-only. Said
@@ -277,35 +309,46 @@ create trigger roles_system_kept
 -- no table, they are computed from games / game_players / game_turns. Anyone
 -- holding `games.read` can derive them. It gates the screen, and that is all it
 -- claims to do.
+-- Four keys are finer than CRUD, each because the coarse version would have
+-- forced granting something dangerous to grant something harmless:
+--   boardgames.updateScoring  rewriting a barème rewrites every past game's
+--                             statistics; renaming a game costs nothing.
+--   games.updateLive          playing tonight's game.
+--   games.updateDone          rewriting a result already in the history.
+--   roles.assign              handing a role to somebody is not the same act as
+--                             deciding what that role contains.
 insert into public.permissions (key, section, action, label, sort_order) values
-  ('boardgames.create', 'Jeux & barèmes',        'create', 'Ajouter un jeu',                 10),
-  ('boardgames.read',   'Jeux & barèmes',        'read',   'Consulter les jeux',             11),
-  ('boardgames.update', 'Jeux & barèmes',        'update', 'Modifier un jeu et son barème',  12),
-  ('boardgames.delete', 'Jeux & barèmes',        'delete', 'Supprimer un jeu',               13),
-  ('faq.create',        'FAQ',                   'create', 'Ajouter une question',           20),
-  ('faq.read',          'FAQ',                   'read',   'Consulter la FAQ',               21),
-  ('faq.update',        'FAQ',                   'update', 'Modifier une question',          22),
-  ('faq.delete',        'FAQ',                   'delete', 'Supprimer une question',         23),
-  ('extensions.create', 'Extensions & scénarios','create', 'Ajouter un scénario',            30),
-  ('extensions.read',   'Extensions & scénarios','read',   'Consulter les extensions',       31),
-  ('extensions.update', 'Extensions & scénarios','update', 'Modifier un scénario',           32),
-  ('extensions.delete', 'Extensions & scénarios','delete', 'Supprimer un scénario',          33),
-  ('players.create',    'Joueurs',               'create', 'Ajouter un joueur',              40),
-  ('players.read',      'Joueurs',               'read',   'Consulter les joueurs',          41),
-  ('players.update',    'Joueurs',               'update', 'Modifier un joueur',             42),
-  ('players.delete',    'Joueurs',               'delete', 'Supprimer un joueur',            43),
-  ('games.create',      'Parties',               'create', 'Lancer une partie',              50),
-  ('games.read',        'Parties',               'read',   'Consulter les parties',          51),
-  ('games.update',      'Parties',               'update', 'Jouer et modifier une partie',   52),
-  ('games.delete',      'Parties',               'delete', 'Supprimer une partie',           53),
-  ('stats.read',        'Statistiques',          'read',   'Consulter les statistiques',     60),
-  ('feedback.create',   'Retours',               'create', 'Envoyer un retour',              70),
-  ('feedback.read',     'Retours',               'read',   'Lire les retours',               71),
-  ('feedback.delete',   'Retours',               'delete', 'Supprimer un retour',            72),
-  ('roles.create',      'Administration',        'create', 'Créer un rôle',                  80),
-  ('roles.read',        'Administration',        'read',   'Consulter les rôles',            81),
-  ('roles.update',      'Administration',        'update', 'Modifier un rôle',               82),
-  ('roles.delete',      'Administration',        'delete', 'Supprimer un rôle',              83);
+  ('boardgames.create',        'Jeux & barèmes',        'create', 'Ajouter un jeu',                            10),
+  ('boardgames.read',          'Jeux & barèmes',        'read',   'Consulter les jeux',                        11),
+  ('boardgames.update',        'Jeux & barèmes',        'update', 'Modifier la fiche d''un jeu',               12),
+  ('boardgames.updateScoring', 'Jeux & barèmes',        'update', 'Modifier le barème et les règles d''un jeu', 13),
+  ('boardgames.delete',        'Jeux & barèmes',        'delete', 'Supprimer un jeu',                          14),
+  ('faq.create',               'FAQ',                   'create', 'Ajouter une question',                      20),
+  ('faq.read',                 'FAQ',                   'read',   'Consulter la FAQ',                          21),
+  ('faq.update',               'FAQ',                   'update', 'Modifier une question',                     22),
+  ('faq.delete',               'FAQ',                   'delete', 'Supprimer une question',                    23),
+  ('extensions.create',        'Extensions & scénarios','create', 'Ajouter un scénario',                       30),
+  ('extensions.read',          'Extensions & scénarios','read',   'Consulter les extensions',                  31),
+  ('extensions.update',        'Extensions & scénarios','update', 'Modifier un scénario',                      32),
+  ('extensions.delete',        'Extensions & scénarios','delete', 'Supprimer un scénario',                     33),
+  ('players.create',           'Joueurs',               'create', 'Ajouter un joueur',                         40),
+  ('players.read',             'Joueurs',               'read',   'Consulter les joueurs',                     41),
+  ('players.update',           'Joueurs',               'update', 'Renommer, activer ou désactiver un joueur', 42),
+  ('players.delete',           'Joueurs',               'delete', 'Supprimer un joueur qui n''a jamais joué',  43),
+  ('games.create',             'Parties',               'create', 'Lancer une partie',                         50),
+  ('games.read',               'Parties',               'read',   'Consulter les parties',                     51),
+  ('games.updateLive',         'Parties',               'update', 'Jouer et modifier une partie en cours',     52),
+  ('games.updateDone',         'Parties',               'update', 'Corriger une partie terminée',              53),
+  ('games.delete',             'Parties',               'delete', 'Supprimer une partie',                      54),
+  ('stats.read',               'Statistiques',          'read',   'Consulter les statistiques',                60),
+  ('feedback.create',          'Retours',               'create', 'Envoyer un retour',                         70),
+  ('feedback.read',            'Retours',               'read',   'Lire les retours',                          71),
+  ('feedback.delete',          'Retours',               'delete', 'Supprimer un retour',                       72),
+  ('roles.create',             'Administration',        'create', 'Créer un rôle',                             80),
+  ('roles.read',               'Administration',        'read',   'Consulter les rôles et les permissions',    81),
+  ('roles.update',             'Administration',        'update', 'Modifier les permissions d''un rôle',       82),
+  ('roles.assign',             'Administration',        'update', 'Attribuer un rôle à un utilisateur',        83),
+  ('roles.delete',             'Administration',        'delete', 'Supprimer un rôle',                         84);
 
 -- One seeded role, and only one. Every other role is the owner's to compose in
 -- the administration screen once he has read the catalogue above — a role
@@ -365,15 +408,25 @@ create policy user_roles_read_own on public.user_roles
   for select to authenticated using (user_id = (select auth.uid()));
 create policy user_roles_read_all on public.user_roles
   for select to authenticated using ((select public.has_permission('roles.read')));
+-- Handing out a role is `roles.assign`, not `roles.update`: composing what a
+-- role contains and deciding who wears it are two jobs, and the second one is
+-- the one that changes what a person can do tonight.
+--
+-- The admin door is barred in *both* directions, and it has to be: a rule that
+-- only stops the removal would let anybody holding `roles.assign` make himself
+-- an administrator — and then, by the very rule below, never lose it again.
 create policy user_roles_insert on public.user_roles
-  for insert to authenticated with check ((select public.has_permission('roles.update')));
+  for insert to authenticated with check (
+    (select public.has_permission('roles.assign'))
+    and not public.is_admin_role(role_id)
+  );
 -- …but an administrator assignment is not his to take back. `is_admin_role`
 -- runs as the function owner on purpose (see its comment): asked from here, a
 -- plain subquery over `public.roles` would answer « no » to anyone who cannot
 -- read the row, and the guard would open instead of closing.
 create policy user_roles_delete on public.user_roles
   for delete to authenticated using (
-    (select public.has_permission('roles.update'))
+    (select public.has_permission('roles.assign'))
     and not public.is_admin_role(role_id)
   );
 

@@ -55,7 +55,7 @@ export function AccessManager() {
             empty={permissions.length === 0}
             emptyLabel={<>Aucune permission.</>}
           >
-            <PermissionCardList permissions={permissions} roles={roles} />
+            <PermissionCardList permissions={permissions} />
           </ListState>
         ) : (
           <ListState

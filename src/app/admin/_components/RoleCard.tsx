@@ -1,18 +1,27 @@
 "use client";
 
-import { groupBySection, type Permission, type Role } from "@/lib/domain";
+import {
+  groupBySection,
+  type Permission,
+  type Role,
+  roleGrants,
+} from "@/lib/domain";
 
 /**
- * One role, and what it opens. An administrator role is shown as holding
- * everything without listing it: that is literally how the database answers,
- * and a list would go stale the day a permission is added.
+ * One role, and exactly which permissions it hands out — this tab is where that
+ * question is answered, so the keys are listed here rather than repeated on
+ * every line of the catalogue.
+ *
+ * An administrator role is shown as holding everything without listing it: that
+ * is literally how the database answers, and a list would go stale the day a
+ * permission is added.
  */
 export function RoleCard({
   role,
   permissions,
 }: Readonly<{ role: Role; permissions: Permission[] }>) {
   const granted = permissions.filter(permission =>
-    role.permissionKeys.includes(permission.key),
+    roleGrants(role, permission.key),
   );
 
   return (
@@ -43,25 +52,29 @@ export function RoleCard({
           rôle ni son attribution ne se retirent depuis l&apos;application.
         </p>
       ) : (
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           <span className="text-sm text-zinc-500 dark:text-zinc-400">
             {granted.length === 0
               ? "Aucune permission pour l'instant."
               : `${granted.length} permission${granted.length > 1 ? "s" : ""}`}
           </span>
 
-          {granted.length === 0 ? null : (
-            <ul className="flex flex-wrap gap-1.5">
-              {groupBySection(granted).map(section => (
-                <li
-                  key={section.name}
-                  className="rounded-full border border-black/10 px-2 py-0.5 text-xs dark:border-white/15"
-                >
-                  {section.name} · {section.permissions.length}
-                </li>
-              ))}
-            </ul>
-          )}
+          {groupBySection(granted).map(section => (
+            <div key={section.name} className="flex flex-col gap-1">
+              <span className="text-xs text-zinc-400">{section.name}</span>
+
+              <ul className="flex flex-wrap gap-1.5">
+                {section.permissions.map(permission => (
+                  <li
+                    key={permission.key}
+                    className="rounded-full border border-black/10 px-2 py-0.5 dark:border-white/15"
+                  >
+                    <code className="text-xs">{permission.key}</code>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
       )}
     </li>
