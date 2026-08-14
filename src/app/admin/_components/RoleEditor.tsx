@@ -143,16 +143,22 @@ export function RoleEditor({
             />
           </label>
 
-          <label className="flex flex-col gap-1">
-            <span className="flex items-baseline justify-between gap-2">
-              <span className="text-sm font-medium">Description</span>
+          {/* The counter sits beside the word rather than inside the label:
+              wrapping both in one would make the field's name « Description
+              12 / 150 », which is what a test looks it up by. */}
+          <div className="flex flex-col gap-1">
+            <div className="flex items-baseline justify-between gap-2">
+              <label htmlFor="role-description" className="text-sm font-medium">
+                Description
+              </label>
 
               <span className="text-xs text-zinc-400 tabular-nums">
                 {description.length} / {MAX_ROLE_DESCRIPTION}
               </span>
-            </span>
+            </div>
 
             <textarea
+              id="role-description"
               value={description}
               onChange={event => setDescription(event.target.value)}
               placeholder="À quoi sert ce rôle, en une phrase."
@@ -160,7 +166,7 @@ export function RoleEditor({
               rows={2}
               className={`${fieldClass} resize-none bg-white dark:bg-zinc-900`}
             />
-          </label>
+          </div>
 
           {role?.isAdmin ? (
             <p className="rounded-xl border border-indigo-500/30 bg-indigo-500/5 p-3 text-sm text-indigo-800 dark:text-indigo-200">
