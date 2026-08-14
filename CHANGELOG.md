@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.3.0](https://github.com/yannispgs/boardmate/compare/v1.2.0...v1.3.0) (2026-08-14)
+
+
+### Features
+
+* **boardgames:** add Splendor, whose target waits for the lap to end ([e38fcb1](https://github.com/yannispgs/boardmate/commit/e38fcb128e902b49692c0c73103cc1db176bc156))
+* **boardgames:** Splendor, avec un objectif qui laisse finir le tour de table ([1c99ab5](https://github.com/yannispgs/boardmate/commit/1c99ab5bfd5087ca1e3c7c89ab8692f4ff1e26ff))
+* **play:** show the closing lap on the turn order and owe the last seat his turn ([3c29373](https://github.com/yannispgs/boardmate/commit/3c29373e20569dab9b9fb66854d10b111f56367a))
+* **rbac:** ask a permission instead of asking who is logged in ([2dfee37](https://github.com/yannispgs/boardmate/commit/2dfee376939cb8b761206cc0cc358298670e8f3d))
+* **rbac:** compose a role, and read the change back before saving it ([9b0402a](https://github.com/yannispgs/boardmate/commit/9b0402a2ee61880f4ffc35b2c09ed28adf88bf4a))
+* **rbac:** des permissions par rôle, décidées dans la base ([5de011a](https://github.com/yannispgs/boardmate/commit/5de011a9c593173eaa61be2b3441d0cff1502423))
+* **rbac:** give a role a sentence, and fold its keys away ([51d7a92](https://github.com/yannispgs/boardmate/commit/51d7a92aa8b1a9eb8f884388a20d12ac8bb16de2))
+* **rbac:** part disabling from editing, and let games.create finish the job ([82dff81](https://github.com/yannispgs/boardmate/commit/82dff81aa5db943965f5205628770fc8793099c4))
+* **rbac:** part disabling from re-enabling on every deactivatable resource ([17ad958](https://github.com/yannispgs/boardmate/commit/17ad9585d6b383c95c7f788b41494b0601b68e0f))
+* **rbac:** seed only the administrator role and open the grid to read ([5f369c8](https://github.com/yannispgs/boardmate/commit/5f369c8262a69e361d79cacfefff245ab1501467))
+* **rbac:** split the keys CRUD was too coarse for, and thin the grid ([f8b3ca7](https://github.com/yannispgs/boardmate/commit/f8b3ca7186864ed722e8a93774ccaba03c95eec7))
+
+
+### Bug Fixes
+
+* **boardgames:** take Splendor's duration and player range from the table ([e2e64f3](https://github.com/yannispgs/boardmate/commit/e2e64f33f5394329a2e25a16e6e61453091911b0))
+* **play:** keep the countdown audible after the screen has been asleep ([f7a588e](https://github.com/yannispgs/boardmate/commit/f7a588e75213a05a5a983ae707613845bcd78136))
+* **play:** keep the countdown audible after the screen has been asleep ([87fcf3b](https://github.com/yannispgs/boardmate/commit/87fcf3b37e6d0104ed82b9cebb7bf164eec4fbe5))
+* **rbac:** clear the five issues SonarCloud raised on the role editor ([aa8b75d](https://github.com/yannispgs/boardmate/commit/aa8b75d57b543587635427306375b9a9ea07b939))
+* **rbac:** factor the recap's two diff blocks into one ([16edd1b](https://github.com/yannispgs/boardmate/commit/16edd1bfe9a2bdc9a1afb649ace65037849ee3be))
+
 ## [1.2.0](https://github.com/yannispgs/boardmate/compare/v1.1.0...v1.2.0) (2026-08-13)
 
 
