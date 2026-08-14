@@ -5,32 +5,36 @@ import { ErrorText } from "@/components/ErrorText";
 import { ListState } from "@/components/ListState";
 import { TabButton, tabBarClass } from "@/components/TabButton";
 import { useConfirm } from "@/components/use-confirm";
-import type { Role } from "@/lib/domain";
+import type { Account, Role, RoleId } from "@/lib/domain";
 import { useAccess } from "@/lib/hooks/use-access";
+import { AccountCardList } from "./AccountCardList";
 import { PermissionCardList } from "./PermissionCardList";
 import { RoleCardList } from "./RoleCardList";
 import { RoleEditor } from "./RoleEditor";
 
-type Tab = "permissions" | "roles";
+type Tab = "permissions" | "roles" | "accounts";
 
 /** The role being written: an existing one, or `"new"` for one being created. */
 type Editing = Role | "new";
 
 /**
- * The access model: the permission catalogue on one tab, the roles that bundle
- * it on the other — and, for whoever holds the rights to it, composing those
- * roles right there.
+ * The access model, read from three angles: the permission catalogue, the roles
+ * that bundle it, and the accounts that wear them — and, for whoever holds the
+ * rights to it, composing a role and handing it over right there.
  */
 export function AccessManager() {
   const {
     permissions,
     roles,
+    accounts,
     mine,
     loading,
     error,
     createRole,
     saveRole,
     removeRole,
+    assignRole,
+    unassignRole,
   } = useAccess();
   const [tab, setTab] = useState<Tab>("permissions");
   const [editing, setEditing] = useState<Editing | null>(null);
@@ -50,6 +54,7 @@ export function AccessManager() {
   const mayCreate = mine.includes("roles.create");
   const mayUpdate = mine.includes("roles.update");
   const mayDelete = mine.includes("roles.delete");
+  const mayAssign = mine.includes("roles.assign");
 
   const edited = editing === "new" ? null : editing;
   const takenKeys = roles
@@ -103,6 +108,36 @@ export function AccessManager() {
     });
   }
 
+  async function hand(account: Account, roleId: RoleId) {
+    setActionError(null);
+
+    try {
+      await assignRole(account.userId, roleId);
+    } catch {
+      setActionError("Attribution impossible. Réessaie.");
+    }
+  }
+
+  async function takeBack(account: Account, role: Role) {
+    setActionError(null);
+
+    try {
+      await unassignRole(account.userId, role.id);
+    } catch {
+      setActionError("Retrait impossible. Réessaie.");
+    }
+  }
+
+  // Taking a role back is the one move nobody undoes by accident: it is the
+  // rights somebody was using a minute ago.
+  function confirmUnassign(account: Account, role: Role) {
+    requestConfirm({
+      message: `Retirer le rôle « ${role.label} » à ${account.email} ?`,
+      confirmLabel: "Retirer",
+      onConfirm: () => takeBack(account, role),
+    });
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 pb-10">
       <div className={tabBarClass}>
@@ -115,15 +150,21 @@ export function AccessManager() {
         <TabButton active={tab === "roles"} onClick={() => setTab("roles")}>
           Rôles
         </TabButton>
+        <TabButton
+          active={tab === "accounts"}
+          onClick={() => setTab("accounts")}
+        >
+          Comptes
+        </TabButton>
       </div>
 
       <ErrorText message={error ?? actionError} />
 
       {!loading && !mayReadRoles ? (
         <p className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-amber-800 dark:text-amber-200">
-          Ton compte n&apos;a pas la permission « Consulter les rôles » : la
-          liste des rôles reste vide. Demande à un administrateur de te
-          l&apos;attribuer.
+          Ton compte n&apos;a pas la permission « Consulter les rôles » : les
+          listes des rôles et des comptes restent vides. Demande à un
+          administrateur de te l&apos;attribuer.
         </p>
       ) : null}
 
@@ -146,7 +187,9 @@ export function AccessManager() {
           >
             <PermissionCardList permissions={permissions} />
           </ListState>
-        ) : (
+        ) : null}
+
+        {tab === "roles" ? (
           <ListState
             loading={loading}
             empty={roles.length === 0}
@@ -159,7 +202,22 @@ export function AccessManager() {
               onDelete={mayDelete ? confirmDelete : undefined}
             />
           </ListState>
-        )}
+        ) : null}
+
+        {tab === "accounts" ? (
+          <ListState
+            loading={loading}
+            empty={accounts.length === 0}
+            emptyLabel={<>Aucun compte visible.</>}
+          >
+            <AccountCardList
+              accounts={accounts}
+              roles={roles}
+              onAssign={mayAssign ? hand : undefined}
+              onUnassign={mayAssign ? confirmUnassign : undefined}
+            />
+          </ListState>
+        ) : null}
       </div>
 
       {editing === null ? null : (

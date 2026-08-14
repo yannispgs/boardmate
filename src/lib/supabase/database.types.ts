@@ -932,6 +932,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accounts: {
+        Args: never
+        Returns: {
+          created_at: string
+          email: string
+          last_sign_in_at: string
+          user_id: string
+        }[]
+      }
       assert_activation_permission: {
         Args: { p_family: string; p_now: boolean; p_was: boolean }
         Returns: undefined

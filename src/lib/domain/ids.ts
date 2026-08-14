@@ -17,3 +17,9 @@ export type ExtensionId = Id<"extension">;
 export type ExtensionScenarioId = Id<"extensionScenario">;
 export type FaqEntryId = Id<"faqEntry">;
 export type RoleId = Id<"role">;
+/**
+ * An account that can sign in — a row of the authentication schema, which is a
+ * different thing from a `PlayerId`: a player is somebody at the table, and
+ * most of them will never own an account.
+ */
+export type UserId = Id<"user">;
