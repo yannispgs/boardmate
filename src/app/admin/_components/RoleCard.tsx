@@ -128,10 +128,10 @@ export function RoleCard({
 }
 
 /**
- * What the role hands out, folded away. Open, it reads as running text rather
- * than a wall of framed chips: on a card that already carries a name, a
- * sentence and two buttons, thirty-five outlined pills were the loudest thing
- * on screen and the least often looked at.
+ * What the role hands out, folded away. Open, it is one key per line under its
+ * section: a key is what a policy names, so it is read by scanning down the
+ * list for one — which a run-on sentence of comma-separated keys makes slow,
+ * and a wall of framed chips makes loud.
  */
 function RolePermissions({
   permissions,
@@ -159,9 +159,11 @@ function RolePermissions({
           <div key={section.name} className="flex flex-col gap-0.5">
             <span className="text-xs text-zinc-400">{section.name}</span>
 
-            <p className="text-xs break-words text-zinc-600 dark:text-zinc-300">
-              {section.permissions.map(permission => permission.key).join(", ")}
-            </p>
+            <ul className="flex flex-col text-xs break-words text-zinc-600 dark:text-zinc-300">
+              {section.permissions.map(permission => (
+                <li key={permission.key}>{permission.key}</li>
+              ))}
+            </ul>
           </div>
         ))}
       </div>
