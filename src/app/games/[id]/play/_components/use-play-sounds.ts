@@ -20,15 +20,25 @@ const UNLOCK_EVENTS = [
 export function usePlaySounds() {
   useEffect(() => {
     const handle = () => unlockAudio();
+    // Coming back from a locked screen is not a gesture, but a context already
+    // unlocked once stays resumable — and waiting for the next tap would mean
+    // silence for the rest of a turn nobody is touching.
+    const handleReturn = () => {
+      if (document.visibilityState === "visible") {
+        unlockAudio();
+      }
+    };
 
     for (const event of UNLOCK_EVENTS) {
       window.addEventListener(event, handle);
     }
+    document.addEventListener("visibilitychange", handleReturn);
 
     return () => {
       for (const event of UNLOCK_EVENTS) {
         window.removeEventListener(event, handle);
       }
+      document.removeEventListener("visibilitychange", handleReturn);
     };
   }, []);
 

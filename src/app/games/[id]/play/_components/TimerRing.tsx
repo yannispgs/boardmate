@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { countdownColor } from "@/lib/game/colors";
+import { countdownCue } from "@/lib/game/countdown-cue";
 import { BEEP_URL, playSound, RING_URL } from "./play-audio";
 
 const RING_SIZE = 240;
@@ -79,23 +80,25 @@ export function TimerRing({
   const display = formatCountdown(remainingS);
 
   // A beep on each of the last 10 seconds, then the ring at 0 (real sounds
-  // ported from board-nest). Paused → silent (the effect bails on !running).
-  const beepedAt = useRef<Set<number>>(new Set());
+  // ported from board-nest). Paused → silent, but the position is still
+  // recorded, so resuming re-reads the same second instead of beeping again.
+  const lastReadS = useRef<number | null>(null);
   useEffect(() => {
+    const previousS = lastReadS.current;
+    lastReadS.current = remainingS;
+
     if (!running) {
       return;
     }
 
-    if (remainingS >= 1 && remainingS <= 10) {
-      playSound(BEEP_URL, 0.6, beepedAt.current, remainingS);
+    const cue = countdownCue(previousS, remainingS);
+
+    if (cue === "beep") {
+      playSound(BEEP_URL, 0.6);
     }
 
-    if (remainingS === 0) {
-      playSound(RING_URL, 1, beepedAt.current, 0);
-    }
-
-    if (remainingS > 10) {
-      beepedAt.current.clear();
+    if (cue === "ring") {
+      playSound(RING_URL, 1);
     }
   }, [remainingS, running]);
 
