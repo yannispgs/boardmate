@@ -220,9 +220,112 @@ describe("RBAC — the administrator door only closes from the database", () => 
   });
 });
 
-// The four keys the catalogue deliberately splits finer than CRUD. Each pair is
+// The five keys the catalogue deliberately splits finer than CRUD. Each pair is
 // only worth its extra line if holding one really does refuse the other.
 describe("RBAC — keys finer than CRUD", () => {
+  it("separates renaming a player from taking him out of the selection", async () => {
+    const service = serviceClient();
+    const { data: player } = await service
+      .from("players")
+      .insert({ name: `Split-${Date.now().toString(36)}` })
+      .select("*")
+      .single();
+    const id = player?.id as string;
+
+    const editor = await userWith(["players.read", "players.update"]);
+    const remover = await userWith(["players.read", "players.disable"]);
+
+    try {
+      const renamed = await editor.db
+        .from("players")
+        .update({ name: `Renamed-${Date.now().toString(36)}` })
+        .eq("id", id)
+        .select("*");
+      expect(renamed.data?.length).toBe(1);
+
+      const hidden = await editor.db
+        .from("players")
+        .update({ is_active: false })
+        .eq("id", id)
+        .select("*");
+      expect(hidden.error?.code).toBe("42501");
+
+      const disabled = await remover.db
+        .from("players")
+        .update({ is_active: false })
+        .eq("id", id)
+        .select("*");
+      expect(disabled.data?.length).toBe(1);
+
+      const misnamed = await remover.db
+        .from("players")
+        .update({ name: `Nope-${Date.now().toString(36)}` })
+        .eq("id", id)
+        .select("*");
+      expect(misnamed.error?.code).toBe("42501");
+    } finally {
+      await Promise.all([editor.dispose(), remover.dispose()]);
+      await service.from("players").delete().eq("id", id);
+    }
+  });
+
+  it("lets `games.create` write the whole party it just opened", async () => {
+    // Owner's rule (2026-08-14): needing `games.updateLive` to finish creating
+    // reads like a bug. The setup rows therefore answer to `games.create` too —
+    // and the gameplay rows deliberately do not.
+    const service = serviceClient();
+    const { data: boardgame } = await service
+      .from("boardgames")
+      .insert({ name: `Funnel-${Date.now()}` })
+      .select("*")
+      .single();
+    const boardgameId = boardgame?.id as string;
+    const { data: subject } = await service
+      .from("players")
+      .insert({ name: `Funnel-${Date.now().toString(36)}` })
+      .select("*")
+      .single();
+    const playerId = subject?.id as string;
+
+    const opener = await userWith(["games.read", "games.create"]);
+
+    try {
+      // The very first game of this boardgame: creating it flips `has_games`,
+      // which must not be mistaken for editing the fiche.
+      const { data: game, error } = await opener.db
+        .from("games")
+        .insert({ boardgame_id: boardgameId })
+        .select("*")
+        .single();
+      expect(error).toBeNull();
+
+      const gameId = game?.id as string;
+
+      const seated = await opener.db
+        .from("game_players")
+        .insert({ game_id: gameId, player_id: playerId, seat_order: 0 })
+        .select("*");
+      expect(seated.error).toBeNull();
+
+      // …but the evening is not his to play.
+      const played = await opener.db
+        .from("game_turns")
+        .insert({
+          game_id: gameId,
+          round: 1,
+          turn_no: 1,
+          duration_s: 30,
+        })
+        .select("*");
+      expect(played.error?.code).toBe("42501");
+    } finally {
+      await opener.dispose();
+      await service.from("games").delete().eq("boardgame_id", boardgameId);
+      await service.from("players").delete().eq("id", playerId);
+      await service.from("boardgames").delete().eq("id", boardgameId);
+    }
+  });
+
   it("separates the game being played from the game already filed", async () => {
     const service = serviceClient();
     const { data: boardgame } = await service
