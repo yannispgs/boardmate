@@ -1,5 +1,10 @@
 -- Splendor, and the second way a score target can stop a game.
 --
+-- ⚠️ Not replayable: a plain insert, and `boardgames.name` is unique. Production
+-- already carries a Splendor entered by hand from the app, which has to be
+-- deleted right before this runs there (nothing points at it: no game, no
+-- config, no FAQ entry).
+--
 -- Until now reaching the target ended the game on the spot: at Catan, getting
 -- to 10 points on your own turn IS the victory, and the players sitting after
 -- you never get to answer. Splendor gives them that answer — the lap is played
@@ -19,11 +24,16 @@ comment on column public.boardgames.scoring is
   'stop condition''s own timing says whether the lap is played out first. '
   'Null for a game that isn''t scored.';
 
+-- The box says 2 to 4 and about 30 minutes; 3 to 4 players and an hour is what
+-- a game actually takes at this table, and the table is the one the averages
+-- are compared against.
 insert into public.boardgames (
   name,
   kind,
   min_players,
   max_players,
+  rec_min_players,
+  rec_max_players,
   avg_duration_min,
   tags,
   turn_mode,
@@ -35,7 +45,9 @@ values (
   'competitive',
   2,
   4,
-  30,
+  3,
+  4,
+  60,
   array['cartes', 'gestion', 'ressources'],
   'sequential',
   -- Playing first is worth something in a race to a fixed total, so the stats
