@@ -1,6 +1,7 @@
 "use client";
 
 import type { PopulatedGame } from "@/lib/domain";
+import { stopsAtRoundEnd } from "@/lib/game/stop-condition";
 import { resolveTieBreak, tieBreakRecord } from "@/lib/game/tie-break";
 import { LiveEndPrompt } from "./LiveEndPrompt";
 import { namedPlayers } from "./named-players";
@@ -60,6 +61,11 @@ export function LiveScoreSection({
         <LiveEndPrompt
           players={namedPlayers(game)}
           scores={live.scores}
+          note={
+            stopsAtRoundEnd(scoring)
+              ? "L'objectif est atteint et le tour de table est terminé. Confirme le gagnant."
+              : "L'objectif est atteint. Confirme le gagnant."
+          }
           defaultWinnerIds={outcome.winners}
           tieBreak={tieBreakRecord(outcome)}
           onEnd={winnerIds => {

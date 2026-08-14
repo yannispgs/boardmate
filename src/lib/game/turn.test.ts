@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { advanceTurn, isFinalTurn, turnPosition, turnsPerRound } from "./turn";
+import {
+  advanceTurn,
+  closesRound,
+  isFinalTurn,
+  turnPosition,
+  turnsPerRound,
+} from "./turn";
 
 describe("turnsPerRound", () => {
   it("is one per player for sequential games", () => {
@@ -51,6 +57,20 @@ describe("advanceTurn", () => {
       turn = advanceTurn(turn, 2).turn;
     }
     expect(seats).toEqual([0, 1, 0, 1, 0]);
+  });
+});
+
+describe("closesRound", () => {
+  it("is true on the last seat of any lap", () => {
+    expect(closesRound(3, 3)).toBe(true);
+    expect(closesRound(6, 3)).toBe(true);
+    expect(closesRound(2, 3)).toBe(false);
+    expect(closesRound(4, 3)).toBe(false);
+  });
+
+  it("is true on every turn of a simultaneous game", () => {
+    expect(closesRound(1, 1)).toBe(true);
+    expect(closesRound(9, 1)).toBe(true);
   });
 });
 
