@@ -5,9 +5,9 @@ import { ErrorText } from "@/components/ErrorText";
 import { ListState } from "@/components/ListState";
 import { TabButton, tabBarClass } from "@/components/TabButton";
 import { useConfirm } from "@/components/use-confirm";
-import type { Account, Role, RoleId } from "@/lib/domain";
+import type { Role } from "@/lib/domain";
 import { useAccess } from "@/lib/hooks/use-access";
-import { AccountCardList } from "./AccountCardList";
+import { AccountsPanel } from "./AccountsPanel";
 import { PermissionCardList } from "./PermissionCardList";
 import { RoleCardList } from "./RoleCardList";
 import { RoleEditor } from "./RoleEditor";
@@ -108,36 +108,6 @@ export function AccessManager() {
     });
   }
 
-  async function hand(account: Account, roleId: RoleId) {
-    setActionError(null);
-
-    try {
-      await assignRole(account.userId, roleId);
-    } catch {
-      setActionError("Attribution impossible. Réessaie.");
-    }
-  }
-
-  async function takeBack(account: Account, role: Role) {
-    setActionError(null);
-
-    try {
-      await unassignRole(account.userId, role.id);
-    } catch {
-      setActionError("Retrait impossible. Réessaie.");
-    }
-  }
-
-  // Taking a role back is the one move nobody undoes by accident: it is the
-  // rights somebody was using a minute ago.
-  function confirmUnassign(account: Account, role: Role) {
-    requestConfirm({
-      message: `Retirer le rôle « ${role.label} » à ${account.email} ?`,
-      confirmLabel: "Retirer",
-      onConfirm: () => takeBack(account, role),
-    });
-  }
-
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 pb-10">
       <div className={tabBarClass}>
@@ -205,18 +175,14 @@ export function AccessManager() {
         ) : null}
 
         {tab === "accounts" ? (
-          <ListState
+          <AccountsPanel
+            accounts={accounts}
+            roles={roles}
             loading={loading}
-            empty={accounts.length === 0}
-            emptyLabel={<>Aucun compte visible.</>}
-          >
-            <AccountCardList
-              accounts={accounts}
-              roles={roles}
-              onAssign={mayAssign ? hand : undefined}
-              onUnassign={mayAssign ? confirmUnassign : undefined}
-            />
-          </ListState>
+            mayAssign={mayAssign}
+            onAssign={assignRole}
+            onUnassign={unassignRole}
+          />
         ) : null}
       </div>
 
