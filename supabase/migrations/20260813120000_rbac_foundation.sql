@@ -309,22 +309,32 @@ create trigger roles_system_kept
 -- no table, they are computed from games / game_players / game_turns. Anyone
 -- holding `games.read` can derive them. It gates the screen, and that is all it
 -- claims to do.
--- Five keys are finer than CRUD, each because the coarse version would have
+-- Several keys are finer than CRUD, each because the coarse version would have
 -- forced granting something dangerous to grant something harmless:
 --   boardgames.updateScoring  rewriting a barème rewrites every past game's
 --                             statistics; renaming a game costs nothing.
 --   games.updateLive          playing tonight's game.
 --   games.updateDone          rewriting a result already in the history.
---   players.disable           taking somebody out of every future selection is
---                             not the same act as fixing a typo in his name.
+--   *.disable / *.enable      taking a player or a game out of every future
+--                             selection is not the same act as fixing a typo in
+--                             its name — and putting it back is a third one
+--                             (owner, 2026-08-14: « et aussi enable »). Every
+--                             resource that carries `is_active` gets the pair.
 --   roles.assign              handing a role to somebody is not the same act as
 --                             deciding what that role contains.
+--
+-- `extensions` carries an `is_active` too and deliberately gets no pair: the
+-- table is never written from the app — extensions arrive by migration, only the
+-- scenarios inside them are authored — so the permission would name something no
+-- policy could ever honour.
 insert into public.permissions (key, section, action, label, sort_order) values
   ('boardgames.create',        'Jeux & barèmes',        'create', 'Ajouter un jeu',                            10),
   ('boardgames.read',          'Jeux & barèmes',        'read',   'Consulter les jeux',                        11),
   ('boardgames.update',        'Jeux & barèmes',        'update', 'Modifier la fiche d''un jeu',               12),
   ('boardgames.updateScoring', 'Jeux & barèmes',        'update', 'Modifier le barème et les règles d''un jeu', 13),
-  ('boardgames.delete',        'Jeux & barèmes',        'delete', 'Supprimer un jeu',                          14),
+  ('boardgames.disable',       'Jeux & barèmes',        'update', 'Retirer un jeu du catalogue',               14),
+  ('boardgames.enable',        'Jeux & barèmes',        'update', 'Remettre un jeu dans le catalogue',         15),
+  ('boardgames.delete',        'Jeux & barèmes',        'delete', 'Supprimer un jeu',                          16),
   ('faq.create',               'FAQ',                   'create', 'Ajouter une question',                      20),
   ('faq.read',                 'FAQ',                   'read',   'Consulter la FAQ',                          21),
   ('faq.update',               'FAQ',                   'update', 'Modifier une question',                     22),
@@ -336,8 +346,9 @@ insert into public.permissions (key, section, action, label, sort_order) values
   ('players.create',           'Joueurs',               'create', 'Ajouter un joueur',                         40),
   ('players.read',             'Joueurs',               'read',   'Consulter les joueurs',                     41),
   ('players.update',           'Joueurs',               'update', 'Renommer un joueur',                        42),
-  ('players.disable',          'Joueurs',               'update', 'Désactiver ou réactiver un joueur',         43),
-  ('players.delete',           'Joueurs',               'delete', 'Supprimer un joueur qui n''a jamais joué',  44),
+  ('players.disable',          'Joueurs',               'update', 'Désactiver un joueur',                      43),
+  ('players.enable',           'Joueurs',               'update', 'Réactiver un joueur',                       44),
+  ('players.delete',           'Joueurs',               'delete', 'Supprimer un joueur qui n''a jamais joué',  45),
   ('games.create',             'Parties',               'create', 'Lancer une partie et la composer',          50),
   ('games.read',               'Parties',               'read',   'Consulter les parties',                     51),
   ('games.updateLive',         'Parties',               'update', 'Jouer et modifier une partie en cours',     52),

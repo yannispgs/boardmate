@@ -209,6 +209,49 @@ create policy games_delete on public.games
   for delete to authenticated
   using ((select public.has_permission('games.delete')));
 
+-- Deactivating is its own act, and putting the thing back is a third one (owner,
+-- 2026-08-14): retiring a jeu or a joueur takes it out of every future selection
+-- screen, which is nothing like fixing a typo in its name, and the person who is
+-- trusted to tidy up is not automatically the person who decides who plays
+-- again. Both resources carry `is_active` and both guards ask the same question,
+-- so the question is written once.
+--
+-- Takes the family rather than the key so the caller cannot pass `.disable`
+-- where `.enable` was meant: the direction is read from the values, not from the
+-- caller.
+create function public.assert_activation_permission(
+  p_family text,
+  p_was boolean,
+  p_now boolean
+)
+returns void
+language plpgsql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if p_now is not distinct from p_was then
+    return;
+  end if;
+
+  if p_now and not public.has_permission(p_family || '.enable') then
+    raise exception 'réactiver demande la permission « %.enable »', p_family
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  if not p_now and not public.has_permission(p_family || '.disable') then
+    raise exception 'désactiver demande la permission « %.disable »', p_family
+      using errcode = 'insufficient_privilege';
+  end if;
+end;
+$$;
+
+-- Called only from the SECURITY DEFINER triggers below, which run as the owner,
+-- so nobody needs it in their own right.
+revoke execute on function public.assert_activation_permission(text, boolean, boolean)
+  from anon, authenticated;
+
 -- The fiche and the barème live in the same row, and a policy cannot see which
 -- column moved — so the split is enforced by trigger, on the diff.
 --
@@ -226,15 +269,15 @@ as $$
 declare
   identity constant text[] := array[
     'id', 'name', 'logo_url', 'min_players', 'max_players', 'rec_min_players',
-    'rec_max_players', 'kind', 'avg_duration_min', 'tags', 'created_at',
-    'is_active'
+    'rec_max_players', 'kind', 'avg_duration_min', 'tags', 'created_at'
   ];
-  -- Flipped by `mark_boardgame_has_games` when a game is created — a side
-  -- effect of playing, not an edit of the game. It has to sit outside BOTH
-  -- comparisons: counted as fiche it would make « lancer la première partie
-  -- d'un jeu » ask for `boardgames.update`, and counted as barème it would ask
-  -- for something worse.
-  side_effects constant text[] := array['has_games'];
+  -- Neither fiche nor barème, so both comparisons have to ignore them:
+  --   `is_active` belongs to the disable/enable pair, judged just below.
+  --   `has_games` is flipped by `mark_boardgame_has_games` when a game is
+  --   created — a side effect of playing, not an edit of the game. Counted as
+  --   fiche it would make « lancer la première partie d'un jeu » ask for
+  --   `boardgames.update`; counted as barème it would ask for something worse.
+  aside constant text[] := array['is_active', 'has_games'];
   before_row constant jsonb := to_jsonb(old);
   after_row  constant jsonb := to_jsonb(new);
 begin
@@ -244,9 +287,13 @@ begin
     return new;
   end if;
 
+  perform public.assert_activation_permission(
+    'boardgames', old.is_active, new.is_active
+  );
+
   -- Strip the fiche and what remains is the barème.
-  if before_row - identity - side_effects
-    is distinct from after_row - identity - side_effects
+  if before_row - identity - aside
+    is distinct from after_row - identity - aside
     and not public.has_permission('boardgames.updateScoring')
   then
     raise exception 'le barème d''un jeu demande la permission « boardgames.updateScoring »'
@@ -274,7 +321,7 @@ create trigger boardgames_scoring_permission
   before update on public.boardgames
   for each row execute function public.enforce_boardgame_scoring_permission();
 
--- Both halves of the row are reachable; the trigger above says which one you
+-- Every half of the row is reachable; the trigger above says which one you
 -- actually moved.
 drop policy if exists boardgames_update on public.boardgames;
 
@@ -283,17 +330,20 @@ create policy boardgames_update on public.boardgames
   using (
     (select public.has_permission('boardgames.update'))
     or (select public.has_permission('boardgames.updateScoring'))
+    or (select public.has_permission('boardgames.disable'))
+    or (select public.has_permission('boardgames.enable'))
   )
   with check (
     (select public.has_permission('boardgames.update'))
     or (select public.has_permission('boardgames.updateScoring'))
+    or (select public.has_permission('boardgames.disable'))
+    or (select public.has_permission('boardgames.enable'))
   );
 
 -- A player is never really deleted once he has played; `is_active` is how he
--- leaves the table. Taking somebody out of every future selection is not the
--- same act as fixing a typo in his name, so it is not the same permission
--- (owner, 2026-08-14) — and once again the two live in the same row, so the
--- line is drawn on the diff rather than by a policy.
+-- leaves the table. Leaving and coming back are the disable/enable pair above,
+-- and once again they live in the same row as the name, so the line is drawn on
+-- the diff rather than by a policy.
 create function public.enforce_player_disable_permission()
 returns trigger
 language plpgsql
@@ -305,12 +355,9 @@ begin
     return new;
   end if;
 
-  if new.is_active is distinct from old.is_active
-    and not public.has_permission('players.disable')
-  then
-    raise exception 'activer ou désactiver un joueur demande la permission « players.disable »'
-      using errcode = 'insufficient_privilege';
-  end if;
+  perform public.assert_activation_permission(
+    'players', old.is_active, new.is_active
+  );
 
   -- `has_played` is flipped by the application as a side effect of playing, not
   -- as an edit of the player, so it rides along with `is_active` rather than
@@ -338,10 +385,12 @@ create policy players_update on public.players
   using (
     (select public.has_permission('players.update'))
     or (select public.has_permission('players.disable'))
+    or (select public.has_permission('players.enable'))
   )
   with check (
     (select public.has_permission('players.update'))
     or (select public.has_permission('players.disable'))
+    or (select public.has_permission('players.enable'))
   );
 
 -- Extensions themselves arrive by migration and are never written from the app;

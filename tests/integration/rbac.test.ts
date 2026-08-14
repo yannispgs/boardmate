@@ -269,6 +269,58 @@ describe("RBAC — keys finer than CRUD", () => {
     }
   });
 
+  // Owner's rule (2026-08-14): every resource that can be deactivated carries
+  // the pair, and the two halves are handed out separately — the hand trusted to
+  // tidy up is not automatically the hand that decides who comes back.
+  it.each([
+    "players",
+    "boardgames",
+  ] as const)("separates taking a %s row out of the selection from putting it back", async family => {
+    const service = serviceClient();
+    const { data: row } = await service
+      .from(family)
+      .insert({ name: `Toggle-${Date.now().toString(36)}` })
+      .select("*")
+      .single();
+    const id = row?.id as string;
+
+    const disabler = await userWith([`${family}.read`, `${family}.disable`]);
+    const enabler = await userWith([`${family}.read`, `${family}.enable`]);
+
+    try {
+      const overreach = await enabler.db
+        .from(family)
+        .update({ is_active: false })
+        .eq("id", id)
+        .select("*");
+      expect(overreach.error?.code).toBe("42501");
+
+      const removed = await disabler.db
+        .from(family)
+        .update({ is_active: false })
+        .eq("id", id)
+        .select("*");
+      expect(removed.data?.length).toBe(1);
+
+      const undone = await disabler.db
+        .from(family)
+        .update({ is_active: true })
+        .eq("id", id)
+        .select("*");
+      expect(undone.error?.code).toBe("42501");
+
+      const restored = await enabler.db
+        .from(family)
+        .update({ is_active: true })
+        .eq("id", id)
+        .select("*");
+      expect(restored.data?.length).toBe(1);
+    } finally {
+      await Promise.all([disabler.dispose(), enabler.dispose()]);
+      await service.from(family).delete().eq("id", id);
+    }
+  });
+
   it("lets `games.create` write the whole party it just opened", async () => {
     // Owner's rule (2026-08-14): needing `games.updateLive` to finish creating
     // reads like a bug. The setup rows therefore answer to `games.create` too —
