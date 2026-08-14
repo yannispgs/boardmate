@@ -81,7 +81,7 @@ describe("access adapter", () => {
   it("returns the caller's own permissions", async () => {
     const catalogue = await repo(admin).listPermissions();
 
-    expect((await repo(admin).myPermissions()).length).toBe(catalogue.length);
+    expect(await repo(admin).myPermissions()).toHaveLength(catalogue.length);
     expect(await repo(nobody).myPermissions()).toEqual([]);
   });
 
@@ -176,9 +176,9 @@ describe("access adapter — composing a role", () => {
 
     await repo(admin).deleteRole(role.id);
 
-    expect((await repo(admin).listRoles()).find(r => r.id === role.id)).toBe(
-      undefined,
-    );
+    expect(
+      (await repo(admin).listRoles()).find(r => r.id === role.id),
+    ).toBeUndefined();
   });
 
   it("counts who wears a role, and refuses to delete it while somebody does", async () => {

@@ -134,15 +134,12 @@ export function createAccessRepository(
         .from("role_permissions")
         .delete()
         .eq("role_id", roleId);
+      const kept = permissionKeys.map(key => `"${key}"`).join(",");
       // An empty list means « keep none », and `in.()` is not a filter PostgREST
       // will build — so the exception is the unfiltered delete itself.
       const { error: revoked } = await (permissionKeys.length === 0
         ? revoke
-        : revoke.not(
-            "permission_key",
-            "in",
-            `(${permissionKeys.map(key => `"${key}"`).join(",")})`,
-          ));
+        : revoke.not("permission_key", "in", `(${kept})`));
 
       /* c8 ignore next 3 -- defensive guard: a refused delete touches no row */
       if (revoked) {

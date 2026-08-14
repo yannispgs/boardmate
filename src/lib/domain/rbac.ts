@@ -97,12 +97,16 @@ export function roleGrants(role: Role, permissionKey: string): boolean {
  * key alone, so whatever already refers to it still finds it.
  */
 export function roleKeyFrom(label: string): string {
-  return label
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return (
+    label
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      // A single dash at each end at most: the line above has already collapsed
+      // every run into one. `-+` here would backtrack for nothing.
+      .replace(/^-|-$/g, "")
+  );
 }
 
 /**

@@ -10,6 +10,15 @@ import {
   roleGrants,
 } from "@/lib/domain";
 
+/** How much a role hands out, in words — « rien » is worth saying outright. */
+function held(count: number): string {
+  if (count === 0) {
+    return "Aucune permission pour l'instant.";
+  }
+
+  return `${count} permission${count > 1 ? "s" : ""}`;
+}
+
 /**
  * One role, and exactly which permissions it hands out — this tab is where that
  * question is answered, so the keys are listed here rather than repeated on
@@ -97,9 +106,7 @@ export function RoleCard({
       ) : (
         <div className="flex flex-col gap-2">
           <span className="text-sm text-zinc-500 dark:text-zinc-400">
-            {granted.length === 0
-              ? "Aucune permission pour l'instant."
-              : `${granted.length} permission${granted.length > 1 ? "s" : ""}`}
+            {held(granted.length)}
           </span>
 
           {groupBySection(granted).map(section => (
