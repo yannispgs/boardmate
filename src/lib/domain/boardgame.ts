@@ -45,15 +45,32 @@ export function toBoardGenerator(
 }
 
 /**
+ * When a reached target actually stops the game:
+ * - `immediate` (the default): there and then. Reaching 10 at Catan *is* the
+ *   win — the players after you never get to answer.
+ * - `roundEnd`: the lap is played out first, so everybody has had the same
+ *   number of turns and the players still to come can answer (Splendor). A
+ *   player who reaches it on the last seat of the lap ends the game on the
+ *   spot: there is nobody left to play.
+ */
+export type StopTiming = "immediate" | "roundEnd";
+
+/**
  * What **stops** a game, when its own scoring is what stops it:
- * - `scoreTarget`: a score reaching a target ends the game there and then. The
- *   target is the value of the config `field` (e.g. `pointsToWin`), falling
- *   back to that field's default in the boardgame's config template.
+ * - `scoreTarget`: a score reaching a target ends the game. The target is the
+ *   value of the config `field` (e.g. `pointsToWin`), falling back to that
+ *   field's default in the boardgame's config template. {@link StopTiming} says
+ *   whether it ends immediately or at the end of the lap.
  *
  * `null` — most games — means the scoring stops nothing: the game runs out its
  * rounds, or the table calls it.
  */
-export type StopCondition = { type: "scoreTarget"; field: string };
+export type StopCondition = {
+  type: "scoreTarget";
+  field: string;
+  /** Omitted means `immediate`, which is what every game but Splendor does. */
+  timing?: StopTiming;
+};
 
 /**
  * Which end of the score range takes the game: the biggest total (Catan,

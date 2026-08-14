@@ -21,6 +21,7 @@ import { getGameRepository } from "@/lib/repositories";
 import { EndControls } from "./EndControls";
 import { EndFlow } from "./EndFlow";
 import { FaqPanel } from "./FaqPanel";
+import { LastLapBanner } from "./LastLapBanner";
 import { LiveScoreSection } from "./LiveScoreSection";
 import { MilestonePanel } from "./MilestonePanel";
 import { namedPlayers } from "./named-players";
@@ -246,6 +247,8 @@ export function PlayingGame({
         round={game.round}
       />
 
+      <LastLapBanner shown={live.lastLap} />
+
       <p className="text-sm uppercase tracking-wide text-zinc-400">
         {playProgress(game, stages, game.stages, roundLimit)}
       </p>
@@ -262,6 +265,7 @@ export function PlayingGame({
           blockedById={blockedById}
           onPickBlocked={pickBlocked}
           dice={dice}
+          closingRound={live.closingRound}
         />
       )}
 

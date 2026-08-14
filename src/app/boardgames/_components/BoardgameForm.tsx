@@ -60,6 +60,8 @@ interface FormState {
   stopsAtTarget: boolean;
   /** The config field holding that target, when there is one. */
   stopField: string;
+  /** The lap is played out before the game stops (Splendor). */
+  stopAtRoundEnd: boolean;
   allowNegative: boolean;
 }
 
@@ -86,6 +88,7 @@ const EMPTY: FormState = {
   winKind: "highest",
   stopsAtTarget: false,
   stopField: "",
+  stopAtRoundEnd: false,
   allowNegative: false,
 };
 
@@ -115,6 +118,7 @@ function fromBoardgame(b: Boardgame): FormState {
     winKind: s?.winCondition.type ?? "highest",
     stopsAtTarget: Boolean(s?.stopCondition),
     stopField: s?.stopCondition?.field ?? "",
+    stopAtRoundEnd: s?.stopCondition?.timing === "roundEnd",
     allowNegative: s?.allowNegative ?? false,
   };
 }
@@ -162,6 +166,7 @@ function formToScoring(
       ? {
           type: "scoreTarget",
           field: form.stopField.trim() || "pointsToWin",
+          timing: form.stopAtRoundEnd ? "roundEnd" : "immediate",
         }
       : null,
     winCondition: { type: form.winKind },
@@ -252,6 +257,32 @@ function StopConditionFields({
           </p>
         </InfoTip>
       </label>
+
+      {form.stopsAtTarget ? (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={form.stopAtRoundEnd}
+            onChange={e =>
+              setForm({ ...form, stopAtRoundEnd: e.target.checked })
+            }
+          />
+          Le tour de table est terminé avant l&apos;arrêt
+          <InfoTip label="Fin du tour de table">
+            <p>
+              La partie ne s&apos;arrête pas à l&apos;instant où l&apos;objectif
+              est atteint&nbsp;: le tour de table est achevé, pour que tout le
+              monde ait joué le même nombre de fois et que les joueurs suivants
+              puissent encore répondre (Splendor).
+            </p>
+            <p>
+              Si c&apos;est le dernier joueur du tour qui atteint
+              l&apos;objectif, la partie s&apos;arrête aussitôt&nbsp;: il ne
+              reste personne pour jouer.
+            </p>
+          </InfoTip>
+        </label>
+      ) : null}
 
       {form.stopsAtTarget ? (
         <label className="flex flex-col gap-1 text-xs text-zinc-500">

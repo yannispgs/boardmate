@@ -17,6 +17,7 @@ import { toggled } from "@/lib/ui/selection";
 export function LiveEndPrompt({
   players,
   scores,
+  note,
   defaultWinnerIds,
   tieBreak,
   onEnd,
@@ -25,6 +26,8 @@ export function LiveEndPrompt({
 }: Readonly<{
   players: { id: PlayerId; name: string }[];
   scores: Record<string, number>;
+  /** Why the table is being asked now, which is not the same in every game. */
+  note: string;
   defaultWinnerIds: PlayerId[];
   /** What settled the tie, when the game ended level. Null otherwise. */
   tieBreak: TieBreakRecord | null;
@@ -46,9 +49,7 @@ export function LiveEndPrompt({
       className="w-full max-w-sm rounded-xl border border-black/10 bg-white p-5 shadow-xl dark:border-white/10 dark:bg-zinc-900"
     >
       <h2 className="text-base font-semibold">Fin de partie ?</h2>
-      <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-        L&apos;objectif est atteint. Confirme le gagnant.
-      </p>
+      <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{note}</p>
 
       {tieBreak?.shared ? (
         <p className="mt-3 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">

@@ -3,6 +3,7 @@
 import type { PlayerId, PopulatedGame } from "@/lib/domain";
 import { diceStats, diceValues } from "@/lib/game/dice";
 import { playCalendar } from "@/lib/game/stage";
+import { lastRound } from "@/lib/game/stop-condition";
 import type { UseTurnTimer } from "@/lib/hooks/use-turn-timer";
 import { DiceBar } from "./DiceBar";
 import { DurationEditor } from "./DurationEditor";
@@ -23,6 +24,7 @@ export function PlayBlock({
   blockedById,
   onPickBlocked,
   dice,
+  closingRound,
 }: Readonly<{
   game: PopulatedGame;
   timer: UseTurnTimer;
@@ -32,6 +34,8 @@ export function PlayBlock({
   blockedById: PlayerId | null;
   onPickBlocked: (id: PlayerId | null) => void;
   dice: DiceLog;
+  /** The lap a reached target is about to close the game at, if there is one. */
+  closingRound: number | null;
 }>) {
   const players = game.players.map(p => p.player);
   const spec = game.boardgame.dice;
@@ -70,7 +74,10 @@ export function PlayBlock({
           players={players}
           currentPlayerId={game.currentPlayerId}
           turn={game.turn}
-          roundLimit={calendar.roundLimit}
+          // A target reached brings the end forward: the ribbon then stops at
+          // that lap instead of the game's own length, so the seats still to
+          // play can see the finish line coming at them.
+          roundLimit={lastRound(calendar.roundLimit, closingRound)}
           generation={generation}
           calendar={schedule}
         />

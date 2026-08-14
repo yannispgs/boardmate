@@ -52,6 +52,15 @@ export function advanceTurn(turn: number, seatCount: number): AdvancedTurn {
 }
 
 /**
+ * Whether `turn` closes its own lap — the last seat to play before the round
+ * number changes. Always true in a simultaneous game, where the lap *is* one
+ * shared turn.
+ */
+export function closesRound(turn: number, seatCount: number): boolean {
+  return turnPosition(turn, seatCount).seatIndex === seatCount - 1;
+}
+
+/**
  * Whether `turn` is the very last turn of a fixed-length game — the last seat of
  * the final round — after which the game ends. Always false when there is no
  * round limit. The last turn is `roundLimit * seatCount` (round `roundLimit`,
