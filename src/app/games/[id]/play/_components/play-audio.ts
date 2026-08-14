@@ -44,7 +44,10 @@ export function unlockAudio() {
   if (!ctx) {
     return;
   }
-  if (ctx.state === "suspended") {
+  // Anything but `running` is worth resuming: iOS suspends the context when the
+  // page goes to the background, and parks it in an undocumented `interrupted`
+  // state after a call or an alarm.
+  if (ctx.state !== "running") {
     ctx.resume();
   }
   // iOS won't unlock the audio output on resume() alone — it needs an actual
@@ -80,24 +83,17 @@ export async function loadSound(url: string): Promise<void> {
   }
 }
 
-/** Plays a decoded sound on the shared context; deduped per `key`. */
-export function playSound(
-  url: string,
-  volume: number,
-  fired: Set<number>,
-  key: number,
-) {
-  if (fired.has(key)) {
-    return;
-  }
-  fired.add(key);
-
+/**
+ * Plays a decoded sound on the shared context. Called once per thing to say —
+ * deciding *whether* there is something to say is `countdownCue`'s job.
+ */
+export function playSound(url: string, volume: number) {
   const ctx = getAudioContext();
   const buffer = soundCache.get(url);
   if (!ctx || !buffer) {
     return;
   }
-  if (ctx.state === "suspended") {
+  if (ctx.state !== "running") {
     ctx.resume();
   }
 
