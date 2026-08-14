@@ -14,17 +14,45 @@ const ACTION_CLASSES: Record<PermissionAction, string> = {
   delete: "bg-red-500/10 text-red-700 dark:text-red-300",
 };
 
+/** Turns the line into a tickable one, when a role is being composed. */
+export interface PermissionToggle {
+  checked: boolean;
+  /**
+   * The box is shown but refuses the tap — a billable permission on a role that
+   * is not an administrator one, which the database refuses too. The 💰 and its
+   * bubble already say why, right on the same line.
+   */
+  locked: boolean;
+  onChange: (checked: boolean) => void;
+}
+
 /**
  * One permission, on one line: the key first — it is what the roles refer to and
  * what a policy names — then an info bubble holding the sentence, then its CRUD
  * family on the right. Which roles hand it out is deliberately not here; that
  * question is answered role by role, in the other tab.
+ *
+ * The same line is what a role is composed from, with a box in front of it: the
+ * catalogue you read and the catalogue you tick are one list, so a permission
+ * never reads one way in one tab and another way in the other.
  */
 export function PermissionCard({
   permission,
-}: Readonly<{ permission: Permission }>) {
+  toggle,
+}: Readonly<{ permission: Permission; toggle?: PermissionToggle }>) {
   return (
     <li className="flex items-center gap-2 px-3 py-2">
+      {toggle ? (
+        <input
+          type="checkbox"
+          checked={toggle.checked}
+          disabled={toggle.locked}
+          onChange={event => toggle.onChange(event.target.checked)}
+          aria-label={permission.key}
+          className="size-4 shrink-0 accent-indigo-600 disabled:opacity-40"
+        />
+      ) : null}
+
       <code className="truncate text-[13px] text-zinc-700 dark:text-zinc-200">
         {permission.key}
       </code>

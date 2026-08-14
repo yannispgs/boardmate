@@ -7,11 +7,24 @@ import { RoleCard } from "./RoleCard";
 export function RoleCardList({
   roles,
   permissions,
-}: Readonly<{ roles: Role[]; permissions: Permission[] }>) {
+  onEdit,
+  onDelete,
+}: Readonly<{
+  roles: Role[];
+  permissions: Permission[];
+  onEdit?: (role: Role) => void;
+  onDelete?: (role: Role) => void;
+}>) {
   return (
     <ul className="flex flex-col gap-2">
       {roles.map(role => (
-        <RoleCard key={role.id} role={role} permissions={permissions} />
+        <RoleCard
+          key={role.id}
+          role={role}
+          permissions={permissions}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
       ))}
     </ul>
   );

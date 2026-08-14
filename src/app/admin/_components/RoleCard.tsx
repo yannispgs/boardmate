@@ -1,9 +1,12 @@
 "use client";
 
+import { PencilIcon, TrashIcon } from "@/components/icons";
+import { dangerIconButtonClass, iconButtonClass } from "@/components/ui";
 import {
   groupBySection,
   type Permission,
   type Role,
+  roleDeleteBlocker,
   roleGrants,
 } from "@/lib/domain";
 
@@ -19,10 +22,21 @@ import {
 export function RoleCard({
   role,
   permissions,
-}: Readonly<{ role: Role; permissions: Permission[] }>) {
+  onEdit,
+  onDelete,
+}: Readonly<{
+  role: Role;
+  permissions: Permission[];
+  /** Omitted when the reader may not compose roles: the card is then read-only. */
+  onEdit?: (role: Role) => void;
+  onDelete?: (role: Role) => void;
+}>) {
   const granted = permissions.filter(permission =>
     roleGrants(role, permission.key),
   );
+  // Written under the buttons, not hidden in a tooltip: on a phone there is no
+  // hover, and « pourquoi ce bouton est-il grisé » deserves an answer in sight.
+  const blocker = roleDeleteBlocker(role);
 
   return (
     <li className="flex flex-col gap-2 rounded-xl border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
@@ -43,8 +57,37 @@ export function RoleCard({
               Fourni par l&apos;app
             </span>
           ) : null}
+
+          {onEdit ? (
+            <button
+              type="button"
+              onClick={() => onEdit(role)}
+              aria-label={`Modifier ${role.label}`}
+              className={iconButtonClass}
+            >
+              <PencilIcon />
+            </button>
+          ) : null}
+
+          {onDelete ? (
+            <button
+              type="button"
+              onClick={() => onDelete(role)}
+              disabled={blocker !== null}
+              aria-label={`Supprimer ${role.label}`}
+              className={`${dangerIconButtonClass} disabled:opacity-40`}
+            >
+              <TrashIcon />
+            </button>
+          ) : null}
         </div>
       </div>
+
+      {onDelete && blocker !== null ? (
+        <span className="text-xs text-zinc-500 dark:text-zinc-400">
+          {blocker}
+        </span>
+      ) : null}
 
       {role.isAdmin ? (
         <p className="text-sm text-zinc-500 dark:text-zinc-400">

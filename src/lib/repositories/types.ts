@@ -41,6 +41,7 @@ import type {
   PlayerUpdate,
   PopulatedGame,
   Role,
+  RoleId,
   StageAdvance,
   TieBreakRecord,
   TurnMode,
@@ -339,6 +340,26 @@ export interface AccessRepository {
    * Hiding is comfort only — the policies are the gate.
    */
   myPermissions(): Promise<string[]>;
+  /**
+   * Creates a role and grants it the permissions ticked for it. Needs
+   * `roles.create`, plus `roles.update` for the grants themselves — the two
+   * halves are written under the policies that own them, never as one.
+   */
+  createRole(label: string, permissionKeys: string[]): Promise<Role>;
+  /** Renames a role. The key it was filed under never moves. */
+  renameRole(roleId: RoleId, label: string): Promise<void>;
+  /**
+   * Brings a role's grants to exactly `permissionKeys`, writing only the
+   * difference: the database records an insert and a delete, which is what the
+   * two policies each answer for.
+   */
+  setRolePermissions(roleId: RoleId, permissionKeys: string[]): Promise<void>;
+  /**
+   * Drops a role. Refused by the database when somebody still wears it — the
+   * foreign key cascades, so nothing but that guard stands between a delete and
+   * a silent mass un-assignment.
+   */
+  deleteRole(roleId: RoleId): Promise<void>;
 }
 
 /** Aggregate of all repositories, resolved by the active adapter. */
