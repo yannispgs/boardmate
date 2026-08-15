@@ -74,6 +74,11 @@ const ACCOUNTS_PER_PAGE = 200;
  * Whether the authentication schema holds an account for `email`. Paged
  * through rather than read in one go: a local stack that has been up for a
  * while holds every throwaway address the suite has ever minted.
+ *
+ * ⚠️ `listUsers` answers 500 « Database error finding users » if any row of
+ * `auth.users` was inserted by hand (`confirmation_token` NULL). Every account
+ * here is minted through the admin API, so the listing stays readable — a 500
+ * means somebody wrote into `auth.users` directly, and `db reset` fixes it.
  */
 export async function accountExists(email: string): Promise<boolean> {
   const admin = adminClient();
