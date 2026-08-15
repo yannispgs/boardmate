@@ -13,6 +13,14 @@ export interface UseTurnTimer {
    * so it's accurate even when called while paused (e.g. advancing mid-pause).
    */
   pauseStats: () => { count: number; durationS: number };
+  /**
+   * Holds the clock still while it is being corrected. Deliberately *not* a
+   * pause: the correction sheet takes a good few seconds to fill in, which
+   * would otherwise be tallied as a pause the table never took.
+   */
+  setFrozen: (frozen: boolean) => void;
+  /** Overwrites the active seconds played this turn (manual correction). */
+  setElapsed: (seconds: number) => void;
   /** Zeroes the elapsed time and starts running again (call per new turn). */
   reset: () => void;
 }
@@ -38,6 +46,7 @@ const MIN_PAUSE_MS = 5000;
 export function useTurnTimer(): UseTurnTimer {
   const [elapsedS, setElapsedS] = useState(0);
   const [running, setRunning] = useState(true);
+  const [frozen, setFrozen] = useState(false);
   const elapsedRef = useRef(0); // active ms accumulated (excludes pauses)
   const lastTick = useRef<number | null>(null);
   const pauseStart = useRef<number | null>(null); // perf.now() a pause began
@@ -61,9 +70,14 @@ export function useTurnTimer(): UseTurnTimer {
   }, []);
 
   useEffect(() => {
-    if (!running) {
+    if (!running || frozen) {
       lastTick.current = null;
-      pauseStart.current = performance.now(); // a pause just began
+
+      if (!running) {
+        // A pause just began — unless one was already open (the clock was
+        // frozen mid-pause), whose start must be kept or it is under-counted.
+        pauseStart.current ??= performance.now();
+      }
 
       return;
     }
@@ -81,7 +95,7 @@ export function useTurnTimer(): UseTurnTimer {
     const id = setInterval(tick, TICK_MS);
 
     return () => clearInterval(id);
-  }, [running, commitPause]);
+  }, [running, frozen, commitPause]);
 
   const toggle = useCallback(() => setRunning(r => !r), []);
   const pause = useCallback(() => setRunning(false), []);
@@ -93,6 +107,16 @@ export function useTurnTimer(): UseTurnTimer {
       durationS: Math.round(pausedMs.current / 1000),
     };
   }, [commitPause]);
+  // Correcting the clock rewrites the accumulated time itself, so the recorded
+  // turn duration is corrected too. `lastTick` moves with it: the tick that
+  // follows must only add the time spent *since* the correction.
+  const setElapsed = useCallback((seconds: number) => {
+    const clamped = Math.max(0, Math.round(seconds));
+
+    elapsedRef.current = clamped * 1000;
+    lastTick.current = performance.now();
+    setElapsedS(clamped);
+  }, []);
   const reset = useCallback(() => {
     elapsedRef.current = 0;
     lastTick.current = performance.now();
@@ -100,6 +124,7 @@ export function useTurnTimer(): UseTurnTimer {
     pausedMs.current = 0;
     pauseTally.current = 0;
     setElapsedS(0);
+    setFrozen(false);
     setRunning(true);
   }, []);
 
@@ -109,6 +134,8 @@ export function useTurnTimer(): UseTurnTimer {
     toggle,
     pause,
     pauseStats,
+    setFrozen,
+    setElapsed,
     reset,
   };
 }

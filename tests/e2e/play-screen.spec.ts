@@ -10,8 +10,9 @@ import {
 
 /**
  * The play screen controls (exhaustive, full-suite only — untagged): pause /
- * resume, the mid-game turn-duration edit, and a full round cycling the turn
- * order back to its opener. Advancing one turn + ending is the @critical path.
+ * resume, the mid-game turn-duration edit, the correction of the running turn's
+ * remaining time, and a full round cycling the turn order back to its opener.
+ * Advancing one turn + ending is the @critical path.
  */
 
 test("pauses and resumes the turn timer", async ({ page }) => {
@@ -53,6 +54,52 @@ test("edits the turn duration mid-game", async ({ page }) => {
     await expect(
       page.getByRole("button", { name: "Durée du tour : 30s — modifier" }),
     ).toBeVisible();
+  } finally {
+    const admin = adminClient();
+    if (gameId) {
+      await admin.from("games").delete().eq("id", gameId);
+    }
+    await admin.from("players").delete().in("name", players);
+  }
+});
+
+test("corrects the current turn's remaining time", async ({ page }) => {
+  const players = await seedPlayers(CATAN_MIN_PLAYERS);
+  let gameId = "";
+
+  try {
+    gameId = await funnelToPlay(page, players);
+
+    // Editing the duration pauses the turn, which holds the countdown still for
+    // the rest of the test (and checks the correction doesn't resume it).
+    await page
+      .getByRole("button", { name: /Durée du tour : \d+s — modifier/ })
+      .click();
+    await page.getByLabel("Durée du tour en secondes").fill("300");
+    await page.getByRole("button", { name: "OK", exact: true }).click();
+    await expect(page.getByText("EN PAUSE")).toBeVisible();
+
+    await page
+      .getByRole("button", { name: "Corriger le temps restant" })
+      .click();
+
+    const sheet = page.getByRole("dialog", {
+      name: "Corriger le temps restant",
+    });
+    await page.getByRole("textbox", { name: "Temps restant" }).fill("1:30");
+    await expect(sheet).toContainText("1:30");
+
+    // A step moves the typed time, not the time played.
+    await page.getByRole("button", { name: "Retirer 30 s" }).click();
+    await expect(
+      page.getByRole("textbox", { name: "Temps restant" }),
+    ).toHaveValue("1:00");
+
+    await page.getByRole("button", { name: "Appliquer" }).click();
+
+    // The ring reads the corrected time, and the turn is still on hold.
+    await expect(page.getByText("1:00")).toBeVisible();
+    await expect(page.getByText("EN PAUSE")).toBeVisible();
   } finally {
     const admin = adminClient();
     if (gameId) {

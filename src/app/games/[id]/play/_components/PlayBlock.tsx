@@ -7,6 +7,7 @@ import { lastRound } from "@/lib/game/stop-condition";
 import type { UseTurnTimer } from "@/lib/hooks/use-turn-timer";
 import { DiceBar } from "./DiceBar";
 import { DurationEditor } from "./DurationEditor";
+import { TimerAdjust } from "./TimerAdjust";
 import { TimerRing } from "./TimerRing";
 import { TurnFlow } from "./turn-flow";
 import type { DiceLog } from "./use-dice-log";
@@ -91,11 +92,17 @@ export function PlayBlock({
         size={spec ? 168 : undefined}
       />
 
-      <DurationEditor
-        durationS={durationS}
-        onChange={onDuration}
-        onPause={timer.pause}
-      />
+      {/* The two ways the clock is set by hand: how long a turn lasts, and
+          where the current one actually stands. */}
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+        <DurationEditor
+          durationS={durationS}
+          onChange={onDuration}
+          onPause={timer.pause}
+        />
+
+        <TimerAdjust durationS={durationS} timer={timer} />
+      </div>
 
       {spec ? (
         <DiceBar
