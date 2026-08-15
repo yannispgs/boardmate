@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import type { BoardgameId, GameStatsRecord, PlayerId } from "@/lib/domain";
-import { computeGlobalStats, coPlayerOptions } from "./global-stats";
+import {
+  boardgameOptions,
+  computeGlobalStats,
+  coPlayerOptions,
+} from "./global-stats";
 
 const CATAN = "bg-catan" as BoardgameId;
 const WINGSPAN = "bg-wingspan" as BoardgameId;
@@ -424,6 +428,22 @@ describe("computeGlobalStats", () => {
     // Alice's overtime (5s in game1) is averaged over her 1 played game, not 2.
     expect(alice?.games).toBe(2);
     expect(alice?.avgOvertimeS).toBe(5);
+  });
+});
+
+describe("boardgameOptions", () => {
+  it("lists each played boardgame once, sorted by name", () => {
+    // game2 twice: the same boardgame must not show up as two options.
+    const options = boardgameOptions([game2, game1, game2]);
+
+    expect(options).toEqual([
+      { id: CATAN, name: "Catan" },
+      { id: WINGSPAN, name: "Wingspan" },
+    ]);
+  });
+
+  it("offers nothing when no game has been played", () => {
+    expect(boardgameOptions([])).toEqual([]);
   });
 });
 

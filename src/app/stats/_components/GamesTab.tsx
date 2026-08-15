@@ -17,6 +17,7 @@ import type {
 import { composeGoals } from "@/lib/game/extensions";
 import { formatDuration } from "@/lib/game/format-time";
 import {
+  boardgameOptions,
   computeGlobalStats,
   coPlayerOptions,
   filterRecords,
@@ -47,14 +48,10 @@ import { TimeIndexInfo } from "./TimeIndexInfo";
 
 /** Distinct boardgames present in the records, sorted by name. */
 function gameOptions(records: GameStatsRecord[]): PickerOption<string>[] {
-  const map = new Map<string, string>();
-  for (const r of records) {
-    map.set(r.boardgameId, r.boardgameName);
-  }
-
-  return [...map.entries()]
-    .map(([value, label]) => ({ value, label }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+  return boardgameOptions(records).map(game => ({
+    value: game.id,
+    label: game.name,
+  }));
 }
 
 /**

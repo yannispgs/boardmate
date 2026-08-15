@@ -321,6 +321,25 @@ export function filterRecords(
 }
 
 /**
+ * The boardgames these records cover, sorted by name — which is not the same
+ * list as the library: a game nobody has finished a party of has nothing to
+ * add to, or take away from, the figures a filter is narrowing.
+ */
+export function boardgameOptions(
+  records: GameStatsRecord[],
+): Array<{ id: BoardgameId; name: string }> {
+  const names = new Map<BoardgameId, string>();
+
+  for (const g of records) {
+    names.set(g.boardgameId, g.boardgameName);
+  }
+
+  return [...names.entries()]
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
  * The players offered in a presence filter given a partial selection: every
  * player who shares at least one game with all currently-selected players — so
  * narrowing the filter can never produce an empty set. Sorted by name. An empty
