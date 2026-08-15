@@ -81,6 +81,17 @@ async function extractCode(base: string, id: string): Promise<string | null> {
   return match?.[1] ?? null;
 }
 
+/**
+ * Whether the catcher holds anything at all for `email`. Only worth asserting
+ * once something *else* has been received in the meantime — an absence read too
+ * early only says the mail has not arrived yet.
+ */
+export async function hasMailFor(email: string): Promise<boolean> {
+  const { inbucketUrl } = localStack();
+
+  return (await latestMessageId(inbucketUrl, email)) !== null;
+}
+
 /** Empties the mail catcher so a previous run's codes can't be mistaken. */
 export async function clearMailbox(): Promise<void> {
   const { inbucketUrl } = localStack();

@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 
+import { isUnknownAddress } from "@/lib/auth/otp-error";
 import { authRateLimitError } from "@/lib/auth/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 
@@ -36,6 +37,9 @@ function textField(formData: FormData, name: string): string {
  * OTP that backs magic links — we just verify the code in-app instead of
  * following a link, which is friendlier and avoids cross-domain redirect
  * configuration.
+ *
+ * It only ever mails an address that already has an account, and answers the
+ * same thing either way — the two comments below say why.
  */
 export async function signInWithEmail(
   _prev: SignInState,
@@ -53,14 +57,24 @@ export async function signInWithEmail(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithOtp({ email });
+  // `shouldCreateUser: false` — without it, a code request *creates* the
+  // account it is for: anybody could fill `auth.users` from the login form,
+  // one POST at a time, and the accounts screen would list every one of them.
+  // Who may sign in is decided in the database, never from this page.
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { shouldCreateUser: false },
+  });
 
-  if (error) {
+  if (error && !isUnknownAddress(error)) {
     return {
       error: "Envoi impossible pour le moment. Réessaie dans un instant.",
       email,
     };
   }
+
+  // An address nobody authorised gets the same screen as one that was: it is
+  // simply a screen where no code will ever arrive. See `isUnknownAddress`.
   return { sent: true, email };
 }
 
