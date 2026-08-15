@@ -12,13 +12,14 @@ import { BoardmateLogo } from "./BoardmateLogo";
 export function AppLoading() {
   return (
     <div className="splash-in flex flex-1 flex-col items-center justify-center gap-5">
-      <BoardmateLogo className="h-20 w-20" />
+      {/* The die itself is the waiting signal — a second spinner beside it
+          would only be two things turning at two different speeds. */}
+      <BoardmateLogo className="dice-roll h-20 w-20" />
 
       <span className="text-xl font-semibold tracking-tight">Boardmate</span>
 
-      <span className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
-        <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-        <span>Chargement…</span>
+      <span className="text-sm text-zinc-500 dark:text-zinc-400">
+        Chargement…
       </span>
     </div>
   );
