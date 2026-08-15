@@ -23,11 +23,19 @@ export function MultiSelectField<Id extends string>({
   options,
   selected,
   onChange,
+  excluding = false,
 }: Readonly<{
   label: string;
   options: { id: Id; name: string }[];
   selected: Id[];
   onChange: (ids: Id[]) => void;
+  /**
+   * Turns the tick round: every option opens ticked and `selected` holds the
+   * ones taken out, so the filter is read as « everything, minus these ». The
+   * box says « Tous » until one is unticked and « Tous sauf … » after, which
+   * is the same "empty means everything" the filters themselves work on.
+   */
+  excluding?: boolean;
 }>) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -64,26 +72,40 @@ export function MultiSelectField<Id extends string>({
               Tous
             </span>
           ) : (
-            selected.map(id => (
-              <span
-                key={id}
-                className="flex items-center gap-1 rounded-full border border-indigo-500 bg-indigo-500/10 py-1 pl-3 pr-1 text-sm text-indigo-700 dark:text-indigo-300"
-              >
-                {nameOf(id)}
-                <button
-                  type="button"
-                  aria-label={`Retirer ${nameOf(id)}`}
-                  onClick={() => remove(id)}
-                  className="flex h-4 w-4 items-center justify-center rounded-full text-indigo-700/70 transition hover:bg-indigo-500/20 hover:text-indigo-700 dark:text-indigo-300/70 dark:hover:text-indigo-300"
+            <>
+              {/* Without it, a pill would read as something kept rather than
+                  as something dropped — the exact opposite of the filter. */}
+              {excluding ? (
+                <span className="pl-1 text-sm text-zinc-500 dark:text-zinc-400">
+                  Tous sauf
+                </span>
+              ) : null}
+
+              {selected.map(id => (
+                <span
+                  key={id}
+                  className="flex items-center gap-1 rounded-full border border-indigo-500 bg-indigo-500/10 py-1 pl-3 pr-1 text-sm text-indigo-700 dark:text-indigo-300"
                 >
-                  ×
-                </button>
-              </span>
-            ))
+                  {nameOf(id)}
+                  <button
+                    type="button"
+                    aria-label={
+                      excluding
+                        ? `Remettre ${nameOf(id)}`
+                        : `Retirer ${nameOf(id)}`
+                    }
+                    onClick={() => remove(id)}
+                    className="flex h-4 w-4 items-center justify-center rounded-full text-indigo-700/70 transition hover:bg-indigo-500/20 hover:text-indigo-700 dark:text-indigo-300/70 dark:hover:text-indigo-300"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </>
           )}
           <button
             type="button"
-            aria-label="Ouvrir la liste"
+            aria-label={`Ouvrir la liste : ${label}`}
             onClick={() => setOpen(o => !o)}
             className="ml-auto flex min-w-8 flex-1 cursor-pointer justify-end self-stretch pr-1 text-zinc-400"
           >
@@ -131,7 +153,9 @@ export function MultiSelectField<Id extends string>({
                 </li>
               ) : null}
               {filtered.map(o => {
-                const on = selected.includes(o.id);
+                const on = excluding
+                  ? !selected.includes(o.id)
+                  : selected.includes(o.id);
 
                 return (
                   <li key={o.id}>

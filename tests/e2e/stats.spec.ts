@@ -202,11 +202,15 @@ test("recomputes the ranking from games where the selected players played", asyn
     await expect(p0Row()).toContainText("67%");
 
     // Keep only games where player 2 was present → drops the 2-player game.
-    await page.getByRole("button", { name: "Ouvrir la liste" }).click();
+    const presence = page.getByRole("button", {
+      name: "Ouvrir la liste : Avec les joueurs",
+    });
+
+    await presence.click();
     await page.getByRole("button", { name: names[2], exact: true }).click();
     // Close the dropdown (re-tap the trigger) so its own list items don't
     // shadow the table rows.
-    await page.getByRole("button", { name: "Ouvrir la liste" }).click();
+    await presence.click();
 
     // Player 0 now won 1 of 2 → 50%.
     await expect(p0Row()).toContainText("50%");
@@ -216,6 +220,111 @@ test("recomputes the ranking from games where the selected players played", asyn
     }
     if (bgId) {
       await admin.from("boardgames").delete().eq("id", bgId);
+    }
+    await admin.from("players").delete().in("name", names);
+  }
+});
+
+/**
+ * The games filter on the "Joueurs" tab (full-suite only — untagged): every
+ * boardgame counts until one is unticked, and unticking the last one reads as
+ * no filter at all rather than as an empty ranking.
+ */
+test("leaves a boardgame out of the player ranking when it is unticked", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const names = await seedPlayers(3);
+  const gameIds: string[] = [];
+  const boardgameIds: string[] = [];
+
+  try {
+    const { data: seeded } = await admin
+      .from("players")
+      .select("id, name")
+      .in("name", names);
+    const ids = (seeded ?? []).map(p => p.id as string);
+
+    async function seedBoardgame(name: string) {
+      const { data } = await admin
+        .from("boardgames")
+        .insert({ name, min_players: 1, max_players: 4 })
+        .select("id")
+        .single();
+      const id = data?.id as string;
+      boardgameIds.push(id);
+
+      return id;
+    }
+
+    async function seedEndedGame(bgId: string, winnerIdx: number) {
+      const { data: game } = await admin
+        .from("games")
+        .insert({
+          boardgame_id: bgId,
+          status: "ended",
+          round: 1,
+          turn: 1,
+          ended_at: new Date().toISOString(),
+        })
+        .select("id")
+        .single();
+      const gameId = game?.id as string;
+      gameIds.push(gameId);
+
+      await admin.from("game_players").insert(
+        ids.map((player_id, i) => ({
+          game_id: gameId,
+          player_id,
+          seat_order: i,
+          is_winner: i === winnerIdx,
+          score: 10 - i,
+        })),
+      );
+    }
+
+    const stamp = Date.now().toString(36);
+    const kept = `Aaa-${stamp}`;
+    const dropped = `Zzz-${stamp}`;
+
+    // Player 0 wins both parties of the first game, none of the second.
+    await seedEndedGame(await seedBoardgame(kept), 0);
+    await seedEndedGame(await seedBoardgame(dropped), 1);
+
+    await page.goto("/stats");
+
+    const p0Row = () =>
+      page.getByRole("listitem").filter({ hasText: names[0] });
+    const games = page.getByRole("button", {
+      name: "Ouvrir la liste : Jeux pris en compte",
+    });
+
+    // Every game counts to begin with: player 0 won 1 of 2 → 50%.
+    await expect(p0Row()).toContainText("50%");
+
+    await games.click();
+    await page.getByRole("button", { name: dropped, exact: true }).click();
+    await games.click();
+
+    // The pill says what is left out, and the ranking counts only the other
+    // game, which player 0 won → 100%.
+    await expect(page.getByText("Tous sauf")).toBeVisible();
+    await expect(p0Row()).toContainText("100%");
+
+    // Unticking the last game left would count nothing, so everything comes
+    // back instead.
+    await games.click();
+    await page.getByRole("button", { name: kept, exact: true }).click();
+    await games.click();
+
+    await expect(page.getByText("Tous sauf")).toHaveCount(0);
+    await expect(p0Row()).toContainText("50%");
+  } finally {
+    for (const id of gameIds) {
+      await admin.from("games").delete().eq("id", id);
+    }
+    for (const id of boardgameIds) {
+      await admin.from("boardgames").delete().eq("id", id);
     }
     await admin.from("players").delete().in("name", names);
   }
