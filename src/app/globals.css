@@ -28,6 +28,48 @@
   }
 }
 
+/*
+ * The launch screen only appears after a beat: a screen that comes back in
+ * under a third of a second should read as an instant move, not as a loading
+ * step. `both` holds it invisible for the whole delay, so what is painted
+ * meanwhile is the page background and nothing else.
+ */
+@keyframes splash-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@utility splash-in {
+  animation: splash-in 200ms ease-out 300ms both;
+}
+
+/*
+ * The die turns on itself once a second: two thirds of a second of rotation,
+ * then a third of a second standing still before it goes again. That pause is
+ * the whole point — a turn that never stops reads as a spinner, a turn that
+ * lands and waits reads as a die being rolled. Eased at both ends so it picks
+ * up and settles instead of snapping.
+ */
+@keyframes dice-roll {
+  0% {
+    transform: rotate(0deg);
+  }
+  66.7% {
+    transform: rotate(360deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@utility dice-roll {
+  animation: dice-roll 1s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
