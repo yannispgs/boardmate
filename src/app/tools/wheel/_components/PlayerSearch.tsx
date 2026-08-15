@@ -1,8 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import type { Player } from "@/lib/domain";
+import { useDropdownSpace } from "@/lib/hooks/use-dropdown-space";
+
+/** How tall the suggestion list gets when the screen has the room for it. */
+const PREFERRED_HEIGHT = 256;
 
 /**
  * The wheel's search bar: active players whose name contains the query,
@@ -23,6 +27,7 @@ export function PlayerSearch({
 }>) {
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
+  const anchorRef = useRef<HTMLDivElement>(null);
 
   const q = query.trim();
   const ql = q.toLowerCase();
@@ -34,6 +39,9 @@ export function PlayerSearch({
     q.length > 0 && !active.some(p => p.name.toLowerCase() === ql);
   // The list opens on focus (all players when empty) and while typing.
   const showList = focused || q.length > 0;
+  // Focusing the field is what raises the keyboard, so the room below the field
+  // is only known once the list is already open.
+  const space = useDropdownSpace(anchorRef, showList, PREFERRED_HEIGHT);
 
   /** Adds the typed name as an off-app entry, then clears the search. */
   function createEntry(label: string) {
@@ -56,7 +64,7 @@ export function PlayerSearch({
   }
 
   return (
-    <div className="relative">
+    <div ref={anchorRef} className="relative">
       <input
         value={query}
         onChange={e => setQuery(e.target.value)}
@@ -76,7 +84,11 @@ export function PlayerSearch({
       {showList ? (
         <div
           data-testid="wheel-suggestions"
-          className="absolute inset-x-0 top-full z-20 mt-1 flex max-h-64 flex-col overflow-y-auto rounded-lg border border-black/10 bg-white shadow-lg dark:border-white/10 dark:bg-zinc-900"
+          data-placement={space?.placement ?? "below"}
+          style={space ? { maxHeight: space.maxHeight } : undefined}
+          className={`absolute inset-x-0 z-20 flex max-h-64 flex-col overflow-y-auto rounded-lg border border-black/10 bg-white shadow-lg dark:border-white/10 dark:bg-zinc-900 ${
+            space?.placement === "above" ? "bottom-full mb-1" : "top-full mt-1"
+          }`}
         >
           {showCreate ? (
             <button

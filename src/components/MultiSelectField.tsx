@@ -3,6 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 
 import { searchByName } from "@/lib/game/player-search";
+import { useDropdownSpace } from "@/lib/hooks/use-dropdown-space";
+
+/** How tall the panel gets when the screen has the room for it. */
+const PREFERRED_HEIGHT = 288;
 
 /**
  * A searchable multi-select shown as a box of removable pills. Empty selection
@@ -54,6 +58,9 @@ export function MultiSelectField<Id extends string>({
   const remove = (id: Id) => onChange(selected.filter(x => x !== id));
 
   const filtered = searchByName(options, query);
+  // The panel carries its own search field, so the keyboard covers the bottom
+  // of the screen here too — same fitting as the wheel's list.
+  const space = useDropdownSpace(ref, open, PREFERRED_HEIGHT);
 
   return (
     <div className="flex flex-col gap-2">
@@ -97,15 +104,25 @@ export function MultiSelectField<Id extends string>({
         </div>
 
         {open ? (
-          <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-black/10 bg-white shadow-lg dark:border-white/15 dark:bg-zinc-900">
+          <div
+            data-placement={space?.placement ?? "below"}
+            style={space ? { maxHeight: space.maxHeight } : undefined}
+            className={`absolute z-20 flex w-full flex-col overflow-hidden rounded-xl border border-black/10 bg-white shadow-lg dark:border-white/15 dark:bg-zinc-900 ${
+              space?.placement === "above"
+                ? "bottom-full mb-1"
+                : "top-full mt-1"
+            }`}
+          >
             <input
               type="text"
               value={query}
               onChange={e => setQuery(e.target.value)}
               placeholder="Rechercher…"
-              className="w-full border-b border-black/10 bg-transparent p-2 text-sm outline-none dark:border-white/10"
+              className="w-full shrink-0 border-b border-black/10 bg-transparent p-2 text-sm outline-none dark:border-white/10"
             />
-            <ul className="max-h-56 overflow-y-auto p-1">
+            {/* `min-h-0` is what lets it shrink inside the capped panel — a flex
+                child otherwise refuses to go below its content's height. */}
+            <ul className="max-h-56 min-h-0 flex-1 overflow-y-auto p-1">
               {selected.length > 0 ? (
                 <li>
                   <button
