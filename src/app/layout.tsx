@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { appleStartupImages } from "@/lib/pwa/assets";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -19,6 +20,10 @@ export const metadata: Metadata = {
     capable: true,
     title: "Boardmate",
     statusBarStyle: "black-translucent",
+    // Without these, an iPhone launching the installed application shows a
+    // white screen until the first paint — a couple of seconds of nothing, all
+    // of it spent on the round trip that checks the session.
+    startupImage: appleStartupImages(),
   },
 };
 
