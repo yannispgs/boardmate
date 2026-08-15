@@ -129,19 +129,28 @@ export function roleKeyFrom(label: string): string {
 }
 
 /**
- * Why this role cannot be deleted, in the words the screen shows, or `null`
- * when it can. Both refusals are the database's — `roles_system_kept` and
- * `roles_unassigned_on_delete` raise on exactly these two cases — so the button
- * carries the reason instead of letting the tap come back with an error.
+ * Whether the app may delete this role at all. A role the application itself
+ * provides — the administrator one above all — never goes away from a screen:
+ * `roles_system_kept` refuses it in the database, and an administrator role is
+ * neither given nor taken back from the app. So the button is **not shown**
+ * rather than shown greyed under an explanation nobody can act on.
+ */
+export function mayDeleteRole(role: Role): boolean {
+  return !role.isSystem && !role.isAdmin;
+}
+
+/**
+ * Why a deletable role cannot be deleted *right now*, in the words the screen
+ * shows, or `null` when it can. The refusal is the database's
+ * (`roles_unassigned_on_delete`), so the button carries the reason instead of
+ * letting the tap come back with an error — and this reason can be lifted, by
+ * taking the role back from whoever wears it. The ones that never can are
+ * {@link mayDeleteRole}'s business.
  *
  * Editing is deliberately not covered: an assigned role stays fully editable,
  * which is the whole point of having roles.
  */
 export function roleDeleteBlocker(role: Role): string | null {
-  if (role.isSystem) {
-    return "Rôle fourni par l'application : il ne se supprime pas.";
-  }
-
   if (role.assignedCount > 0) {
     return `Attribué à ${role.assignedCount} compte${role.assignedCount > 1 ? "s" : ""} : retire-le avant de le supprimer.`;
   }

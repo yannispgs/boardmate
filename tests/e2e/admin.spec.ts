@@ -48,10 +48,16 @@ test("shows a composed role beside the seeded administrator", async ({
     await page.goto("/admin");
     await page.getByRole("button", { name: "Rôles" }).click();
 
+    // The administrator card carries its name, its badge and nothing else: it
+    // holds every permission, and neither the role nor what it grants can be
+    // acted upon from here.
     const seeded = page
       .getByRole("listitem")
       .filter({ hasText: "Administrateur" });
-    await expect(seeded.getByText(/Toutes les permissions/)).toBeVisible();
+    await expect(seeded.getByText(/Permissions/)).toHaveCount(0);
+    await expect(
+      seeded.getByRole("button", { name: /^Supprimer/ }),
+    ).toHaveCount(0);
 
     const composed = page
       .getByRole("listitem")

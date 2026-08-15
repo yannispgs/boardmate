@@ -5,6 +5,7 @@ import {
   accountRoles,
   assignableRoles,
   groupBySection,
+  mayDeleteRole,
   permissionDiff,
   roleDeleteBlocker,
   roleGrants,
@@ -137,11 +138,17 @@ describe("roleDeleteBlocker", () => {
       "3 comptes",
     );
   });
+});
 
-  it("holds on to a role the application ships", () => {
-    expect(roleDeleteBlocker(role({ isSystem: true }))).toContain(
-      "fourni par l'application",
-    );
+describe("mayDeleteRole", () => {
+  it("lets an ordinary role be deleted, worn or not", () => {
+    expect(mayDeleteRole(role())).toBe(true);
+    expect(mayDeleteRole(role({ assignedCount: 3 }))).toBe(true);
+  });
+
+  it("keeps the roles the application provides out of reach", () => {
+    expect(mayDeleteRole(role({ isSystem: true }))).toBe(false);
+    expect(mayDeleteRole(role({ isAdmin: true }))).toBe(false);
   });
 });
 
