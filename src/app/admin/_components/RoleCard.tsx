@@ -95,22 +95,7 @@ export function RoleCard({
         </p>
       ) : null}
 
-      {/* Badges sit on their own line now: crammed in beside the buttons they
-          were the thing that overflowed, and they are the least urgent part. */}
-      {role.isAdmin || role.isSystem ? (
-        <div className="flex flex-wrap gap-1.5">
-          {role.isAdmin ? (
-            <span className="rounded-full bg-indigo-500/10 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:text-indigo-300">
-              Administrateur
-            </span>
-          ) : null}
-          {role.isSystem ? (
-            <span className="rounded-full border border-black/10 px-2 py-0.5 text-xs text-zinc-500 dark:border-white/15 dark:text-zinc-400">
-              Fourni par l&apos;app
-            </span>
-          ) : null}
-        </div>
-      ) : null}
+      <RoleBadges role={role} />
 
       {onDelete && blocker !== null ? (
         <span className="text-xs text-zinc-500 dark:text-zinc-400">
@@ -122,6 +107,32 @@ export function RoleCard({
         <RolePermissions permissions={granted} summary={held(granted.length)} />
       )}
     </li>
+  );
+}
+
+/**
+ * What the application itself decided about this role. On their own line:
+ * crammed in beside the buttons they were the thing that overflowed, and they
+ * are the least urgent part of the card.
+ */
+function RoleBadges({ role }: Readonly<{ role: Role }>) {
+  if (!role.isAdmin && !role.isSystem) {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {role.isAdmin ? (
+        <span className="rounded-full bg-indigo-500/10 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:text-indigo-300">
+          Administrateur
+        </span>
+      ) : null}
+      {role.isSystem ? (
+        <span className="rounded-full border border-black/10 px-2 py-0.5 text-xs text-zinc-500 dark:border-white/15 dark:text-zinc-400">
+          Fourni par l&apos;app
+        </span>
+      ) : null}
+    </div>
   );
 }
 
