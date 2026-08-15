@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { searchByName } from "@/lib/game/player-search";
 import { useDropdownSpace } from "@/lib/hooks/use-dropdown-space";
+import { useOutsideClose } from "@/lib/hooks/use-outside-close";
 
 /** How tall the panel gets when the screen has the room for it. */
 const PREFERRED_HEIGHT = 288;
@@ -31,22 +32,9 @@ export function MultiSelectField<Id extends string>({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const ref = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setOpen(false), []);
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const onDown = (e: PointerEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-
-    document.addEventListener("pointerdown", onDown);
-
-    return () => document.removeEventListener("pointerdown", onDown);
-  }, [open]);
+  useOutsideClose(ref, open, close);
 
   const nameOf = (id: Id) => options.find(o => o.id === id)?.name ?? id;
   const toggle = (id: Id) =>
@@ -117,6 +105,14 @@ export function MultiSelectField<Id extends string>({
               type="text"
               value={query}
               onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter") {
+                  // Same bargain as the wheel's search: Enter hands the screen
+                  // back by dismissing the keyboard, and the list stays put.
+                  e.preventDefault();
+                  e.currentTarget.blur();
+                }
+              }}
               placeholder="Rechercher…"
               className="w-full shrink-0 border-b border-black/10 bg-transparent p-2 text-sm outline-none dark:border-white/10"
             />

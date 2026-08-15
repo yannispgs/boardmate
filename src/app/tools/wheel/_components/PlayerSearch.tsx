@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import type { Player } from "@/lib/domain";
 import { useDropdownSpace } from "@/lib/hooks/use-dropdown-space";
+import { useOutsideClose } from "@/lib/hooks/use-outside-close";
 
 /** How tall the suggestion list gets when the screen has the room for it. */
 const PREFERRED_HEIGHT = 256;
@@ -26,8 +27,9 @@ export function PlayerSearch({
   onToggle: (id: string, name: string) => void;
 }>) {
   const [query, setQuery] = useState("");
-  const [focused, setFocused] = useState(false);
+  const [showList, setShowList] = useState(false);
   const anchorRef = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setShowList(false), []);
 
   const q = query.trim();
   const ql = q.toLowerCase();
@@ -37,10 +39,11 @@ export function PlayerSearch({
     .sort((a, b) => a.name.localeCompare(b.name));
   const showCreate =
     q.length > 0 && !active.some(p => p.name.toLowerCase() === ql);
-  // The list opens on focus (all players when empty) and while typing.
-  const showList = focused || q.length > 0;
-  // Focusing the field is what raises the keyboard, so the room below the field
-  // is only known once the list is already open.
+  // Losing focus must NOT close the list: dismissing the keyboard is done by
+  // blurring the field, and the list is exactly what one wants to read then.
+  useOutsideClose(anchorRef, showList, close);
+  // Typing raises the keyboard, so the room below the field can shrink while
+  // the list is already open.
   const space = useDropdownSpace(anchorRef, showList, PREFERRED_HEIGHT);
 
   /** Adds the typed name as an off-app entry, then clears the search. */
@@ -49,37 +52,34 @@ export function PlayerSearch({
     setQuery("");
   }
 
-  function pickFirst() {
-    if (showCreate) {
-      createEntry(q);
-
-      return;
-    }
-
-    const addable = matches.find(p => !addedIds.has(p.id));
-
-    if (addable) {
-      onToggle(addable.id, addable.name);
-    }
-  }
-
   return (
     <div ref={anchorRef} className="relative">
       <input
         value={query}
         onChange={e => setQuery(e.target.value)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
+        onFocus={() => setShowList(true)}
         onKeyDown={e => {
           if (e.key === "Enter") {
+            // Enter puts the keyboard away rather than picking anything: with
+            // half the screen back, the whole list is there to tap.
             e.preventDefault();
-            pickFirst();
+            e.currentTarget.blur();
           }
         }}
         placeholder="Rechercher ou créer un joueur…"
         maxLength={40}
-        className="w-full rounded-lg border border-black/15 bg-white px-3 py-2 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900"
+        className="w-full rounded-lg border border-black/15 bg-white py-2 pl-3 pr-10 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900"
       />
+      {/* Opening from the chevron never focuses the field, so the list can be
+          browsed without the keyboard taking half the screen. */}
+      <button
+        type="button"
+        aria-label="Ouvrir la liste des joueurs"
+        onClick={() => setShowList(o => !o)}
+        className="absolute inset-y-0 right-0 flex w-10 cursor-pointer items-center justify-center text-zinc-400"
+      >
+        ▾
+      </button>
 
       {showList ? (
         <div
