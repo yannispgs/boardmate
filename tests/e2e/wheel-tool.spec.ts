@@ -113,3 +113,80 @@ test("searches existing players and offers to create off-app ones", async ({
     await admin.from("players").delete().in("name", names);
   }
 });
+
+/**
+ * The suggestion list on a phone-sized screen (full-suite only — untagged).
+ *
+ * A short viewport is the reproducible half of what the keyboard does on an
+ * iPhone: it leaves the field with less room under it than the list wants. The
+ * list has to stay inside what is on show either way — the screen has nothing
+ * to scroll, so anything pushed past the bottom is simply unreachable. The
+ * other half is who raises the keyboard, and when: browsing never does.
+ */
+test.describe("on a phone-sized screen", () => {
+  test.use({ viewport: { width: 390, height: 420 } });
+
+  test("browses the list without raising the keyboard", async ({ page }) => {
+    const admin = adminClient();
+    const names = Array.from(
+      { length: 8 },
+      (_v, i) => `Petit-${i}-${Date.now().toString(36)}`,
+    );
+    await admin.from("players").insert(names.map(name => ({ name })));
+
+    try {
+      await page.goto("/tools/wheel");
+
+      const suggestions = page.getByTestId("wheel-suggestions");
+      const input = page.getByPlaceholder(/Rechercher ou créer/);
+
+      // The chevron opens the full list without putting the cursor in the
+      // field — on a phone, focusing it is what raises the keyboard.
+      await page
+        .getByRole("button", { name: "Ouvrir la liste des joueurs" })
+        .click();
+      await expect(suggestions).toBeVisible();
+      await expect(input).not.toBeFocused();
+      await expect(
+        suggestions.getByRole("button", { name: names[0] }),
+      ).toBeVisible();
+
+      // Typing filters it; Enter puts the keyboard away and leaves the list up.
+      await input.click();
+      await expect(input).toBeFocused();
+      await input.fill(names[3]);
+      await input.press("Enter");
+      await expect(input).not.toBeFocused();
+      await expect(suggestions).toBeVisible();
+      await expect(
+        suggestions.getByRole("button", { name: names[3] }),
+      ).toBeVisible();
+
+      await input.fill("");
+      await expect(suggestions).toBeVisible();
+
+      // Too little room under the field, more above it → it opens upwards.
+      await expect(suggestions).toHaveAttribute("data-placement", "above");
+
+      const box = await suggestions.boundingBox();
+      const viewport = page.viewportSize();
+
+      expect(box).not.toBeNull();
+      expect(box?.y).toBeGreaterThanOrEqual(0);
+      expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(
+        viewport?.height ?? 0,
+      );
+
+      // Shortened, not truncated: every player is still reachable by scrolling
+      // inside the list.
+      await suggestions
+        .getByRole("button", { name: names[7] })
+        .scrollIntoViewIfNeeded();
+      await expect(
+        suggestions.getByRole("button", { name: names[7] }),
+      ).toBeVisible();
+    } finally {
+      await admin.from("players").delete().in("name", names);
+    }
+  });
+});
