@@ -226,6 +226,29 @@ export interface StageSpec {
    * holding. Omitted when nothing caps a stage.
    */
   maxPoints?: number;
+  /**
+   * Whether exactly one player ends a stage at zero. Odin's manche is closed by
+   * somebody emptying his hand, so a manche with no zero — or with two — cannot
+   * have happened and is a miscount. Papayoo is counted the same way and has no
+   * such rule: every payoo may land on one player, or be shared out so that
+   * several dodge them entirely. Omitted means the game imposes nothing.
+   */
+  singleExit?: boolean;
+  /**
+   * The points one stage always hands out across the whole table — Papayoo:
+   * 250, the twenty payoos (1 + 2 + … + 20 = 210) plus the papayoo card (40).
+   * Every one of them ends up in somebody's pile whatever the number of
+   * players, so a manche adding up to anything else has been misheard. Omitted
+   * when a stage pays what it happens to pay (Odin: the hands left over).
+   */
+  stageTotal?: number;
+  /**
+   * Stages the game runs **per player at the table** — Papayoo: 1, each player
+   * naming the payoo suit once, so five players play five manches. Omitted for
+   * a game whose length nothing fixes in advance (Odin runs until a total
+   * crosses the target, and nobody knows how many manches that takes).
+   */
+  stagesPerPlayer?: number;
 }
 
 /** One claimable milestone: what it is called and what it takes to claim it. */

@@ -31,9 +31,15 @@ import {
   type TallyAverages,
   type TallyExitStat,
   type TallyPointsBar,
+  tallyPointsBucket,
   tallyPointsHistogram,
 } from "@/lib/game/tally-averages";
+import { type TallyExitLabels, tallyExitLabels } from "@/lib/game/tally-labels";
 import { tracksPlayerTime } from "@/lib/game/turn-time";
+import {
+  type WorstScoreGroup,
+  worstScoresByPlayerCount,
+} from "@/lib/game/worst-scores";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useExtensions } from "@/lib/hooks/use-extensions";
 import { CategoryCharts } from "./CategoryCharts";
@@ -45,6 +51,7 @@ import { StatsDiceDistribution } from "./StatsDiceDistribution";
 import { TallyExitCardList } from "./TallyExitCardList";
 import { TallyPointsChart } from "./TallyPointsChart";
 import { TimeIndexInfo } from "./TimeIndexInfo";
+import { WorstScoreCardList } from "./WorstScoreCardList";
 
 /** Distinct boardgames present in the records, sorted by name. */
 function gameOptions(records: GameStatsRecord[]): PickerOption<string>[] {
@@ -169,10 +176,22 @@ export function GamesTab({
         ? {
             averages: computeTallyAverages(scopedRecords),
             exits: computeTallyExits(scopedRecords),
-            histogram: tallyPointsHistogram(scopedRecords),
+            labels: tallyExitLabels(boardgame?.stages ?? null),
+            histogram: tallyPointsHistogram(
+              scopedRecords,
+              tallyPointsBucket(boardgame?.stages?.maxPoints ?? null),
+            ),
+            // Filed by table size: a heavy total is only heavy for a given
+            // number of players, since they share the same pile of points.
+            worst: worstScoresByPlayerCount(
+              scopedRecords,
+              boardgame?.scoring
+                ? winnerDirection(boardgame.scoring.winCondition)
+                : "highest",
+            ),
           }
         : null,
-    [tallyMode, scopedRecords],
+    [tallyMode, scopedRecords, boardgame],
   );
 
   // The picked players, to compare against the table on the category charts.
@@ -322,7 +341,7 @@ function TallyOverallTiles({
           <InfoTip label="Manches moyennes">
             <p>
               Nombre moyen de <strong>manches</strong> par partie — une manche
-              se termine quand un joueur se débarrasse de toutes ses cartes.
+              est une donne, comptée dès qu&apos;elle se termine.
             </p>
             <p>
               Rien n&apos;est chronométré dans ce jeu : il n&apos;y a donc ni
@@ -378,6 +397,44 @@ function ChampionBanner({
   );
 }
 
+/** The manche figures of a game counted that way; null for every other game. */
+interface TallyFigures {
+  averages: TallyAverages | null;
+  exits: TallyExitStat[];
+  labels: TallyExitLabels;
+  histogram: TallyPointsBar[];
+  worst: WorstScoreGroup[];
+}
+
+/** What a game counted manche by manche has to show, and nothing else does. */
+function TallySections({ tally }: Readonly<{ tally: TallyFigures | null }>) {
+  if (tally === null) {
+    return null;
+  }
+
+  return (
+    <>
+      {tally.worst.length > 0 ? (
+        <Section title="Pires scores">
+          <WorstScoreCardList groups={tally.worst} />
+        </Section>
+      ) : null}
+
+      {tally.exits.length > 0 ? (
+        <Section title={tally.labels.heading}>
+          <TallyExitCardList stats={tally.exits} labels={tally.labels} />
+        </Section>
+      ) : null}
+
+      {tally.histogram.length > 0 ? (
+        <Section title="Ce que coûte une manche">
+          <TallyPointsChart bars={tally.histogram} labels={tally.labels} />
+        </Section>
+      ) : null}
+    </>
+  );
+}
+
 /** Everything shown once the filters leave at least one party. */
 function GameSections({
   stats,
@@ -406,12 +463,7 @@ function GameSections({
   goalCatalogue: RoundGoal[] | null;
   /** Whether this game attributes the time it records to a single player. */
   timed: boolean;
-  /** The manche figures of a game counted that way; null for every other game. */
-  tally: {
-    averages: TallyAverages | null;
-    exits: TallyExitStat[];
-    histogram: TallyPointsBar[];
-  } | null;
+  tally: TallyFigures | null;
 }>) {
   const champion = stats.players.reduce<GlobalStats["players"][number] | null>(
     (best, p) => (p.wins > (best?.wins ?? 0) ? p : best),
@@ -433,17 +485,7 @@ function GameSections({
         </Section>
       ) : null}
 
-      {tally && tally.exits.length > 0 ? (
-        <Section title="Qui sort le plus souvent">
-          <TallyExitCardList stats={tally.exits} />
-        </Section>
-      ) : null}
-
-      {tally && tally.histogram.length > 0 ? (
-        <Section title="Ce que coûte une manche">
-          <TallyPointsChart bars={tally.histogram} />
-        </Section>
-      ) : null}
+      <TallySections tally={tally} />
 
       {showSeatStats ? <SeatStats stats={seatStats} /> : null}
 
@@ -482,6 +524,7 @@ function GameSections({
           scored={scored}
           timed={timed}
           exits={tally?.exits ?? null}
+          exitLabel={tally?.labels.column ?? ""}
         />
       </Section>
     </>

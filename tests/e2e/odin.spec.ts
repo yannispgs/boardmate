@@ -187,9 +187,7 @@ test("counts Odin manche by manche and stops the game at the bar", async ({
     await expect(
       page.getByText("La manche 2 a arrêté la partie"),
     ).toBeVisible();
-    await expect(
-      page.getByText("Sorties — du plus souvent sorti au moins souvent"),
-    ).toBeVisible();
+    await expect(page.getByText("Qui sort le plus souvent")).toBeVisible();
     await expect(
       page.getByText(
         "8.0 pts/manche hors sortie · pire manche : 9 · 16 pts au total",

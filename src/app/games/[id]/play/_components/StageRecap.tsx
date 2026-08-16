@@ -12,7 +12,8 @@ import { StandingCardList } from "./StandingCardList";
  * It is the whole point of counting manche by manche: what a manche cost is
  * only worth knowing next to the total it lands on, and the table wants to see
  * where it stands before it commits to another one. It is also where the game
- * announces its own end — the target reached is read off these very totals.
+ * announces its own end, whether that is a target read off these very totals or
+ * the last of a counted number of manches.
  */
 export function StageRecap({
   stage,
@@ -21,6 +22,7 @@ export function StageRecap({
   players,
   target,
   stopped,
+  stopNote,
   disabled,
   onNext,
   onEnd,
@@ -32,8 +34,10 @@ export function StageRecap({
   players: ReadonlyArray<{ id: PlayerId; name: string }>;
   /** The total that stops the game, or null when nothing stops it. */
   target: number | null;
-  /** Somebody has reached the target: this manche was the last one. */
+  /** This manche was the last one — the target is reached, or the count is. */
   stopped: boolean;
+  /** Why it was the last one, read out in place of the totals line. */
+  stopNote: string;
   disabled: boolean;
   onNext: () => void;
   onEnd: () => void;
@@ -51,9 +55,7 @@ export function StageRecap({
         Fin de la {unit} {stage}
       </h2>
       <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-        {stopped
-          ? `La barre des ${target} points est franchie : la partie s'arrête ici.`
-          : "Totaux après cette manche."}
+        {stopped ? stopNote : "Totaux après cette manche."}
       </p>
 
       <div className="mt-4">

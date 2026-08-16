@@ -1,9 +1,63 @@
 import { StatTile } from "@/components/StatTile";
-import type { Boardgame, GameStatsRecord } from "@/lib/domain";
+import type { Boardgame, GameStatsRecord, PlayerId } from "@/lib/domain";
 import type { GameBreakdown, PlayerAggregate } from "@/lib/game/global-stats";
+import { winnerDirection } from "@/lib/game/scoring";
+import { computeTallyExits } from "@/lib/game/tally-averages";
+import { tallyExitLabels } from "@/lib/game/tally-labels";
 import { tracksPlayerTime } from "@/lib/game/turn-time";
+import {
+  type WorstScoreGroup,
+  worstScoresByPlayerCount,
+} from "@/lib/game/worst-scores";
 import { CategoryCharts } from "./CategoryCharts";
 import { TimeIndexInfo } from "./TimeIndexInfo";
+import { WorstScoreCardList } from "./WorstScoreCardList";
+
+/** One player's record on one game counted manche by manche. */
+interface TallyBreakdown {
+  id: string;
+  name: string;
+  /** Their heaviest totals, filed under the size of the table. */
+  worst: WorstScoreGroup[];
+  /** How often a manche cost them nothing, in the words of that game. */
+  zeroes: string | null;
+}
+
+/**
+ * What a game counted manche by manche (Papayoo, Odin) has to say about one
+ * player: the totals they would rather forget — read against the number of
+ * players, since the table shares one pile of points — and how often they got
+ * away with a manche at nothing.
+ */
+function tallyBreakdown(
+  boardgame: Boardgame,
+  records: GameStatsRecord[],
+  playerId: PlayerId,
+): TallyBreakdown {
+  const played = records.filter(
+    r =>
+      r.boardgameId === boardgame.id &&
+      r.players.some(p => p.playerId === playerId),
+  );
+  const labels = tallyExitLabels(boardgame.stages);
+  const stat = computeTallyExits(played).find(e => e.playerId === playerId);
+
+  return {
+    id: boardgame.id,
+    name: boardgame.name,
+    worst: worstScoresByPlayerCount(
+      played,
+      boardgame.scoring
+        ? winnerDirection(boardgame.scoring.winCondition)
+        : "highest",
+      { playerId },
+    ),
+    zeroes:
+      stat === undefined
+        ? null
+        : `${stat.exits} ${stat.exits > 1 ? labels.events : labels.event} sur ${stat.stages} manche${stat.stages > 1 ? "s" : ""} — ${Math.round(stat.rate * 100)} %`,
+  };
+}
 
 /** The time index as a rounded number, or "—" when there's no time data. */
 function fmtIndex(index: number | null): string {
@@ -86,6 +140,13 @@ export function PlayerDetail({
     boardgames.filter(tracksPlayerTime).map(b => b.id),
   );
 
+  // Games counted manche by manche, played by this player: their own hall of
+  // shame, the same one the « Jeux » tab shows for the whole table.
+  const tallyGames = boardgames
+    .filter(b => b.stages?.advance === "manual")
+    .map(b => tallyBreakdown(b, records, player.playerId))
+    .filter(b => b.worst.length > 0);
+
   return (
     <div className="flex flex-col gap-6">
       <button
@@ -153,6 +214,20 @@ export function PlayerDetail({
           ))}
         </ul>
       </div>
+
+      {tallyGames.map(game => (
+        <div key={game.id} className="flex flex-col gap-3">
+          <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+            Pires scores — {game.name}
+          </h3>
+          {game.zeroes === null ? null : (
+            <p className="text-xs text-zinc-500 tabular-nums dark:text-zinc-400">
+              {game.zeroes}
+            </p>
+          )}
+          <WorstScoreCardList groups={game.worst} />
+        </div>
+      ))}
 
       {categoryCharts.map(c => (
         <div key={c.id} className="flex flex-col gap-3">

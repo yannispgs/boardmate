@@ -7,6 +7,7 @@ import type { PopulatedGame } from "@/lib/domain";
 import { statDelta } from "@/lib/game/stat-delta";
 import type { TallyAverages } from "@/lib/game/tally-averages";
 import { computeTallyAverages } from "@/lib/game/tally-averages";
+import { tallyExitLabels } from "@/lib/game/tally-labels";
 import {
   buildStageTotalsSeries,
   computeTallyStats,
@@ -64,6 +65,7 @@ export function TallyGameStats({ game }: Readonly<{ game: PopulatedGame }>) {
   );
 
   const totals = buildStageTotalsSeries(players, game.stageScores);
+  const labels = tallyExitLabels(game.boardgame.stages);
 
   return (
     <section className="flex flex-col gap-6">
@@ -139,20 +141,23 @@ export function TallyGameStats({ game }: Readonly<{ game: PopulatedGame }>) {
             rounds={stats.stageCount}
             players={players.map(p => ({ id: p.playerId, name: p.name }))}
           />
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            La ligne jaune est le score à ne pas atteindre : la partie s&apos;y
-            arrête, et c&apos;est le plus petit total qui gagne.
-          </p>
+          {game.winThreshold === null ? null : (
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              La ligne jaune est le score à ne pas atteindre : la partie
+              s&apos;y arrête, et c&apos;est le plus petit total qui gagne.
+            </p>
+          )}
         </div>
       ) : null}
 
       {stats.stageCount > 0 ? (
         <div className="flex flex-col gap-3">
           <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-            Sorties — du plus souvent sorti au moins souvent
+            {labels.heading}
           </h3>
           <TallyPlayerCardList
             players={stats.players}
+            labels={labels}
             stageCount={stats.stageCount}
             winnerIds={winnerIds}
           />

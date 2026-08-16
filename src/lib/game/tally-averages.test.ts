@@ -5,6 +5,7 @@ import type { GameStatsRecord, PlayerId, StageScore } from "@/lib/domain";
 import {
   computeTallyAverages,
   computeTallyExits,
+  tallyPointsBucket,
   tallyPointsHistogram,
 } from "./tally-averages";
 
@@ -118,6 +119,22 @@ describe("computeTallyExits", () => {
   });
 });
 
+describe("tallyPointsBucket", () => {
+  it("gives a bar of its own to every point of a small manche", () => {
+    expect(tallyPointsBucket(9)).toBe(1);
+    expect(tallyPointsBucket(10)).toBe(1);
+  });
+
+  it("widens the bars until a heavy manche fits in ten of them", () => {
+    expect(tallyPointsBucket(250)).toBe(25);
+    expect(tallyPointsBucket(11)).toBe(2);
+  });
+
+  it("counts in single points when the rules cap nothing", () => {
+    expect(tallyPointsBucket(null)).toBe(1);
+  });
+});
+
 describe("tallyPointsHistogram", () => {
   it("has no bar to draw without a manche", () => {
     expect(tallyPointsHistogram([record(undefined)])).toEqual([]);
@@ -125,13 +142,21 @@ describe("tallyPointsHistogram", () => {
 
   it("counts every cost from the exit up to the heaviest, gaps included", () => {
     expect(tallyPointsHistogram([record(TWO_STAGES)])).toEqual([
-      { points: 0, count: 2 },
-      { points: 1, count: 0 },
-      { points: 2, count: 0 },
-      { points: 3, count: 0 },
-      { points: 4, count: 1 },
-      { points: 5, count: 0 },
-      { points: 6, count: 1 },
+      { points: 0, upTo: 0, count: 2 },
+      { points: 1, upTo: 1, count: 0 },
+      { points: 2, upTo: 2, count: 0 },
+      { points: 3, upTo: 3, count: 0 },
+      { points: 4, upTo: 4, count: 1 },
+      { points: 5, upTo: 5, count: 0 },
+      { points: 6, upTo: 6, count: 1 },
+    ]);
+  });
+
+  it("gathers the costs into ranges, leaving the manches at 0 alone", () => {
+    expect(tallyPointsHistogram([record(TWO_STAGES)], 4)).toEqual([
+      { points: 0, upTo: 0, count: 2 },
+      { points: 1, upTo: 4, count: 1 },
+      { points: 5, upTo: 8, count: 1 },
     ]);
   });
 });

@@ -28,6 +28,7 @@ export function GamePlayerRow({
   scored,
   timed,
   tally,
+  exitLabel,
 }: Readonly<{
   rank: number;
   player: PlayerAggregate;
@@ -36,6 +37,8 @@ export function GamePlayerRow({
   timed: boolean;
   /** This player's manches, or null for a game that counts turns instead. */
   tally: { stages: number; exits: number } | null;
+  /** What this game calls a manche taken at 0 (« Sorties », « Manches à 0 »). */
+  exitLabel: string;
 }>) {
   const medal = MEDALS[rank - 1] ?? `${rank}.`;
 
@@ -70,7 +73,7 @@ export function GamePlayerRow({
         {tally ? (
           <>
             <Cell label="Manches" value={String(tally.stages)} />
-            <Cell label="Sorties" value={String(tally.exits)} />
+            <Cell label={exitLabel} value={String(tally.exits)} />
           </>
         ) : null}
         {timed ? (

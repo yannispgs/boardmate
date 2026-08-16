@@ -1,14 +1,33 @@
 import { describe, expect, it } from "vitest";
 
-import type { PlayerId, StageScore } from "@/lib/domain";
+import type { PlayerId, StageScore, StageSpec } from "@/lib/domain";
 
 import {
   closedStages,
+  lastStageReached,
   stageEntryError,
   stageFinalScores,
+  stageLimit,
   stageStandings,
   stopReached,
 } from "./stage-tally";
+
+/** Odin: one player goes out, and a hand holds nine points at most. */
+const ODIN: StageSpec = {
+  label: "Manche",
+  advance: "manual",
+  maxPoints: 9,
+  singleExit: true,
+};
+
+/** Papayoo: nobody goes out, and the table always shares out 250 points. */
+const PAPAYOO: StageSpec = {
+  label: "Manche",
+  advance: "manual",
+  maxPoints: 250,
+  stageTotal: 250,
+  stagesPerPlayer: 1,
+};
 
 const A = "a" as PlayerId;
 const B = "b" as PlayerId;
@@ -34,7 +53,7 @@ describe("stageEntryError", () => {
           { playerId: A, points: 0 },
           { playerId: B, points: 4 },
         ],
-        9,
+        ODIN,
       ),
     ).toBeNull();
   });
@@ -46,7 +65,7 @@ describe("stageEntryError", () => {
           { playerId: A, points: 2 },
           { playerId: B, points: 4 },
         ],
-        9,
+        ODIN,
       ),
     ).toBe("Un seul joueur doit finir à 0 point.");
   });
@@ -58,7 +77,7 @@ describe("stageEntryError", () => {
           { playerId: A, points: 0 },
           { playerId: B, points: 0 },
         ],
-        9,
+        ODIN,
       ),
     ).toBe("Un seul joueur doit finir à 0 point.");
   });
@@ -70,7 +89,7 @@ describe("stageEntryError", () => {
           { playerId: A, points: 0 },
           { playerId: B, points: -2 },
         ],
-        9,
+        ODIN,
       ),
     ).toBe("Les points d'une manche ne peuvent pas être négatifs.");
   });
@@ -82,7 +101,7 @@ describe("stageEntryError", () => {
           { playerId: A, points: 0 },
           { playerId: B, points: 12 },
         ],
-        9,
+        ODIN,
       ),
     ).toBe("Une manche ne peut pas rapporter plus de 9 points.");
   });
@@ -100,7 +119,73 @@ describe("stageEntryError", () => {
   });
 
   it("says nothing about an empty table", () => {
-    expect(stageEntryError([], 9)).toBeNull();
+    expect(stageEntryError([], ODIN)).toBeNull();
+  });
+
+  it("accepts several players at 0 when nobody goes out", () => {
+    expect(
+      stageEntryError(
+        [
+          { playerId: A, points: 0 },
+          { playerId: B, points: 0 },
+          { playerId: C, points: 250 },
+        ],
+        PAPAYOO,
+      ),
+    ).toBeNull();
+  });
+
+  it("refuses a manche that doesn't add up, and says what it adds up to", () => {
+    expect(
+      stageEntryError(
+        [
+          { playerId: A, points: 40 },
+          { playerId: B, points: 90 },
+        ],
+        PAPAYOO,
+      ),
+    ).toBe("Le total de la manche doit faire 250 points (actuellement 130).");
+  });
+
+  it("checks the cap before the total, being the more precise complaint", () => {
+    expect(
+      stageEntryError(
+        [
+          { playerId: A, points: 300 },
+          { playerId: B, points: 0 },
+        ],
+        PAPAYOO,
+      ),
+    ).toBe("Une manche ne peut pas rapporter plus de 250 points.");
+  });
+});
+
+describe("stageLimit", () => {
+  it("counts one manche per player at the table", () => {
+    expect(stageLimit(PAPAYOO, 5)).toBe(5);
+  });
+
+  it("leaves a game nothing but its tally stops open-ended", () => {
+    expect(stageLimit(ODIN, 5)).toBeNull();
+    expect(stageLimit(null, 5)).toBeNull();
+  });
+});
+
+describe("lastStageReached", () => {
+  const STANDINGS = stageStandings(SEATS, SCORES, 2, "lowest");
+
+  it("stops a counted game on its last manche, buried or not", () => {
+    expect(lastStageReached(STANDINGS, 4, null, 5)).toBe(false);
+    expect(lastStageReached(STANDINGS, 5, null, 5)).toBe(true);
+  });
+
+  it("stops a targeted game as soon as a total crosses the target", () => {
+    expect(lastStageReached(STANDINGS, 2, 15, null)).toBe(false);
+    expect(lastStageReached(STANDINGS, 2, 9, null)).toBe(true);
+  });
+
+  it("never stops a game with neither a count nor a target", () => {
+    expect(lastStageReached(STANDINGS, 99, null, null)).toBe(false);
   });
 });
 
