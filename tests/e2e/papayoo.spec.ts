@@ -69,11 +69,11 @@ test("scores a Papayoo party to 250 with no clock and no turns", async ({
     ).toHaveCount(0);
     await page.getByRole("button", { name: "Terminer", exact: true }).click();
 
-    await expect(page.getByText("Classement final")).toBeVisible();
-    await page.getByRole("button", { name: "Afficher" }).click();
-    await page.getByRole("button", { name: "Suivant" }).click();
-    await page.getByRole("button", { name: "Suivant" }).click();
-    await page.getByRole("button", { name: "Voir les scores" }).click();
+    // The table added the piles up itself, so it already knows who won: the
+    // standings are written straight into the books, with no reveal to sit
+    // through.
+    await expect(page.getByText("Partie terminée")).toBeVisible();
+    await expect(page.getByText("Classement final")).toHaveCount(0);
 
     // The smallest pile of payoos takes it.
     const { data: recorded } = await admin
@@ -90,9 +90,6 @@ test("scores a Papayoo party to 250 with no clock and no turns", async ({
 
     // The party counted neither turn nor manche: rather than a wall of zeros,
     // the finished screen shows no statistics panel and no link down to one.
-    await page.goto(`/games/${gameId}/play`);
-
-    await expect(page.getByText("Partie terminée")).toBeVisible();
     await expect(page.getByText("Statistiques de la partie")).toHaveCount(0);
     await expect(page.getByText("Voir les statistiques ↓")).toHaveCount(0);
 

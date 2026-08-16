@@ -2,12 +2,11 @@
 
 import type { PlayerId, PopulatedGame } from "@/lib/domain";
 import type { EndOutcome } from "@/lib/game/end-outcome";
-import { winnerDirection } from "@/lib/game/scoring";
 import { FinalScoreTable } from "./FinalScoreTable";
+import { GameTieBreak } from "./GameTieBreak";
 import { namedPlayers } from "./named-players";
 import { PairScoreTable } from "./PairScoreTable";
 import { RankingReveal } from "./RankingReveal";
-import { TieBreakPrompt } from "./TieBreakPrompt";
 import type { EndFlowState } from "./use-end-flow";
 
 /**
@@ -80,9 +79,6 @@ function Reveal({
 }>) {
   // The boardgame's own secondary rules, for a game that ends level.
   const rules = game.boardgame.scoring?.tieBreak ?? [];
-  const direction = game.boardgame.scoring
-    ? winnerDirection(game.boardgame.scoring.winCondition)
-    : "highest";
 
   return (
     <>
@@ -103,20 +99,7 @@ function Reveal({
         onDone={flow.leaveReveal}
       />
 
-      {flow.tieOpen ? (
-        <TieBreakPrompt
-          players={players}
-          scores={Object.fromEntries(
-            outcome.scores.map(s => [s.playerId, s.score]),
-          )}
-          direction={direction}
-          rules={rules}
-          currentPlayerId={game.currentPlayerId}
-          onConfirm={flow.settleTie}
-          onCancel={() => flow.setTieOpen(false)}
-          disabled={disabled}
-        />
-      ) : null}
+      <GameTieBreak game={game} flow={flow} disabled={disabled} />
     </>
   );
 }

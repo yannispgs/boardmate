@@ -25,7 +25,10 @@ export interface EndFlowState {
    * takes the timer's place while it is. */
   entryOpen: boolean;
   setEntryOpen: (open: boolean) => void;
-  /** Opened from the reveal once it uncovers leaders that came out level. */
+  /**
+   * Opened once leaders come out level — from the reveal when there is one, and
+   * from the score form itself when the table typed the totals.
+   */
   tieOpen: boolean;
   setTieOpen: (open: boolean) => void;
   endByHand: (winnerIds: PlayerId[]) => Promise<void>;
@@ -39,9 +42,24 @@ export interface EndFlowState {
     values: Record<string, Record<string, number>>,
   ) => Promise<void>;
   finishPairs: (piles: Record<string, number>) => Promise<void>;
+  /**
+   * Ends a game on totals the **app** added up (Odin's manches), which the table
+   * has not seen ranked: those go through the reveal.
+   */
   finishTotals: (
     scores: Array<{ playerId: PlayerId; score: number }>,
     override: PlayerId | null,
+  ) => Promise<void>;
+  /**
+   * Ends a game on totals the **table** typed. It read them off the sheet before
+   * the app did, so climbing the standings place by place would reveal nothing:
+   * the game is recorded straight away. When `chain` is set, an identical new
+   * party opens instead of the recap.
+   */
+  finishTypedTotals: (
+    scores: Array<{ playerId: PlayerId; score: number }>,
+    override: PlayerId | null,
+    chain: boolean,
   ) => Promise<void>;
   settleTie: (
     winnerIds: PlayerId[],
@@ -55,12 +73,20 @@ export interface EndFlowState {
  * whichever sheet the game uses, revealing the standings, settling a tie, and
  * recording the finished game.
  */
-export function useEndFlow(game: PopulatedGame, play: PlayGame): EndFlowState {
+export function useEndFlow(
+  game: PopulatedGame,
+  play: PlayGame,
+  /** Opens the next party, once this one is recorded — see `chainedGame`. */
+  onChain: () => Promise<void>,
+): EndFlowState {
   const repo = getGameRepository();
   const [phase, setPhase] = useState<EndPhase>("play");
   const [outcome, setOutcome] = useState<EndOutcome | null>(null);
   const [entryOpen, setEntryOpen] = useState(false);
   const [tieOpen, setTieOpen] = useState(false);
+  // Set aside while the tie-break asks its questions: the table pressed
+  // « Enchaîner », and still means to once the leaders are separated.
+  const [chaining, setChaining] = useState(false);
 
   /** Records the finished game; false when it failed and the screen must stay. */
   async function persist(
@@ -95,6 +121,28 @@ export function useEndFlow(game: PopulatedGame, play: PlayGame): EndFlowState {
   ) {
     await play.run(END_FAILED, async () => {
       await repo.end(game.id, winnerIds, scores, tieBreak);
+      await play.reload();
+    });
+  }
+
+  /**
+   * Records a game the table itself added up, and goes where the table asked:
+   * the next party when it pressed « Enchaîner », the recap otherwise.
+   */
+  async function endTyped(
+    ended: EndOutcome,
+    tieBreak: TieBreakRecord | null,
+    chain: boolean,
+  ) {
+    await play.run(END_FAILED, async () => {
+      await repo.end(game.id, ended.winners, ended.scores, tieBreak);
+
+      if (chain) {
+        await onChain();
+
+        return;
+      }
+
       await play.reload();
     });
   }
@@ -141,13 +189,42 @@ export function useEndFlow(game: PopulatedGame, play: PlayGame): EndFlowState {
         ),
       ),
 
-    /** Records the game once the reveal's tie-break has named the winners. */
+    finishTypedTotals: async (scores, override, chain) => {
+      const ended = totalOutcome(
+        scores,
+        game.boardgame.scoring?.winCondition ?? null,
+        override,
+      );
+
+      // Leaders came out level: nothing can be recorded before the table
+      // settles them, and with no reveal the prompt opens over the form.
+      if (ended.winners.length === 0) {
+        setChaining(chain);
+        setOutcome(ended);
+        setTieOpen(true);
+
+        return;
+      }
+
+      await endTyped(ended, null, chain);
+    },
+
+    /** Records the game once the tie-break has named the winners. */
     settleTie: async (winnerIds, record) => {
       if (outcome === null) {
         return;
       }
 
       const settled = { ...outcome, winners: winnerIds };
+
+      // Asked from the score form (no reveal): the game is recorded and the
+      // screen moves on, exactly as a lone leader would have.
+      if (phase === "play") {
+        setTieOpen(false);
+        await endTyped(settled, record, chaining);
+
+        return;
+      }
 
       if (await persist(settled, record)) {
         setTieOpen(false);

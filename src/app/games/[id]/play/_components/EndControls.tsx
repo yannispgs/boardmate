@@ -138,7 +138,11 @@ export function EndControls({
       <ScoreEntry
         players={players}
         scoring={finalScoring}
-        onEnd={flow.finishTotals}
+        onEnd={flow.finishTypedTotals}
+        // Chaining is for the games a party of which is one short deal — the
+        // ones the app puts no clock on. Anything longer is worth walking back
+        // through the funnel for, if only to change the seats.
+        chainable={!game.boardgame.timed}
         disabled={disabled}
         open={flow.entryOpen}
         onOpenChange={flow.setEntryOpen}
@@ -295,11 +299,15 @@ function CountPointsButton({
  * tie-break prompt settles afterwards. Tapping a name names that player winner
  * outright (house rules). Ends once every score is in, and — for a game whose
  * points are one pile shared out (Papayoo) — once they add up to it.
+ *
+ * A game played one short party at a time also offers to deal the next one from
+ * here, so a table playing deal after deal never goes back through the funnel.
  */
 function ScoreEntry({
   players,
   scoring,
   onEnd,
+  chainable,
   disabled,
   open,
   onOpenChange,
@@ -309,7 +317,10 @@ function ScoreEntry({
   onEnd: (
     scores: Array<{ playerId: PlayerId; score: number }>,
     override: PlayerId | null,
+    chain: boolean,
   ) => void;
+  /** Whether this game offers to deal the next party from here. */
+  chainable: boolean;
   disabled: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -338,6 +349,16 @@ function ScoreEntry({
       )
     : null;
   const highlighted = override ?? leader;
+  const blocked = disabled || !allEntered || refused !== null;
+
+  /** Records the party, and — when chaining — deals the next one right after. */
+  function finish(chain: boolean) {
+    onEnd(
+      entries.map(e => ({ playerId: e.playerId, score: e.score ?? 0 })),
+      override,
+      chain,
+    );
+  }
 
   if (!open) {
     return <EndGameButton onClick={() => onOpenChange(true)} />;
@@ -379,17 +400,22 @@ function ScoreEntry({
       )}
       <button
         type="button"
-        disabled={disabled || !allEntered || refused !== null}
-        onClick={() => {
-          onEnd(
-            entries.map(e => ({ playerId: e.playerId, score: e.score ?? 0 })),
-            override,
-          );
-        }}
+        disabled={blocked}
+        onClick={() => finish(false)}
         className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
       >
         Terminer
       </button>
+      {chainable ? (
+        <button
+          type="button"
+          disabled={blocked}
+          onClick={() => finish(true)}
+          className="rounded-lg border border-indigo-500 px-4 py-2 text-sm font-medium text-indigo-600 transition hover:bg-indigo-500/10 disabled:opacity-60 dark:text-indigo-400"
+        >
+          Enchaîner une nouvelle partie
+        </button>
+      ) : null}
       <CancelLink onClick={() => onOpenChange(false)} />
     </div>
   );
