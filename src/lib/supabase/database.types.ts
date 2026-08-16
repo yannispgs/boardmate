@@ -70,6 +70,7 @@ export type Database = {
           has_games: boolean
           id: string
           is_active: boolean
+          is_timed: boolean
           kind: string
           logo_url: string | null
           max_players: number | null
@@ -95,6 +96,7 @@ export type Database = {
           has_games?: boolean
           id?: string
           is_active?: boolean
+          is_timed?: boolean
           kind?: string
           logo_url?: string | null
           max_players?: number | null
@@ -120,6 +122,7 @@ export type Database = {
           has_games?: boolean
           id?: string
           is_active?: boolean
+          is_timed?: boolean
           kind?: string
           logo_url?: string | null
           max_players?: number | null

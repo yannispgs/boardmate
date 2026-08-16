@@ -16,14 +16,11 @@ export function GamePlayerTable({
   scored,
   timed,
   exits,
-  exitLabel,
 }: Readonly<{
   players: PlayerAggregate[];
   scored: boolean;
   timed: boolean;
   exits: TallyExitStat[] | null;
-  /** What this game calls a manche taken at 0 (« Sorties », « Manches à 0 »). */
-  exitLabel: string;
 }>) {
   return (
     <ul className="flex flex-col gap-3">
@@ -34,7 +31,6 @@ export function GamePlayerTable({
           player={player}
           scored={scored}
           timed={timed}
-          exitLabel={exitLabel}
           tally={
             exits === null
               ? null

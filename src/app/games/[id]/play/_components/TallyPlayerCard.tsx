@@ -1,21 +1,17 @@
-import type { TallyExitLabels } from "@/lib/game/tally-labels";
 import type { TallyPlayerStat } from "@/lib/game/tally-stats";
 
 /**
- * One player's manches: how often they took no point, and what the rest cost
- * them. The bar is their share of the game's manches, so the lines compare at a
- * glance — the whole table's bars add up to a full one when a single player can
- * close a manche.
+ * One player's manches: how often they went out, and what the rest cost them.
+ * The bar is their share of the game's manches, so the lines compare at a
+ * glance — the whole table's bars add up to a full one.
  */
 export function TallyPlayerCard({
   stat,
-  labels,
   rank,
   stageCount,
   isWinner,
 }: Readonly<{
   stat: TallyPlayerStat;
-  labels: TallyExitLabels;
   rank: number;
   /** Manches the game lasted — the shared scale of every bar. */
   stageCount: number;
@@ -38,7 +34,7 @@ export function TallyPlayerCard({
         <span className="text-sm tabular-nums">
           <span className="font-semibold">{stat.exits}</span>{" "}
           <span className="text-zinc-500 dark:text-zinc-400">
-            {stat.exits > 1 ? labels.events : labels.event}
+            sortie{stat.exits > 1 ? "s" : ""}
           </span>
         </span>
       </div>
@@ -52,8 +48,8 @@ export function TallyPlayerCard({
 
       <p className="text-xs text-zinc-500 tabular-nums dark:text-zinc-400">
         {stat.avgCaught === null
-          ? labels.always
-          : `${stat.avgCaught.toFixed(1)} ${labels.otherwise}`}
+          ? "Sorti à toutes les manches"
+          : `${stat.avgCaught.toFixed(1)} pts/manche hors sortie`}
         {stat.worst > 0 ? ` · pire manche : ${stat.worst}` : ""} · {stat.total}{" "}
         pts au total
       </p>

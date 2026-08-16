@@ -2,15 +2,14 @@
 
 import { useState } from "react";
 
-import type { PlayerId, PopulatedGame, StageSpec } from "@/lib/domain";
+import type { PlayerId, PopulatedGame } from "@/lib/domain";
 import type { ScoreDirection } from "@/lib/game/scoring";
 import {
   closedStages,
-  lastStageReached,
   stageEntryError,
   stageFinalScores,
-  stageLimit,
   stageStandings,
+  stopReached,
 } from "@/lib/game/stage-tally";
 
 import { namedPlayers } from "./named-players";
@@ -62,8 +61,7 @@ export function StageBoard({
   const seats = players.map(p => p.id);
   const target = game.winThreshold;
   const unit = stageLabel.toLowerCase();
-  const spec = game.boardgame.stages;
-  const limit = stageLimit(spec, seats.length);
+  const maxPoints = game.boardgame.stages?.maxPoints ?? null;
   const past = closedStages(goals.scores, game.stage);
 
   const standings = stageStandings(seats, goals.scores, game.stage, direction);
@@ -72,9 +70,7 @@ export function StageBoard({
       ? null
       : stageStandings(seats, goals.scores, recapStage, direction);
   const stopped =
-    recap !== null &&
-    recapStage !== null &&
-    lastStageReached(recap, recapStage, target, limit);
+    recap !== null && target !== null && stopReached(recap, target);
 
   /** Writes a manche down: the one being closed, or an older one put right. */
   async function saveEntry(
@@ -101,7 +97,7 @@ export function StageBoard({
     <>
       <div className="flex w-full max-w-sm flex-col gap-3">
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          {targetNote(target, limit, unit, direction)}
+          {targetNote(target, direction)}
         </p>
 
         <StandingCardList
@@ -117,8 +113,7 @@ export function StageBoard({
           onClick={() => setEntryStage(game.stage)}
           className="rounded-xl bg-indigo-600 px-4 py-3 font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
         >
-          Fin de la {unit} {game.stage}
-          {limit === null ? "" : ` / ${limit}`} →
+          Fin de la {unit} {game.stage} →
         </button>
 
         <PastStageCardList
@@ -134,11 +129,11 @@ export function StageBoard({
         <StagePointsPrompt
           stage={entryStage}
           stageLabel={stageLabel}
-          intro={pointsIntro(spec)}
+          intro={pointsIntro(maxPoints)}
           players={players}
           initial={goals.entered(entryStage)}
-          validate={entries => stageEntryError(entries, spec)}
-          max={spec?.maxPoints ?? null}
+          validate={entries => stageEntryError(entries, maxPoints)}
+          max={maxPoints}
           disabled={disabled}
           confirmLabel="Valider"
           onConfirm={points => void saveEntry(entryStage, points)}
@@ -154,7 +149,6 @@ export function StageBoard({
           players={players}
           target={target}
           stopped={stopped}
-          stopNote={stopNote(target, limit, unit)}
           disabled={disabled}
           onNext={() => void openNextStage()}
           onEnd={() => void onEnd(stageFinalScores(seats, goals.scores))}
@@ -164,58 +158,23 @@ export function StageBoard({
   );
 }
 
-/** The rule the boxes are filled in by, as the game's own sheet states it. */
-function pointsIntro(spec: StageSpec | null): string {
-  if (spec?.stageTotal !== undefined) {
-    return `Points de chacun : le total de la manche doit faire ${spec.stageTotal}.`;
-  }
-
-  if (spec?.singleExit !== true) {
-    return "Points de chacun sur cette manche.";
-  }
-
+/** The rule the boxes are filled in by, capped when the rules cap it. */
+function pointsIntro(maxPoints: number | null): string {
   const rule = "Points de chacun : 0 pour celui qui termine, au moins 1 pour";
-  const maxPoints = spec.maxPoints ?? null;
 
   return maxPoints === null
     ? `${rule} les autres.`
     : `${rule} les autres, ${maxPoints} au plus.`;
 }
 
-/** Which end of the standings takes the game, in words. */
-function winsNote(direction: ScoreDirection): string {
-  return direction === "lowest"
-    ? "le plus petit total gagne"
-    : "le plus gros total gagne";
-}
-
 /** What the table is playing to, spelled out above the standings. */
-function targetNote(
-  target: number | null,
-  limit: number | null,
-  unit: string,
-  direction: ScoreDirection,
-): string {
-  const wins = winsNote(direction);
-
-  if (limit !== null) {
-    return `La partie se joue en ${limit} ${unit}s : ${wins}.`;
-  }
+function targetNote(target: number | null, direction: ScoreDirection): string {
+  const wins =
+    direction === "lowest"
+      ? "le plus petit total gagne"
+      : "le plus gros total gagne";
 
   return target === null
     ? `La partie s'arrête quand vous le décidez : ${wins}.`
     : `La partie s'arrête dès que quelqu'un atteint ${target} points : ${wins}.`;
-}
-
-/** Why the game stops here, read out on the recap of its last manche. */
-function stopNote(
-  target: number | null,
-  limit: number | null,
-  unit: string,
-): string {
-  if (limit !== null) {
-    return `La ${unit} ${limit} était la dernière : la partie s'arrête ici.`;
-  }
-
-  return `La barre des ${target} points est franchie : la partie s'arrête ici.`;
 }

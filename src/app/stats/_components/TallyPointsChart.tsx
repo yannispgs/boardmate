@@ -1,24 +1,16 @@
 import type { TallyPointsBar } from "@/lib/game/tally-averages";
-import type { TallyExitLabels } from "@/lib/game/tally-labels";
 
 const TRACK = 96; // px for the tallest bar
 const STUB = 4; // min height so empty values stay visible
 
-/** What one bar stands for: a single cost, or a range of them. */
-function tick(bar: TallyPointsBar): string {
-  return bar.points === bar.upTo ? String(bar.points) : `${bar.points}+`;
-}
-
 /**
  * How much a manche usually costs, over the parties in scope: one bar per
- * possible cost — or per range of them, for a game counting in hundreds — from
- * 0 to the heaviest ever taken. The 0 bar is tinted apart and always stands
- * alone: it is not a small paquet, it is the manche nobody paid for.
+ * possible cost, from 0 (went out) to the heaviest ever taken. The 0 bar is
+ * tinted apart — it is not a small paquet, it is the manche won.
  */
 export function TallyPointsChart({
   bars,
-  labels,
-}: Readonly<{ bars: TallyPointsBar[]; labels: TallyExitLabels }>) {
+}: Readonly<{ bars: TallyPointsBar[] }>) {
   if (bars.length === 0) {
     return null;
   }
@@ -53,14 +45,14 @@ export function TallyPointsChart({
             key={bar.points}
             className="flex-1 text-center text-[10px] font-medium text-zinc-500 tabular-nums dark:text-zinc-400"
           >
-            {tick(bar)}
+            {bar.points}
           </span>
         ))}
       </div>
 
       <p className="text-xs text-zinc-500 dark:text-zinc-400">
-        {total} manche{total > 1 ? "s" : ""} de joueur · en vert les{" "}
-        {labels.events}, en violet ce que les autres ont ramassé.
+        {total} manche{total > 1 ? "s" : ""} de joueur · en vert les sorties (0
+        point), en violet ce que les autres ont ramassé.
       </p>
     </div>
   );

@@ -3,9 +3,9 @@
  * table that produced them.
  *
  * A total only means something next to the number of players it was collected
- * against: at Papayoo the 250 points of a manche are shared out between
- * everybody at the table, so taking 250 across a game is unremarkable at three
- * players and a catastrophe at six. Comparing the two would rank the small
+ * against: at Papayoo the 250 points of a hand are shared out between everybody
+ * at the table, so collecting them all is one chance in three of the pile at
+ * three players and one in six at six. Comparing the two would rank the small
  * tables and say nothing about anyone.
  *
  * « Worst » is read off the game's own direction rather than assumed: the wrong

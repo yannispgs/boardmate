@@ -1,169 +1,128 @@
 import { expect, test } from "@playwright/test";
 
-import { stagePoints } from "./utils/stage-prompt";
 import { adminClient, seedPlayers } from "./utils/supabase";
 
-const PLAYER_COUNT = 3;
-
 /**
- * A trick-taking game counted manche by manche, over a number of manches fixed
- * by the table (Papayoo, full-suite only — untagged). Nothing is timed, nobody
- * goes out, and the twenty payoos plus the papayoo card put exactly 250 points
- * on the table every manche — so the form refuses anything that doesn't add up,
- * and the game stops itself once everybody has named the payoo suit once.
+ * A trick-taking game played one deal at a time (Papayoo, full-suite only —
+ * untagged). Nothing is timed, so the play screen has neither countdown nor
+ * turn to advance: it opens straight on the button that writes the score. The
+ * twenty payoos plus the papayoo card put exactly 250 points on the table, so
+ * the form refuses a sheet adding up to anything else — and the stats read the
+ * two things that matter here: the heaviest totals, filed under the number of
+ * players, and who gets away with nothing.
  */
-test("counts Papayoo to 250 a manche and stops it after one manche each", async ({
+test("scores a Papayoo party to 250 with no clock and no turns", async ({
   page,
 }) => {
   const admin = adminClient();
-  const names = await seedPlayers(PLAYER_COUNT);
-  let gameId = "";
+  const players = await seedPlayers(3);
+  let gameId: string | null = null;
 
   try {
-    const { data: seeded } = await admin
-      .from("players")
-      .select("id, name")
-      .in("name", names);
-    const ids = names.map(
-      n => (seeded ?? []).find(p => p.name === n)?.id as string,
-    );
-
-    const { data: boardgame } = await admin
-      .from("boardgames")
-      .select("id")
-      .eq("name", "Papayoo")
-      .single();
-
-    const { data: game } = await admin
-      .from("games")
-      .insert({
-        boardgame_id: boardgame?.id as string,
-        status: "ongoing",
-        round: 1,
-        turn: 1,
-        stage: 1,
-        current_player_id: ids[0],
-      })
-      .select("id")
-      .single();
-    gameId = game?.id as string;
-
-    await admin.from("game_players").insert(
-      ids.map((player_id, i) => ({
-        game_id: gameId,
-        player_id,
-        seat_order: i,
-      })),
-    );
-
-    await page.goto(`/games/${gameId}/play`);
-
-    // Three players, three manches: the length is the table's, not a score's.
-    await expect(
-      page.getByText(
-        "La partie se joue en 3 manches : le plus petit total gagne.",
-      ),
-    ).toBeVisible();
-
-    await page.getByRole("button", { name: "Fin de la manche 1 / 3" }).click();
-
-    const first = page.getByRole("dialog", { name: "Points de la manche 1" });
-
-    await expect(
-      first.getByText(
-        "Points de chacun : le total de la manche doit faire 250.",
-      ),
-    ).toBeVisible();
-
-    // The complaint doubles as the running count while the boxes fill up.
-    await expect(
-      first.getByText(
-        "Le total de la manche doit faire 250 points (actuellement 0).",
-      ),
-    ).toBeVisible();
-
-    await stagePoints(first, names[0]).fill("100");
-    await stagePoints(first, names[1]).fill("100");
-    await stagePoints(first, names[2]).fill("100");
-
-    await expect(
-      first.getByText(
-        "Le total de la manche doit faire 250 points (actuellement 300).",
-      ),
-    ).toBeVisible();
-    await expect(first.getByRole("button", { name: "Valider" })).toBeDisabled();
-
-    await stagePoints(first, names[2]).fill("50");
-    await first.getByRole("button", { name: "Valider" }).click();
-
-    const recap = page.getByRole("dialog", { name: "Fin de la manche 1" });
-
-    await expect(recap.getByText("Totaux après cette manche.")).toBeVisible();
-    await recap.getByRole("button", { name: "Manche 2" }).click();
-
-    // Second manche: one player collects the lot, so two of them end at 0 —
-    // which no rule of this game forbids, unlike Odin's single sortie.
-    await page.getByRole("button", { name: "Fin de la manche 2 / 3" }).click();
-
-    const second = page.getByRole("dialog", { name: "Points de la manche 2" });
-
-    await stagePoints(second, names[0]).fill("250");
-
-    await expect(second.getByRole("button", { name: "Valider" })).toBeEnabled();
-
-    await second.getByRole("button", { name: "Valider" }).click();
+    await page.goto("/games/new");
+    await page.getByRole("button", { name: "Papayoo", exact: true }).click();
     await page
-      .getByRole("dialog", { name: "Fin de la manche 2" })
-      .getByRole("button", { name: "Manche 3" })
+      .getByRole("button", { name: "Sans configuration", exact: true })
+      .click();
+    for (const name of players) {
+      await page.getByRole("button", { name, exact: true }).click();
+    }
+    await page.getByRole("button", { name: "Continuer →" }).click();
+    await page.getByRole("button", { name: "Lancer la partie" }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Lancer", exact: true })
       .click();
 
-    // Third and last: the recap says why the game stops rather than offering a
-    // fourth deal nobody would play.
-    await page.getByRole("button", { name: "Fin de la manche 3 / 3" }).click();
+    await expect(page).toHaveURL(/\/games\/[0-9a-f-]+\/play$/);
+    gameId = page.url().match(/games\/([0-9a-f-]+)\/play/)?.[1] ?? null;
 
-    const third = page.getByRole("dialog", { name: "Points de la manche 3" });
+    // Nothing to time and nothing to advance: no play block, and no « Tour 1 »
+    // sitting there for the whole party.
+    await expect(
+      page.getByRole("button", { name: "Terminer la partie" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Tour suivant →" }),
+    ).toHaveCount(0);
+    await expect(page.getByText("Tour 1", { exact: true })).toHaveCount(0);
 
-    await stagePoints(third, names[1]).fill("125");
-    await stagePoints(third, names[2]).fill("125");
-    await third.getByRole("button", { name: "Valider" }).click();
+    await page.getByRole("button", { name: "Terminer la partie" }).click();
+    await page.getByLabel(`Score de ${players[0]}`).fill("100");
+    await page.getByLabel(`Score de ${players[1]}`).fill("100");
+    await page.getByLabel(`Score de ${players[2]}`).fill("100");
 
-    const last = page.getByRole("dialog", { name: "Fin de la manche 3" });
+    // The complaint doubles as the running count: 300 payoos were never dealt.
+    await expect(
+      page.getByText("Le total doit faire 250 points (actuellement 300)."),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Terminer", exact: true }),
+    ).toBeDisabled();
+
+    // Balanced: one player took nothing, which no rule of this game forbids.
+    await page.getByLabel(`Score de ${players[2]}`).fill("0");
+    await page.getByLabel(`Score de ${players[1]}`).fill("150");
 
     await expect(
-      last.getByText("La manche 3 était la dernière : la partie s'arrête ici."),
-    ).toBeVisible();
-    await last.getByRole("button", { name: "Voir le classement" }).click();
+      page.getByText("Le total doit faire 250 points", { exact: false }),
+    ).toHaveCount(0);
+    await page.getByRole("button", { name: "Terminer", exact: true }).click();
 
-    // Totals: 350, 225, 175 — the smallest pile of payoos takes it.
-    await expect
-      .poll(async () => {
-        const { data } = await admin
-          .from("game_players")
-          .select("player_id, score, is_winner")
-          .eq("game_id", gameId)
-          .order("seat_order");
+    await expect(page.getByText("Classement final")).toBeVisible();
+    await page.getByRole("button", { name: "Afficher" }).click();
+    await page.getByRole("button", { name: "Suivant" }).click();
+    await page.getByRole("button", { name: "Suivant" }).click();
+    await page.getByRole("button", { name: "Voir les scores" }).click();
 
-        return (data ?? []).map(r => [r.score, r.is_winner]);
-      })
-      .toEqual([
-        [350, false],
-        [225, false],
-        [175, true],
-      ]);
+    // The smallest pile of payoos takes it.
+    const { data: recorded } = await admin
+      .from("game_players")
+      .select("score, is_winner")
+      .eq("game_id", gameId as string)
+      .order("seat_order");
 
-    // The end-of-game panel counts the manches nobody paid for, and calls them
-    // what they are here: no sortie was ever made.
+    expect((recorded ?? []).map(r => [r.score, r.is_winner])).toEqual([
+      [100, false],
+      [150, false],
+      [0, true],
+    ]);
+
+    // The party counted neither turn nor manche: rather than a wall of zeros,
+    // the finished screen shows no statistics panel and no link down to one.
     await page.goto(`/games/${gameId}/play`);
 
-    await expect(page.getByText("Statistiques de la partie")).toBeVisible();
-    await expect(page.getByText("Temps de jeu")).toHaveCount(0);
+    await expect(page.getByText("Partie terminée")).toBeVisible();
+    await expect(page.getByText("Statistiques de la partie")).toHaveCount(0);
+    await expect(page.getByText("Voir les statistiques ↓")).toHaveCount(0);
+
+    // « Jeux » tab: the two figures a shared pile of points is worth reading.
+    await page.goto("/stats");
+    await page.getByRole("button", { name: "Jeux", exact: true }).click();
+    await page.getByRole("button", { name: "Papayoo", exact: true }).click();
+
+    await expect(page.getByText("Pires scores")).toBeVisible();
+    await expect(page.getByText("À 3 joueurs")).toBeVisible();
     await expect(page.getByText("Qui finit le plus souvent à 0")).toBeVisible();
-    await expect(page.getByText("sortie")).toHaveCount(0);
-    await expect(page.getByText("La ligne jaune")).toHaveCount(0);
+    await expect(
+      page
+        .getByRole("listitem")
+        .filter({ hasText: players[2] })
+        .filter({ hasText: "partie à 0 sur" }),
+    ).toContainText("1 partie à 0 sur 1 jouée");
+
+    // The same hall of shame follows the player onto his own sheet.
+    await page.getByRole("button", { name: "Joueurs", exact: true }).click();
+    await page.getByRole("button", { name: players[1] }).first().click();
+
+    await expect(page.getByText("Pires scores — Papayoo")).toBeVisible();
+    await expect(
+      page.getByText("0 partie à 0 sur 1 jouée — 0 %"),
+    ).toBeVisible();
   } finally {
     if (gameId) {
       await admin.from("games").delete().eq("id", gameId);
     }
-    await admin.from("players").delete().in("name", names);
+    await admin.from("players").delete().in("name", players);
   }
 });

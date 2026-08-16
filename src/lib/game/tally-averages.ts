@@ -141,47 +141,18 @@ export function computeTallyExits(
 
 /** One bar of the manche-cost distribution. */
 export interface TallyPointsBar {
-  /** Lowest cost this bar counts. */
   points: number;
-  /** Highest cost it counts — the same number when it counts a single cost. */
-  upTo: number;
   count: number;
 }
 
 /**
- * Bars a chart can still be read at on a phone. A game paying in single points
- * (Odin: 9 a manche) gets one bar per point; a game paying in hundreds
- * (Papayoo: 250 shared out) would get two hundred and fifty of them, so it gets
- * ranges instead.
- */
-const MAX_BARS = 10;
-
-/**
- * How wide a bar has to be for `maxPoints` to fit in {@link MAX_BARS} of them.
- * `1` — one bar per point — for every game small enough, which is what the
- * chart did before any game was big enough to need this.
- */
-export function tallyPointsBucket(maxPoints: number | null): number {
-  if (maxPoints === null || maxPoints <= MAX_BARS) {
-    return 1;
-  }
-
-  return Math.ceil(maxPoints / MAX_BARS);
-}
-
-/**
- * How often each manche cost was written down, from 0 up to the heaviest ever
- * taken. Every value in between gets its bar, empty ones included, so the shape
- * of the distribution shows rather than the bars merely being listed.
- *
- * `bucket` groups costs into ranges of that width for a game whose manches are
- * counted in hundreds. **0 always keeps its own bar**, whatever the width: a
- * manche taken at no cost is not a cheap manche, it is the one thing the table
- * is playing for, and burying it in a « 0 à 24 » range would hide it.
+ * How often each manche cost was written down, from 0 (went out) up to the
+ * heaviest ever taken — the whole hand, when the rules cap it. Every value in
+ * between gets its bar, empty ones included, so the shape of the distribution
+ * shows rather than the bars merely being listed.
  */
 export function tallyPointsHistogram(
   records: readonly GameStatsRecord[],
-  bucket = 1,
 ): TallyPointsBar[] {
   const counts = new Map<number, number>();
   let max = 0;
@@ -197,38 +168,8 @@ export function tallyPointsHistogram(
     return [];
   }
 
-  return pointRanges(max, bucket).map(range => ({
-    ...range,
-    count: countIn(counts, range),
+  return Array.from({ length: max + 1 }, (_unused, points) => ({
+    points,
+    count: counts.get(points) ?? 0,
   }));
-}
-
-/** The ranges the bars stand for: zero on its own, then bands of `bucket`. */
-function pointRanges(
-  max: number,
-  bucket: number,
-): Array<{ points: number; upTo: number }> {
-  const ranges = [{ points: 0, upTo: 0 }];
-
-  for (let from = 1; from <= max; from += bucket) {
-    ranges.push({ points: from, upTo: from + bucket - 1 });
-  }
-
-  return ranges;
-}
-
-/** How many manches cost something inside that range. */
-function countIn(
-  counts: ReadonlyMap<number, number>,
-  range: Readonly<{ points: number; upTo: number }>,
-): number {
-  let total = 0;
-
-  for (const [points, count] of counts) {
-    if (points >= range.points && points <= range.upTo) {
-      total += count;
-    }
-  }
-
-  return total;
 }

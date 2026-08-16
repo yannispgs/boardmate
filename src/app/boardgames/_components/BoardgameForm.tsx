@@ -22,6 +22,7 @@ import {
   type TurnMode,
   type WinCondition,
 } from "@/lib/domain";
+import { preserveUneditedScoring } from "@/lib/game/scoring-preserve";
 import { seatOrderMatters } from "@/lib/game/seat-stats";
 import { useCategoryUsage } from "@/lib/hooks/use-category-usage";
 import { ScoreSheetEditor } from "./ScoreSheetEditor";
@@ -148,10 +149,15 @@ function cleanSheet(sheet: ScoreSheetItem[]): ScoreSheetItem[] {
   return clean;
 }
 
-/** Builds the scoring spec from the form's fields and the edited category sheet. */
+/**
+ * Builds the scoring spec from the form's fields and the edited category sheet,
+ * keeping whatever the form has no field for (`previous`) — see
+ * {@link preserveUneditedScoring}.
+ */
 function formToScoring(
   form: FormState,
   sheet: ScoreSheetItem[],
+  previous: ScoringSpec | null,
 ): ScoringSpec | null {
   if (!form.scored) {
     return null;
@@ -159,6 +165,15 @@ function formToScoring(
 
   const categories = form.entry === "categories";
 
+  return preserveUneditedScoring(built(form, categories, sheet), previous);
+}
+
+/** The spec exactly as the form's own fields describe it. */
+function built(
+  form: FormState,
+  categories: boolean,
+  sheet: ScoreSheetItem[],
+): ScoringSpec {
   return {
     timing: form.scoreTiming,
     entry: form.entry,
@@ -534,7 +549,7 @@ export function BoardgameForm({
       }
       // On create the parent navigates away; on edit it stays, so re-enable the
       // button for further tweaks.
-      const scoring = formToScoring(form, sheet);
+      const scoring = formToScoring(form, sheet, initial?.scoring ?? null);
       await onSubmit(toInput(form, resolvedLogo, scoring), initial?.id ?? null);
       setSubmitting(false);
     } catch {

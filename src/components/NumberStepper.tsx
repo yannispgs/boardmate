@@ -36,9 +36,6 @@ export function NumberStepper({
 
   const arrowClass =
     "h-9 w-9 shrink-0 rounded-full border border-black/10 text-lg leading-none transition hover:bg-black/5 disabled:opacity-30 dark:border-white/15 dark:hover:bg-white/5";
-  // A round box holds two digits; a game counting in hundreds (Papayoo's 250 a
-  // manche) needs three, and « 250 » in a 36-pixel circle is unreadable.
-  const boxWidth = max !== null && max >= 100 ? "w-14" : "w-9";
 
   function nudge(delta: number) {
     setDraft(null);
@@ -76,7 +73,7 @@ export function NumberStepper({
         onFocus={event => event.currentTarget.select()}
         onBlur={() => setDraft(null)}
         onChange={event => typed(event.target.value)}
-        className={`h-9 ${boxWidth} shrink-0 rounded-full border border-black/10 bg-transparent text-center font-semibold tabular-nums dark:border-white/15`}
+        className="h-9 w-9 shrink-0 rounded-full border border-black/10 bg-transparent text-center font-semibold tabular-nums dark:border-white/15"
       />
 
       <button

@@ -1,14 +1,14 @@
-import type { TallyExitStat } from "@/lib/game/tally-averages";
+import type { ZeroFinishStat } from "@/lib/game/zero-finishes";
 
 /**
- * One player's record at going out, across the parties in scope: how often the
- * manche ended on them, and what the manches they didn't close cost them. The
- * bar is the rate itself, so the lines compare down the column.
+ * One player's record at walking away from a party with nothing, across the
+ * parties in scope. The bar is the rate itself, so the lines compare down the
+ * column.
  */
-export function TallyExitCard({
+export function ZeroFinishCard({
   stat,
   rank,
-}: Readonly<{ stat: TallyExitStat; rank: number }>) {
+}: Readonly<{ stat: ZeroFinishStat; rank: number }>) {
   return (
     <li className="flex flex-col gap-1.5">
       <div className="flex items-baseline justify-between gap-2">
@@ -18,7 +18,9 @@ export function TallyExitCard({
         </span>
         <span className="text-sm tabular-nums">
           <span className="font-semibold">{Math.round(stat.rate * 100)} %</span>{" "}
-          <span className="text-zinc-500 dark:text-zinc-400">de sorties</span>
+          <span className="text-zinc-500 dark:text-zinc-400">
+            de parties à 0
+          </span>
         </span>
       </div>
 
@@ -30,11 +32,8 @@ export function TallyExitCard({
       </div>
 
       <p className="text-xs text-zinc-500 tabular-nums dark:text-zinc-400">
-        {stat.exits} sortie{stat.exits > 1 ? "s" : ""} sur {stat.stages} manche
-        {stat.stages > 1 ? "s" : ""}
-        {stat.avgCaught === null
-          ? ""
-          : ` · ${stat.avgCaught.toFixed(1)} pts/manche hors sortie`}
+        {stat.zeroes} partie{stat.zeroes > 1 ? "s" : ""} à 0 sur {stat.games}{" "}
+        jouée{stat.games > 1 ? "s" : ""}
       </p>
     </li>
   );
