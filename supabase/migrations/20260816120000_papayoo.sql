@@ -2,6 +2,22 @@
 --
 -- ⚠️ Not replayable: a plain insert, and `boardgames.name` is unique.
 --
+-- ⚠️ PROD ALREADY HAS A PAPAYOO, entered by hand in the game editor on
+-- 2026-08-15, and two parties have been played on it. The insert below would
+-- fail there with a 23505, and its row must NOT be deleted — the games hang off
+-- it. At merge, prod gets everything but the insert, plus an UPDATE aligning
+-- that row on the values written here (owner's call, 2026-08-16, same shape as
+-- the Splendor case of 2026-08-14 minus the delete):
+--
+--   update public.boardgames set
+--     min_players = 3, max_players = 8, avg_duration_min = 15,
+--     rec_min_players = null, rec_max_players = null,
+--     tags = array['cartes', 'plis'], turn_mode = 'sequential',
+--     kind = 'competitive', is_timed = false,
+--     scoring = '{"timing":"final","entry":"total","stopCondition":null,
+--                 "winCondition":{"type":"lowest"},"totalSum":250}'::jsonb
+--   where name = 'Papayoo';
+--
 -- Papayoo is a trick-taking card game the table plays one hand at a time: a
 -- game IS a hand. Nobody wants to walk back through the new-game funnel between
 -- two of them, so it is recorded the plainest way there is — the final totals,
