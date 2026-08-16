@@ -7,30 +7,34 @@ import { TabButton, tabBarClass } from "@/components/TabButton";
 import { useConfirm } from "@/components/use-confirm";
 import type { Role } from "@/lib/domain";
 import { useAccess } from "@/lib/hooks/use-access";
+import { AccountsPanel } from "./AccountsPanel";
 import { PermissionCardList } from "./PermissionCardList";
 import { RoleCardList } from "./RoleCardList";
 import { RoleEditor } from "./RoleEditor";
 
-type Tab = "permissions" | "roles";
+type Tab = "permissions" | "roles" | "accounts";
 
 /** The role being written: an existing one, or `"new"` for one being created. */
 type Editing = Role | "new";
 
 /**
- * The access model: the permission catalogue on one tab, the roles that bundle
- * it on the other — and, for whoever holds the rights to it, composing those
- * roles right there.
+ * The access model, read from three angles: the permission catalogue, the roles
+ * that bundle it, and the accounts that wear them — and, for whoever holds the
+ * rights to it, composing a role and handing it over right there.
  */
 export function AccessManager() {
   const {
     permissions,
     roles,
+    accounts,
     mine,
     loading,
     error,
     createRole,
     saveRole,
     removeRole,
+    assignRole,
+    unassignRole,
   } = useAccess();
   const [tab, setTab] = useState<Tab>("permissions");
   const [editing, setEditing] = useState<Editing | null>(null);
@@ -50,6 +54,7 @@ export function AccessManager() {
   const mayCreate = mine.includes("roles.create");
   const mayUpdate = mine.includes("roles.update");
   const mayDelete = mine.includes("roles.delete");
+  const mayAssign = mine.includes("roles.assign");
 
   const edited = editing === "new" ? null : editing;
   const takenKeys = roles
@@ -115,15 +120,21 @@ export function AccessManager() {
         <TabButton active={tab === "roles"} onClick={() => setTab("roles")}>
           Rôles
         </TabButton>
+        <TabButton
+          active={tab === "accounts"}
+          onClick={() => setTab("accounts")}
+        >
+          Comptes
+        </TabButton>
       </div>
 
       <ErrorText message={error ?? actionError} />
 
       {!loading && !mayReadRoles ? (
         <p className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-amber-800 dark:text-amber-200">
-          Ton compte n&apos;a pas la permission « Consulter les rôles » : la
-          liste des rôles reste vide. Demande à un administrateur de te
-          l&apos;attribuer.
+          Ton compte n&apos;a pas la permission « Consulter les rôles » : les
+          listes des rôles et des comptes restent vides. Demande à un
+          administrateur de te l&apos;attribuer.
         </p>
       ) : null}
 
@@ -146,7 +157,9 @@ export function AccessManager() {
           >
             <PermissionCardList permissions={permissions} />
           </ListState>
-        ) : (
+        ) : null}
+
+        {tab === "roles" ? (
           <ListState
             loading={loading}
             empty={roles.length === 0}
@@ -159,7 +172,18 @@ export function AccessManager() {
               onDelete={mayDelete ? confirmDelete : undefined}
             />
           </ListState>
-        )}
+        ) : null}
+
+        {tab === "accounts" ? (
+          <AccountsPanel
+            accounts={accounts}
+            roles={roles}
+            loading={loading}
+            mayAssign={mayAssign}
+            onAssign={assignRole}
+            onUnassign={unassignRole}
+          />
+        ) : null}
       </div>
 
       {editing === null ? null : (

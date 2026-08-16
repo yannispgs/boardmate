@@ -4,6 +4,7 @@ import { ChevronRightIcon, PencilIcon, TrashIcon } from "@/components/icons";
 import { dangerIconButtonClass, iconButtonClass } from "@/components/ui";
 import {
   groupBySection,
+  mayDeleteRole,
   type Permission,
   type Role,
   roleDeleteBlocker,
@@ -24,9 +25,10 @@ function held(count: number): string {
  * question is answered, so the keys are listed here rather than repeated on
  * every line of the catalogue.
  *
- * An administrator role is shown as holding everything without listing it: that
- * is literally how the database answers, and a list would go stale the day a
- * permission is added.
+ * An administrator role lists nothing at all: it holds everything, present and
+ * future, and its badge already says so. What it can and cannot be done to is
+ * read off the buttons that are there — nothing is shown greyed under a
+ * sentence nobody can act on.
  */
 export function RoleCard({
   role,
@@ -45,7 +47,8 @@ export function RoleCard({
   );
   // Written under the buttons, not hidden in a tooltip: on a phone there is no
   // hover, and « pourquoi ce bouton est-il grisé » deserves an answer in sight.
-  const blocker = roleDeleteBlocker(role);
+  const deletable = mayDeleteRole(role);
+  const blocker = deletable ? roleDeleteBlocker(role) : null;
 
   return (
     <li className="flex flex-col gap-2 rounded-xl border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
@@ -58,7 +61,7 @@ export function RoleCard({
           <code className="text-xs text-zinc-400">{role.key}</code>
         </div>
 
-        {onEdit || onDelete ? (
+        {onEdit || (onDelete && deletable) ? (
           <div className="flex shrink-0 gap-1.5">
             {onEdit ? (
               <button
@@ -71,7 +74,7 @@ export function RoleCard({
               </button>
             ) : null}
 
-            {onDelete ? (
+            {onDelete && deletable ? (
               <button
                 type="button"
                 onClick={() => onDelete(role)}
@@ -92,22 +95,7 @@ export function RoleCard({
         </p>
       ) : null}
 
-      {/* Badges sit on their own line now: crammed in beside the buttons they
-          were the thing that overflowed, and they are the least urgent part. */}
-      {role.isAdmin || role.isSystem ? (
-        <div className="flex flex-wrap gap-1.5">
-          {role.isAdmin ? (
-            <span className="rounded-full bg-indigo-500/10 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:text-indigo-300">
-              Administrateur
-            </span>
-          ) : null}
-          {role.isSystem ? (
-            <span className="rounded-full border border-black/10 px-2 py-0.5 text-xs text-zinc-500 dark:border-white/15 dark:text-zinc-400">
-              Fourni par l&apos;app
-            </span>
-          ) : null}
-        </div>
-      ) : null}
+      <RoleBadges role={role} />
 
       {onDelete && blocker !== null ? (
         <span className="text-xs text-zinc-500 dark:text-zinc-400">
@@ -115,15 +103,36 @@ export function RoleCard({
         </span>
       ) : null}
 
-      {role.isAdmin ? (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Toutes les permissions, y compris celles ajoutées plus tard. Ni ce
-          rôle ni son attribution ne se retirent depuis l&apos;application.
-        </p>
-      ) : (
+      {role.isAdmin ? null : (
         <RolePermissions permissions={granted} summary={held(granted.length)} />
       )}
     </li>
+  );
+}
+
+/**
+ * What the application itself decided about this role. On their own line:
+ * crammed in beside the buttons they were the thing that overflowed, and they
+ * are the least urgent part of the card.
+ */
+function RoleBadges({ role }: Readonly<{ role: Role }>) {
+  if (!role.isAdmin && !role.isSystem) {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {role.isAdmin ? (
+        <span className="rounded-full bg-indigo-500/10 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:text-indigo-300">
+          Administrateur
+        </span>
+      ) : null}
+      {role.isSystem ? (
+        <span className="rounded-full border border-black/10 px-2 py-0.5 text-xs text-zinc-500 dark:border-white/15 dark:text-zinc-400">
+          Fourni par l&apos;app
+        </span>
+      ) : null}
+    </div>
   );
 }
 

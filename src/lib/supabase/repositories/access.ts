@@ -1,6 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import type { Permission, PermissionAction, Role, RoleId } from "@/lib/domain";
+import type {
+  Account,
+  Permission,
+  PermissionAction,
+  Role,
+  RoleId,
+  UserId,
+} from "@/lib/domain";
 import { roleKeyFrom } from "@/lib/domain";
 import type { AccessRepository } from "@/lib/repositories/types";
 import type { Database } from "@/lib/supabase/database.types";
@@ -163,6 +170,69 @@ export function createAccessRepository(
 
       if (data.length === 0) {
         throw new Error("Suppression du rôle: refusée");
+      }
+    },
+
+    async listAccounts() {
+      // Two reads, not a join: the accounts come from the authentication
+      // schema through a database function, the assignments from a table with
+      // its own policy. Neither can see the other, which is the point — the
+      // function hands over identities and never the rights that go with them.
+      const [{ data: rows, error }, links] = await Promise.all([
+        supabase.rpc("accounts"),
+        supabase.from("user_roles").select("user_id, role_id"),
+      ]);
+
+      /* c8 ignore next 3 -- defensive guard: a healthy call doesn't error */
+      if (error) {
+        throw new Error(`Lecture des comptes: ${error.message}`);
+      }
+
+      /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */
+      if (links.error) {
+        throw new Error(`Lecture des attributions: ${links.error.message}`);
+      }
+
+      return rows.map(
+        (row): Account => ({
+          userId: row.user_id as UserId,
+          email: row.email,
+          lastSignInAt: row.last_sign_in_at,
+          createdAt: row.created_at,
+          roleIds: links.data
+            .filter(link => link.user_id === row.user_id)
+            .map(link => link.role_id as RoleId),
+        }),
+      );
+    },
+
+    async assignRole(userId, roleId) {
+      // A refused INSERT is an error, where a refused UPDATE or DELETE is a
+      // silent no-op — so this one needs no row count to know it went through.
+      const { error } = await supabase
+        .from("user_roles")
+        .insert({ user_id: userId, role_id: roleId });
+
+      if (error) {
+        throw new Error(`Attribution du rôle: ${error.message}`);
+      }
+    },
+
+    async unassignRole(userId, roleId) {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", userId)
+        .eq("role_id", roleId)
+        .select("role_id");
+
+      /* c8 ignore next 3 -- defensive guard: a refused delete touches no row */
+      if (error) {
+        throw new Error(`Retrait du rôle: ${error.message}`);
+      }
+
+      if (data.length === 0) {
+        throw new Error("Retrait du rôle: refusé");
       }
     },
   };

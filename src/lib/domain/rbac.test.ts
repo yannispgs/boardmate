@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import type { Permission, Role, RoleId } from "./index";
+import type { Account, Permission, Role, RoleId, UserId } from "./index";
 import {
+  accountRoles,
+  assignableRoles,
   groupBySection,
+  mayDeleteRole,
   permissionDiff,
   roleDeleteBlocker,
   roleGrants,
   roleKeyFrom,
+  roleRemovalBlocker,
 } from "./rbac";
 
 function permission(
@@ -35,6 +39,16 @@ function role(overrides: Partial<Role> = {}): Role {
     permissionKeys: [],
     assignedCount: 0,
     ...overrides,
+  };
+}
+
+function account(roleIds: RoleId[]): Account {
+  return {
+    userId: "user-1" as UserId,
+    email: "joueur@example.com",
+    lastSignInAt: null,
+    createdAt: "2026-08-14T10:00:00.000Z",
+    roleIds,
   };
 }
 
@@ -124,10 +138,67 @@ describe("roleDeleteBlocker", () => {
       "3 comptes",
     );
   });
+});
 
-  it("holds on to a role the application ships", () => {
-    expect(roleDeleteBlocker(role({ isSystem: true }))).toContain(
-      "fourni par l'application",
+describe("mayDeleteRole", () => {
+  it("lets an ordinary role be deleted, worn or not", () => {
+    expect(mayDeleteRole(role())).toBe(true);
+    expect(mayDeleteRole(role({ assignedCount: 3 }))).toBe(true);
+  });
+
+  it("keeps the roles the application provides out of reach", () => {
+    expect(mayDeleteRole(role({ isSystem: true }))).toBe(false);
+    expect(mayDeleteRole(role({ isAdmin: true }))).toBe(false);
+  });
+});
+
+describe("accountRoles", () => {
+  const admin = role({ id: "role-admin" as RoleId, isAdmin: true });
+  const reader = role({ id: "role-reader" as RoleId });
+  const writer = role({ id: "role-writer" as RoleId });
+
+  it("keeps the roles it wears, in the list's own order", () => {
+    const worn = accountRoles(
+      account(["role-writer", "role-admin"] as RoleId[]),
+      [admin, reader, writer],
+    );
+
+    expect(worn).toEqual([admin, writer]);
+  });
+
+  it("says nothing for an account with no role", () => {
+    expect(accountRoles(account([]), [admin, reader])).toEqual([]);
+  });
+});
+
+describe("assignableRoles", () => {
+  const admin = role({ id: "role-admin" as RoleId, isAdmin: true });
+  const reader = role({ id: "role-reader" as RoleId });
+  const writer = role({ id: "role-writer" as RoleId });
+
+  it("offers what is neither worn nor administrator", () => {
+    const offerable = assignableRoles(account(["role-reader"] as RoleId[]), [
+      admin,
+      reader,
+      writer,
+    ]);
+
+    expect(offerable).toEqual([writer]);
+  });
+
+  it("never offers an administrator role, even to an account without one", () => {
+    expect(assignableRoles(account([]), [admin])).toEqual([]);
+  });
+});
+
+describe("roleRemovalBlocker", () => {
+  it("lets an ordinary role be taken back", () => {
+    expect(roleRemovalBlocker(role())).toBeNull();
+  });
+
+  it("sends an administrator role back to the database", () => {
+    expect(roleRemovalBlocker(role({ isAdmin: true }))).toContain(
+      "base de données",
     );
   });
 });

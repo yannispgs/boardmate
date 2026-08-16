@@ -1,4 +1,4 @@
-import type { RoleId } from "./ids";
+import type { RoleId, UserId } from "./ids";
 
 /**
  * The four things one can do to a resource. They are deliberately the four SQL
@@ -52,6 +52,20 @@ export interface Role {
    * and a failed click is not.
    */
   assignedCount: number;
+}
+
+/**
+ * An account that can sign in, and the roles it wears. Identity only: the
+ * authentication schema keeps everything else to itself.
+ */
+export interface Account {
+  userId: UserId;
+  email: string;
+  /** ISO instant, or `null` for an account that has never opened a session. */
+  lastSignInAt: string | null;
+  createdAt: string;
+  /** The roles it holds, whether or not the reader may see what they contain. */
+  roleIds: RoleId[];
 }
 
 /** A section of the grid, with its permissions in the owner's order. */
@@ -115,21 +129,64 @@ export function roleKeyFrom(label: string): string {
 }
 
 /**
- * Why this role cannot be deleted, in the words the screen shows, or `null`
- * when it can. Both refusals are the database's — `roles_system_kept` and
- * `roles_unassigned_on_delete` raise on exactly these two cases — so the button
- * carries the reason instead of letting the tap come back with an error.
+ * Whether the app may delete this role at all. A role the application itself
+ * provides — the administrator one above all — never goes away from a screen:
+ * `roles_system_kept` refuses it in the database, and an administrator role is
+ * neither given nor taken back from the app. So the button is **not shown**
+ * rather than shown greyed under an explanation nobody can act on.
+ */
+export function mayDeleteRole(role: Role): boolean {
+  return !role.isSystem && !role.isAdmin;
+}
+
+/**
+ * Why a deletable role cannot be deleted *right now*, in the words the screen
+ * shows, or `null` when it can. The refusal is the database's
+ * (`roles_unassigned_on_delete`), so the button carries the reason instead of
+ * letting the tap come back with an error — and this reason can be lifted, by
+ * taking the role back from whoever wears it. The ones that never can are
+ * {@link mayDeleteRole}'s business.
  *
  * Editing is deliberately not covered: an assigned role stays fully editable,
  * which is the whole point of having roles.
  */
 export function roleDeleteBlocker(role: Role): string | null {
-  if (role.isSystem) {
-    return "Rôle fourni par l'application : il ne se supprime pas.";
-  }
-
   if (role.assignedCount > 0) {
     return `Attribué à ${role.assignedCount} compte${role.assignedCount > 1 ? "s" : ""} : retire-le avant de le supprimer.`;
+  }
+
+  return null;
+}
+
+/** The roles an account wears, in the order the role list itself came in. */
+export function accountRoles(account: Account, roles: readonly Role[]): Role[] {
+  return roles.filter(role => account.roleIds.includes(role.id));
+}
+
+/**
+ * The roles that may still be handed to an account: the ones it does not
+ * already wear, minus the administrator ones. An administrator badge is given
+ * in the database and nowhere else — the insert policy refuses it outright, so
+ * offering it would be offering a click that comes back with an error.
+ */
+export function assignableRoles(
+  account: Account,
+  roles: readonly Role[],
+): Role[] {
+  return roles.filter(
+    role => !role.isAdmin && !account.roleIds.includes(role.id),
+  );
+}
+
+/**
+ * Why this role cannot be taken back from an account, in the words the screen
+ * shows, or `null` when it can. The refusal is the database's — the delete
+ * policy on `user_roles` excludes administrator roles in so many words — so the
+ * badge carries the reason instead of letting the tap come back with an error.
+ */
+export function roleRemovalBlocker(role: Role): string | null {
+  if (role.isAdmin) {
+    return "Rôle administrateur : il se retire en base de données, jamais depuis l'application.";
   }
 
   return null;

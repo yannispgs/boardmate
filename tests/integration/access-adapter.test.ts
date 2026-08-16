@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import type { UserId } from "@/lib/domain";
 import { MAX_ROLE_DESCRIPTION } from "@/lib/domain";
 import { createAccessRepository } from "@/lib/supabase/repositories/access";
 import {
@@ -91,6 +92,119 @@ describe("access adapter", () => {
     // and the screen is the one that has to explain why.
     expect(await repo(nobody).listRoles()).toEqual([]);
     expect((await repo(nobody).listPermissions()).length).toBeGreaterThan(0);
+  });
+});
+
+describe("access adapter — handing a role over", () => {
+  const created: string[] = [];
+
+  async function compose(label: string) {
+    const role = await repo(admin).createRole(label, null, ["faq.read"]);
+    created.push(role.id);
+
+    return role;
+  }
+
+  afterAll(async () => {
+    const service = serviceClient();
+
+    for (const id of created) {
+      await service.from("user_roles").delete().eq("role_id", id);
+      await service.from("roles").delete().eq("id", id);
+    }
+  });
+
+  it("lists the accounts with the roles each of them wears", async () => {
+    const accounts = await repo(admin).listAccounts();
+    const mine = accounts.find(account => account.userId === admin.id);
+    const seeded = (await repo(admin).listRoles()).find(
+      role => role.key === "admin",
+    );
+
+    expect(mine?.email).toBe(admin.email);
+    expect(mine?.roleIds).toEqual([seeded?.id]);
+    expect(typeof mine?.createdAt).toBe("string");
+
+    const bare = accounts.find(account => account.userId === nobody.id);
+
+    expect(bare?.roleIds).toEqual([]);
+  });
+
+  it("hands a role over and takes it back", async () => {
+    const role = await compose(`Distribué ${Date.now()}`);
+    const subject = await createTestUser({ admin: false });
+
+    try {
+      await repo(admin).assignRole(subject.id as UserId, role.id);
+
+      const worn = (await repo(admin).listAccounts()).find(
+        account => account.userId === subject.id,
+      );
+
+      expect(worn?.roleIds).toContain(role.id);
+
+      await repo(admin).unassignRole(subject.id as UserId, role.id);
+
+      const bare = (await repo(admin).listAccounts()).find(
+        account => account.userId === subject.id,
+      );
+
+      expect(bare?.roleIds).toEqual([]);
+    } finally {
+      await deleteTestUser(subject.id);
+    }
+  });
+
+  it("reports the refusal of a role that was not worn in the first place", async () => {
+    // A DELETE nobody is allowed to make and a DELETE that matches nothing look
+    // exactly alike from here: zero rows, no error. Both are « ça n'a pas eu
+    // lieu », which is what the screen has to say.
+    const role = await compose(`Fantôme ${Date.now()}`);
+
+    await expect(
+      repo(admin).unassignRole(nobody.id as UserId, role.id),
+    ).rejects.toThrow(/refusé/);
+  });
+
+  it("refuses an account with no right over roles both ways round", async () => {
+    const role = await compose(`Convoité ${Date.now()}`);
+    const subject = await createTestUser({ admin: false });
+
+    try {
+      expect(await repo(nobody).listAccounts()).toEqual([]);
+      await expect(
+        repo(nobody).assignRole(subject.id as UserId, role.id),
+      ).rejects.toThrow(/Attribution du rôle/);
+
+      await repo(admin).assignRole(subject.id as UserId, role.id);
+
+      await expect(
+        repo(nobody).unassignRole(subject.id as UserId, role.id),
+      ).rejects.toThrow(/refusé/);
+
+      const survivor = (await repo(admin).listAccounts()).find(
+        account => account.userId === subject.id,
+      );
+
+      expect(survivor?.roleIds).toContain(role.id);
+    } finally {
+      await deleteTestUser(subject.id);
+    }
+  });
+
+  it("never lets an administrator role be handed out from the app", async () => {
+    const [seeded] = (await repo(admin).listRoles()).filter(
+      role => role.isAdmin,
+    );
+    const subject = await createTestUser({ admin: false });
+
+    try {
+      await expect(
+        repo(admin).assignRole(subject.id as UserId, seeded.id),
+      ).rejects.toThrow(/Attribution du rôle/);
+    } finally {
+      await deleteTestUser(subject.id);
+    }
   });
 });
 

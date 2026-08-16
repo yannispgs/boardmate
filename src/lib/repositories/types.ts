@@ -6,6 +6,7 @@
  * under `./supabase`, not the application.
  */
 import type {
+  Account,
   Boardgame,
   BoardgameId,
   BoardgameUpdate,
@@ -45,6 +46,7 @@ import type {
   StageAdvance,
   TieBreakRecord,
   TurnMode,
+  UserId,
 } from "@/lib/domain";
 
 /** Call to stop a realtime subscription. */
@@ -371,6 +373,23 @@ export interface AccessRepository {
    * a silent mass un-assignment.
    */
   deleteRole(roleId: RoleId): Promise<void>;
+  /**
+   * The accounts a role may be handed to, with the roles they already wear.
+   * Needs `roles.read`, and comes back empty without it — the authentication
+   * schema is unreachable from here, so this goes through a database function
+   * that answers for its own permission.
+   */
+  listAccounts(): Promise<Account[]>;
+  /**
+   * Hands a role to an account. Needs `roles.assign`, and the database refuses
+   * an administrator role whoever asks.
+   */
+  assignRole(userId: UserId, roleId: RoleId): Promise<void>;
+  /**
+   * Takes a role back from an account. Same permission, same refusal on an
+   * administrator role — that one is undone with a hand on the database.
+   */
+  unassignRole(userId: UserId, roleId: RoleId): Promise<void>;
 }
 
 /** Aggregate of all repositories, resolved by the active adapter. */

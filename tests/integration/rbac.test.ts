@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
+  anonClient,
   authedClient,
   createTestUser,
   deleteTestUser,
@@ -576,6 +577,67 @@ describe("RBAC — keys finer than CRUD", () => {
       await Promise.all([composer.dispose(), granter.dispose()]);
       await deleteTestUser(subject.id);
       await service.from("roles").delete().eq("id", roleId);
+    }
+  });
+});
+
+// `accounts()` is the one function in the schema that reaches into `auth`, so
+// it is the one worth pressing on: it runs past RLS by construction, and the
+// table next to the one it reads holds password hashes and recovery tokens.
+describe("RBAC — naming the accounts a role can be handed to", () => {
+  it("answers an account with no role with an empty list, not an error", async () => {
+    const { data, error } = await authedClient(nobody.accessToken).rpc(
+      "accounts",
+    );
+
+    expect(error).toBeNull();
+    expect(data).toEqual([]);
+  });
+
+  it("is out of reach of an anonymous visitor", async () => {
+    const { error } = await anonClient().rpc("accounts");
+
+    expect(error).not.toBeNull();
+  });
+
+  it("hands `roles.read` the identities, and strictly nothing else", async () => {
+    const reader = await userWith(["roles.read"]);
+
+    try {
+      const { data, error } = await reader.db.rpc("accounts");
+
+      expect(error).toBeNull();
+      expect(data?.length).toBeGreaterThan(0);
+
+      const listed = data?.find(row => row.user_id === admin.id);
+
+      expect(listed?.email).toBe(admin.email);
+      // Four columns, named one by one: `select *` on `auth.users` would have
+      // handed over `encrypted_password` and every recovery token beside it.
+      expect(Object.keys(listed ?? {}).sort()).toEqual([
+        "created_at",
+        "email",
+        "last_sign_in_at",
+        "user_id",
+      ]);
+    } finally {
+      await reader.dispose();
+    }
+  });
+
+  it("leaves out an account that has been deleted", async () => {
+    const gone = await createTestUser({ admin: false });
+
+    try {
+      // Soft delete: the row survives in `auth.users` with `deleted_at` set,
+      // and it is nobody to hand a role to.
+      await serviceClient().auth.admin.deleteUser(gone.id, true);
+
+      const { data } = await authedClient(admin.accessToken).rpc("accounts");
+
+      expect(data?.some(row => row.user_id === gone.id)).toBe(false);
+    } finally {
+      await deleteTestUser(gone.id);
     }
   });
 });
