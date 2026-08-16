@@ -2,8 +2,11 @@ import { StatTile } from "@/components/StatTile";
 import type { Boardgame, GameStatsRecord, PlayerId } from "@/lib/domain";
 import type { GameBreakdown, PlayerAggregate } from "@/lib/game/global-stats";
 import { winnerDirection } from "@/lib/game/scoring";
-import { computeTallyExits } from "@/lib/game/tally-averages";
-import { tallyExitLabels } from "@/lib/game/tally-labels";
+import {
+  computeTallyExits,
+  type TallyExitStat,
+} from "@/lib/game/tally-averages";
+import { type TallyExitLabels, tallyExitLabels } from "@/lib/game/tally-labels";
 import { tracksPlayerTime } from "@/lib/game/turn-time";
 import {
   type WorstScoreGroup,
@@ -21,6 +24,15 @@ interface TallyBreakdown {
   worst: WorstScoreGroup[];
   /** How often a manche cost them nothing, in the words of that game. */
   zeroes: string | null;
+}
+
+/** How often a manche cost this player nothing, in the words of that game. */
+function zeroesLine(stat: TallyExitStat, labels: TallyExitLabels): string {
+  const event = stat.exits > 1 ? labels.events : labels.event;
+  const stages = `${stat.stages} manche${stat.stages > 1 ? "s" : ""}`;
+  const rate = Math.round(stat.rate * 100);
+
+  return `${stat.exits} ${event} sur ${stages} — ${rate} %`;
 }
 
 /**
@@ -52,10 +64,7 @@ function tallyBreakdown(
         : "highest",
       { playerId },
     ),
-    zeroes:
-      stat === undefined
-        ? null
-        : `${stat.exits} ${stat.exits > 1 ? labels.events : labels.event} sur ${stat.stages} manche${stat.stages > 1 ? "s" : ""} — ${Math.round(stat.rate * 100)} %`,
+    zeroes: stat === undefined ? null : zeroesLine(stat, labels),
   };
 }
 
