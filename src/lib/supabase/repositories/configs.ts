@@ -11,6 +11,7 @@ import type {
 } from "@/lib/domain";
 import type { ConfigRepository, Unsubscribe } from "@/lib/repositories/types";
 import type { Database, Json } from "@/lib/supabase/database.types";
+import { watchTable } from "@/lib/supabase/repositories/watch-table";
 
 type ConfigRow = Database["public"]["Tables"]["configs"]["Row"];
 type TemplateRow = Database["public"]["Tables"]["config_templates"]["Row"];
@@ -181,20 +182,9 @@ export function createConfigRepository(
       }
     },
 
-    /* c8 ignore start -- Realtime channel glue, exercised via e2e/manual */
+    /* c8 ignore next 3 -- Realtime channel glue, exercised via e2e/manual */
     subscribe(onChange: () => void): Unsubscribe {
-      const channel = supabase
-        .channel("public:configs")
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "configs" },
-          () => onChange(),
-        )
-        .subscribe();
-      return () => {
-        supabase.removeChannel(channel);
-      };
+      return watchTable(supabase, "configs", onChange);
     },
-    /* c8 ignore stop */
   };
 }

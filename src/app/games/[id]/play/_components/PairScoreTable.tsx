@@ -2,7 +2,9 @@
 
 import type { PlayerId } from "@/lib/domain";
 import { scorePiles } from "@/lib/game/pair-scoring";
+import type { ScoreRecord } from "@/lib/game/score-records";
 import type { Ranked } from "@/lib/game/scoring";
+import { RecordBadgeList } from "./RecordBadgeList";
 
 /**
  * The filled scoresheet of a pair-scored game (Splito) after the reveal: one
@@ -18,11 +20,14 @@ export function PairScoreTable({
   seats,
   piles,
   ranking,
+  records,
   onDone,
 }: Readonly<{
   seats: { id: PlayerId; name: string }[];
   piles: Record<string, number>;
   ranking: Ranked[];
+  /** The records each player took, worn on the total that took them. */
+  records?: ReadonlyMap<PlayerId, ScoreRecord[]>;
   onDone?: () => void;
 }>) {
   const scored = scorePiles(
@@ -61,7 +66,12 @@ export function PairScoreTable({
                   <td className={`${cell} text-zinc-500 dark:text-zinc-400`}>
                     {score.left} × {score.right}
                   </td>
-                  <td className={`${cell} font-semibold`}>{score.total}</td>
+                  <td className={`${cell} font-semibold`}>
+                    <span className="flex items-center justify-end gap-1.5">
+                      {score.total}
+                      <RecordBadgeList records={records?.get(s.id) ?? []} />
+                    </span>
+                  </td>
                   <td className={`${cell} text-zinc-500 dark:text-zinc-400`}>
                     {rank?.rank === 1 ? "🏆 " : ""}
                     {rank?.rank ?? "—"}

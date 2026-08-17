@@ -6,7 +6,9 @@ import { CategoryIcon } from "@/components/CategoryIcon";
 import { ScoreSheetLegend } from "@/components/ScoreSheetLegend";
 import type { CategoryDef, PlayerId, ScoreSheetItem } from "@/lib/domain";
 import { categoryIconOf } from "@/lib/game/category-icons";
+import type { ScoreRecord } from "@/lib/game/score-records";
 import { isSubsection, type Ranked, scoreCategories } from "@/lib/game/scoring";
+import { RecordBadgeList } from "./RecordBadgeList";
 
 /**
  * The filled scoresheet after the reveal: every category per player, grouped as
@@ -19,12 +21,15 @@ export function FinalScoreTable({
   players,
   values,
   ranking,
+  records,
   onDone,
 }: Readonly<{
   sheet: ScoreSheetItem[];
   players: { id: PlayerId; name: string }[];
   values: Record<string, Record<string, number>>;
   ranking: Ranked[];
+  /** The records each player took, worn on the total that took them. */
+  records?: ReadonlyMap<PlayerId, ScoreRecord[]>;
   onDone?: () => void;
 }>) {
   const rankOf = (id: PlayerId) => ranking.find(r => r.playerId === id);
@@ -118,7 +123,12 @@ export function FinalScoreTable({
               </th>
               {players.map(p => (
                 <td key={p.id} className={cell}>
-                  {scored[p.id]?.total ?? 0}
+                  {/* The sheet is read down a column, so the mark belongs on
+                      the total rather than beside a name three rows up. */}
+                  <span className="flex items-center justify-end gap-1.5">
+                    {scored[p.id]?.total ?? 0}
+                    <RecordBadgeList records={records?.get(p.id) ?? []} />
+                  </span>
                 </td>
               ))}
             </tr>

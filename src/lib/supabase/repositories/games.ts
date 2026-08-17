@@ -46,6 +46,7 @@ import { toConfig } from "@/lib/supabase/repositories/configs";
 import { toExtension } from "@/lib/supabase/repositories/extensions";
 import { UNIQUE_VIOLATION } from "@/lib/supabase/repositories/pg-error-codes";
 import { toPlayer } from "@/lib/supabase/repositories/players";
+import { watchTable } from "@/lib/supabase/repositories/watch-table";
 
 type GameRow = Database["public"]["Tables"]["games"]["Row"];
 type BoardgameRow = Database["public"]["Tables"]["boardgames"]["Row"];
@@ -1216,20 +1217,9 @@ export function createGameRepository(
       }
     },
 
-    /* c8 ignore start -- Realtime channel glue, exercised via e2e/manual */
+    /* c8 ignore next 3 -- Realtime channel glue, exercised via e2e/manual */
     subscribe(onChange: () => void): Unsubscribe {
-      const channel = supabase
-        .channel("public:games")
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "games" },
-          () => onChange(),
-        )
-        .subscribe();
-      return () => {
-        supabase.removeChannel(channel);
-      };
+      return watchTable(supabase, "games", onChange);
     },
-    /* c8 ignore stop */
   };
 }

@@ -4,8 +4,10 @@ import { useState } from "react";
 
 import type { PlayerId } from "@/lib/domain";
 import { revealGroups } from "@/lib/game/reveal";
+import type { ScoreRecord } from "@/lib/game/score-records";
 import type { Ranked } from "@/lib/game/scoring";
 import { formatNames } from "@/lib/game/tie-break";
+import { RecordBadgeList } from "./RecordBadgeList";
 
 /** The unsettled ex æquo at the top, which the reveal stops on. */
 export interface RevealTieBreak {
@@ -27,6 +29,7 @@ export function RankingReveal({
   ranking,
   players,
   winners,
+  records,
   tieBreak,
   onDone,
 }: Readonly<{
@@ -34,6 +37,8 @@ export function RankingReveal({
   players: { id: PlayerId; name: string }[];
   /** Who won; empty while the leaders are still level and unsettled. */
   winners: PlayerId[];
+  /** The records each player just took, so the line says so as it comes out. */
+  records: ReadonlyMap<PlayerId, ScoreRecord[]>;
   /** How to settle those leaders, or null when there is nothing to settle. */
   tieBreak: RevealTieBreak | null;
   onDone: () => void;
@@ -114,7 +119,12 @@ export function RankingReveal({
                 {isWinner && done ? "🏆 " : ""}
                 {nameOf(r.playerId)}
               </span>
-              <span className="font-semibold tabular-nums">{r.total} pts</span>
+              <span className="flex items-center gap-2">
+                <span className="font-semibold tabular-nums">
+                  {r.total} pts
+                </span>
+                <RecordBadgeList records={records.get(r.playerId) ?? []} />
+              </span>
             </li>
           );
         })}

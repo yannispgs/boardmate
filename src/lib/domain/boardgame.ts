@@ -195,6 +195,21 @@ export interface ScoringSpec {
    * shared victory. See {@link resolveTieBreak}.
    */
   tieBreak?: TieBreakRule[];
+  /**
+   * Whether this game's scores only compare between tables of the same size.
+   * Papayoo shares out 250 points whoever is playing, so the average falls from
+   * 83 at three players to 31 at eight: a best score read across every table
+   * would only ever name the biggest one. Defaults to `false` — most games'
+   * totals barely move with the seat count, and pooling them widens the sample.
+   */
+  playerCountSensitive?: boolean;
+  /**
+   * Whether a best score means anything on this game. Defaults to `true`. Set
+   * `false` where the number owes more to the setup than to the play: Catan's
+   * total depends on the scenario played, so its « record » would only ever
+   * mark the most generous map.
+   */
+  trackRecords?: boolean;
 }
 
 /**

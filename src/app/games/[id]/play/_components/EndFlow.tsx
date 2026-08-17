@@ -2,6 +2,8 @@
 
 import type { PlayerId, PopulatedGame } from "@/lib/domain";
 import type { EndOutcome } from "@/lib/game/end-outcome";
+import type { ScoreRecord } from "@/lib/game/score-records";
+import { useScoreRecords } from "@/lib/hooks/use-score-records";
 import { FinalScoreTable } from "./FinalScoreTable";
 import { GameTieBreak } from "./GameTieBreak";
 import { namedPlayers } from "./named-players";
@@ -28,6 +30,9 @@ export function EndFlow({
   onDone: () => void;
 }>) {
   const players = namedPlayers(game);
+  // The records this party takes, read once here: the reveal announces them and
+  // the sheet it hands over to keeps them, so a mark never flashes past.
+  const records = useScoreRecords(game, outcome.ranking);
 
   if (flow.phase === "reveal") {
     return (
@@ -36,6 +41,7 @@ export function EndFlow({
         flow={flow}
         outcome={outcome}
         players={players}
+        records={records}
         disabled={disabled}
       />
     );
@@ -47,6 +53,7 @@ export function EndFlow({
         seats={players}
         piles={outcome.piles}
         ranking={outcome.ranking}
+        records={records}
         onDone={onDone}
       />
     );
@@ -58,6 +65,7 @@ export function EndFlow({
       players={players}
       values={outcome.values ?? {}}
       ranking={outcome.ranking}
+      records={records}
       onDone={onDone}
     />
   );
@@ -69,12 +77,14 @@ function Reveal({
   flow,
   outcome,
   players,
+  records,
   disabled,
 }: Readonly<{
   game: PopulatedGame;
   flow: EndFlowState;
   outcome: EndOutcome;
   players: Array<{ id: PlayerId; name: string }>;
+  records: ReadonlyMap<PlayerId, ScoreRecord[]>;
   disabled: boolean;
 }>) {
   // The boardgame's own secondary rules, for a game that ends level.
@@ -86,6 +96,7 @@ function Reveal({
         ranking={outcome.ranking}
         players={players}
         winners={outcome.winners}
+        records={records}
         tieBreak={
           outcome.winners.length === 0
             ? {
