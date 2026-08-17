@@ -36,6 +36,9 @@ export function toBoardgame(row: BoardgameRow): Boardgame {
     recMaxPlayers: row.rec_max_players,
     kind: row.kind as BoardgameKind,
     turnMode: row.turn_mode as TurnMode,
+    // Reference data like `stages`: it decides whether the play screen has a
+    // clock at all, so the editor never writes it back.
+    timed: row.is_timed,
     avgDurationMin: row.avg_duration_min,
     tags: row.tags,
     // Authored per boardgame as data; null when the game isn't scored.

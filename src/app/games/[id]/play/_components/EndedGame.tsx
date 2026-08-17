@@ -8,6 +8,7 @@ import { ExtensionBadgeList } from "@/components/games/ExtensionBadgeList";
 import type { PopulatedGame } from "@/lib/domain";
 import { playedExtensions } from "@/lib/game/extensions";
 import { formatNames } from "@/lib/game/tie-break";
+import { hasPlayStats } from "@/lib/game/turn-time";
 
 import { EndScorePanel } from "./EndScorePanel";
 import { GameStats } from "./GameStats";
@@ -98,6 +99,10 @@ export function EndedGame({
   // The score slide-over only makes sense once someone actually has a score.
   const hasScore = game.players.some(p => p.score !== null);
 
+  // A party that recorded neither turn nor manche (Papayoo) has no panel below,
+  // so the link down to it would scroll to nothing.
+  const stats = hasPlayStats(game.boardgame);
+
   const seeStats = () => {
     statsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -139,13 +144,15 @@ export function EndedGame({
         </div>
 
         <div className="flex flex-col items-center gap-4 pb-28">
-          <button
-            type="button"
-            onClick={seeStats}
-            className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium text-zinc-600 transition hover:bg-black/5 dark:border-white/15 dark:text-zinc-300 dark:hover:bg-white/5"
-          >
-            Voir les statistiques ↓
-          </button>
+          {stats ? (
+            <button
+              type="button"
+              onClick={seeStats}
+              className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium text-zinc-600 transition hover:bg-black/5 dark:border-white/15 dark:text-zinc-300 dark:hover:bg-white/5"
+            >
+              Voir les statistiques ↓
+            </button>
+          ) : null}
 
           <Link
             href="/games"

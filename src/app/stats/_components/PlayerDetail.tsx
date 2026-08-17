@@ -1,9 +1,67 @@
 import { StatTile } from "@/components/StatTile";
-import type { Boardgame, GameStatsRecord } from "@/lib/domain";
+import type { Boardgame, GameStatsRecord, PlayerId } from "@/lib/domain";
 import type { GameBreakdown, PlayerAggregate } from "@/lib/game/global-stats";
+import { winnerDirection } from "@/lib/game/scoring";
 import { tracksPlayerTime } from "@/lib/game/turn-time";
+import {
+  type WorstScoreGroup,
+  worstScoresByPlayerCount,
+} from "@/lib/game/worst-scores";
+import { computeZeroFinishes } from "@/lib/game/zero-finishes";
 import { CategoryCharts } from "./CategoryCharts";
 import { TimeIndexInfo } from "./TimeIndexInfo";
+import { WorstScoreCardList } from "./WorstScoreCardList";
+
+/** One player's record on one game whose points are a shared pile. */
+interface SharedPileBreakdown {
+  id: string;
+  name: string;
+  /** Their heaviest totals, filed under the size of the table. */
+  worst: WorstScoreGroup[];
+  /** How often they walked away with nothing; null when they never played it. */
+  zeroes: string | null;
+}
+
+/** How often this player finished a party at nothing, spelled out. */
+function zeroesLine(stat: Readonly<{ zeroes: number; games: number }>): string {
+  const zeroes = `${stat.zeroes} partie${stat.zeroes > 1 ? "s" : ""} à 0`;
+  const games = `${stat.games} jouée${stat.games > 1 ? "s" : ""}`;
+  const rate = Math.round((stat.zeroes / stat.games) * 100);
+
+  return `${zeroes} sur ${games} — ${rate} %`;
+}
+
+/**
+ * What a game paying one shared pile (Papayoo) has to say about one player: the
+ * totals they would rather forget — read against the number of players, since
+ * the table shares the same points — and how often they got away clean.
+ */
+function sharedPileBreakdown(
+  boardgame: Boardgame,
+  records: GameStatsRecord[],
+  playerId: PlayerId,
+): SharedPileBreakdown {
+  const played = records.filter(
+    r =>
+      r.boardgameId === boardgame.id &&
+      r.players.some(p => p.playerId === playerId),
+  );
+  const stat = computeZeroFinishes(played).find(z => z.playerId === playerId);
+
+  return {
+    id: boardgame.id,
+    name: boardgame.name,
+    worst: worstScoresByPlayerCount(
+      played,
+      /* c8 ignore next 3 -- a game with a totalSum is a scored game by nature */
+      boardgame.scoring
+        ? winnerDirection(boardgame.scoring.winCondition)
+        : "highest",
+      { playerId },
+    ),
+    zeroes: stat === undefined ? null : zeroesLine(stat),
+  };
+}
 
 /** The time index as a rounded number, or "—" when there's no time data. */
 function fmtIndex(index: number | null): string {
@@ -86,6 +144,13 @@ export function PlayerDetail({
     boardgames.filter(tracksPlayerTime).map(b => b.id),
   );
 
+  // Games paying one shared pile (Papayoo), played by this player: their own
+  // hall of shame, the same one the « Jeux » tab shows for the whole table.
+  const sharedPileGames = boardgames
+    .filter(b => b.scoring?.totalSum != null)
+    .map(b => sharedPileBreakdown(b, records, player.playerId))
+    .filter(b => b.worst.length > 0);
+
   return (
     <div className="flex flex-col gap-6">
       <button
@@ -153,6 +218,20 @@ export function PlayerDetail({
           ))}
         </ul>
       </div>
+
+      {sharedPileGames.map(game => (
+        <div key={game.id} className="flex flex-col gap-3">
+          <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+            Pires scores — {game.name}
+          </h3>
+          {game.zeroes === null ? null : (
+            <p className="text-xs text-zinc-500 tabular-nums dark:text-zinc-400">
+              {game.zeroes}
+            </p>
+          )}
+          <WorstScoreCardList groups={game.worst} />
+        </div>
+      ))}
 
       {categoryCharts.map(c => (
         <div key={c.id} className="flex flex-col gap-3">

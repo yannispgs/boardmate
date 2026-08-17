@@ -5,14 +5,15 @@ import type {
   MilestoneClaim,
   PlayerId,
   PopulatedGame,
+  ScoringSpec,
   StageScore,
-  WinCondition,
 } from "@/lib/domain";
 import { milestonePrefill } from "@/lib/game/milestones";
 import { derivedKeys, mergePrefill, winnerDirection } from "@/lib/game/scoring";
 import { stageGoalPrefill } from "@/lib/game/stage";
 import { stageFinalScores } from "@/lib/game/stage-tally";
 import { loneLeader } from "@/lib/game/tie-break";
+import { totalSumError } from "@/lib/game/total-sum";
 import { toggled } from "@/lib/ui/selection";
 import { CategoryScoreEntry } from "../../../_components/CategoryScoreEntry";
 import { PairScoreEntry } from "../../../_components/PairScoreEntry";
@@ -136,7 +137,7 @@ export function EndControls({
     return (
       <ScoreEntry
         players={players}
-        winCondition={finalScoring.winCondition}
+        scoring={finalScoring}
         onEnd={flow.finishTotals}
         disabled={disabled}
         open={flow.entryOpen}
@@ -292,18 +293,19 @@ function CountPointsButton({
  * player gets a number; the leader (by the win condition's direction) is
  * proposed as winner — several of them while the table is level, which the
  * tie-break prompt settles afterwards. Tapping a name names that player winner
- * outright (house rules). Ends once every score is in.
+ * outright (house rules). Ends once every score is in, and — for a game whose
+ * points are one pile shared out (Papayoo) — once they add up to it.
  */
 function ScoreEntry({
   players,
-  winCondition,
+  scoring,
   onEnd,
   disabled,
   open,
   onOpenChange,
 }: Readonly<{
   players: { id: PlayerId; name: string }[];
-  winCondition: WinCondition;
+  scoring: ScoringSpec;
   onEnd: (
     scores: Array<{ playerId: PlayerId; score: number }>,
     override: PlayerId | null,
@@ -325,13 +327,14 @@ function ScoreEntry({
     };
   });
   const allEntered = entries.every(e => e.score !== null);
+  const refused = totalSumError(entries, scoring);
   // While a score is missing the leader can't be trusted, so highlight nobody —
   // and level leaders are left uncrowned too, so the form doesn't give the ex
   // æquo away before the reveal reaches the place they share.
   const leader = allEntered
     ? loneLeader(
         entries.map(e => ({ playerId: e.playerId, score: e.score ?? 0 })),
-        winnerDirection(winCondition),
+        winnerDirection(scoring.winCondition),
       )
     : null;
   const highlighted = override ?? leader;
@@ -371,9 +374,12 @@ function ScoreEntry({
           </div>
         );
       })}
+      {refused === null ? null : (
+        <p className="text-xs text-rose-600 dark:text-rose-400">{refused}</p>
+      )}
       <button
         type="button"
-        disabled={disabled || !allEntered}
+        disabled={disabled || !allEntered || refused !== null}
         onClick={() => {
           onEnd(
             entries.map(e => ({ playerId: e.playerId, score: e.score ?? 0 })),

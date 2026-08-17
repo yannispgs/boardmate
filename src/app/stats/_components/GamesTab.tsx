@@ -34,6 +34,14 @@ import {
   tallyPointsHistogram,
 } from "@/lib/game/tally-averages";
 import { tracksPlayerTime } from "@/lib/game/turn-time";
+import {
+  type WorstScoreGroup,
+  worstScoresByPlayerCount,
+} from "@/lib/game/worst-scores";
+import {
+  computeZeroFinishes,
+  type ZeroFinishStat,
+} from "@/lib/game/zero-finishes";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useExtensions } from "@/lib/hooks/use-extensions";
 import { CategoryCharts } from "./CategoryCharts";
@@ -45,6 +53,8 @@ import { StatsDiceDistribution } from "./StatsDiceDistribution";
 import { TallyExitCardList } from "./TallyExitCardList";
 import { TallyPointsChart } from "./TallyPointsChart";
 import { TimeIndexInfo } from "./TimeIndexInfo";
+import { WorstScoreCardList } from "./WorstScoreCardList";
+import { ZeroFinishCardList } from "./ZeroFinishCardList";
 
 /** Distinct boardgames present in the records, sorted by name. */
 function gameOptions(records: GameStatsRecord[]): PickerOption<string>[] {
@@ -174,6 +184,22 @@ export function GamesTab({
         : null,
     [tallyMode, scopedRecords],
   );
+  // Games whose points are one fixed pile shared out between the players
+  // (Papayoo): a total is only heavy for a given number of players, and a party
+  // finished at nothing is the one thing worth bragging about.
+  const shared = useMemo(
+    () =>
+      boardgame?.scoring?.totalSum == null
+        ? null
+        : {
+            worst: worstScoresByPlayerCount(
+              scopedRecords,
+              winnerDirection(boardgame.scoring.winCondition),
+            ),
+            zeroes: computeZeroFinishes(scopedRecords),
+          },
+    [scopedRecords, boardgame],
+  );
 
   // The picked players, to compare against the table on the category charts.
   const comparePlayers = useMemo(
@@ -231,6 +257,7 @@ export function GamesTab({
           }
           timed={timed}
           tally={tally}
+          shared={shared}
         />
       )}
     </div>
@@ -378,6 +405,40 @@ function ChampionBanner({
   );
 }
 
+/** The figures of a game whose points are one pile shared out at the table. */
+interface SharedPileFigures {
+  worst: WorstScoreGroup[];
+  zeroes: ZeroFinishStat[];
+}
+
+/**
+ * What a game like Papayoo has to show and no other does: the totals nobody
+ * wants back, read against the size of the table, and who gets away clean.
+ */
+function SharedPileSections({
+  shared,
+}: Readonly<{ shared: SharedPileFigures | null }>) {
+  if (shared === null) {
+    return null;
+  }
+
+  return (
+    <>
+      {shared.worst.length > 0 ? (
+        <Section title="Pires scores">
+          <WorstScoreCardList groups={shared.worst} />
+        </Section>
+      ) : null}
+
+      {shared.zeroes.length > 0 ? (
+        <Section title="Qui finit le plus souvent à 0">
+          <ZeroFinishCardList stats={shared.zeroes} />
+        </Section>
+      ) : null}
+    </>
+  );
+}
+
 /** Everything shown once the filters leave at least one party. */
 function GameSections({
   stats,
@@ -392,6 +453,7 @@ function GameSections({
   goalCatalogue,
   timed,
   tally,
+  shared,
 }: Readonly<{
   stats: GlobalStats;
   scored: boolean;
@@ -412,6 +474,8 @@ function GameSections({
     exits: TallyExitStat[];
     histogram: TallyPointsBar[];
   } | null;
+  /** The figures of a game paying one shared pile; null for every other game. */
+  shared: SharedPileFigures | null;
 }>) {
   const champion = stats.players.reduce<GlobalStats["players"][number] | null>(
     (best, p) => (p.wins > (best?.wins ?? 0) ? p : best),
@@ -444,6 +508,8 @@ function GameSections({
           <TallyPointsChart bars={tally.histogram} />
         </Section>
       ) : null}
+
+      <SharedPileSections shared={shared} />
 
       {showSeatStats ? <SeatStats stats={seatStats} /> : null}
 

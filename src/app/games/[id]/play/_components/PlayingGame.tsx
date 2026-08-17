@@ -102,6 +102,10 @@ export function PlayingGame({
   const stages = game.boardgame.stages;
   const generations = stages?.advance === "pass";
   const byHand = stages?.advance === "manual";
+  // A game that times nothing has no play block and no turn to advance: the
+  // screen is the tally board (Odin) or, with no stages either, the score sheet
+  // and the button that opens it (Papayoo).
+  const timed = game.boardgame.timed;
   const scoring = game.boardgame.scoring;
   const direction = scoring ? winnerDirection(scoring.winCondition) : "highest";
   const stageLabel = gameProgress(game, stages).label;
@@ -194,6 +198,13 @@ export function PlayingGame({
       return null;
     }
 
+    // Untimed and not counted in manches either (Papayoo): nothing happens
+    // between sitting down and writing the score, so the screen offers nothing
+    // but the end-of-game form below.
+    if (!timed && !byHand) {
+      return null;
+    }
+
     if (byHand) {
       return (
         <StageBoard
@@ -249,14 +260,18 @@ export function PlayingGame({
 
       <LastLapBanner shown={live.lastLap} />
 
-      <p className="text-sm uppercase tracking-wide text-zinc-400">
-        {playProgress(game, stages, game.stages, roundLimit)}
-      </p>
+      {/* « Tour 1 » would sit there for the whole game on a table that never
+          advances a turn, so an untimed game with no manches says nothing. */}
+      {!timed && !byHand ? null : (
+        <p className="text-sm uppercase tracking-wide text-zinc-400">
+          {playProgress(game, stages, game.stages, roundLimit)}
+        </p>
+      )}
 
       {/* The whole play block (who's up / countdown / dice) gives way to the
           score form once you end the game — and never shows at all for a game
           that times nothing. */}
-      {entryOpen || byHand ? null : (
+      {entryOpen || !timed ? null : (
         <PlayBlock
           game={game}
           timer={timer}

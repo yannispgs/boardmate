@@ -182,6 +182,14 @@ export interface ScoringSpec {
   /** The scoresheet, present when `entry` is `categories`. */
   sheet?: ScoreSheetItem[];
   /**
+   * The points the whole table always shares out — Papayoo: 250, the twenty
+   * payoos (1 + 2 + … + 20 = 210) plus the papayoo card (40). Every one of them
+   * ends up in somebody's pile whatever the number of players, so final scores
+   * adding up to anything else have been misheard and the form refuses them.
+   * Omitted for a game whose totals answer to nothing (most of them).
+   */
+  totalSum?: number | null;
+  /**
    * The game's own secondary rules, applied in order to separate players tied
    * on the final score. Omitted / empty means the rulebook has none: a tie is a
    * shared victory. See {@link resolveTieBreak}.
@@ -298,6 +306,17 @@ export interface Boardgame {
   kind: BoardgameKind;
   /** Sequential turns (default) or everyone-plays-at-once (Splito). */
   turnMode: TurnMode;
+  /**
+   * Whether the app runs a clock on this game's turns. True for almost every
+   * game. False for the ones a turn goes by too fast to time — a trick-taking
+   * card game (Papayoo), or a game counted manche by manche where the table,
+   * not the app, decides when to move on (Odin): there the countdown would time
+   * a card being laid down, which measures nothing. Such a game shows no
+   * play block and records no turn, so every per-turn figure is absent rather
+   * than zero. Reference data, authored in migrations — the boardgame editor
+   * doesn't offer it, because it changes what the play screen *is*.
+   */
+  timed: boolean;
   avgDurationMin: number | null;
   tags: string[];
   /** How the game is scored, or `null` when it isn't. */

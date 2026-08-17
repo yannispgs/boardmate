@@ -6,6 +6,7 @@ import type { PopulatedGame } from "@/lib/domain";
 import { formatDuration } from "@/lib/game/format-time";
 import { buildScoreSeries } from "@/lib/game/score-series";
 import { computeGameStats } from "@/lib/game/stats";
+import { hasPlayStats } from "@/lib/game/turn-time";
 import { buildTurnTimeSeries } from "@/lib/game/turn-time-series";
 import { DiceTimeline } from "./DiceTimeline";
 import { GameHighlights } from "./GameHighlights";
@@ -22,6 +23,12 @@ import { TurnTimeChart } from "./TurnTimeChart";
  * turn log by `computeGameStats`; nothing here needs the network.
  */
 export function GameStats({ game }: Readonly<{ game: PopulatedGame }>) {
+  // Nothing was timed and nothing was counted in manches (Papayoo): the party
+  // left no trace but its scores, which the sheet already holds.
+  if (!hasPlayStats(game.boardgame)) {
+    return null;
+  }
+
   // A game counted manche by manche (Odin) records no turn at all: every figure
   // below would be a zero. Its manches are the summary.
   if (game.boardgame.stages?.advance === "manual") {
