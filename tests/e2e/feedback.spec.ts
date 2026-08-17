@@ -18,9 +18,12 @@ test("adds an idea to the feedback box and lists it", async ({ page }) => {
     await page.getByRole("button", { name: "Envoyer" }).click();
 
     await expect(page.getByText("Merci, c'est noté !")).toBeVisible();
-    await expect(
-      page.getByRole("listitem").filter({ hasText: message }),
-    ).toBeVisible();
+
+    const card = page.getByRole("listitem").filter({ hasText: message });
+
+    await expect(card).toBeVisible();
+    // A fresh idea is untriaged until the stage is set out of band.
+    await expect(card.getByText("Nouveau")).toBeVisible();
 
     // It survives a reload (persisted, not just local).
     await page.reload();

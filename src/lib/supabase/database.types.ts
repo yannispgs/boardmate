@@ -370,16 +370,19 @@ export type Database = {
           created_at: string
           id: string
           message: string
+          status: string
         }
         Insert: {
           created_at?: string
           id?: string
           message: string
+          status?: string
         }
         Update: {
           created_at?: string
           id?: string
           message?: string
+          status?: string
         }
         Relationships: []
       }
