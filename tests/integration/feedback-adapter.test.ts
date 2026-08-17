@@ -46,6 +46,24 @@ describe("feedback adapter", () => {
     expect(mine.map(f => f.id)).toEqual([second.id, first.id]);
   });
 
+  it("files an idea as untriaged, and reads back a stage set out of band", async () => {
+    const created = await repo().create({ message: "Idée C" });
+    createdIds.push(created.id);
+
+    expect(created.status).toBe("new");
+
+    // The stage is only ever written out of band (management API, during the
+    // review); the service role stands in for it here.
+    await serviceClient()
+      .from("feedback")
+      .update({ status: "development" })
+      .eq("id", created.id);
+
+    const listed = await repo().list();
+
+    expect(listed.find(f => f.id === created.id)?.status).toBe("development");
+  });
+
   it("rejects an empty message (DB check constraint)", async () => {
     await expect(repo().create({ message: "" })).rejects.toThrow();
   });

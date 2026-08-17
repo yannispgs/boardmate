@@ -1,6 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import type { Feedback, FeedbackId, NewFeedback } from "@/lib/domain";
+import type {
+  Feedback,
+  FeedbackId,
+  FeedbackStatus,
+  NewFeedback,
+} from "@/lib/domain";
 import type { FeedbackRepository } from "@/lib/repositories/types";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -10,6 +15,8 @@ function toFeedback(row: FeedbackRow): Feedback {
   return {
     id: row.id as FeedbackId,
     message: row.message,
+    // Constrained by a check constraint, so the column can't hold anything else.
+    status: row.status as FeedbackStatus,
     createdAt: row.created_at,
   };
 }

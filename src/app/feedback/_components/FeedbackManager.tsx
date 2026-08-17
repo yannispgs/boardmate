@@ -3,25 +3,8 @@
 import { useState } from "react";
 import { ErrorText } from "@/components/ErrorText";
 import { ListState } from "@/components/ListState";
-import type { Feedback } from "@/lib/domain";
 import { useFeedback } from "@/lib/hooks/use-feedback";
-
-const dateFmt = new Intl.DateTimeFormat("fr-FR", {
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-});
-
-function FeedbackItem({ item }: Readonly<{ item: Feedback }>) {
-  return (
-    <li className="flex flex-col gap-1 rounded-xl border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
-      <p className="whitespace-pre-wrap text-sm">{item.message}</p>
-      <span className="text-xs text-zinc-400">
-        {dateFmt.format(new Date(item.createdAt))}
-      </span>
-    </li>
-  );
-}
+import { FeedbackCardList } from "./FeedbackCardList";
 
 /** The "Retours" idea box: a form to add an idea, then the list of ideas. */
 export function FeedbackManager() {
@@ -90,11 +73,7 @@ export function FeedbackManager() {
         empty={items.length === 0}
         emptyLabel={<>Aucun retour pour l&apos;instant.</>}
       >
-        <ul className="flex flex-col gap-3">
-          {items.map(item => (
-            <FeedbackItem key={item.id} item={item} />
-          ))}
-        </ul>
+        <FeedbackCardList items={items} />
       </ListState>
     </div>
   );

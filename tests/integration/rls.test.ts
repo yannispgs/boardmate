@@ -210,6 +210,43 @@ describe("players deletion — only before they've played", () => {
   });
 });
 
+describe("feedback — filed, never rewritten", () => {
+  it("an authenticated session changes neither the message nor the stage", async () => {
+    const admin = serviceClient();
+    const seeded = await admin
+      .from("feedback")
+      .insert({ message: `RLS-${Date.now().toString(36)}` })
+      .select("*")
+      .single();
+    const id = seeded.data?.id as string;
+
+    try {
+      // The table carries no update policy at all — the stage is set out of
+      // band. So the update matches zero rows and reports no error: nothing
+      // was forbidden, there was simply nothing the session could see to write.
+      const attempt = await authedClient(user.accessToken)
+        .from("feedback")
+        .update({ message: "réécrit", status: "refused" })
+        .eq("id", id)
+        .select("*");
+
+      expect(attempt.error).toBeNull();
+      expect(attempt.data).toEqual([]);
+
+      const after = await admin
+        .from("feedback")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      expect(after.data?.message).toBe(seeded.data?.message);
+      expect(after.data?.status).toBe("new");
+    } finally {
+      await admin.from("feedback").delete().eq("id", id);
+    }
+  });
+});
+
 describe("Storage — logos bucket", () => {
   const path = `test/${Date.now()}-logo.txt`;
   const body = new Blob(["fake-logo"], { type: "text/plain" });
