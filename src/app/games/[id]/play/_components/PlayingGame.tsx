@@ -71,9 +71,11 @@ export function PlayingGame({
   const [blockedById, setBlockedById] = useState<PlayerId | null>(null);
   const blockedAtRef = useRef<number | null>(null);
 
-  // Keep the screen awake while a turn is actively running; let it sleep on
-  // pause / once the game ends, to spare the battery.
-  useWakeLock(game.status === "ongoing" && timer.running);
+  // Keep the screen awake for the whole game, pauses included: a pause is
+  // usually the table arguing over a rule or counting cards, precisely when the
+  // phone must not lock. It sleeps again once the game ends or the screen is
+  // left. Games without a timer are covered too, since they never "run".
+  useWakeLock(game.status === "ongoing");
 
   // The manual duration is a one-turn tweak: the next turn follows the schedule
   // again. Adjusted while rendering rather than in an effect, so the new turn's
@@ -86,7 +88,7 @@ export function PlayingGame({
   }
 
   // The end score form replaces the timer once opened; pause the timer then so
-  // it doesn't keep ticking (and running down the wake lock) behind the form.
+  // it doesn't keep ticking behind the form.
   const { entryOpen } = flow;
   useEffect(() => {
     if (entryOpen) {
