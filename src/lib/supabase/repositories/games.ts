@@ -18,6 +18,7 @@ import type {
   GameTurnId,
   NewFinishedGame,
   NewGame,
+  NextPhase,
   Player,
   PlayerId,
   PopulatedGame,
@@ -34,6 +35,7 @@ import {
   winTargetWithModifiers,
 } from "@/lib/game/extensions";
 import { activeSeat, generationOver } from "@/lib/game/generation";
+import { draftingOn } from "@/lib/game/phase";
 import { optionTargetModifier, stopTargetFrom } from "@/lib/game/scoring";
 import { scheduledPosition } from "@/lib/game/stage";
 import { advanceTurn as nextTurnState } from "@/lib/game/turn";
@@ -66,6 +68,8 @@ function toGame(row: GameRow): Game {
     round: row.round,
     turn: row.turn,
     stage: row.stage,
+    /* c8 ignore next -- `?? 0` guards a backend without the column yet */
+    phase: row.phase ?? 0,
     /* c8 ignore next -- defensive `?? null`; the cast value is already nullable */
     currentPlayerId: (row.current_player_id as PlayerId | null) ?? null,
     startedAt: row.started_at,
@@ -280,6 +284,11 @@ type PopulatedRow = GameRow & {
     stage: number | null;
     created_at: string;
   }>;
+  game_phases: Array<{
+    stage: number;
+    phase_key: string;
+    duration_s: number;
+  }>;
 };
 
 const POPULATED_SELECT =
@@ -292,20 +301,26 @@ const POPULATED_SELECT =
   "game_stage_passes(player_id, stage), " +
   "game_stages(stage, goal_key, goal_params, turns), " +
   "game_stage_scores(stage, player_id, points), " +
-  "game_milestones(player_id, milestone_key, stage, created_at)";
+  "game_milestones(player_id, milestone_key, stage, created_at), " +
+  "game_phases(stage, phase_key, duration_s)";
 
 /** Where a game stands once the turn that just ended has been recorded. */
 interface NextTurn {
   turn: number;
   round: number;
   stage: number;
+  /** Unchanged unless the turns running out closed a phase; see `phaseOut`. */
+  phase: number;
   playerId: string | null;
 }
+
+/** The same, bar the phase — which only a game played in phases ever moves. */
+type TurnRotation = Omit<NextTurn, "phase">;
 
 /** The turn state `advanceTurn` reads before rotating. */
 type TurnState = Pick<
   GameRow,
-  "round" | "turn" | "stage" | "current_player_id"
+  "round" | "turn" | "stage" | "phase" | "current_player_id"
 >;
 
 type Seat = { player_id: string };
@@ -374,7 +389,7 @@ function lapTurn(
   seats: Seat[],
   next: { turn: number; round: number; seatIndex: number },
   simultaneous: boolean,
-): NextTurn {
+): TurnRotation {
   return {
     turn: next.turn,
     round: next.round,
@@ -401,7 +416,7 @@ async function nextScheduledTurn(
   seats: Seat[],
   next: { turn: number; round: number },
   simultaneous: boolean,
-): Promise<NextTurn> {
+): Promise<TurnRotation> {
   const { data: calendar, error } = await supabase
     .from("game_stages")
     .select("stage, turns")
@@ -440,6 +455,7 @@ async function nextGenerationTurn(
   game: TurnState,
   seats: Seat[],
   passing: boolean,
+  phaseOut: NextPhase | undefined,
 ): Promise<NextTurn> {
   /* c8 ignore next -- a live sequential game always has a current player */
   if (passing && game.current_player_id) {
@@ -476,13 +492,23 @@ async function nextGenerationTurn(
   // The generation ends the moment its last player passes: the table moves on
   // to the next one and everybody is back in.
   const over = generationOver(seats.length, passedSeats);
-  const stage = over ? game.stage + 1 : game.stage;
-  const seat = activeSeat(
-    stage,
-    seats.length,
-    over ? null : currentSeat,
-    over ? NOBODY_PASSED : passedSeats,
-  );
+  // A game split into phases is not done with the generation just because
+  // nobody has a turn left in it: Terraforming Mars still has its production to
+  // resolve. The last pass then closes the *phase*, and the phase list is what
+  // eventually rolls the generation over. Without phases, that last pass is the
+  // end of the generation, exactly as it has always been.
+  const paused = over && phaseOut && !phaseOut.stageEnds ? phaseOut : null;
+  const stage = over && paused === null ? game.stage + 1 : game.stage;
+  // Nobody is up during a phase played all at once, so the marker is dropped
+  // until the turns come back round.
+  const seat = paused
+    ? null
+    : activeSeat(
+        stage,
+        seats.length,
+        over ? null : currentSeat,
+        over ? NOBODY_PASSED : passedSeats,
+      );
 
   return {
     turn: game.turn + 1,
@@ -490,9 +516,47 @@ async function nextGenerationTurn(
     // follows the generation — it is what the turn timer and the score log read.
     round: stage,
     stage,
-    /* c8 ignore next 2 -- defensive: a reopened generation always has a seat */
+    phase: paused ? paused.index : game.phase,
+    /* c8 ignore next -- defensive: a reopened generation always has a seat */
     playerId: seat === null ? null : (seats[seat]?.player_id ?? null),
   };
+}
+
+/**
+ * Adds a phase's seconds to what that phase already holds for the stage.
+ *
+ * Accumulated rather than written once, because a table that closes « la
+ * découverte » a shade too early and reopens it should end the generation with
+ * one honest total instead of two half-truths.
+ */
+async function bankPhase(
+  supabase: SupabaseClient<Database>,
+  id: GameId,
+  input: { stage: number; phaseKey: string; durationS: number },
+): Promise<void> {
+  const { data: banked, error } = await supabase
+    .from("game_phases")
+    .select("duration_s")
+    .eq("game_id", id)
+    .eq("stage", input.stage)
+    .eq("phase_key", input.phaseKey)
+    .maybeSingle();
+  /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */
+  if (error) {
+    throw new Error(`Lecture du temps de phase: ${error.message}`);
+  }
+
+  const { error: upsertError } = await supabase.from("game_phases").upsert({
+    game_id: id,
+    stage: input.stage,
+    phase_key: input.phaseKey,
+    duration_s:
+      (banked?.duration_s ?? 0) + Math.max(0, Math.round(input.durationS)),
+  });
+  /* c8 ignore next 3 -- defensive guard: upsert errors surface via e2e */
+  if (upsertError) {
+    throw new Error(`Enregistrement du temps de phase: ${upsertError.message}`);
+  }
 }
 
 /** How the game rotates, and what the rotation needs to know. */
@@ -502,6 +566,8 @@ interface Rotation {
   simultaneous: boolean;
   /** The current player is stepping out (`pass` games only). */
   passing: boolean;
+  /** Where the phases put a generation whose players have all passed. */
+  phaseOut: NextPhase | undefined;
   /** Where the plain lap arithmetic lands, which two of the three follow. */
   rotated: { turn: number; round: number; seatIndex: number };
 }
@@ -515,20 +581,34 @@ async function nextState(
   rotation: Rotation,
 ): Promise<NextTurn> {
   if (rotation.advance === "pass") {
-    return nextGenerationTurn(supabase, id, game, seats, rotation.passing);
+    return nextGenerationTurn(
+      supabase,
+      id,
+      game,
+      seats,
+      rotation.passing,
+      rotation.phaseOut,
+    );
   }
 
+  // Only a generation running out of players ever closes a phase by itself, so
+  // every other rotation leaves the game exactly where it stands in its stage.
   if (rotation.advance === "schedule") {
-    return nextScheduledTurn(
+    const scheduled = await nextScheduledTurn(
       supabase,
       id,
       seats,
       rotation.rotated,
       rotation.simultaneous,
     );
+
+    return { ...scheduled, phase: game.phase };
   }
 
-  return lapTurn(game, seats, rotation.rotated, rotation.simultaneous);
+  return {
+    ...lapTurn(game, seats, rotation.rotated, rotation.simultaneous),
+    phase: game.phase,
+  };
 }
 
 /**
@@ -716,6 +796,14 @@ export function createGameRepository(
         extensions,
       );
       const turnSchedule = turnScheduleFrom(effectiveValues, templateFields);
+      // The draft is a variant: only the game's own configuration knows whether
+      // this table is playing it, and only here are the template's defaults
+      // still in reach.
+      const drafting = draftingOn(
+        boardgame.phases,
+        effectiveValues,
+        templateFields,
+      );
 
       const scoreEvents = [...row.score_events]
         .sort((a, b) => a.created_at.localeCompare(b.created_at))
@@ -751,6 +839,16 @@ export function createGameRepository(
         points: s.points,
       }));
 
+      // Oldest generation first, so the recap reads them the way they were
+      // played instead of the way Postgres happened to return them.
+      const phaseTimes = [...row.game_phases]
+        .sort((a, b) => a.stage - b.stage)
+        .map(p => ({
+          stage: p.stage,
+          phaseKey: p.phase_key,
+          durationS: p.duration_s,
+        }));
+
       // Oldest first: the order they were taken in is the order they are read
       // in, and it is what the stats will date each claim by.
       const milestoneClaims = [...row.game_milestones]
@@ -767,6 +865,7 @@ export function createGameRepository(
         config,
         winThreshold,
         turnSchedule,
+        drafting,
         extensions,
         scoreEvents,
         diceRolls,
@@ -780,6 +879,7 @@ export function createGameRepository(
         stagePasses,
         stages,
         stageScores,
+        phaseTimes,
       };
       return populated;
     },
@@ -901,6 +1001,7 @@ export function createGameRepository(
         waitedSeconds?: number;
         advance?: StageAdvance;
         passing?: boolean;
+        phaseOut?: NextPhase;
       },
     ) {
       const simultaneous = opts?.turnMode === "simultaneous";
@@ -912,7 +1013,7 @@ export function createGameRepository(
           : null;
 
       const { data: game, error } = await games()
-        .select("round, turn, stage, current_player_id")
+        .select("round, turn, stage, phase, current_player_id")
         .eq("id", id)
         .single();
       if (error) {
@@ -948,6 +1049,7 @@ export function createGameRepository(
         advance,
         simultaneous,
         passing: opts?.passing === true,
+        phaseOut: opts?.phaseOut,
         rotated: nextTurnState(game.turn, perRound),
       });
 
@@ -956,6 +1058,7 @@ export function createGameRepository(
           turn: next.turn,
           round: next.round,
           stage: next.stage,
+          phase: next.phase,
           current_player_id: next.playerId,
         })
         .eq("id", id);
@@ -1053,6 +1156,65 @@ export function createGameRepository(
       /* c8 ignore next 3 -- defensive guard: update errors surface via e2e */
       if (updateError) {
         throw new Error(`Passage à la manche suivante: ${updateError.message}`);
+      }
+    },
+
+    async endPhase(id: GameId, input) {
+      await bankPhase(supabase, id, input);
+
+      if (!input.next.stageEnds) {
+        const { error } = await games()
+          .update({ phase: input.next.index })
+          .eq("id", id);
+        /* c8 ignore next 3 -- defensive guard: update errors surface via e2e */
+        if (error) {
+          throw new Error(`Passage à la phase suivante: ${error.message}`);
+        }
+
+        return;
+      }
+
+      // The last phase closing *is* the generation ending, so the counters move
+      // here rather than on a turn — nobody played one. The turn number stays
+      // put for the same reason: it counts turns, and none was taken.
+      const { data: game, error } = await games()
+        .select("stage")
+        .eq("id", id)
+        .single();
+      /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */
+      if (error) {
+        throw new Error(`Lecture de la partie: ${error.message}`);
+      }
+
+      const { data: seats, error: seatsError } = await supabase
+        .from("game_players")
+        .select("player_id, seat_order")
+        .eq("game_id", id)
+        .order("seat_order", { ascending: true });
+      /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */
+      if (seatsError) {
+        throw new Error(`Lecture des joueurs: ${seatsError.message}`);
+      }
+
+      // A fresh generation opens on its first-player marker with everybody in.
+      const stage = game.stage + 1;
+      const seat = activeSeat(stage, seats.length, null, NOBODY_PASSED);
+
+      const { error: rollError } = await games()
+        .update({
+          stage,
+          // Laps mean nothing in a game played in generations: the round is the
+          // generation, which is what the timer and the score log read.
+          round: stage,
+          phase: input.next.index,
+          /* c8 ignore next -- defensive: a fresh generation always has a seat */
+          current_player_id:
+            seat === null ? null : (seats[seat]?.player_id ?? null),
+        })
+        .eq("id", id);
+      /* c8 ignore next 3 -- defensive guard: update errors surface via e2e */
+      if (rollError) {
+        throw new Error(`Ouverture de la génération: ${rollError.message}`);
       }
     },
 

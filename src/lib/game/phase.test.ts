@@ -7,8 +7,9 @@ import {
   currentPhase,
   DRAFT_LABEL,
   draftDirection,
-  draftNotice,
+  draftingOn,
   needsPhaseButton,
+  nextPhase,
   turnTimerApplies,
 } from "./phase";
 
@@ -112,20 +113,16 @@ describe("draftDirection", () => {
   });
 });
 
-describe("draftNotice", () => {
-  it("announces the direction when the table plays the variant", () => {
-    expect(draftNotice(TM[0], 1, { draft: true }, DRAFT_FIELD)).toBe("right");
-    expect(draftNotice(TM[0], 2, { draft: true }, DRAFT_FIELD)).toBe("left");
+describe("draftingOn", () => {
+  it("reads the variant off the game's configuration", () => {
+    expect(draftingOn(TM, { draft: true }, DRAFT_FIELD)).toBe(true);
+    expect(draftingOn(TM, { draft: false }, DRAFT_FIELD)).toBe(false);
   });
 
-  it("says nothing when the variant is off", () => {
-    expect(draftNotice(TM[0], 1, { draft: false }, DRAFT_FIELD)).toBeNull();
-  });
-
-  it("says nothing for a game launched before the field existed", () => {
+  it("says no for a game launched before the field existed", () => {
     // No value and no default: nobody ticked anything, so there is no draft.
-    expect(draftNotice(TM[0], 1, null, [])).toBeNull();
-    expect(draftNotice(TM[0], 1, {}, [])).toBeNull();
+    expect(draftingOn(TM, null, [])).toBe(false);
+    expect(draftingOn(TM, {}, [])).toBe(false);
   });
 
   it("falls back to the template default", () => {
@@ -133,12 +130,26 @@ describe("draftNotice", () => {
       { key: "draft", type: "boolean", label: "Draft", default: true },
     ];
 
-    expect(draftNotice(TM[0], 1, null, on)).toBe("right");
+    expect(draftingOn(TM, null, on)).toBe(true);
   });
 
-  it("says nothing about a phase without a draft, or no phase at all", () => {
-    expect(draftNotice(TM[1], 1, { draft: true }, DRAFT_FIELD)).toBeNull();
-    expect(draftNotice(null, 1, { draft: true }, DRAFT_FIELD)).toBeNull();
+  it("says no when nothing in the game can be drafted at all", () => {
+    expect(draftingOn(null, { draft: true }, DRAFT_FIELD)).toBe(false);
+    expect(draftingOn([TM[1]], { draft: true }, DRAFT_FIELD)).toBe(false);
+  });
+});
+
+describe("nextPhase", () => {
+  it("names what the current phase gives way to", () => {
+    expect(nextPhase(TM, 0)?.key).toBe("projects");
+    expect(nextPhase(TM, 1)?.key).toBe("production");
+  });
+
+  it("names nothing when the stage itself ends there", () => {
+    // Past the last phase there is a new generation, not a new phase — and only
+    // the caller knows what that generation is called.
+    expect(nextPhase(TM, 2)).toBeNull();
+    expect(nextPhase(null, 0)).toBeNull();
   });
 });
 

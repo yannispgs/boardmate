@@ -67,3 +67,14 @@ export interface PhaseSpec {
   /** Present only on a phase that can be drafted; see {@link PhaseDraft}. */
   draft?: PhaseDraft;
 }
+
+/** Where a game lands when the current phase is declared finished. */
+export interface NextPhase {
+  /** The phase index to move to. */
+  index: number;
+  /**
+   * Whether the stage itself is over — the last phase has just closed, so the
+   * table rolls into the next generation and the list starts again.
+   */
+  stageEnds: boolean;
+}

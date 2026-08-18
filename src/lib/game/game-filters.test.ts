@@ -34,6 +34,7 @@ function game(
     round: 1,
     turn: 1,
     stage: 1,
+    phase: 0,
     currentPlayerId: null,
     startedAt,
     // A game played past midnight ends on the NEXT day — which is what makes

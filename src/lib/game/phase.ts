@@ -12,6 +12,7 @@ import type {
   ConfigValues,
   DraftDirection,
   FieldSpec,
+  NextPhase,
   PhaseSpec,
 } from "@/lib/domain";
 import { resolveFlag } from "./config-value";
@@ -35,17 +36,6 @@ export function clampIndex(phases: PhaseSpec[], index: number): number {
   return Math.min(Math.max(0, Math.trunc(index)), phases.length - 1);
 }
 
-/** Where a game lands when the current phase is declared finished. */
-export interface NextPhase {
-  /** The phase index to move to. */
-  index: number;
-  /**
-   * Whether the stage itself is over — the last phase has just closed, so the
-   * table rolls into the next generation and the list starts again.
-   */
-  stageEnds: boolean;
-}
-
 /**
  * Advances past the current phase. Wrapping is what closes a stage: the phases
  * are the stage, so running out of them and the generation ending are the same
@@ -64,6 +54,23 @@ export function advancePhase(
   return next >= phases.length
     ? { index: 0, stageEnds: true }
     : { index: next, stageEnds: false };
+}
+
+/**
+ * The phase that follows the one at `index`, or `null` when nothing does — the
+ * stage itself ends there, and only the caller knows what to call the next one.
+ */
+export function nextPhase(
+  phases: PhaseSpec[] | null,
+  index: number,
+): PhaseSpec | null {
+  const next = advancePhase(phases, index);
+
+  if (!phases || next.stageEnds) {
+    return null;
+  }
+
+  return currentPhase(phases, next.index);
 }
 
 /**
@@ -94,29 +101,29 @@ export function draftDirection(
 }
 
 /**
- * The direction to announce for a phase, or `null` when there is nothing to
- * announce: the phase is never drafted, or this game was configured without the
- * variant. A game launched before the field existed reads as « not drafted »,
- * which is the honest answer — nobody ticked anything.
+ * Whether this game is being played with the drafted draw.
+ *
+ * The draft is a variant, so the answer comes from the game's own configuration
+ * — the value chosen at launch, else the config template's default. A game
+ * launched before the field existed reads as « not drafted », which is the
+ * honest answer: nobody ticked anything.
+ *
+ * Read from the first phase that declares a draft. A boardgame switches its
+ * draw to a draft once, for the whole game; the phases don't each get their own
+ * variant to turn on.
  */
-export function draftNotice(
-  phase: PhaseSpec | null,
-  stage: number,
+export function draftingOn(
+  phases: PhaseSpec[] | null,
   configValues: ConfigValues | null | undefined,
   templateFields: FieldSpec[],
-): DraftDirection | null {
-  if (!phase?.draft) {
-    return null;
+): boolean {
+  const drafted = phases?.find(phase => phase.draft)?.draft;
+
+  if (!drafted) {
+    return false;
   }
 
-  const on = resolveFlag(
-    phase.draft.configKey,
-    configValues,
-    templateFields,
-    false,
-  );
-
-  return on ? draftDirection(phase, stage) : null;
+  return resolveFlag(drafted.configKey, configValues, templateFields, false);
 }
 
 /** How a direction is said in the interface. */
