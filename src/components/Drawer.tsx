@@ -3,6 +3,8 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { registerOverlay } from "@/lib/ui/overlay-registry";
+
 /**
  * Which edge a drawer lives on. The play screen reads them as a rule rather
  * than a decoration: **right is what every game has** (the score, the live
@@ -42,6 +44,16 @@ export function Drawer({
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // A drawer stays mounted when closed (that is what animates it out), so it
+  // only counts as open while it actually is — see the overlay registry.
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    return registerOverlay();
+  }, [open]);
 
   useEffect(() => {
     if (!open) {

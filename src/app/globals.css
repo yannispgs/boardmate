@@ -159,3 +159,22 @@ body {
     color: #ff5a5a;
   }
 }
+
+/*
+ * The pause veil fades to black instead of dropping: an app that goes dark in
+ * one frame reads as a crash, one that dims over half a second reads as the
+ * screen settling down. Held at full opacity afterwards (`both`), since the
+ * whole point is to leave the phone black until somebody touches it.
+ */
+@keyframes dim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-dim-in {
+  animation: dim-in 600ms ease-out both;
+}
