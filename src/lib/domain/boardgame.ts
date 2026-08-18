@@ -1,4 +1,5 @@
 import type { BoardgameId } from "./ids";
+import type { PhaseSpec } from "./phase";
 import type { RoundGoal } from "./round-goal";
 import type { TieBreakRule } from "./tie-break";
 
@@ -335,6 +336,14 @@ export interface Boardgame {
    * doesn't offer it, because it changes how turns rotate.
    */
   stages: StageSpec | null;
+  /**
+   * The phases one stage is played in, in play order, or `null` for a game
+   * whose stage is one undifferentiated block — which is every game but
+   * Terraforming Mars and L'Île des Chats. Reference data, authored in
+   * migrations for the same reason as `stages`: it is the rulebook, not a
+   * preference. See {@link PhaseSpec}.
+   */
+  phases: PhaseSpec[] | null;
   /**
    * The milestones this game offers, or `null` when it offers none. Reference
    * data, authored in migrations — the boardgame editor doesn't offer it, for
