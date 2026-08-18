@@ -77,6 +77,7 @@ export type Database = {
           milestones: Json | null
           min_players: number | null
           name: string
+          phases: Json | null
           rec_max_players: number | null
           rec_min_players: number | null
           round_goals: Json
@@ -103,6 +104,7 @@ export type Database = {
           milestones?: Json | null
           min_players?: number | null
           name: string
+          phases?: Json | null
           rec_max_players?: number | null
           rec_min_players?: number | null
           round_goals?: Json
@@ -129,6 +131,7 @@ export type Database = {
           milestones?: Json | null
           min_players?: number | null
           name?: string
+          phases?: Json | null
           rec_max_players?: number | null
           rec_min_players?: number | null
           round_goals?: Json
@@ -510,6 +513,35 @@ export type Database = {
           },
         ]
       }
+      game_phases: {
+        Row: {
+          duration_s: number
+          game_id: string
+          phase_key: string
+          stage: number
+        }
+        Insert: {
+          duration_s?: number
+          game_id: string
+          phase_key: string
+          stage: number
+        }
+        Update: {
+          duration_s?: number
+          game_id?: string
+          phase_key?: string
+          stage?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_phases_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       game_stage_passes: {
         Row: {
           created_at: string
@@ -695,6 +727,7 @@ export type Database = {
           current_player_id: string | null
           ended_at: string | null
           id: string
+          phase: number
           round: number
           stage: number
           started_at: string
@@ -709,6 +742,7 @@ export type Database = {
           current_player_id?: string | null
           ended_at?: string | null
           id?: string
+          phase?: number
           round?: number
           stage?: number
           started_at?: string
@@ -723,6 +757,7 @@ export type Database = {
           current_player_id?: string | null
           ended_at?: string | null
           id?: string
+          phase?: number
           round?: number
           stage?: number
           started_at?: string

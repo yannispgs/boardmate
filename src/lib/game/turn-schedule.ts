@@ -1,4 +1,5 @@
 import type { ConfigValues, FieldSpec, TurnSchedule } from "@/lib/domain";
+import { resolveNumber } from "./config-value";
 
 /** Config-field keys carrying the turn-time schedule. */
 export const TURN_SCHEDULE_KEYS = {
@@ -12,27 +13,6 @@ export const TURN_SCHEDULE_KEYS = {
  * (the historical behaviour). The high cap is inert while `step` is 0.
  */
 const FALLBACK: TurnSchedule = { baseS: 60, stepS: 0, maxS: 600 };
-
-/** A number from the config value, else the template default, else `fallback`. */
-function resolveNumber(
-  key: string,
-  configValues: ConfigValues | null | undefined,
-  templateFields: FieldSpec[],
-  fallback: number,
-): number {
-  const fromConfig = configValues?.[key];
-  if (typeof fromConfig === "number") {
-    return fromConfig;
-  }
-
-  const spec = templateFields.find(f => f.key === key);
-  const def =
-    spec && "default" in spec
-      ? (spec as { default?: unknown }).default
-      : undefined;
-
-  return typeof def === "number" ? def : fallback;
-}
 
 /**
  * Resolves the turn-time schedule from the game's effective config values,
