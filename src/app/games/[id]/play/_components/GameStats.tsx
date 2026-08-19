@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { InfoTip } from "@/components/InfoTip";
 import { StatTile } from "@/components/StatTile";
 import type { PopulatedGame } from "@/lib/domain";
+import { DEFAULT_STAGE_LABEL } from "@/lib/game/finished-setup";
 import { formatDuration } from "@/lib/game/format-time";
 import { buildScoreSeries } from "@/lib/game/score-series";
 import { computeGameStats } from "@/lib/game/stats";
@@ -10,6 +11,7 @@ import { hasPlayStats } from "@/lib/game/turn-time";
 import { buildTurnTimeSeries } from "@/lib/game/turn-time-series";
 import { DiceTimeline } from "./DiceTimeline";
 import { GameHighlights } from "./GameHighlights";
+import { PhaseTimeSection } from "./PhaseTimeSection";
 import { PlayerStatCardList } from "./PlayerStatCardList";
 import { ScoreChart } from "./ScoreChart";
 import { ScorePaceStats } from "./ScorePaceStats";
@@ -143,6 +145,13 @@ export function GameStats({ game }: Readonly<{ game: PopulatedGame }>) {
       </div>
 
       <GameHighlights stats={stats} />
+
+      {/* A game split into phases spends time the turn log never sees — the
+          draft, the production. Its recap has to say where it went. */}
+      <PhaseTimeSection
+        game={game}
+        stageLabel={game.boardgame.stages?.label ?? DEFAULT_STAGE_LABEL}
+      />
 
       {stats.turnCount > 0 && stats.totalPauseCount === 0 ? (
         <p className="text-center text-sm text-zinc-400 dark:text-zinc-500">

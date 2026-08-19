@@ -534,6 +534,19 @@ describe("games adapter — generations (Terraforming Mars)", () => {
     expect(timeOf(1, "discovery")).toBe(95);
     expect(timeOf(1, "production")).toBe(40);
     expect(timeOf(2, "discovery")).toBe(42);
+
+    // Once the party is over the stats page reads the very same rows: without
+    // them « Temps par phase » would be empty on every game ever played.
+    await repo().end(game.id, [playerIds[0]]);
+
+    const record = (await repo().listStats()).find(r => r.gameId === game.id);
+
+    expect(record?.phaseTimes).toHaveLength(3);
+    expect(record?.phaseTimes).toContainEqual({
+      stage: 1,
+      phaseKey: "discovery",
+      durationS: 95,
+    });
   });
 
   it("hands milestones out one claimer at a time, stamped with the generation", async () => {

@@ -22,6 +22,7 @@ import type {
   StageSpec,
 } from "@/lib/domain";
 import { composeConfigFields, composeGoals } from "@/lib/game/extensions";
+import { DEFAULT_STAGE_LABEL } from "@/lib/game/finished-setup";
 import { type FunnelBoard, funnelBoard } from "@/lib/game/funnel-board";
 import { type StagePick, stageCalendar } from "@/lib/game/stage";
 import { type WinTargetView, winTargetView } from "@/lib/game/win-target";
@@ -430,7 +431,7 @@ function PostRecapStep({
 
   return (
     <StageGoalsStep
-      stageLabel={stages?.label ?? "Manche"}
+      stageLabel={stages?.label ?? DEFAULT_STAGE_LABEL}
       schedule={schedule}
       catalogue={catalogue}
       picks={picks}

@@ -173,6 +173,7 @@ type StatsRow = {
     player_id: string;
     points: number;
   }>;
+  game_phases: Array<{ stage: number; phase_key: string; duration_s: number }>;
 };
 
 /**
@@ -235,6 +236,11 @@ function toStatsRecord(row: StatsRow): GameStatsRecord {
         playerId: score.player_id as PlayerId,
         points: score.points,
       })),
+    phaseTimes: row.game_phases.map(p => ({
+      stage: p.stage,
+      phaseKey: p.phase_key,
+      durationS: p.duration_s,
+    })),
   };
 }
 
@@ -765,7 +771,8 @@ export function createGameRepository(
             "game_turns(player_id, round, duration_s, pause_duration_s, overtime_s), " +
             "dice_rolls(value, created_at), " +
             "game_stages(stage, goal_key, goal_params), " +
-            "game_stage_scores(stage, player_id, points)",
+            "game_stage_scores(stage, player_id, points), " +
+            "game_phases(stage, phase_key, duration_s)",
         )
         .eq("status", "ended");
       /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */

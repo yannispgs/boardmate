@@ -1,6 +1,7 @@
 import { StatTile } from "@/components/StatTile";
 import type { Boardgame, GameStatsRecord, PlayerId } from "@/lib/domain";
 import type { GameBreakdown, PlayerAggregate } from "@/lib/game/global-stats";
+import { turnPhaseStats } from "@/lib/game/phase-stats";
 import { winnerDirection } from "@/lib/game/scoring";
 import { tracksPlayerTime } from "@/lib/game/turn-time";
 import {
@@ -10,6 +11,7 @@ import {
 import { computeZeroFinishes } from "@/lib/game/zero-finishes";
 import { CategoryCharts } from "./CategoryCharts";
 import { TimeIndexInfo } from "./TimeIndexInfo";
+import { TurnPhaseCardList } from "./TurnPhaseCardList";
 import { WorstScoreCardList } from "./WorstScoreCardList";
 
 /** One player's record on one game whose points are a shared pile. */
@@ -151,6 +153,11 @@ export function PlayerDetail({
     .map(b => sharedPileBreakdown(b, records, player.playerId))
     .filter(b => b.worst.length > 0);
 
+  // Games played in phases (Terraforming Mars): the only one of their phases a
+  // player owns a time in is the one where turns are taken — the rest belongs
+  // to the whole table and lives in the « Jeux » tab.
+  const turnPhases = turnPhaseStats(records, boardgames, player.playerId);
+
   return (
     <div className="flex flex-col gap-6">
       <button
@@ -218,6 +225,15 @@ export function PlayerDetail({
           ))}
         </ul>
       </div>
+
+      {turnPhases.length > 0 ? (
+        <div className="flex flex-col gap-3">
+          <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+            Rythme dans la phase des tours
+          </h3>
+          <TurnPhaseCardList stats={turnPhases} />
+        </div>
+      ) : null}
 
       {sharedPileGames.map(game => (
         <div key={game.id} className="flex flex-col gap-3">
