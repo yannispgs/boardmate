@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ErrorText } from "@/components/ErrorText";
 import type { PlayerId, PopulatedGame } from "@/lib/domain";
+import { chainedGame } from "@/lib/game/chained-game";
 import { composeGoals } from "@/lib/game/extensions";
 import { gameProgress, playProgress } from "@/lib/game/game-progress";
 import { winnerDirection } from "@/lib/game/scoring";
@@ -23,6 +24,7 @@ import { DimVeil } from "./DimVeil";
 import { EndControls } from "./EndControls";
 import { EndFlow } from "./EndFlow";
 import { FaqPanel } from "./FaqPanel";
+import { GameTieBreak } from "./GameTieBreak";
 import { LastLapBanner } from "./LastLapBanner";
 import { LiveScoreSection } from "./LiveScoreSection";
 import { MilestonePanel } from "./MilestonePanel";
@@ -54,7 +56,19 @@ export function PlayingGame({
   const router = useRouter();
   const repo = getGameRepository();
   const timer = useTurnTimer();
-  const flow = useEndFlow(game, play);
+
+  /**
+   * Deals the same party again — same players, same seats, same config — and
+   * lands on it, so an evening of short parties never goes back through the
+   * « Parties » menu. Only ever reached from the games that offer it.
+   */
+  async function chain() {
+    const next = await repo.create(chainedGame(game));
+
+    router.push(`/games/${next.id}/play`);
+  }
+
+  const flow = useEndFlow(game, play, chain);
   const live = useLiveScores(game, play);
   const dice = useDiceLog(game, play);
   const milestones = useMilestones(game);
@@ -344,6 +358,12 @@ export function PlayingGame({
         />
       ) : null}
 
+      {/* Totals typed by the table go straight into the books, with no reveal
+          to open the tie-break from: it opens over the form instead. */}
+      <GameTieBreak game={game} flow={flow} disabled={play.busy} />
+
+      {/* Last, so the veil covers everything above it — including the tie-break
+          that may be open when the table stops the clock to argue. */}
       {veil.dimmed ? (
         <DimVeil elapsedS={timer.elapsedS} onLift={veil.lift} />
       ) : null}
