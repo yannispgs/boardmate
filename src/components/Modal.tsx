@@ -2,6 +2,8 @@
 
 import { type ReactNode, useEffect } from "react";
 
+import { registerOverlay } from "@/lib/ui/overlay-registry";
+
 /**
  * Full-screen modal shell: dims the page, centres its card, and (by default)
  * closes when you click the backdrop — clicks inside the card don't bubble out.
@@ -37,6 +39,10 @@ export function Modal({
       document.body.style.overflow = previous;
     };
   }, []);
+
+  // Announce it to the rest of the app, which is how the play screen knows not
+  // to dim itself over a modal somebody is reading.
+  useEffect(() => registerOverlay(), []);
 
   return (
     // Accessibility is out of scope for this app, so the backdrop stays a plain

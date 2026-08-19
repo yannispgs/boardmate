@@ -15,9 +15,11 @@ import {
 } from "@/lib/game/stage";
 import { isFinalTurn, turnsPerRound } from "@/lib/game/turn";
 import { turnDurationForRound } from "@/lib/game/turn-schedule";
+import { useOverlaysOpen } from "@/lib/hooks/use-overlays-open";
 import { useTurnTimer } from "@/lib/hooks/use-turn-timer";
 import { useWakeLock } from "@/lib/hooks/use-wake-lock";
 import { getGameRepository } from "@/lib/repositories";
+import { DimVeil } from "./DimVeil";
 import { EndControls } from "./EndControls";
 import { EndFlow } from "./EndFlow";
 import { FaqPanel } from "./FaqPanel";
@@ -32,6 +34,7 @@ import { StageBoard } from "./StageBoard";
 import { TimeHogBanner } from "./TimeHogBanner";
 import { TurnControls } from "./TurnControls";
 import { useDiceLog } from "./use-dice-log";
+import { useDimVeil } from "./use-dim-veil";
 import { useEndFlow } from "./use-end-flow";
 import { useLiveScores } from "./use-live-scores";
 import { useMilestones } from "./use-milestones";
@@ -71,9 +74,11 @@ export function PlayingGame({
   const [blockedById, setBlockedById] = useState<PlayerId | null>(null);
   const blockedAtRef = useRef<number | null>(null);
 
-  // Keep the screen awake while a turn is actively running; let it sleep on
-  // pause / once the game ends, to spare the battery.
-  useWakeLock(game.status === "ongoing" && timer.running);
+  // Keep the screen awake for the whole game, pauses included: a pause is
+  // usually the table arguing over a rule or counting cards, precisely when the
+  // phone must not lock. It sleeps again once the game ends or the screen is
+  // left. Games without a timer are covered too, since they never "run".
+  useWakeLock(game.status === "ongoing");
 
   // The manual duration is a one-turn tweak: the next turn follows the schedule
   // again. Adjusted while rendering rather than in an effect, so the new turn's
@@ -86,7 +91,7 @@ export function PlayingGame({
   }
 
   // The end score form replaces the timer once opened; pause the timer then so
-  // it doesn't keep ticking (and running down the wake lock) behind the form.
+  // it doesn't keep ticking behind the form.
   const { entryOpen } = flow;
   useEffect(() => {
     if (entryOpen) {
@@ -106,6 +111,18 @@ export function PlayingGame({
   // screen is the tally board (Odin) or, with no stages either, the score sheet
   // and the button that opens it (Papayoo).
   const timed = game.boardgame.timed;
+
+  // A stopped clock means the table is talking, not playing: the screen blacks
+  // itself out so the phone stops lighting the room, and any touch brings it
+  // back. A game that times nothing never pauses, and the score form stops the
+  // clock on purpose — neither should go dark. Nor should a screen somebody is
+  // reading: opening the FAQ or the stats pauses the clock too, and blacking
+  // out over the panel that was just asked for is the opposite of helpful.
+  const overlayOpen = useOverlaysOpen();
+  const veil = useDimVeil(
+    timed && !entryOpen && !overlayOpen && !timer.running,
+  );
+
   const scoring = game.boardgame.scoring;
   const direction = scoring ? winnerDirection(scoring.winCondition) : "highest";
   const stageLabel = gameProgress(game, stages).label;
@@ -325,6 +342,10 @@ export function PlayingGame({
           stageScores={goals.scores}
           disabled={play.busy}
         />
+      ) : null}
+
+      {veil.dimmed ? (
+        <DimVeil elapsedS={timer.elapsedS} onLift={veil.lift} />
       ) : null}
     </div>
   );
