@@ -19,13 +19,16 @@ import {
   type NewBoardgame,
   type ScoreSheetItem,
   type ScoringSpec,
+  type TieBreakRule,
   type TurnMode,
   type WinCondition,
 } from "@/lib/domain";
 import { preserveUneditedScoring } from "@/lib/game/scoring-preserve";
 import { seatOrderMatters } from "@/lib/game/seat-stats";
+import { cleanTieBreakRules } from "@/lib/game/tie-break-rules";
 import { useCategoryUsage } from "@/lib/hooks/use-category-usage";
 import { ScoreSheetEditor } from "./ScoreSheetEditor";
+import { TieBreakEditor } from "./TieBreakEditor";
 
 interface FormState {
   name: string;
@@ -39,6 +42,8 @@ interface FormState {
   tags: string;
   // Sequential turns, or everyone-plays-at-once (Splito).
   turnMode: TurnMode;
+  // Whether the app runs a clock on the turns (off for Papayoo, Odin).
+  timed: boolean;
   kind: BoardgameKind;
   // Break the stats down by turn order (first / middle / last to play).
   trackSeatStats: boolean;
@@ -76,6 +81,7 @@ const EMPTY: FormState = {
   roundLimit: "",
   tags: "",
   turnMode: "sequential",
+  timed: true,
   kind: "competitive",
   trackSeatStats: false,
   turnCountVaries: false,
@@ -106,6 +112,7 @@ function fromBoardgame(b: Boardgame): FormState {
     roundLimit: b.roundLimit?.toString() ?? "",
     tags: b.tags.join(", "),
     turnMode: b.turnMode,
+    timed: b.timed,
     kind: b.kind,
     trackSeatStats: b.trackSeatStats,
     turnCountVaries: b.turnCountVaries,
@@ -157,6 +164,7 @@ function cleanSheet(sheet: ScoreSheetItem[]): ScoreSheetItem[] {
 function formToScoring(
   form: FormState,
   sheet: ScoreSheetItem[],
+  rules: TieBreakRule[],
   previous: ScoringSpec | null,
 ): ScoringSpec | null {
   if (!form.scored) {
@@ -165,7 +173,10 @@ function formToScoring(
 
   const categories = form.entry === "categories";
 
-  return preserveUneditedScoring(built(form, categories, sheet), previous);
+  return preserveUneditedScoring(
+    built(form, categories, sheet, rules),
+    previous,
+  );
 }
 
 /** The spec exactly as the form's own fields describe it. */
@@ -173,7 +184,10 @@ function built(
   form: FormState,
   categories: boolean,
   sheet: ScoreSheetItem[],
+  rules: TieBreakRule[],
 ): ScoringSpec {
+  const tieBreak = cleanTieBreakRules(rules);
+
   return {
     timing: form.scoreTiming,
     entry: form.entry,
@@ -187,6 +201,10 @@ function built(
     winCondition: { type: form.winKind },
     allowNegative: form.allowNegative,
     ...(categories ? { sheet: cleanSheet(sheet) } : {}),
+    // Left out rather than emptied: an absent key is how the rest of the app
+    // reads « this rulebook separates nobody », and it is what a game whose
+    // last rule was just deleted has to go back to.
+    ...(tieBreak.length > 0 ? { tieBreak } : {}),
   };
 }
 
@@ -218,6 +236,7 @@ function toInput(
       .map(t => t.trim())
       .filter(Boolean),
     turnMode: form.turnMode,
+    timed: form.timed,
     kind: form.kind,
     // Switching a game to "everybody at once" must also clear a seat-order
     // tracking left on from before, or the stats would keep a table nothing
@@ -422,6 +441,9 @@ export function BoardgameForm({
   const [sheet, setSheet] = useState<ScoreSheetItem[]>(
     initial?.scoring?.sheet ?? [],
   );
+  const [tieBreak, setTieBreak] = useState<TieBreakRule[]>(
+    initial?.scoring?.tieBreak ?? [],
+  );
   const [logoUrl, setLogoUrl] = useState<string | null>(
     initial?.logoUrl ?? null,
   );
@@ -549,7 +571,12 @@ export function BoardgameForm({
       }
       // On create the parent navigates away; on edit it stays, so re-enable the
       // button for further tweaks.
-      const scoring = formToScoring(form, sheet, initial?.scoring ?? null);
+      const scoring = formToScoring(
+        form,
+        sheet,
+        tieBreak,
+        initial?.scoring ?? null,
+      );
       await onSubmit(toInput(form, resolvedLogo, scoring), initial?.id ?? null);
       setSubmitting(false);
     } catch {
@@ -663,6 +690,32 @@ export function BoardgameForm({
           « Tout le monde en même temps » (ex. Splito) : un seul tour partagé
           par round, sans rotation joueur par joueur.
         </span>
+      </label>
+
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={form.timed}
+          onChange={e => setForm({ ...form, timed: e.target.checked })}
+        />
+        Chronométrer les tours
+        <InfoTip label="Chronométrage des tours">
+          <p>
+            Coché (défaut)&nbsp;: l&apos;écran de partie affiche le chrono du
+            tour en cours et enregistre chaque tour, ce qui alimente les temps
+            par joueur et par tour dans les statistiques.
+          </p>
+          <p>
+            Décoché&nbsp;: pas de bloc de jeu, aucun tour enregistré. Pour les
+            jeux où un tour passe trop vite pour valoir la peine d&apos;être
+            mesuré (Papayoo) ou dont la table décide seule quand on avance
+            (Odin).
+          </p>
+          <p>
+            Les statistiques par tour disparaissent alors du jeu, au lieu de
+            s&apos;afficher à zéro.
+          </p>
+        </InfoTip>
       </label>
 
       <label className="flex flex-col gap-1 text-xs text-zinc-500">
@@ -955,6 +1008,22 @@ export function BoardgameForm({
                 </div>
               </details>
             ) : null}
+
+            <details className="group flex flex-col gap-2">
+              <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-zinc-400">
+                <ChevronRightIcon className="h-3.5 w-3.5 transition-transform group-open:rotate-90" />
+                Départage des égalités
+                {tieBreak.length > 0 ? ` (${tieBreak.length})` : null}
+              </summary>
+              <div className="mt-1 flex flex-col gap-2">
+                <p className="text-[11px] text-zinc-400">
+                  Les règles sont appliquées dans l&apos;ordre, jusqu&apos;à ce
+                  que l&apos;une sépare les joueurs à égalité. Si aucune
+                  n&apos;y parvient, la victoire est partagée.
+                </p>
+                <TieBreakEditor value={tieBreak} onChange={setTieBreak} />
+              </div>
+            </details>
           </div>
         ) : null}
       </fieldset>

@@ -74,6 +74,7 @@ function toRow(input: NewBoardgame | BoardgameUpdate): BoardgameWrite {
     rec_max_players: input.recMaxPlayers,
     kind: input.kind,
     turn_mode: input.turnMode,
+    is_timed: input.timed,
     avg_duration_min: input.avgDurationMin,
     tags: input.tags,
     scoring: input.scoring as unknown as Json,

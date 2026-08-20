@@ -20,6 +20,15 @@ describe("preserveUneditedScoring", () => {
       startScore: 2,
       minScore: 2,
       totalSum: 250,
+    };
+
+    // Re-saving a sheet to fix a typo in the name used to wipe all three.
+    expect(preserveUneditedScoring(BUILT, previous)).toEqual(previous);
+  });
+
+  it("lets the form delete the last tie-break rule of a game", () => {
+    const previous: ScoringSpec = {
+      ...BUILT,
       tieBreak: [
         {
           key: "natureTokens",
@@ -28,9 +37,10 @@ describe("preserveUneditedScoring", () => {
         },
       ],
     };
+    // Carrying the rules over would put back what the table had just removed.
+    const kept = preserveUneditedScoring(BUILT, previous);
 
-    // Re-saving a sheet to fix a typo in the name used to wipe all four.
-    expect(preserveUneditedScoring(BUILT, previous)).toEqual(previous);
+    expect(kept).not.toHaveProperty("tieBreak");
   });
 
   it("lets the form overwrite every field it does own", () => {

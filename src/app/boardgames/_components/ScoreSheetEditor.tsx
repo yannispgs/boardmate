@@ -8,6 +8,7 @@ import type {
   ScoreSheetItem,
 } from "@/lib/domain";
 import type { CategoryIconId } from "@/lib/game/category-icons";
+import { newEditorKey } from "@/lib/game/editor-key";
 import { type MoveDirection, moveItem } from "@/lib/game/reorder";
 import { isSubsection, sheetCategories } from "@/lib/game/scoring";
 
@@ -25,11 +26,6 @@ const removeBtn =
   "shrink-0 rounded-md border border-black/10 px-2 py-1 text-xs text-zinc-500 transition hover:border-red-400 hover:text-red-600 dark:border-white/15";
 const addBtn =
   "rounded-md border border-black/10 px-3 py-1 text-xs font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5";
-
-/** A fresh, stable key for a new field — labels can change, this never does. */
-function newKey(): string {
-  return crypto.randomUUID().slice(0, 8);
-}
 
 /**
  * Editor for a boardgame's end-of-game category scoresheet: standalone scored
@@ -136,7 +132,9 @@ export function ScoreSheetEditor({
       <div className="flex gap-2">
         <button
           type="button"
-          onClick={() => onChange([...value, { key: newKey(), label: "" }])}
+          onClick={() =>
+            onChange([...value, { key: newEditorKey(), label: "" }])
+          }
           className={addBtn}
         >
           + Champ
@@ -298,7 +296,7 @@ function SectionRow({
           onClick={() =>
             onChange({
               ...section,
-              categories: [...fields, { key: newKey(), label: "" }],
+              categories: [...fields, { key: newEditorKey(), label: "" }],
             })
           }
           className={`${addBtn} self-start`}

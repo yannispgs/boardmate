@@ -313,8 +313,7 @@ export interface Boardgame {
    * not the app, decides when to move on (Odin): there the countdown would time
    * a card being laid down, which measures nothing. Such a game shows no
    * play block and records no turn, so every per-turn figure is absent rather
-   * than zero. Reference data, authored in migrations — the boardgame editor
-   * doesn't offer it, because it changes what the play screen *is*.
+   * than zero.
    */
   timed: boolean;
   avgDurationMin: number | null;
@@ -388,6 +387,11 @@ export interface NewBoardgame {
   recMaxPlayers?: number | null;
   kind?: BoardgameKind;
   turnMode?: TurnMode;
+  /**
+   * Whether the app runs a clock on this game's turns. Defaults to `true`,
+   * which is what almost every game wants — see {@link Boardgame.timed}.
+   */
+  timed?: boolean;
   avgDurationMin?: number | null;
   tags?: string[];
   /** How the game is scored, or `null` when it isn't. */
