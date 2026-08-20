@@ -8,8 +8,10 @@ import type {
   GameListItem,
 } from "@/lib/domain";
 import { gameProgress } from "@/lib/game/game-progress";
+import { sessionEntries } from "@/lib/game/game-sessions";
 import type { ScoreRecord } from "@/lib/game/score-records";
 import { GameCard } from "./GameCard";
+import { GameSessionCard } from "./GameSessionCard";
 
 const headingClass =
   "text-xs font-semibold uppercase tracking-wide text-zinc-400";
@@ -19,6 +21,9 @@ const headingClass =
  * `boardgameFor`. The ended list passes `ended` (dimmed, "Terminée" badge) and
  * `collapsible` to hide its cards behind a disclosure, like deactivated
  * players/boardgames.
+ *
+ * Parties dealt one after another without leaving the table are folded into
+ * their sitting, so an evening of short games takes one row instead of a dozen.
  */
 export function GameCardList({
   games,
@@ -42,23 +47,47 @@ export function GameCardList({
   /** Ongoing games only: abandon (delete) a game. */
   onAbandon?: (game: GameListItem) => void;
 }>) {
+  /** One party's card — the same one whether it stands alone or in a sitting. */
+  function card(game: GameListItem) {
+    const boardgame = boardgameFor(game.boardgameId);
+
+    return (
+      <GameCard
+        key={game.id}
+        game={game}
+        boardgameName={boardgame?.name ?? "Partie"}
+        logoUrl={boardgame?.logoUrl ?? null}
+        progress={gameProgress(game, boardgame?.stages ?? null)}
+        ended={ended}
+        coop={boardgame?.kind === "cooperative"}
+        record={records?.get(game.id) ?? null}
+        onAbandon={onAbandon ? () => onAbandon(game) : undefined}
+      />
+    );
+  }
+
   const cards = (
     <ul className="flex flex-col gap-2">
-      {games.map(game => {
-        const boardgame = boardgameFor(game.boardgameId);
+      {sessionEntries(games).map(entry => {
+        if (entry.kind === "game") {
+          return card(entry.game);
+        }
+
+        // A sitting is one boardgame from end to end — chaining deals the same
+        // party again — so the first party names the whole row.
+        const first = entry.session.games[0];
+        const boardgame = boardgameFor(first.boardgameId);
 
         return (
-          <GameCard
-            key={game.id}
-            game={game}
+          <GameSessionCard
+            key={entry.session.sessionId}
+            games={entry.session.games}
             boardgameName={boardgame?.name ?? "Partie"}
             logoUrl={boardgame?.logoUrl ?? null}
-            progress={gameProgress(game, boardgame?.stages ?? null)}
             ended={ended}
-            coop={boardgame?.kind === "cooperative"}
-            record={records?.get(game.id) ?? null}
-            onAbandon={onAbandon ? () => onAbandon(game) : undefined}
-          />
+          >
+            {entry.session.games.map(card)}
+          </GameSessionCard>
         );
       })}
     </ul>

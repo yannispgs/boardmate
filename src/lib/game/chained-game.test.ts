@@ -5,6 +5,7 @@ import type {
   ConfigId,
   ExtensionId,
   ExtensionScenarioId,
+  GameSessionId,
   PlayerId,
   ScoringSpec,
 } from "@/lib/domain";
@@ -21,6 +22,7 @@ const PAPAYOO: ScoringSpec = {
 /** The party on the table, with only what dealing the next one reads. */
 function game(patch: Partial<ChainableGame> = {}): ChainableGame {
   return {
+    sessionId: "evening" as GameSessionId,
     boardgameId: "papayoo" as BoardgameId,
     configId: null,
     configValues: null,
@@ -96,5 +98,9 @@ describe("chainedGame", () => {
     });
 
     expect(chainedGame(catan).initialScore).toBe(2);
+  });
+
+  it("files the next deal under the same evening", () => {
+    expect(chainedGame(game()).sessionId).toBe("evening");
   });
 });

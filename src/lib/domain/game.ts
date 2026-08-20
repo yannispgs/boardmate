@@ -7,6 +7,7 @@ import type {
   ExtensionId,
   ExtensionScenarioId,
   GameId,
+  GameSessionId,
   GameTurnId,
   PlayerId,
 } from "./ids";
@@ -17,6 +18,13 @@ export type GameStatus = "ongoing" | "ended";
 
 export interface Game {
   id: GameId;
+  /**
+   * The sitting this party belongs to. Parties dealt one after another from the
+   * score sheet share it, so an evening of short games folds into one row of
+   * the list. Every party has one — a party played on its own is a session of
+   * one — so there is never a "no session" case to handle.
+   */
+  sessionId: GameSessionId;
   boardgameId: BoardgameId;
   configId: ConfigId | null;
   /**
@@ -376,6 +384,12 @@ export interface NewGame {
    * for every other game.
    */
   stages?: GameStage[];
+  /**
+   * The sitting to file this party under. Set only when dealing the next party
+   * of an evening, to the session the previous one already carries; omitted
+   * everywhere else, and the database then opens a session of one.
+   */
+  sessionId?: GameSessionId;
 }
 
 /** One participant of an already-finished game being recorded after the fact. */

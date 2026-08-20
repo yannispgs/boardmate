@@ -40,16 +40,20 @@ test("scores a Papayoo party to 250 with no clock and no turns", async ({
     // Nothing to time and nothing to advance: no play block, and no « Tour 1 »
     // sitting there for the whole party.
     await expect(
-      page.getByRole("button", { name: "Terminer la partie" }),
+      page.getByRole("button", { name: "Entrer les scores" }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Tour suivant →" }),
     ).toHaveCount(0);
     await expect(page.getByText("Tour 1", { exact: true })).toHaveCount(0);
 
-    await page.getByRole("button", { name: "Terminer la partie" }).click();
+    await page.getByRole("button", { name: "Entrer les scores" }).click();
     await page.getByLabel(`Score de ${players[0]}`).fill("100");
     await page.getByLabel(`Score de ${players[1]}`).fill("100");
+
+    // The last box is a subtraction nobody counts: the form has done it.
+    await expect(page.getByLabel(`Score de ${players[2]}`)).toHaveValue("50");
+
     await page.getByLabel(`Score de ${players[2]}`).fill("100");
 
     // The complaint doubles as the running count: 300 payoos were never dealt.

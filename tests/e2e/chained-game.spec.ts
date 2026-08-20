@@ -39,7 +39,7 @@ test("deals the next party from the score form, same table, same seats", async (
     games.push(first);
 
     // First deal, counted and handed in — but the table is staying put.
-    await page.getByRole("button", { name: "Terminer la partie" }).click();
+    await page.getByRole("button", { name: "Entrer les scores" }).click();
     await page.getByLabel(`Score de ${players[0]}`).fill("100");
     await page.getByLabel(`Score de ${players[1]}`).fill("150");
     await page.getByLabel(`Score de ${players[2]}`).fill("0");
@@ -57,17 +57,23 @@ test("deals the next party from the score form, same table, same seats", async (
     // Nothing to fill in and nothing carried over: the new deal starts blank,
     // ready for its own scores.
     await expect(
-      page.getByRole("button", { name: "Terminer la partie" }),
+      page.getByRole("button", { name: "Entrer les scores" }),
     ).toBeVisible();
 
     const { data: statuses } = await admin
       .from("games")
-      .select("id, status")
+      .select("id, status, session_id")
       .in("id", games);
     const byId = new Map((statuses ?? []).map(g => [g.id, g.status]));
 
     expect(byId.get(first)).toBe("ended");
     expect(byId.get(second)).toBe("ongoing");
+
+    // Both deals belong to the same evening, which is what folds them into a
+    // single row of « Parties » once they are both over.
+    const sessions = new Set((statuses ?? []).map(g => g.session_id));
+
+    expect(sessions.size).toBe(1);
 
     // The first deal kept its scores; the second sits the same table back down
     // in the same seats, with nothing written yet.

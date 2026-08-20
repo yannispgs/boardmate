@@ -4,6 +4,7 @@ import type {
   BoardgameId,
   GameId,
   GameListItem,
+  GameSessionId,
   GameStatus,
   PlayerId,
 } from "@/lib/domain";
@@ -27,6 +28,8 @@ function game(
 ): GameListItem {
   return {
     id: id as GameId,
+    // Each fixture is a party of its own, which is what a session of one is.
+    sessionId: id as GameSessionId,
     boardgameId: boardgameId as BoardgameId,
     configId: null,
     configValues: null,

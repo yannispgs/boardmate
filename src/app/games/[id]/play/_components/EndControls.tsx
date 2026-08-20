@@ -13,7 +13,7 @@ import { derivedKeys, mergePrefill, winnerDirection } from "@/lib/game/scoring";
 import { stageGoalPrefill } from "@/lib/game/stage";
 import { stageFinalScores } from "@/lib/game/stage-tally";
 import { loneLeader } from "@/lib/game/tie-break";
-import { totalSumError } from "@/lib/game/total-sum";
+import { completingScore, totalSumError } from "@/lib/game/total-sum";
 import { toggled } from "@/lib/ui/selection";
 import { CategoryScoreEntry } from "../../../_components/CategoryScoreEntry";
 import { PairScoreEntry } from "../../../_components/PairScoreEntry";
@@ -328,15 +328,33 @@ function ScoreEntry({
   const [raw, setRaw] = useState<Record<string, string>>({});
   const [override, setOverride] = useState<PlayerId | null>(null);
 
-  const entries = players.map(p => {
-    const text = raw[p.id]?.trim() ?? "";
-    const n = Number(text);
+  const typed = players.map(p => {
+    const text = raw[p.id] ?? "";
+    const n = Number(text.trim());
 
     return {
-      playerId: p.id,
-      score: text !== "" && Number.isFinite(n) ? n : null,
+      player: p,
+      text,
+      score: text.trim() !== "" && Number.isFinite(n) ? n : null,
     };
   });
+  // The last score of a shared pile is a subtraction, not a count — so the form
+  // does it. `null` in every other case, which makes filling the box in a plain
+  // fallback rather than a special path.
+  const completing = completingScore(typed, scoring);
+  const fields = typed.map(field => {
+    const score = field.score ?? completing;
+
+    return {
+      ...field,
+      score,
+      // Shown as though it had been typed: the sheet has to read as a whole
+      // before it is recorded. It is a proposal — typing over it replaces it,
+      // and emptying the box brings it back.
+      text: field.score === null && score !== null ? String(score) : field.text,
+    };
+  });
+  const entries = fields.map(f => ({ playerId: f.player.id, score: f.score }));
   const allEntered = entries.every(e => e.score !== null);
   const refused = totalSumError(entries, scoring);
   // While a score is missing the leader can't be trusted, so highlight nobody —
@@ -361,13 +379,20 @@ function ScoreEntry({
   }
 
   if (!open) {
-    return <EndGameButton onClick={() => onOpenChange(true)} />;
+    // Nothing ends here yet: this button opens a sheet the table still has to
+    // fill in. Naming it after the ending made it look like the last tap.
+    return (
+      <EndGameButton
+        label="Entrer les scores"
+        onClick={() => onOpenChange(true)}
+      />
+    );
   }
 
   return (
     <div className="flex w-full max-w-xs flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10">
       <p className="text-sm font-semibold">Scores de fin</p>
-      {players.map(p => {
+      {fields.map(({ player: p, text }) => {
         const isWinner = highlighted === p.id;
 
         return (
@@ -387,7 +412,7 @@ function ScoreEntry({
             <input
               type="number"
               inputMode="numeric"
-              value={raw[p.id] ?? ""}
+              value={text}
               onChange={e => setRaw(s => ({ ...s, [p.id]: e.target.value }))}
               aria-label={`Score de ${p.name}`}
               className="w-20 rounded-lg border border-black/15 bg-white px-2 py-1 text-right outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900"
@@ -421,15 +446,22 @@ function ScoreEntry({
   );
 }
 
-/** The closed state every end control shares: one button that opens it. */
-function EndGameButton({ onClick }: Readonly<{ onClick: () => void }>) {
+/**
+ * The closed state every end control shares: one button that opens it. It says
+ * what the tap actually does, which is not always ending the game — a sheet to
+ * fill in first deserves to say so.
+ */
+function EndGameButton({
+  onClick,
+  label = "Terminer la partie",
+}: Readonly<{ onClick: () => void; label?: string }>) {
   return (
     <button
       type="button"
       onClick={onClick}
       className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-black transition hover:bg-amber-300"
     >
-      Terminer la partie
+      {label}
     </button>
   );
 }

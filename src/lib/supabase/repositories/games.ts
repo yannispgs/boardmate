@@ -11,6 +11,7 @@ import type {
   GameId,
   GameListItem,
   GamePlayer,
+  GameSessionId,
   GameStage,
   GameStatsRecord,
   GameStatus,
@@ -61,6 +62,7 @@ type ScenarioRow = Database["public"]["Tables"]["extension_scenarios"]["Row"];
 function toGame(row: GameRow): Game {
   return {
     id: row.id as GameId,
+    sessionId: row.session_id as GameSessionId,
     boardgameId: row.boardgame_id as BoardgameId,
     configId: (row.config_id as ConfigId | null) ?? null,
     configValues: (row.config_values as ConfigValues | null) ?? null,
@@ -1010,6 +1012,10 @@ export function createGameRepository(
           round: 1,
           turn: 1,
           status: "ongoing",
+          // Only the next party of an evening names its session; left out, the
+          // column's default opens a new one, which is what a party played on
+          // its own is.
+          ...(input.sessionId ? { session_id: input.sessionId } : {}),
         })
         .select("*")
         .single();

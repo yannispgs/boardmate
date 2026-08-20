@@ -729,6 +729,7 @@ export type Database = {
           id: string
           phase: number
           round: number
+          session_id: string
           stage: number
           started_at: string
           status: string
@@ -744,6 +745,7 @@ export type Database = {
           id?: string
           phase?: number
           round?: number
+          session_id?: string
           stage?: number
           started_at?: string
           status?: string
@@ -759,6 +761,7 @@ export type Database = {
           id?: string
           phase?: number
           round?: number
+          session_id?: string
           stage?: number
           started_at?: string
           status?: string
