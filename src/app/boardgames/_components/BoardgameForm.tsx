@@ -1017,9 +1017,14 @@ export function BoardgameForm({
               </summary>
               <div className="mt-1 flex flex-col gap-2">
                 <p className="text-[11px] text-zinc-400">
-                  Les règles sont appliquées dans l&apos;ordre, jusqu&apos;à ce
-                  que l&apos;une sépare les joueurs à égalité. Si aucune
-                  n&apos;y parvient, la victoire est partagée.
+                  Les règles sont essayées de haut en bas, dans l&apos;ordre de
+                  la liste ci-dessous&nbsp;: chacune écarte les joueurs
+                  qu&apos;elle départage, la suivante ne s&apos;applique
+                  qu&apos;à ceux qui restent, et dès qu&apos;il n&apos;en reste
+                  qu&apos;un il est vainqueur — les règles d&apos;en dessous ne
+                  sont alors pas lues. Les flèches ↑ ↓ changent cet ordre. Si la
+                  dernière règle laisse plusieurs joueurs à égalité, la victoire
+                  est partagée.
                 </p>
                 <TieBreakEditor value={tieBreak} onChange={setTieBreak} />
               </div>
