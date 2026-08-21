@@ -32,7 +32,7 @@ export function EndFlow({
   const players = namedPlayers(game);
   // The records this party takes, read once here: the reveal announces them and
   // the sheet it hands over to keeps them, so a mark never flashes past.
-  const records = useScoreRecords(game, outcome.ranking);
+  const records = useScoreRecords(game, outcome.ranking, outcome.winners);
 
   if (flow.phase === "reveal") {
     return (

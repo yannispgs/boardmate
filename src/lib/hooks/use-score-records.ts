@@ -11,11 +11,13 @@ import { useGameStats } from "./use-game-stats";
  * game — since it pulls the whole history down to answer.
  *
  * `standings` are the totals as they are about to be shown, so the reveal marks
- * the same score the reveal announces.
+ * the same score the reveal announces, and `winners` who the table crowned —
+ * the game's record follows the victory, not the scoreboard.
  */
 export function useScoreRecords(
   game: PopulatedGame,
   standings: ReadonlyArray<{ playerId: PlayerId; total: number }>,
+  winners: readonly PlayerId[],
 ): Map<PlayerId, ScoreRecord[]> {
   const { records } = useGameStats();
 
@@ -24,6 +26,7 @@ export function useScoreRecords(
     boardgameId: game.boardgameId,
     gameId: game.id,
     standings,
+    winners,
     history: records.map(r => ({
       gameId: r.gameId,
       boardgameId: r.boardgameId,

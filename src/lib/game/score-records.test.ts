@@ -35,17 +35,33 @@ function party(
   };
 }
 
+/** Who a party crowns when nothing gets in the way: whoever scored best. */
+function leaders(
+  scoring: ScoringSpec | null,
+  standings: Array<[PlayerId, number]>,
+): PlayerId[] {
+  const totals = standings.map(([, total]) => total);
+  const best =
+    scoring?.winCondition.type === "lowest"
+      ? Math.min(...totals)
+      : Math.max(...totals);
+
+  return standings.filter(([, total]) => total === best).map(([id]) => id);
+}
+
 /** The records taken, with the defaults every test but its own subject shares. */
 function records(
   scoring: ScoringSpec | null,
   standings: Array<[PlayerId, number]>,
   history: PastParty[],
+  winners = leaders(scoring, standings),
 ) {
   return scoreRecords({
     scoring,
     boardgameId: GAME,
     gameId: NOW,
     standings: standings.map(([playerId, total]) => ({ playerId, total })),
+    winners,
     history,
   });
 }
@@ -201,6 +217,7 @@ describe("scoreRecords", () => {
         { playerId: bob, total: 90 },
         { playerId: cat, total: 100 },
       ],
+      winners: [ann],
       history: [
         party("g-1", [
           [ann, 70],
@@ -226,6 +243,78 @@ describe("scoreRecords", () => {
       { kind: "personal", playerCount: 3 },
       { kind: "world", playerCount: 3 },
     ]);
+    expect(marks.get(bob)).toBeUndefined();
+  });
+
+  it("hands the game's record to the winner alone when several clear it", () => {
+    const marks = records(
+      HIGHEST,
+      [
+        [ann, 300],
+        [bob, 280],
+      ],
+      [
+        party("g-1", [
+          [ann, 100],
+          [bob, 150],
+        ]),
+      ],
+    );
+
+    expect(marks.get(ann)).toEqual([
+      { kind: "personal", playerCount: null },
+      { kind: "world", playerCount: null },
+    ]);
+    expect(marks.get(bob)).toEqual([{ kind: "personal", playerCount: null }]);
+  });
+
+  it("holds the game's record back while the tie is unbroken", () => {
+    const marks = records(
+      HIGHEST,
+      [
+        [ann, 300],
+        [bob, 300],
+      ],
+      [
+        party("g-1", [
+          [ann, 100],
+          [bob, 100],
+        ]),
+      ],
+      [],
+    );
+
+    expect(marks.get(ann)).toEqual([{ kind: "personal", playerCount: null }]);
+    expect(marks.get(bob)).toEqual([{ kind: "personal", playerCount: null }]);
+  });
+
+  it("shares the game's record between the winners of a shared victory", () => {
+    const marks = records(
+      HIGHEST,
+      [
+        [ann, 300],
+        [bob, 300],
+      ],
+      [party("g-1", [[cat, 100]])],
+      [ann, bob],
+    );
+
+    expect(marks.get(ann)).toEqual([{ kind: "world", playerCount: null }]);
+    expect(marks.get(bob)).toEqual([{ kind: "world", playerCount: null }]);
+  });
+
+  it("keeps the record to the best seat when the whole table wins", () => {
+    const marks = records(
+      HIGHEST,
+      [
+        [ann, 300],
+        [bob, 200],
+      ],
+      [party("g-1", [[cat, 150]])],
+      [ann, bob],
+    );
+
+    expect(marks.get(ann)).toEqual([{ kind: "world", playerCount: null }]);
     expect(marks.get(bob)).toBeUndefined();
   });
 

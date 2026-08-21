@@ -86,18 +86,28 @@ function bestOf(scores: number[], direction: ScoreDirection): number {
  * A player holds no record at all when the game says its scores aren't worth
  * comparing (`scoring.trackRecords === false`), and no player holds one on his
  * first party — there is nothing to beat yet.
+ *
+ * `PB` and `WR` are not read the same way. A personal best belongs to whoever
+ * beat his own, win or lose. The game's record is a single figure the party
+ * either took or didn't: it goes to the party's `winners` — several only on a
+ * shared victory — and never to a runner-up who happened to clear the old mark
+ * on the way past. While the leaders are level and the tie unbroken `winners`
+ * is empty, and the mark waits with the victory.
  */
 export function scoreRecords({
   scoring,
   boardgameId,
   gameId,
   standings,
+  winners,
   history,
 }: Readonly<{
   scoring: ScoringSpec | null;
   boardgameId: BoardgameId;
   gameId: GameId;
   standings: ReadonlyArray<{ playerId: PlayerId; total: number }>;
+  /** Who the table crowned, tie-break resolved; empty while a tie stands. */
+  winners: readonly PlayerId[];
   history: readonly PastParty[];
 }>): Map<PlayerId, ScoreRecord[]> {
   const marks = new Map<PlayerId, ScoreRecord[]>();
@@ -123,6 +133,13 @@ export function scoreRecords({
   const everyScore = past.flatMap(p =>
     p.players.map(x => x.score).filter(isScored),
   );
+  // The best of the party being recorded: on a cooperative game the whole table
+  // wins together, and only the seat that actually posted the figure has taken
+  // the record.
+  const top = bestOf(
+    standings.map(s => s.total),
+    direction,
+  );
 
   for (const standing of standings) {
     const own = past.flatMap(p =>
@@ -142,6 +159,8 @@ export function scoreRecords({
 
     if (
       everyScore.length > 0 &&
+      winners.includes(standing.playerId) &&
+      standing.total === top &&
       beats(standing.total, bestOf(everyScore, direction), direction)
     ) {
       records.push({ kind: "world", playerCount });
