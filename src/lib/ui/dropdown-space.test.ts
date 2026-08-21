@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { dropdownSpace } from "./dropdown-space";
+import { dropdownSpace, horizontalFit } from "./dropdown-space";
 
 // A field halfway down a 664px-tall phone screen, the shape the wheel's search
 // box has on an iPhone 13.
@@ -66,5 +66,46 @@ describe("dropdownSpace", () => {
   it("leaves the gap out of the room it hands over", () => {
     // 664 - 259 = 405 of raw room; a 10px gap leaves 395.
     expect(dropdownSpace(anchor, screen, 500, 10).maxHeight).toBe(395);
+  });
+});
+
+// A 390px-wide phone screen (iPhone 13), and the info icon as it sits at the
+// two ends of the boardgame form: after a short caption, and near the right.
+const phone = { left: 0, right: 390 };
+
+describe("horizontalFit", () => {
+  it("hangs the panel off the anchor's right edge when it fits", () => {
+    const icon = { left: 356, right: 370 };
+
+    expect(horizontalFit(icon, phone, 240)).toEqual({ left: 130, width: 240 });
+  });
+
+  it("pushes it back on screen when the anchor is too far left", () => {
+    // « Mode de jeu » puts the icon at x≈90: 90 - 240 would start at -150.
+    const icon = { left: 76, right: 90 };
+
+    expect(horizontalFit(icon, phone, 240)).toEqual({ left: 8, width: 240 });
+  });
+
+  it("keeps the margin on the right when the anchor sits past the edge", () => {
+    const icon = { left: 400, right: 414 };
+
+    expect(horizontalFit(icon, phone, 240)).toEqual({ left: 142, width: 240 });
+  });
+
+  it("narrows the panel rather than letting it hang off a narrow screen", () => {
+    const narrow = { left: 0, right: 200 };
+    const icon = { left: 176, right: 190 };
+
+    expect(horizontalFit(icon, narrow, 240)).toEqual({ left: 8, width: 184 });
+  });
+
+  it("honours a margin of its own", () => {
+    const icon = { left: 76, right: 90 };
+
+    expect(horizontalFit(icon, phone, 240, 16)).toEqual({
+      left: 16,
+      width: 240,
+    });
   });
 });

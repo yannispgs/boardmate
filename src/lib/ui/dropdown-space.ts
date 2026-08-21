@@ -37,13 +37,54 @@ export function dropdownSpace(
   const above = anchor.top - viewport.top - gap;
 
   if (below >= preferredHeight || below >= above) {
-    return { placement: "below", maxHeight: fit(preferredHeight, below) };
+    return { placement: "below", maxHeight: roomFor(preferredHeight, below) };
   }
 
-  return { placement: "above", maxHeight: fit(preferredHeight, above) };
+  return { placement: "above", maxHeight: roomFor(preferredHeight, above) };
+}
+
+/** The horizontal span of a box — all a sideways fit needs of a rectangle. */
+export interface HorizontalBounds {
+  left: number;
+  right: number;
+}
+
+/** Where a panel starts sideways, and how wide it may be once it is there. */
+export interface HorizontalFit {
+  left: number;
+  width: number;
+}
+
+/**
+ * Fits a panel sideways into `viewport`, hanging from its anchor's right edge.
+ *
+ * Opening leftward is what keeps a panel anchored to an icon near the right of
+ * the screen from spilling off it — but a short caption puts that same icon
+ * near the *left* edge, and the panel then runs off the other side, where
+ * nothing can bring it back: it is fixed to the viewport, so there is nothing
+ * to scroll. Both ends are therefore clamped, and the panel narrowed first when
+ * the screen is too narrow to hold it whole.
+ */
+export function horizontalFit(
+  anchor: HorizontalBounds,
+  viewport: HorizontalBounds,
+  preferredWidth: number,
+  margin = 8,
+): HorizontalFit {
+  const width = roomFor(
+    preferredWidth,
+    viewport.right - viewport.left - 2 * margin,
+  );
+  const leftmost = viewport.left + margin;
+  const rightmost = viewport.right - margin - width;
+
+  return {
+    width,
+    left: Math.max(leftmost, Math.min(anchor.right - width, rightmost)),
+  };
 }
 
 /** The room available, never more than asked for and never negative. */
-function fit(preferred: number, room: number): number {
+function roomFor(preferred: number, room: number): number {
   return Math.max(0, Math.min(preferred, room));
 }

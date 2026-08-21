@@ -10,7 +10,11 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
+import { horizontalFit } from "@/lib/ui/dropdown-space";
 import { InfoIcon } from "./icons";
+
+/** How wide the bubble opens when the screen has the room for it. */
+const WIDTH = 240;
 
 /**
  * A small "i" info icon that toggles a concise explanatory bubble on click, for
@@ -29,7 +33,12 @@ export function InfoTip({
   children: ReactNode;
 }>) {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+  const [pos, setPos] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    maxHeight: number;
+  } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
   const id = useId();
@@ -69,11 +78,15 @@ export function InfoTip({
     const rect = buttonRef.current?.getBoundingClientRect();
 
     if (rect) {
-      // Anchor the bubble's right edge under the icon so it opens leftward and
-      // never spills off the right of narrow phone screens.
+      // The bubble hangs off the icon and opens leftward, clamped so neither
+      // end leaves the screen — it is fixed to the viewport, so anything that
+      // does is unreadable for good.
+      const top = rect.bottom + 6;
+
       setPos({
-        top: rect.bottom + 6,
-        right: window.innerWidth - rect.right,
+        top,
+        ...horizontalFit(rect, { left: 0, right: window.innerWidth }, WIDTH),
+        maxHeight: window.innerHeight - top - 8,
       });
     }
 
@@ -99,11 +112,17 @@ export function InfoTip({
               ref={bubbleRef}
               id={id}
               data-testid="info-bubble"
-              style={{ position: "fixed", top: pos.top, right: pos.right }}
+              style={{
+                position: "fixed",
+                top: pos.top,
+                left: pos.left,
+                width: pos.width,
+                maxHeight: pos.maxHeight,
+              }}
               // `leading-snug` keeps the lines of one sentence tight; `space-y`
               // sets a slightly larger gap between separate elements (each a
               // <p>), so distinct points read as distinct.
-              className="z-50 w-60 space-y-1.5 rounded-lg border border-black/10 bg-white p-2.5 text-left text-xs font-normal leading-snug text-zinc-600 shadow-xl dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-300"
+              className="z-50 space-y-1.5 overflow-y-auto rounded-lg border border-black/10 bg-white p-2.5 text-left text-xs font-normal leading-snug text-zinc-600 shadow-xl dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-300"
             >
               {children}
             </div>,

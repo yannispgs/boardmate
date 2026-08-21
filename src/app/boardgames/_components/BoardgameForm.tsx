@@ -691,10 +691,10 @@ export function BoardgameForm({
               c&apos;est le tour et fait tourner le premier joueur.
             </p>
             <p>
-              <strong>Tout le monde joue en même temps</strong> (Splito)&nbsp;:
-              un seul tour partagé, sans rotation joueur par joueur. Les
-              statistiques selon l&apos;ordre de jeu n&apos;ont alors plus de
-              sens et disparaissent.
+              <strong>Tout le monde joue en même temps</strong>
+              &nbsp;(Splito)&nbsp;: un seul tour partagé, sans rotation joueur
+              par joueur. Les statistiques selon l&apos;ordre de jeu n&apos;ont
+              alors plus de sens et disparaissent.
             </p>
           </>
         }
@@ -815,12 +815,12 @@ export function BoardgameForm({
         <InfoTip label="À quoi sert « s'arrêter en plein tour de table »">
           <p>
             Pour les jeux dont la fin se déclenche au hasard (Forêt Mixte
-            s&apos;arrête dès la 3<sup>e</sup> carte hiver)&nbsp;: les joueurs
-            placés après n&apos;ont pas joué leur dernier tour.
+            s&apos;arrête dès la 3<sup>e</sup>&nbsp;carte hiver)&nbsp;: les
+            joueurs placés après n&apos;ont pas joué leur dernier tour.
           </p>
           <p>
             Ajoute au récap de fin de partie les{" "}
-            <strong>points par tour</strong> de chacun, et signale ceux
+            <strong>points par tour</strong>&nbsp;de chacun, et signale ceux
             qu&apos;un tour de plus aurait fait passer devant.
           </p>
           <p>
@@ -1058,10 +1058,10 @@ export function BoardgameForm({
                     par catégorie.
                   </p>
                   <p>
-                    <strong>Tas partagés entre voisins</strong> (Splito)&nbsp;:
-                    les joueurs sont en cercle et chaque tas est partagé par
-                    deux voisins. Le total d&apos;un joueur est le produit des
-                    deux tas qui l&apos;encadrent.
+                    <strong>Tas partagés entre voisins</strong>
+                    &nbsp;(Splito)&nbsp;: les joueurs sont en cercle et chaque
+                    tas est partagé par deux voisins. Le total d&apos;un joueur
+                    est le produit des deux tas qui l&apos;encadrent.
                   </p>
                 </>
               }
