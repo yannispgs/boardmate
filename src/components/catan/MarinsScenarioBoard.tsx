@@ -162,9 +162,9 @@ export function MarinsScenarioBoard({
               <li>
                 Aucune rivière d&apos;or visible ne porte un{" "}
                 <span className="font-semibold text-red-600">6</span> ni un{" "}
-                <span className="font-semibold text-red-600">8</span> (celles
-                d&apos;une zone face cachée ne paient rien tant qu&apos;elles ne
-                sont pas retournées).
+                <span className="font-semibold text-red-600">8</span>. Une
+                rivière d&apos;une zone face cachée ne paie rien tant
+                qu&apos;elle n&apos;est pas retournée.
               </li>
             ) : null}
           </>

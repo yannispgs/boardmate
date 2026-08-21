@@ -4,9 +4,9 @@
  * The editor rebuilds `scoring` from its own fields on every save. Anything it
  * doesn't have a field for is therefore dropped — silently, and only noticed
  * games later when a rule stops applying. Catan's `startScore` / `minScore` of
- * 2, the per-game `tieBreak` rules and Papayoo's `totalSum` are all authored in
- * migrations and all invisible to the form, so all three used to evaporate the
- * first time somebody re-saved the sheet to fix a typo in the name.
+ * 2 and Papayoo's `totalSum` are authored in migrations and invisible to the
+ * form, so both used to evaporate the first time somebody re-saved the sheet to
+ * fix a typo in the name.
  *
  * Carrying them over is the fix, and it has to be a **deny-list of what the
  * form owns** rather than an allow-list of what to keep: a field added to the
@@ -25,6 +25,10 @@ const EDITED_KEYS = [
   "winCondition",
   "allowNegative",
   "sheet",
+  // Owned by the form since the tie-break editor exists, and it has to be:
+  // carrying the previous rules over would make deleting one impossible, the
+  // saved spec silently putting back what the table had just removed.
+  "tieBreak",
 ] as const satisfies ReadonlyArray<keyof ScoringSpec>;
 
 /**

@@ -70,6 +70,16 @@ test("edits a boardgame's scoring type", async ({ page }) => {
 
     // Scoring (lowest wins), simultaneous mode, coop kind, 2×d6 dice tracking.
     await page.getByLabel("Ce jeu se joue avec des points").check();
+
+    // The tip describing the accepted values sits inside the field's own
+    // `label`, where a click normally lands on the select: reading it must
+    // open the bubble and leave the field untouched.
+    await page
+      .getByRole("button", { name: "Compétitif, coopératif ou hybride" })
+      .click();
+    await expect(page.getByText("se déroule comme un jeu")).toBeVisible();
+    await expect(page.getByLabel("Type de jeu")).toHaveValue("competitive");
+
     await page.getByLabel("Condition de victoire").selectOption("lowest");
     await page.getByLabel("Mode de jeu").selectOption("simultaneous");
     await page.getByLabel("Type de jeu").selectOption("cooperative");
@@ -137,6 +147,95 @@ test("builds a category scoresheet from the edit form", async ({ page }) => {
     await expect(fields.nth(1)).toHaveValue("Bonus");
   } finally {
     await adminClient().from("boardgames").delete().eq("name", name);
+  }
+});
+
+test("creates a game with no clock and its own tie-break rule", async ({
+  page,
+}) => {
+  const name = `E2E Sans chrono ${Date.now().toString(36)}`;
+  const admin = adminClient();
+
+  try {
+    await page.goto("/boardgames");
+    await page.getByRole("link", { name: "+ Ajouter un jeu" }).click();
+    await page.getByLabel("Nom du jeu").fill(name);
+
+    // A game whose turns go by too fast to time (Papayoo, Duck & Cover): the
+    // clock used to be a migration's business, so a game added here was timed
+    // whether it made sense or not.
+    await page.getByLabel("Chronométrer les tours").uncheck();
+
+    await page.getByLabel("Ce jeu se joue avec des points").check();
+    await page.getByLabel("Condition de victoire").selectOption("lowest");
+
+    await page.getByText("Départage des égalités").click();
+
+    // The tip explaining the order sits in the summary, where a click normally
+    // closes the drawer: reading it must not hide what it explains.
+    await page.getByRole("button", { name: "Ordre des règles" }).click();
+    await expect(page.getByText("Les règles sont essayées")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "+ Règle de départage" }),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "+ Règle de départage" }).click();
+    await page
+      .getByLabel("Nom de la règle")
+      .fill("Le moins de cartes révélées");
+    await page.getByLabel("Qui l'emporte").selectOption("lowest");
+    await page
+      .getByLabel("Aide affichée à la saisie (facultatif)")
+      .fill("Cartes révélées devant chaque joueur");
+
+    await page.getByRole("button", { name: "Ajouter" }).click();
+    await expect(page.getByText(name, { exact: true })).toBeVisible();
+
+    // What actually reached the database — the whole point of the change.
+    const { data: saved } = await admin
+      .from("boardgames")
+      .select("is_timed, scoring")
+      .eq("name", name)
+      .single();
+
+    expect(saved?.is_timed).toBe(false);
+    expect((saved?.scoring as { tieBreak: unknown[] }).tieBreak).toEqual([
+      {
+        key: expect.any(String),
+        label: "Le moins de cartes révélées",
+        direction: "lowest",
+        source: "ask",
+        help: "Cartes révélées devant chaque joueur",
+      },
+    ]);
+
+    // Re-open the settings: both round-trip into the form.
+    await page.getByRole("link", { name: `Réglages de ${name}` }).click();
+    await expect(page.getByLabel("Chronométrer les tours")).not.toBeChecked();
+    await page.getByText("Départage des égalités").click();
+    await expect(page.getByLabel("Nom de la règle")).toHaveValue(
+      "Le moins de cartes révélées",
+    );
+    await expect(page.getByLabel("Qui l'emporte")).toHaveValue("lowest");
+
+    // Deleting the last rule leaves no empty list behind: a game with no rule
+    // shares the victory, which is not the same thing as a rule that fits
+    // nobody.
+    await page.getByRole("button", { name: "Supprimer la règle" }).click();
+    await page
+      .getByRole("button", { name: "Enregistrer", exact: true })
+      .click();
+    await expect(page.getByText("Enregistré")).toBeVisible();
+
+    const { data: cleared } = await admin
+      .from("boardgames")
+      .select("scoring")
+      .eq("name", name)
+      .single();
+
+    expect(cleared?.scoring).not.toHaveProperty("tieBreak");
+  } finally {
+    await admin.from("boardgames").delete().eq("name", name);
   }
 });
 

@@ -80,6 +80,7 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
     expect(bg.maxPlayers).toBe(4);
     expect(bg.kind).toBe("competitive"); // DB default
     expect(bg.turnMode).toBe("sequential"); // DB default
+    expect(bg.timed).toBe(true); // DB default — almost every game is timed
     expect(bg.tags).toEqual([]); // DB default
     expect(bg.isActive).toBe(true); // DB default
     expect(bg.trackSeatStats).toBe(false); // DB default
@@ -101,6 +102,7 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
       avgDurationMin: 115,
       tags: ["stratégie", "4x"],
       turnMode: "simultaneous",
+      timed: false,
       trackSeatStats: true,
       boardGenerator: "catan",
     });
@@ -112,6 +114,9 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
     expect(fetched?.avgDurationMin).toBe(115);
     expect(fetched?.tags).toEqual(["stratégie", "4x"]);
     expect(fetched?.turnMode).toBe("simultaneous");
+    // A game the editor said not to time keeps its clock off — the column used
+    // to be writable by migrations only, so nothing carried this through.
+    expect(fetched?.timed).toBe(false);
     expect(fetched?.trackSeatStats).toBe(true);
     expect(fetched?.boardGenerator).toBe("catan");
 
@@ -161,6 +166,68 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
     });
     expect(cleared.scoring).toBeNull();
     expect(cleared.dice).toBeNull();
+    expect(cleared.timed).toBe(true); // said nothing about it, so unchanged
+  });
+
+  it("turns the clock off on a game already recorded as timed", async () => {
+    const created = await repo().create({ name: uniq("Papayoo-like") });
+    createdIds.push(created.id);
+
+    expect(created.timed).toBe(true);
+
+    // The whole point of the field being editable: a game entered before
+    // anybody noticed its turns are a card being laid down can be corrected
+    // without a migration.
+    const untimed = await repo().update(created.id, { timed: false });
+
+    expect(untimed.timed).toBe(false);
+    expect((await repo().get(created.id))?.timed).toBe(false);
+  });
+
+  it("round-trips the tie-break rules the editor writes", async () => {
+    const created = await repo().create({ name: uniq("Duck-like") });
+    createdIds.push(created.id);
+
+    const saved = await repo().update(created.id, {
+      scoring: {
+        timing: "final",
+        entry: "total",
+        winCondition: { type: "lowest" },
+        allowNegative: false,
+        tieBreak: [
+          {
+            key: "revealed",
+            label: "Le moins de cartes révélées",
+            direction: "lowest",
+            source: "ask",
+            help: "Cartes révélées devant chaque joueur",
+          },
+          {
+            key: "turn",
+            label: "Celui dont c'est le tour",
+            direction: "highest",
+            source: "currentTurn",
+          },
+        ],
+      },
+    });
+
+    expect(saved.scoring?.tieBreak).toHaveLength(2);
+    expect(saved.scoring?.tieBreak?.[0].direction).toBe("lowest");
+    expect(saved.scoring?.tieBreak?.[1].source).toBe("currentTurn");
+
+    // Deleting the last rule has to leave nothing behind: an empty list would
+    // read as « the rulebook has rules », which decides ties differently.
+    const none = await repo().update(created.id, {
+      scoring: {
+        timing: "final",
+        entry: "total",
+        winCondition: { type: "lowest" },
+        allowNegative: false,
+      },
+    });
+
+    expect(none.scoring).not.toHaveProperty("tieBreak");
   });
 
   it("round-trips a category scoresheet (sections, fields, colours, bonus)", async () => {
