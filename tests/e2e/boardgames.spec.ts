@@ -160,6 +160,15 @@ test("creates a game with no clock and its own tie-break rule", async ({
     await page.getByLabel("Condition de victoire").selectOption("lowest");
 
     await page.getByText("Départage des égalités").click();
+
+    // The tip explaining the order sits in the summary, where a click normally
+    // closes the drawer: reading it must not hide what it explains.
+    await page.getByRole("button", { name: "Ordre des règles" }).click();
+    await expect(page.getByText("Les règles sont essayées")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "+ Règle de départage" }),
+    ).toBeVisible();
+
     await page.getByRole("button", { name: "+ Règle de départage" }).click();
     await page
       .getByLabel("Nom de la règle")
