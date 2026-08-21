@@ -13,11 +13,14 @@
 
 import type { ConfigValues, FieldSpec } from "@/lib/domain";
 
-/** The template's declared default for a field, or `undefined`. */
-function templateDefault(
-  key: string,
-  templateFields: FieldSpec[],
-): unknown | undefined {
+/**
+ * The template's declared default for a field, or `undefined`.
+ *
+ * Typed `unknown` rather than `unknown | undefined`: `unknown` already covers
+ * `undefined`, so the union says nothing the callers can act on — each of them
+ * narrows with a `typeof` anyway.
+ */
+function templateDefault(key: string, templateFields: FieldSpec[]): unknown {
   const spec = templateFields.find(f => f.key === key);
 
   return spec && "default" in spec
