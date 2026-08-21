@@ -444,19 +444,19 @@ async function nextScheduledTurn(
 }
 
 /**
- * Where a game played in generations moves to. Records the pass first, when the
- * player who just played is stepping out, then hands over to the next seat
- * still in — or, once that pass was the last one, opens the next generation on
- * its first-player marker with everybody back in.
+ * Records the pass the player who just played is making, when he is making one,
+ * then reads back every seat that has stepped out of the current generation.
+ *
+ * Kept apart from {@link nextGenerationTurn} so the database round-trips and
+ * their guards don't sit in the middle of the seat arithmetic that follows.
  */
-async function nextGenerationTurn(
+async function passedSeatsOfStage(
   supabase: SupabaseClient<Database>,
   id: GameId,
   game: TurnState,
   seats: Seat[],
   passing: boolean,
-  phaseOut: NextPhase | undefined,
-): Promise<NextTurn> {
+): Promise<Set<number>> {
   /* c8 ignore next -- a live sequential game always has a current player */
   if (passing && game.current_player_id) {
     const { error } = await supabase.from("game_stage_passes").insert({
@@ -470,20 +470,44 @@ async function nextGenerationTurn(
     }
   }
 
-  const { data: passes, error: passesError } = await supabase
+  const { data: passes, error } = await supabase
     .from("game_stage_passes")
     .select("player_id")
     .eq("game_id", id)
     .eq("stage", game.stage);
   /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */
-  if (passesError) {
-    throw new Error(`Lecture des passages: ${passesError.message}`);
+  if (error) {
+    throw new Error(`Lecture des passages: ${error.message}`);
   }
 
   // Seats are read in seat order, so a player's index *is* his seat.
   const passedIds = new Set(passes.map(p => p.player_id));
-  const passedSeats = new Set(
+
+  return new Set(
     seats.flatMap((s, seat) => (passedIds.has(s.player_id) ? [seat] : [])),
+  );
+}
+
+/**
+ * Where a game played in generations moves to. Records the pass first, when the
+ * player who just played is stepping out, then hands over to the next seat
+ * still in — or, once that pass was the last one, opens the next generation on
+ * its first-player marker with everybody back in.
+ */
+async function nextGenerationTurn(
+  supabase: SupabaseClient<Database>,
+  id: GameId,
+  game: TurnState,
+  seats: Seat[],
+  passing: boolean,
+  phaseOut: NextPhase | undefined,
+): Promise<NextTurn> {
+  const passedSeats = await passedSeatsOfStage(
+    supabase,
+    id,
+    game,
+    seats,
+    passing,
   );
   const currentSeat = seats.findIndex(
     s => s.player_id === game.current_player_id,
