@@ -1,5 +1,6 @@
 "use client";
 
+import { Field } from "@/components/Field";
 import { MoveButtons } from "@/components/MoveButtons";
 import type { TieBreakRule, TieBreakSource } from "@/lib/domain";
 import { type MoveDirection, moveItem } from "@/lib/game/reorder";
@@ -9,6 +10,7 @@ const input =
   "min-w-0 flex-1 rounded-md border border-black/15 bg-white px-2 py-1 text-sm outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900";
 const select =
   "rounded-md border border-black/15 bg-white px-2 py-1 text-sm outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900";
+const fieldCol = "flex min-w-0 flex-1 flex-col gap-1 text-[11px] text-zinc-500";
 const removeBtn =
   "shrink-0 rounded-md border border-black/10 px-2 py-1 text-xs text-zinc-500 transition hover:border-red-400 hover:text-red-600 dark:border-white/15";
 const addBtn =
@@ -109,39 +111,81 @@ function RuleRow({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <label className="flex min-w-0 flex-1 flex-col gap-1 text-[11px] text-zinc-500">
-          <span>Valeur comparée</span>
-          <select
-            value={rule.source}
-            onChange={e =>
-              onChange({ ...rule, source: e.target.value as TieBreakSource })
-            }
-            className={select}
-          >
-            <option value="ask">Saisie par la table en fin de partie</option>
-            <option value="currentTurn">Celui dont c&apos;est le tour</option>
-          </select>
-        </label>
+        <Field
+          className={fieldCol}
+          label="Valeur comparée"
+          tipLabel="Saisie par la table ou tour en cours"
+          tip={
+            <>
+              <p>
+                <strong>Saisie par la table en fin de partie</strong>&nbsp;:
+                l&apos;application réclame un nombre à chaque joueur encore à
+                égalité, puis les compare.
+              </p>
+              <p>
+                <strong>Celui dont c&apos;est le tour</strong>&nbsp;: rien à
+                saisir. L&apos;application sait déjà à qui appartient le tour en
+                cours, et cette règle le désigne vainqueur (Catan).
+              </p>
+            </>
+          }
+        >
+          {id => (
+            <select
+              id={id}
+              value={rule.source}
+              onChange={e =>
+                onChange({ ...rule, source: e.target.value as TieBreakSource })
+              }
+              className={select}
+            >
+              <option value="ask">Saisie par la table en fin de partie</option>
+              <option value="currentTurn">Celui dont c&apos;est le tour</option>
+            </select>
+          )}
+        </Field>
 
         {/* Nothing to rank when the app already knows the answer: the player
             holding the turn is the one such a rule favours, always. */}
         {asked ? (
-          <label className="flex min-w-0 flex-1 flex-col gap-1 text-[11px] text-zinc-500">
-            <span>Qui l&apos;emporte</span>
-            <select
-              value={rule.direction ?? "highest"}
-              onChange={e =>
-                onChange({
-                  ...rule,
-                  direction: e.target.value as TieBreakRule["direction"],
-                })
-              }
-              className={select}
-            >
-              <option value="highest">La plus grande valeur</option>
-              <option value="lowest">La plus petite valeur</option>
-            </select>
-          </label>
+          <Field
+            className={fieldCol}
+            label="Qui l'emporte"
+            tipLabel="Le sens de la comparaison"
+            tip={
+              <>
+                <p>
+                  Porte sur la valeur de <em>cette règle</em>, pas sur le score
+                  de la partie.
+                </p>
+                <p>
+                  <strong>La plus grande valeur</strong>&nbsp;: le joueur qui en
+                  a le plus est départagé devant.
+                </p>
+                <p>
+                  <strong>La plus petite valeur</strong>&nbsp;: c&apos;est celui
+                  qui en a le moins qui passe devant.
+                </p>
+              </>
+            }
+          >
+            {id => (
+              <select
+                id={id}
+                value={rule.direction ?? "highest"}
+                onChange={e =>
+                  onChange({
+                    ...rule,
+                    direction: e.target.value as TieBreakRule["direction"],
+                  })
+                }
+                className={select}
+              >
+                <option value="highest">La plus grande valeur</option>
+                <option value="lowest">La plus petite valeur</option>
+              </select>
+            )}
+          </Field>
         ) : null}
       </div>
 

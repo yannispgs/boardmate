@@ -70,6 +70,16 @@ test("edits a boardgame's scoring type", async ({ page }) => {
 
     // Scoring (lowest wins), simultaneous mode, coop kind, 2×d6 dice tracking.
     await page.getByLabel("Ce jeu se joue avec des points").check();
+
+    // The tip describing the accepted values sits inside the field's own
+    // `label`, where a click normally lands on the select: reading it must
+    // open the bubble and leave the field untouched.
+    await page
+      .getByRole("button", { name: "Compétitif, coopératif ou hybride" })
+      .click();
+    await expect(page.getByText("se déroule comme un jeu")).toBeVisible();
+    await expect(page.getByLabel("Type de jeu")).toHaveValue("competitive");
+
     await page.getByLabel("Condition de victoire").selectOption("lowest");
     await page.getByLabel("Mode de jeu").selectOption("simultaneous");
     await page.getByLabel("Type de jeu").selectOption("cooperative");

@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { ErrorText } from "@/components/ErrorText";
+import { Field } from "@/components/Field";
 import { InfoTip } from "@/components/InfoTip";
 import { ChevronRightIcon, PencilIcon, UploadIcon } from "@/components/icons";
 import {
@@ -319,24 +320,29 @@ function StopConditionFields({
       ) : null}
 
       {form.stopsAtTarget ? (
-        <label className="flex flex-col gap-1 text-xs text-zinc-500">
-          <span className="flex items-center gap-1">
-            Champ de configuration de l&apos;objectif
-            <InfoTip label="À quoi sert le champ d'objectif">
+        <Field
+          label="Champ de configuration de l'objectif"
+          tipLabel="À quoi sert le champ d'objectif"
+          tip={
+            <>
               <p>
                 Clé du champ de configuration qui fixe le nombre de points à
                 atteindre (par défaut&nbsp;: pointsToWin).
               </p>
               <p>Sa valeur est réglable par partie dans la configuration.</p>
-            </InfoTip>
-          </span>
-          <input
-            value={form.stopField}
-            onChange={e => setForm({ ...form, stopField: e.target.value })}
-            placeholder="pointsToWin"
-            className={field}
-          />
-        </label>
+            </>
+          }
+        >
+          {id => (
+            <input
+              id={id}
+              value={form.stopField}
+              onChange={e => setForm({ ...form, stopField: e.target.value })}
+              placeholder="pointsToWin"
+              className={field}
+            />
+          )}
+        </Field>
       ) : null}
     </>
   );
@@ -674,23 +680,41 @@ export function BoardgameForm({
         </label>
       </div>
 
-      <label className="flex flex-col gap-1 text-xs text-zinc-500">
-        <span>Mode de jeu</span>
-        <select
-          value={form.turnMode}
-          onChange={e =>
-            setForm({ ...form, turnMode: e.target.value as TurnMode })
-          }
-          className={field}
-        >
-          <option value="sequential">Chacun son tour</option>
-          <option value="simultaneous">Tout le monde joue en même temps</option>
-        </select>
-        <span className="text-[11px] text-zinc-400">
-          « Tout le monde en même temps » (ex. Splito) : un seul tour partagé
-          par round, sans rotation joueur par joueur.
-        </span>
-      </label>
+      <Field
+        label="Mode de jeu"
+        tipLabel="Chacun son tour ou tous ensemble"
+        tip={
+          <>
+            <p>
+              <strong>Chacun son tour</strong>&nbsp;: les joueurs jouent
+              l&apos;un après l&apos;autre. L&apos;écran de partie suit à qui
+              c&apos;est le tour et fait tourner le premier joueur.
+            </p>
+            <p>
+              <strong>Tout le monde joue en même temps</strong> (Splito)&nbsp;:
+              un seul tour partagé, sans rotation joueur par joueur. Les
+              statistiques selon l&apos;ordre de jeu n&apos;ont alors plus de
+              sens et disparaissent.
+            </p>
+          </>
+        }
+      >
+        {id => (
+          <select
+            id={id}
+            value={form.turnMode}
+            onChange={e =>
+              setForm({ ...form, turnMode: e.target.value as TurnMode })
+            }
+            className={field}
+          >
+            <option value="sequential">Chacun son tour</option>
+            <option value="simultaneous">
+              Tout le monde joue en même temps
+            </option>
+          </select>
+        )}
+      </Field>
 
       <label className="flex items-center gap-2 text-sm">
         <input
@@ -718,20 +742,42 @@ export function BoardgameForm({
         </InfoTip>
       </label>
 
-      <label className="flex flex-col gap-1 text-xs text-zinc-500">
-        <span>Type de jeu</span>
-        <select
-          value={form.kind}
-          onChange={e =>
-            setForm({ ...form, kind: e.target.value as BoardgameKind })
-          }
-          className={field}
-        >
-          <option value="competitive">Compétitif</option>
-          <option value="cooperative">Coopératif</option>
-          <option value="hybrid">Hybride</option>
-        </select>
-      </label>
+      <Field
+        label="Type de jeu"
+        tipLabel="Compétitif, coopératif ou hybride"
+        tip={
+          <>
+            <p>
+              <strong>Compétitif</strong>&nbsp;: un vainqueur est désigné à la
+              fin, au score ou à la main.
+            </p>
+            <p>
+              <strong>Coopératif</strong>&nbsp;: la table gagne ou perd
+              ensemble. La fin de partie demande un résultat commun, sans
+              vainqueur ni classement individuels.
+            </p>
+            <p>
+              <strong>Hybride</strong>&nbsp;: se déroule comme un jeu
+              compétitif&nbsp;; le libellé ne sert qu&apos;à décrire le jeu.
+            </p>
+          </>
+        }
+      >
+        {id => (
+          <select
+            id={id}
+            value={form.kind}
+            onChange={e =>
+              setForm({ ...form, kind: e.target.value as BoardgameKind })
+            }
+            className={field}
+          >
+            <option value="competitive">Compétitif</option>
+            <option value="cooperative">Coopératif</option>
+            <option value="hybrid">Hybride</option>
+          </select>
+        )}
+      </Field>
 
       {/* Nobody plays first when everybody plays at once — the option would
           only offer a table of empty columns. */}
@@ -784,30 +830,44 @@ export function BoardgameForm({
         </InfoTip>
       </label>
 
-      <label className="flex flex-col gap-1 text-xs text-zinc-500">
-        <span>Générateur de plateau</span>
-        <select
-          value={form.boardGenerator}
-          onChange={e =>
-            setForm({
-              ...form,
-              boardGenerator: e.target.value as BoardGeneratorId | "",
-            })
-          }
-          className={field}
-        >
-          <option value="">Aucun</option>
-          {BOARD_GENERATORS.map(g => (
-            <option key={g.id} value={g.id}>
-              {g.name}
-            </option>
-          ))}
-        </select>
-        <span className="text-[11px] text-zinc-400">
-          Ajoute une étape en fin de création de partie : le plateau est tiré au
-          sort avant de lancer, en tenant compte des extensions actives.
-        </span>
-      </label>
+      <Field
+        label="Générateur de plateau"
+        tipLabel="À quoi sert un générateur"
+        tip={
+          <>
+            <p>
+              <strong>Aucun</strong>&nbsp;: rien de plus à la création
+              d&apos;une partie, la table installe son plateau elle-même.
+            </p>
+            <p>
+              Un générateur — nommé d&apos;après le jeu qu&apos;il dessine —
+              ajoute une étape en fin de création&nbsp;: le plateau est tiré au
+              sort avant de lancer, en tenant compte des extensions actives.
+            </p>
+          </>
+        }
+      >
+        {id => (
+          <select
+            id={id}
+            value={form.boardGenerator}
+            onChange={e =>
+              setForm({
+                ...form,
+                boardGenerator: e.target.value as BoardGeneratorId | "",
+              })
+            }
+            className={field}
+          >
+            <option value="">Aucun</option>
+            {BOARD_GENERATORS.map(g => (
+              <option key={g.id} value={g.id}>
+                {g.name}
+              </option>
+            ))}
+          </select>
+        )}
+      </Field>
 
       <fieldset className="flex flex-col gap-2 rounded-lg border border-black/10 p-3 dark:border-white/10">
         <legend className="px-1 text-xs text-zinc-500">Dés</legend>
@@ -909,10 +969,11 @@ export function BoardgameForm({
         {form.scored ? (
           <div className="flex flex-col gap-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label className="flex flex-col gap-1 text-xs text-zinc-500">
-                <span className="flex items-center gap-1">
-                  Comptage
-                  <InfoTip label="Quand les points sont comptés">
+              <Field
+                label="Comptage"
+                tipLabel="Quand les points sont comptés"
+                tip={
+                  <>
                     <p>
                       <strong>À la fin</strong> = on saisit les scores une fois
                       la partie terminée (Cascadia, Wingspan).
@@ -921,57 +982,108 @@ export function BoardgameForm({
                       <strong>En direct</strong> = on suit le score pendant la
                       partie et la victoire se détecte automatiquement (Catan).
                     </p>
-                  </InfoTip>
-                </span>
-                <select
-                  value={form.scoreTiming}
-                  onChange={e =>
-                    setForm({
-                      ...form,
-                      scoreTiming: e.target.value as FormState["scoreTiming"],
-                    })
-                  }
-                  className={field}
-                >
-                  <option value="final">À la fin de la partie</option>
-                  <option value="live">En direct (pendant la partie)</option>
-                </select>
-              </label>
-              <label className="flex flex-col gap-1 text-xs text-zinc-500">
-                <span>Condition de victoire</span>
-                <select
-                  value={form.winKind}
-                  onChange={e =>
-                    setForm({
-                      ...form,
-                      winKind: e.target.value as FormState["winKind"],
-                    })
-                  }
-                  className={field}
-                >
-                  <option value="highest">Le plus de points gagne</option>
-                  <option value="lowest">Le moins de points gagne</option>
-                </select>
-              </label>
+                  </>
+                }
+              >
+                {id => (
+                  <select
+                    id={id}
+                    value={form.scoreTiming}
+                    onChange={e =>
+                      setForm({
+                        ...form,
+                        scoreTiming: e.target.value as FormState["scoreTiming"],
+                      })
+                    }
+                    className={field}
+                  >
+                    <option value="final">À la fin de la partie</option>
+                    <option value="live">En direct (pendant la partie)</option>
+                  </select>
+                )}
+              </Field>
+              <Field
+                label="Condition de victoire"
+                tipLabel="Le plus ou le moins de points"
+                tip={
+                  <>
+                    <p>
+                      <strong>Le plus de points gagne</strong>&nbsp;: le plus
+                      grand total l&apos;emporte (Catan, Cascadia).
+                    </p>
+                    <p>
+                      <strong>Le moins de points gagne</strong>&nbsp;: le plus
+                      petit total l&apos;emporte (Papayoo).
+                    </p>
+                    <p>
+                      Ne dit que qui gagne, jamais quand la partie
+                      s&apos;arrête&nbsp;: c&apos;est l&apos;objectif de points
+                      ci-dessous, ou le nombre de tours, qui l&apos;arrête.
+                    </p>
+                  </>
+                }
+              >
+                {id => (
+                  <select
+                    id={id}
+                    value={form.winKind}
+                    onChange={e =>
+                      setForm({
+                        ...form,
+                        winKind: e.target.value as FormState["winKind"],
+                      })
+                    }
+                    className={field}
+                  >
+                    <option value="highest">Le plus de points gagne</option>
+                    <option value="lowest">Le moins de points gagne</option>
+                  </select>
+                )}
+              </Field>
             </div>
 
-            <label className="flex flex-col gap-1 text-xs text-zinc-500">
-              <span>Décompte des points</span>
-              <select
-                value={form.entry}
-                onChange={e =>
-                  setForm({
-                    ...form,
-                    entry: e.target.value as FormState["entry"],
-                  })
-                }
-                className={field}
-              >
-                <option value="total">Un total par joueur</option>
-                <option value="categories">Par catégories de points</option>
-                <option value="pairs">Tas partagés entre voisins (×)</option>
-              </select>
-            </label>
+            <Field
+              label="Décompte des points"
+              tipLabel="Total, catégories ou tas partagés"
+              tip={
+                <>
+                  <p>
+                    <strong>Un total par joueur</strong>&nbsp;: une seule case à
+                    remplir par joueur.
+                  </p>
+                  <p>
+                    <strong>Par catégories de points</strong>&nbsp;: une feuille
+                    de score détaillée, dont le total est la somme. Elle
+                    s&apos;écrit juste en dessous et alimente les statistiques
+                    par catégorie.
+                  </p>
+                  <p>
+                    <strong>Tas partagés entre voisins</strong> (Splito)&nbsp;:
+                    les joueurs sont en cercle et chaque tas est partagé par
+                    deux voisins. Le total d&apos;un joueur est le produit des
+                    deux tas qui l&apos;encadrent.
+                  </p>
+                </>
+              }
+            >
+              {id => (
+                <select
+                  id={id}
+                  value={form.entry}
+                  onChange={e =>
+                    setForm({
+                      ...form,
+                      entry: e.target.value as FormState["entry"],
+                    })
+                  }
+                  className={field}
+                >
+                  <option value="total">Un total par joueur</option>
+                  <option value="categories">Par catégories de points</option>
+                  <option value="pairs">Tas partagés entre voisins (×)</option>
+                </select>
+              )}
+            </Field>
 
             <StopConditionFields form={form} setForm={setForm} />
 
