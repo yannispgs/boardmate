@@ -15,7 +15,7 @@ export function LastLapBanner({ shown }: Readonly<{ shown: boolean }>) {
     <div className="flex w-full max-w-sm items-center gap-2 rounded-xl border border-indigo-500/30 bg-indigo-500/[0.06] p-3 text-sm">
       <span aria-hidden>🏁</span>
       <span>
-        <span className="font-semibold">Dernier tour de table</span> —
+        <span className="font-semibold">Dernier tour de table</span>&nbsp;—
         l&apos;objectif est atteint, chacun termine son tour.
       </span>
     </div>
