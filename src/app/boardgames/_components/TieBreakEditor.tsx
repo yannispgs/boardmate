@@ -93,7 +93,7 @@ function RuleRow({
         <input
           value={rule.label}
           onChange={e => onChange({ ...rule, label: e.target.value })}
-          placeholder="Le plus de jetons nature"
+          placeholder="Nom de la règle"
           aria-label="Nom de la règle"
           className={input}
         />
@@ -151,7 +151,7 @@ function RuleRow({
           <input
             value={rule.help ?? ""}
             onChange={e => onChange({ ...rule, help: e.target.value })}
-            placeholder="Jetons nature restants devant chaque joueur"
+            placeholder="Ce que la table doit compter"
             className={input}
           />
         </label>
