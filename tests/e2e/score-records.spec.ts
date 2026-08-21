@@ -142,11 +142,31 @@ test("crowns a personal best and a game record on the reveal", async ({
     await expect(page.getByText("PB", { exact: true })).toBeVisible();
     await expect(page.getByText("WR", { exact: true })).toBeVisible();
 
-    // And they are still there when the finished party is opened again later.
+    // And they are still there when the finished party is opened again later —
+    // where the screen also says out loud that the game's record changed hands,
+    // instead of leaving it to be discovered by opening the sheet.
     await page.goto(`/games/${gameId}/play`);
+    await expect(page.getByText("⭐ Record du jeu battu !")).toBeVisible();
+    await expect(page.getByText("100 pts — ancien record : 90")).toBeVisible();
+
     await page.getByRole("button", { name: "Voir le score final" }).click();
     await expect(page.getByText("PB", { exact: true })).toBeVisible();
     await expect(page.getByText("WR", { exact: true })).toBeVisible();
+
+    // In the list, the mark goes to the party that *holds* the record — this
+    // one — and not to the party of 90 it was just taken from.
+    await page.goto("/games");
+    const finished = page.locator("details", {
+      has: page.getByText("Terminées"),
+    });
+
+    await finished.locator("summary").click();
+    await expect(finished.getByText("⭐ WR", { exact: true })).toHaveCount(1);
+    await expect(
+      finished
+        .locator(`a[href="/games/${gameId}/play"]`)
+        .getByText("⭐ WR", { exact: true }),
+    ).toBeVisible();
   } finally {
     for (const id of [...seeded, gameId]) {
       if (id) {
@@ -233,6 +253,20 @@ test("reads a Papayoo record against tables of the same size only", async ({
     await expect(page.getByText("WR3", { exact: true })).toBeVisible();
     await expect(page.getByText("PB", { exact: true })).toHaveCount(0);
     await expect(page.getByText("WR", { exact: true })).toHaveCount(0);
+
+    // The card of the party holding it carries the table size too: the list is
+    // read across every size at once, so a bare « WR » would be a lie there.
+    await page.goto("/games");
+    const finished = page.locator("details", {
+      has: page.getByText("Terminées"),
+    });
+
+    await finished.locator("summary").click();
+    await expect(
+      finished
+        .locator(`a[href="/games/${gameId}/play"]`)
+        .getByText("⭐ WR3", { exact: true }),
+    ).toBeVisible();
   } finally {
     for (const id of [...seeded, gameId]) {
       if (id) {

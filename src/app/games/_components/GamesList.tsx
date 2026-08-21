@@ -9,6 +9,7 @@ import { StickyActionBar } from "@/components/StickyActionBar";
 import { useConfirm } from "@/components/use-confirm";
 import type { BoardgameId, GameListItem } from "@/lib/domain";
 import { filterGameList } from "@/lib/game/game-filters";
+import { finishedParties, recordHolders } from "@/lib/game/score-records";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useGames } from "@/lib/hooks/use-games";
 import { GameCardList } from "./GameCardList";
@@ -46,6 +47,12 @@ export function GamesList() {
 
   const shownGames = filterGameList(games, filter);
   const shownEnded = filterGameList(endedGames, filter);
+  // Read against every finished party, not the shown ones: a record is a fact
+  // about the game, and narrowing the screen must not hand it to someone else.
+  const records = recordHolders(
+    finishedParties(endedGames),
+    new Map(boardgames.map(b => [b.id, b.scoring])),
+  );
 
   function handleAbandon(game: GameListItem) {
     const name = boardgameFor(game.boardgameId)?.name ?? "cette partie";
@@ -100,6 +107,7 @@ export function GamesList() {
               ended
               collapsible
               title="Terminées"
+              records={records}
             />
           ) : null}
         </ListBody>

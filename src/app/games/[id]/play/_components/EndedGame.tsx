@@ -7,11 +7,14 @@ import { Drawer } from "@/components/Drawer";
 import { ExtensionBadgeList } from "@/components/games/ExtensionBadgeList";
 import type { PopulatedGame } from "@/lib/domain";
 import { playedExtensions } from "@/lib/game/extensions";
+import { worldRecordOf } from "@/lib/game/score-records";
 import { formatNames } from "@/lib/game/tie-break";
 import { hasPlayStats } from "@/lib/game/turn-time";
+import { useRecordsOfGame } from "@/lib/hooks/use-score-records";
 
 import { EndScorePanel } from "./EndScorePanel";
 import { GameStats } from "./GameStats";
+import { RecordBanner } from "./RecordBanner";
 
 /**
  * Who won, under the "Partie terminée !" heading: the whole table on a
@@ -90,6 +93,10 @@ export function EndedGame({
   const winnerNames = formatNames(winners.map(w => w.player.name));
   const winnerScore = winners[0]?.score ?? null;
   const shared = winners.length > 1;
+  // The game's record, if this party still holds it — announced here as well as
+  // worn on the score sheet, so it isn't only found by opening the sheet.
+  const records = useRecordsOfGame(game);
+  const record = worldRecordOf(records);
 
   // Cooperative games have no individual winner: the whole table wins or loses
   // together (every player `isWinner`, or none).
@@ -140,6 +147,8 @@ export function EndedGame({
               score={winnerScore}
               shared={shared}
             />
+
+            <RecordBanner record={record} score={winnerScore} />
           </div>
         </div>
 

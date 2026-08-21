@@ -11,7 +11,13 @@
  * Pure: no vendor types, no React, unit-tested.
  */
 
-import type { BoardgameId, GameId, PlayerId, ScoringSpec } from "@/lib/domain";
+import type {
+  BoardgameId,
+  GameId,
+  GameListItem,
+  PlayerId,
+  ScoringSpec,
+} from "@/lib/domain";
 import type { ScoreDirection } from "./scoring";
 import { winnerDirection } from "./scoring";
 
@@ -26,6 +32,8 @@ export interface ScoreRecord {
    * between tables of the same size; `null` when it spans every table.
    */
   playerCount: number | null;
+  /** The mark that stood before — what this score had to beat to be one. */
+  previous: number;
 }
 
 /** A party already in the books, reduced to what a record needs of it. */
@@ -33,6 +41,11 @@ export interface PastParty {
   gameId: GameId;
   boardgameId: BoardgameId;
   players: ReadonlyArray<{ playerId: PlayerId; score: number | null }>;
+}
+
+/** A party in the books together with who it crowned. */
+export interface FinishedParty extends PastParty {
+  winners: readonly PlayerId[];
 }
 
 /** The two letters each record is worn as. */
@@ -133,6 +146,10 @@ export function scoreRecords({
   const everyScore = past.flatMap(p =>
     p.players.map(x => x.score).filter(isScored),
   );
+  // The mark to beat, read once: nothing to beat at all on a game nobody has
+  // finished yet at this table size.
+  const worldBest =
+    everyScore.length > 0 ? bestOf(everyScore, direction) : null;
   // The best of the party being recorded: on a cooperative game the whole table
   // wins together, and only the seat that actually posted the figure has taken
   // the record.
@@ -148,22 +165,20 @@ export function scoreRecords({
         .map(x => x.score)
         .filter(isScored),
     );
+    const ownBest = own.length > 0 ? bestOf(own, direction) : null;
     const records: ScoreRecord[] = [];
 
-    if (
-      own.length > 0 &&
-      beats(standing.total, bestOf(own, direction), direction)
-    ) {
-      records.push({ kind: "personal", playerCount });
+    if (ownBest !== null && beats(standing.total, ownBest, direction)) {
+      records.push({ kind: "personal", playerCount, previous: ownBest });
     }
 
     if (
-      everyScore.length > 0 &&
+      worldBest !== null &&
       winners.includes(standing.playerId) &&
       standing.total === top &&
-      beats(standing.total, bestOf(everyScore, direction), direction)
+      beats(standing.total, worldBest, direction)
     ) {
-      records.push({ kind: "world", playerCount });
+      records.push({ kind: "world", playerCount, previous: worldBest });
     }
 
     if (records.length > 0) {
@@ -177,4 +192,94 @@ export function scoreRecords({
 /** A seat that was actually scored — an unscored one has nothing to compare. */
 function isScored(score: number | null): score is number {
   return score !== null;
+}
+
+/** The game's record among a party's marks, whoever of its seats wears it. */
+export function worldRecordOf(
+  marks: ReadonlyMap<PlayerId, ScoreRecord[]>,
+): ScoreRecord | null {
+  for (const records of marks.values()) {
+    const world = records.find(r => r.kind === "world");
+
+    if (world !== undefined) {
+      return world;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * The game record each finished party **still holds**, keyed by party.
+ *
+ * A record is one figure, so one party per game wears it — the one nobody has
+ * beaten yet, which is why every party is read against all the others rather
+ * than against the ones before it. A party that took the record and lost it
+ * since therefore drops the mark: the list answers « which one is the record »,
+ * not « which ones were, once ».
+ *
+ * On a game whose scores only compare between tables of the same size, each
+ * size holds its own record, and the mark says which (« WR4 »).
+ */
+export function recordHolders(
+  parties: readonly FinishedParty[],
+  scorings: ReadonlyMap<BoardgameId, ScoringSpec | null>,
+): Map<GameId, ScoreRecord> {
+  const holders = new Map<GameId, ScoreRecord>();
+
+  for (const party of parties) {
+    const standings = scoredStandings(party.players);
+
+    if (standings !== null) {
+      const world = worldRecordOf(
+        scoreRecords({
+          scoring: scorings.get(party.boardgameId) ?? null,
+          boardgameId: party.boardgameId,
+          gameId: party.gameId,
+          standings,
+          winners: party.winners,
+          history: parties,
+        }),
+      );
+
+      if (world !== null) {
+        holders.set(party.gameId, world);
+      }
+    }
+  }
+
+  return holders;
+}
+
+/**
+ * A party's seats as standings — `null` as soon as one was left unscored. Read
+ * as a zero, a missing score would take the record outright on a game where the
+ * smallest total wins; and a half-filled party is not a performance anyway.
+ */
+function scoredStandings(
+  players: PastParty["players"],
+): Array<{ playerId: PlayerId; total: number }> | null {
+  const standings: Array<{ playerId: PlayerId; total: number }> = [];
+
+  for (const player of players) {
+    if (player.score === null) {
+      return null;
+    }
+
+    standings.push({ playerId: player.playerId, total: player.score });
+  }
+
+  return standings;
+}
+
+/** The finished games of the list, reduced to what a record needs of them. */
+export function finishedParties(
+  games: readonly GameListItem[],
+): FinishedParty[] {
+  return games.map(game => ({
+    gameId: game.id,
+    boardgameId: game.boardgameId,
+    players: game.players.map(p => ({ playerId: p.id, score: p.score })),
+    winners: game.players.filter(p => p.isWinner).map(p => p.id),
+  }));
 }

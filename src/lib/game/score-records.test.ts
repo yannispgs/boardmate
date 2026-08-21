@@ -1,8 +1,21 @@
 import { describe, expect, it } from "vitest";
 
-import type { BoardgameId, GameId, PlayerId, ScoringSpec } from "@/lib/domain";
-import type { PastParty } from "./score-records";
-import { recordLabel, recordTitle, scoreRecords } from "./score-records";
+import type {
+  BoardgameId,
+  GameId,
+  GameListItem,
+  PlayerId,
+  ScoringSpec,
+} from "@/lib/domain";
+import type { FinishedParty, PastParty, ScoreRecord } from "./score-records";
+import {
+  finishedParties,
+  recordHolders,
+  recordLabel,
+  recordTitle,
+  scoreRecords,
+  worldRecordOf,
+} from "./score-records";
 
 const GAME = "bg-1" as BoardgameId;
 const OTHER_GAME = "bg-2" as BoardgameId;
@@ -21,6 +34,16 @@ const HIGHEST: ScoringSpec = {
 };
 
 const LOWEST: ScoringSpec = { ...HIGHEST, winCondition: { type: "lowest" } };
+
+/** A personal best, written the short way the expectations read best in. */
+function pb(previous: number, playerCount: number | null = null): ScoreRecord {
+  return { kind: "personal", playerCount, previous };
+}
+
+/** The game's record, same shorthand. */
+function wr(previous: number, playerCount: number | null = null): ScoreRecord {
+  return { kind: "world", playerCount, previous };
+}
 
 /** A party in the books, written the short way the tests read best in. */
 function party(
@@ -82,10 +105,7 @@ describe("scoreRecords", () => {
       ],
     );
 
-    expect(marks.get(ann)).toEqual([
-      { kind: "personal", playerCount: null },
-      { kind: "world", playerCount: null },
-    ]);
+    expect(marks.get(ann)).toEqual([pb(80), wr(90)]);
     expect(marks.get(bob)).toBeUndefined();
   });
 
@@ -104,7 +124,7 @@ describe("scoreRecords", () => {
       ],
     );
 
-    expect(marks.get(ann)).toEqual([{ kind: "personal", playerCount: null }]);
+    expect(marks.get(ann)).toEqual([pb(80)]);
   });
 
   it("reads the small end of the scale when the lowest score wins", () => {
@@ -122,10 +142,7 @@ describe("scoreRecords", () => {
       ],
     );
 
-    expect(marks.get(ann)).toEqual([
-      { kind: "personal", playerCount: null },
-      { kind: "world", playerCount: null },
-    ]);
+    expect(marks.get(ann)).toEqual([pb(40), wr(40)]);
     expect(marks.get(bob)).toBeUndefined();
   });
 
@@ -157,8 +174,8 @@ describe("scoreRecords", () => {
       ],
     );
 
-    expect(marks.get(cat)).toEqual([{ kind: "world", playerCount: null }]);
-    expect(marks.get(ann)).toEqual([{ kind: "personal", playerCount: null }]);
+    expect(marks.get(cat)).toEqual([wr(200)]);
+    expect(marks.get(ann)).toEqual([pb(80)]);
   });
 
   it("refuses an equalled score: a record is taken, not matched", () => {
@@ -184,10 +201,7 @@ describe("scoreRecords", () => {
       [party("g-now", [[ann, 95]]), party("g-1", [[ann, 80]])],
     );
 
-    expect(marks.get(ann)).toEqual([
-      { kind: "personal", playerCount: null },
-      { kind: "world", playerCount: null },
-    ]);
+    expect(marks.get(ann)).toEqual([pb(80), wr(80)]);
   });
 
   it("skips the seats nobody scored", () => {
@@ -239,10 +253,7 @@ describe("scoreRecords", () => {
       ],
     });
 
-    expect(marks.get(ann)).toEqual([
-      { kind: "personal", playerCount: 3 },
-      { kind: "world", playerCount: 3 },
-    ]);
+    expect(marks.get(ann)).toEqual([pb(70, 3), wr(70, 3)]);
     expect(marks.get(bob)).toBeUndefined();
   });
 
@@ -261,11 +272,8 @@ describe("scoreRecords", () => {
       ],
     );
 
-    expect(marks.get(ann)).toEqual([
-      { kind: "personal", playerCount: null },
-      { kind: "world", playerCount: null },
-    ]);
-    expect(marks.get(bob)).toEqual([{ kind: "personal", playerCount: null }]);
+    expect(marks.get(ann)).toEqual([pb(100), wr(150)]);
+    expect(marks.get(bob)).toEqual([pb(150)]);
   });
 
   it("holds the game's record back while the tie is unbroken", () => {
@@ -284,8 +292,8 @@ describe("scoreRecords", () => {
       [],
     );
 
-    expect(marks.get(ann)).toEqual([{ kind: "personal", playerCount: null }]);
-    expect(marks.get(bob)).toEqual([{ kind: "personal", playerCount: null }]);
+    expect(marks.get(ann)).toEqual([pb(100)]);
+    expect(marks.get(bob)).toEqual([pb(100)]);
   });
 
   it("shares the game's record between the winners of a shared victory", () => {
@@ -299,8 +307,8 @@ describe("scoreRecords", () => {
       [ann, bob],
     );
 
-    expect(marks.get(ann)).toEqual([{ kind: "world", playerCount: null }]);
-    expect(marks.get(bob)).toEqual([{ kind: "world", playerCount: null }]);
+    expect(marks.get(ann)).toEqual([wr(100)]);
+    expect(marks.get(bob)).toEqual([wr(100)]);
   });
 
   it("keeps the record to the best seat when the whole table wins", () => {
@@ -314,7 +322,7 @@ describe("scoreRecords", () => {
       [ann, bob],
     );
 
-    expect(marks.get(ann)).toEqual([{ kind: "world", playerCount: null }]);
+    expect(marks.get(ann)).toEqual([wr(150)]);
     expect(marks.get(bob)).toBeUndefined();
   });
 
@@ -335,31 +343,205 @@ describe("scoreRecords", () => {
   });
 });
 
+describe("worldRecordOf", () => {
+  it("finds the game's record whichever seat wears it", () => {
+    const marks = new Map([
+      [ann, [pb(10)]],
+      [bob, [pb(20), wr(30)]],
+    ]);
+
+    expect(worldRecordOf(marks)).toEqual(wr(30));
+  });
+
+  it("answers nothing when the party only took personal bests", () => {
+    expect(worldRecordOf(new Map([[ann, [pb(10)]]]))).toBeNull();
+  });
+
+  it("answers nothing when the party took no record at all", () => {
+    expect(worldRecordOf(new Map())).toBeNull();
+  });
+});
+
+describe("recordHolders", () => {
+  const scorings = new Map([[GAME, HIGHEST]]);
+
+  /** A finished party, with whoever posted its best total as its winner. */
+  function finished(
+    id: string,
+    scores: Array<[PlayerId, number | null]>,
+    winners?: PlayerId[],
+  ): FinishedParty {
+    const scored = scores.filter(([, s]) => s !== null) as Array<
+      [PlayerId, number]
+    >;
+    const best = Math.max(...scored.map(([, s]) => s));
+
+    return {
+      ...party(id, scores),
+      winners:
+        winners ?? scored.filter(([, s]) => s === best).map(([who]) => who),
+    };
+  }
+
+  it("marks the one party nobody has beaten, and only that one", () => {
+    const holders = recordHolders(
+      [
+        finished("g-1", [
+          [ann, 90],
+          [bob, 40],
+        ]),
+        finished("g-2", [
+          [ann, 112],
+          [bob, 60],
+        ]),
+        finished("g-3", [
+          [ann, 98],
+          [bob, 70],
+        ]),
+      ],
+      scorings,
+    );
+
+    expect(holders.size).toBe(1);
+    expect(holders.get("g-2" as GameId)).toEqual(wr(98));
+  });
+
+  it("leaves the very first party unmarked — it beat nothing", () => {
+    const holders = recordHolders([finished("g-1", [[ann, 90]])], scorings);
+
+    expect(holders.size).toBe(0);
+  });
+
+  it("holds one record per table size when the scale moves with the table", () => {
+    const holders = recordHolders(
+      [
+        finished("g-1", [
+          [ann, 90],
+          [bob, 40],
+        ]),
+        finished("g-2", [
+          [ann, 112],
+          [bob, 60],
+        ]),
+        finished("g-3", [
+          [ann, 50],
+          [bob, 30],
+          [cat, 20],
+        ]),
+        finished("g-4", [
+          [ann, 70],
+          [bob, 30],
+          [cat, 20],
+        ]),
+      ],
+      new Map([[GAME, { ...HIGHEST, playerCountSensitive: true }]]),
+    );
+
+    expect(holders.get("g-2" as GameId)).toEqual(wr(90, 2));
+    expect(holders.get("g-4" as GameId)).toEqual(wr(50, 3));
+  });
+
+  it("marks no party of a game that keeps no record", () => {
+    const holders = recordHolders(
+      [finished("g-1", [[ann, 90]]), finished("g-2", [[ann, 112]])],
+      new Map([[GAME, { ...HIGHEST, trackRecords: false }]]),
+    );
+
+    expect(holders.size).toBe(0);
+  });
+
+  it("marks no party of a game the list knows no scoring for", () => {
+    const holders = recordHolders(
+      [finished("g-1", [[ann, 90]]), finished("g-2", [[ann, 112]])],
+      new Map(),
+    );
+
+    expect(holders.size).toBe(0);
+  });
+
+  it("skips a party a seat was left unscored on", () => {
+    const holders = recordHolders(
+      [
+        finished("g-1", [
+          [ann, 90],
+          [bob, 40],
+        ]),
+        finished("g-2", [
+          [ann, 112],
+          [bob, null],
+        ]),
+      ],
+      scorings,
+    );
+
+    expect(holders.size).toBe(0);
+  });
+
+  it("gives the record to a shared victory's whole winning group", () => {
+    const holders = recordHolders(
+      [
+        finished("g-1", [
+          [ann, 90],
+          [bob, 40],
+        ]),
+        finished("g-2", [
+          [ann, 112],
+          [bob, 112],
+        ]),
+      ],
+      scorings,
+    );
+
+    expect(holders.get("g-2" as GameId)).toEqual(wr(90));
+  });
+});
+
+describe("finishedParties", () => {
+  it("reduces a listed game to its scores and its winners", () => {
+    const games = [
+      {
+        id: "g-1" as GameId,
+        boardgameId: GAME,
+        players: [
+          { id: ann, name: "Ann", isWinner: true, score: 90 },
+          { id: bob, name: "Bob", isWinner: false, score: 40 },
+        ],
+      },
+    ] as GameListItem[];
+
+    expect(finishedParties(games)).toEqual([
+      {
+        gameId: "g-1",
+        boardgameId: GAME,
+        players: [
+          { playerId: ann, score: 90 },
+          { playerId: bob, score: 40 },
+        ],
+        winners: [ann],
+      },
+    ]);
+  });
+});
+
 describe("recordLabel", () => {
   it("wears two letters when the record spans every table", () => {
-    expect(recordLabel({ kind: "personal", playerCount: null })).toBe("PB");
-    expect(recordLabel({ kind: "world", playerCount: null })).toBe("WR");
+    expect(recordLabel(pb(10))).toBe("PB");
+    expect(recordLabel(wr(10))).toBe("WR");
   });
 
   it("carries the table size when the record is held at one", () => {
-    expect(recordLabel({ kind: "personal", playerCount: 4 })).toBe("PB4");
-    expect(recordLabel({ kind: "world", playerCount: 3 })).toBe("WR3");
+    expect(recordLabel(pb(10, 4))).toBe("PB4");
+    expect(recordLabel(wr(10, 3))).toBe("WR3");
   });
 });
 
 describe("recordTitle", () => {
   it("spells the mark out", () => {
-    expect(recordTitle({ kind: "personal", playerCount: null })).toBe(
-      "Meilleur score personnel",
-    );
-    expect(recordTitle({ kind: "world", playerCount: null })).toBe(
-      "Record du jeu",
-    );
+    expect(recordTitle(pb(10))).toBe("Meilleur score personnel");
+    expect(recordTitle(wr(10))).toBe("Record du jeu");
   });
 
   it("names the table it is held at", () => {
-    expect(recordTitle({ kind: "world", playerCount: 4 })).toBe(
-      "Record du jeu à 4 joueurs",
-    );
+    expect(recordTitle(wr(10, 4))).toBe("Record du jeu à 4 joueurs");
   });
 });

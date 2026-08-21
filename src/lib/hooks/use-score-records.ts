@@ -37,3 +37,18 @@ export function useScoreRecords(
     })),
   });
 }
+
+/**
+ * The same records for a party **already in the books**: its standings and its
+ * winners are read off the recorded game rather than off a reveal in progress,
+ * so any screen showing a finished party gets them without rebuilding either.
+ */
+export function useRecordsOfGame(
+  game: PopulatedGame,
+): Map<PlayerId, ScoreRecord[]> {
+  return useScoreRecords(
+    game,
+    game.players.map(p => ({ playerId: p.playerId, total: p.score ?? 0 })),
+    game.players.filter(p => p.isWinner).map(p => p.playerId),
+  );
+}

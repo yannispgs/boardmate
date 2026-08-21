@@ -5,7 +5,7 @@ import { useState } from "react";
 import type { PlayerId, PopulatedGame } from "@/lib/domain";
 import { readPairBreakdown } from "@/lib/game/pair-scoring";
 import { finalStandings, winnerDirection } from "@/lib/game/scoring";
-import { useScoreRecords } from "@/lib/hooks/use-score-records";
+import { useRecordsOfGame } from "@/lib/hooks/use-score-records";
 import { CategoryBreakdownFill } from "./CategoryBreakdownFill";
 import { FinalScoreTable } from "./FinalScoreTable";
 import { RecordBadgeList } from "./RecordBadgeList";
@@ -61,11 +61,7 @@ export function EndScorePanel({
   );
   // The records this party took, so they are still there when the score is
   // looked up again long after the reveal that announced them.
-  const records = useScoreRecords(
-    game,
-    ranking,
-    players.filter(p => p.isWinner).map(p => p.id),
-  );
+  const records = useRecordsOfGame(game);
 
   // The per-category breakdown is only available when every player has one
   // stored (a total-only game, or a category game recorded without detail, has

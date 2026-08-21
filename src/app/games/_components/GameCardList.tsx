@@ -1,8 +1,14 @@
 "use client";
 
 import { ChevronRightIcon } from "@/components/icons";
-import type { Boardgame, BoardgameId, GameListItem } from "@/lib/domain";
+import type {
+  Boardgame,
+  BoardgameId,
+  GameId,
+  GameListItem,
+} from "@/lib/domain";
 import { gameProgress } from "@/lib/game/game-progress";
+import type { ScoreRecord } from "@/lib/game/score-records";
 import { GameCard } from "./GameCard";
 
 const headingClass =
@@ -20,6 +26,7 @@ export function GameCardList({
   ended = false,
   collapsible = false,
   title,
+  records,
   onAbandon,
 }: Readonly<{
   games: GameListItem[];
@@ -27,6 +34,11 @@ export function GameCardList({
   ended?: boolean;
   collapsible?: boolean;
   title?: string;
+  /**
+   * Which parties hold their game's record. Resolved once by the list, against
+   * **every** finished party — filtering the screen must not move a record.
+   */
+  records?: ReadonlyMap<GameId, ScoreRecord>;
   /** Ongoing games only: abandon (delete) a game. */
   onAbandon?: (game: GameListItem) => void;
 }>) {
@@ -44,6 +56,7 @@ export function GameCardList({
             progress={gameProgress(game, boardgame?.stages ?? null)}
             ended={ended}
             coop={boardgame?.kind === "cooperative"}
+            record={records?.get(game.id) ?? null}
             onAbandon={onAbandon ? () => onAbandon(game) : undefined}
           />
         );
