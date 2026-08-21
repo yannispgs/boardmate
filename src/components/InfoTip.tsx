@@ -1,6 +1,13 @@
 "use client";
 
-import { type ReactNode, useEffect, useId, useRef, useState } from "react";
+import {
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 
 import { InfoIcon } from "./icons";
@@ -52,7 +59,13 @@ export function InfoTip({
     };
   }, [open]);
 
-  function toggle() {
+  function toggle(event: ReactMouseEvent) {
+    // A button has no default action of its own, but its ancestors do: dropped
+    // in a `summary`, the click that opens this bubble also closes the drawer
+    // holding it — hiding what the bubble explains. Cancelled here once, rather
+    // than by a wrapper around every such call site.
+    event.preventDefault();
+
     const rect = buttonRef.current?.getBoundingClientRect();
 
     if (rect) {

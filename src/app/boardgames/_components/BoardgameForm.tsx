@@ -1014,29 +1014,23 @@ export function BoardgameForm({
                 <ChevronRightIcon className="h-3.5 w-3.5 transition-transform group-open:rotate-90" />
                 Départage des égalités
                 {tieBreak.length > 0 ? ` (${tieBreak.length})` : null}
-                {/* A click on a `summary` opens or closes the drawer, and the
-                    tip sits inside one: its own click has to be swallowed, or
-                    reading the explanation would hide what it explains. */}
-                <span onClick={e => e.preventDefault()}>
-                  <InfoTip label="Ordre des règles de départage">
-                    <p>
-                      Les règles sont essayées de haut en bas, dans l&apos;ordre
-                      de la liste.
-                    </p>
-                    <p>
-                      Chacune écarte les joueurs qu&apos;elle départage&nbsp;:
-                      la suivante ne s&apos;applique qu&apos;à ceux qui restent,
-                      et dès qu&apos;il n&apos;en reste qu&apos;un il est
-                      vainqueur — les règles d&apos;en dessous ne sont alors pas
-                      lues.
-                    </p>
-                    <p>
-                      Les flèches ↑ ↓ changent cet ordre. Si la dernière règle
-                      laisse plusieurs joueurs à égalité, la victoire est
-                      partagée.
-                    </p>
-                  </InfoTip>
-                </span>
+                <InfoTip label="Ordre des règles de départage">
+                  <p>
+                    Les règles sont essayées de haut en bas, dans l&apos;ordre
+                    de la liste.
+                  </p>
+                  <p>
+                    Chacune écarte les joueurs qu&apos;elle départage&nbsp;: la
+                    suivante ne s&apos;applique qu&apos;à ceux qui restent, et
+                    dès qu&apos;il n&apos;en reste qu&apos;un il est vainqueur —
+                    les règles d&apos;en dessous ne sont alors pas lues.
+                  </p>
+                  <p>
+                    Les flèches ↑ ↓ changent cet ordre. Si la dernière règle
+                    laisse plusieurs joueurs à égalité, la victoire est
+                    partagée.
+                  </p>
+                </InfoTip>
               </summary>
               <div className="mt-1">
                 <TieBreakEditor value={tieBreak} onChange={setTieBreak} />
