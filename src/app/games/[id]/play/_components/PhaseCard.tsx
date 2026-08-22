@@ -10,19 +10,31 @@ const STYLE: Readonly<Record<PhaseState, string>> = {
 };
 
 /**
- * One phase in the strip. Named in full rather than numbered: « Production des
- * ressources » is what the table calls it, and the whole point of the strip is
- * that nobody has to translate a number back into the rulebook.
+ * One phase in the strip: its rank over its name. Named in full rather than
+ * numbered alone — « Production des ressources » is what the table calls it, and
+ * the whole point of the strip is that nobody has to translate a number back
+ * into the rulebook. The rank rides above it because the rulebook *does* number
+ * them, so « on est en phase 2 » and the box agree without anyone counting
+ * pills.
  */
 export function PhaseCard({
+  rank,
   label,
   state,
-}: Readonly<{ label: string; state: PhaseState }>) {
+}: Readonly<{
+  /** Its place in the stage, counted from 1 as the rulebook counts it. */
+  rank: number;
+  label: string;
+  state: PhaseState;
+}>) {
   return (
     <li
-      className={`rounded-full border px-3 py-1 text-xs font-semibold ${STYLE[state]}`}
+      className={`rounded-xl border px-3 py-1 text-center text-xs font-semibold ${STYLE[state]}`}
     >
-      {label}
+      <span className="block text-[10px] font-medium tracking-wide opacity-70">
+        Phase {rank}
+      </span>
+      <span className="block">{label}</span>
     </li>
   );
 }
