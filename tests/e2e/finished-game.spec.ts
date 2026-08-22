@@ -428,3 +428,47 @@ test("records a pair-scored game on its shared piles", async ({ page }) => {
     await admin.from("players").delete().in("name", names);
   }
 });
+
+/**
+ * Which boxes the form offers. Only a co-operative one is turned away — it has
+ * no individual result to type in here yet. A **hybrid** game (Splito: the
+ * points come off the piles a player shares with his two neighbours) is scored
+ * against the table like any other and must be offered, which an allow-list on
+ * `competitive` silently got wrong.
+ */
+test("offers a hybrid game but not a cooperative one", async ({ page }) => {
+  const admin = adminClient();
+  const coopName = `E2E Coop-${Date.now().toString(36)}`;
+  let coopId = "";
+
+  try {
+    const { data, error } = await admin
+      .from("boardgames")
+      .insert({
+        name: coopName,
+        kind: "cooperative",
+        min_players: 2,
+        max_players: 4,
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to seed coop boardgame: ${error.message}`);
+    }
+
+    coopId = data.id as string;
+
+    await page.goto("/games/finished");
+    await expect(
+      page.getByRole("button", { name: "Splito", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: coopName, exact: true }),
+    ).toHaveCount(0);
+  } finally {
+    if (coopId) {
+      await admin.from("boardgames").delete().eq("id", coopId);
+    }
+  }
+});

@@ -68,7 +68,11 @@ export function FinishedGameForm() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const games = boardgames.filter(b => b.isActive && b.kind === "competitive");
+  // Everything but a co-operative box, which has no result to record here yet.
+  // Written as what is turned away rather than what is let in: a hybrid game is
+  // played, ended and ranked exactly like a competitive one everywhere else in
+  // the app, so an allow-list dropped it from this screen alone.
+  const games = boardgames.filter(b => b.isActive && b.kind !== "cooperative");
   const extensions = useExtensions(boardgame?.id ?? null);
   // A game played with Oceania is scored on Oceania's sheet and was laid out
   // with its tiles, exactly as it would have been at launch.
