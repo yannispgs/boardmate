@@ -18,6 +18,7 @@ import type {
 } from "@/lib/repositories/types";
 import type { Database, Json } from "@/lib/supabase/database.types";
 import { FK_VIOLATION } from "@/lib/supabase/repositories/pg-error-codes";
+import { watchTable } from "@/lib/supabase/repositories/watch-table";
 
 type BoardgameRow = Database["public"]["Tables"]["boardgames"]["Row"];
 type BoardgameWrite = Database["public"]["Tables"]["boardgames"]["Update"];
@@ -194,20 +195,9 @@ export function createBoardgameRepository(
       return bucket.getPublicUrl(path).data.publicUrl;
     },
 
-    /* c8 ignore start -- Realtime channel glue, exercised via e2e/manual */
+    /* c8 ignore next 3 -- Realtime channel glue, exercised via e2e/manual */
     subscribe(onChange: () => void): Unsubscribe {
-      const channel = supabase
-        .channel("public:boardgames")
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "boardgames" },
-          () => onChange(),
-        )
-        .subscribe();
-      return () => {
-        supabase.removeChannel(channel);
-      };
+      return watchTable(supabase, "boardgames", onChange);
     },
-    /* c8 ignore stop */
   };
 }

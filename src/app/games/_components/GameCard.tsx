@@ -8,6 +8,8 @@ import { Tooltip } from "@/components/Tooltip";
 import type { GameListItem, PlayerId } from "@/lib/domain";
 import type { GameProgress } from "@/lib/game/game-progress";
 import { progressSummary } from "@/lib/game/game-progress";
+import type { ScoreRecord } from "@/lib/game/score-records";
+import { recordLabel, recordTitle } from "@/lib/game/score-records";
 import { formatNames } from "@/lib/game/tie-break";
 
 /** Full start timestamp (date + HH:mm:ss), shown when hovering the date. */
@@ -57,10 +59,25 @@ function PlayOrder({
 }
 
 /**
- * The same play order as the tooltip, but rendered inline as small chips —
- * shown only on touch devices (`@media (hover: none)`), where the hover tooltip
- * never fires, so the participants stay reachable without a mouse.
+ * The mark of the party that **holds** the game's record, next to the game's
+ * name. One party per game wears it — the best score nobody has beaten yet, or
+ * one per table size on a game whose scores only compare between equal tables.
  */
+function RecordChip({ record }: Readonly<{ record: ScoreRecord | null }>) {
+  if (record === null) {
+    return null;
+  }
+
+  return (
+    <span
+      title={recordTitle(record)}
+      className="shrink-0 rounded-full bg-amber-500/20 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300"
+    >
+      {`⭐ ${recordLabel(record)}`}
+    </span>
+  );
+}
+
 /**
  * The card's one-line status: how the finished game ended, or whose turn it is
  * in a running one. A game that hasn't started has nothing to say.
@@ -146,6 +163,7 @@ export function GameCard({
   progress,
   ended = false,
   coop = false,
+  record = null,
   onAbandon,
 }: Readonly<{
   game: GameListItem;
@@ -154,6 +172,8 @@ export function GameCard({
   /** How far along, in the boardgame's own unit — resolved by the list. */
   progress: GameProgress;
   ended?: boolean;
+  /** The game's record when this party still holds it — resolved by the list. */
+  record?: ScoreRecord | null;
   /** Cooperative game: a finished one shows a shared victory/defeat, no winner. */
   coop?: boolean;
   /** When set (ongoing games only), shows an "abandon" (delete) button. */
@@ -202,7 +222,10 @@ export function GameCard({
             </span>
           )}
           <div className="flex min-w-0 flex-col">
-            <span className="truncate font-medium">{boardgameName}</span>
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className="truncate font-medium">{boardgameName}</span>
+              <RecordChip record={record} />
+            </span>
             <ExtensionBadgeList
               extensions={game.extensions}
               baseName={boardgameName}

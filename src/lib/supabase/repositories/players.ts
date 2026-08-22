@@ -11,6 +11,7 @@ import {
   FK_VIOLATION,
   UNIQUE_VIOLATION,
 } from "@/lib/supabase/repositories/pg-error-codes";
+import { watchTable } from "@/lib/supabase/repositories/watch-table";
 
 type PlayerRow = Database["public"]["Tables"]["players"]["Row"];
 
@@ -112,20 +113,9 @@ export function createPlayerRepository(
       }
     },
 
-    /* c8 ignore start -- Realtime channel glue, exercised via e2e/manual */
+    /* c8 ignore next 3 -- Realtime channel glue, exercised via e2e/manual */
     subscribe(onChange: () => void): Unsubscribe {
-      const channel = supabase
-        .channel("public:players")
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "players" },
-          () => onChange(),
-        )
-        .subscribe();
-      return () => {
-        supabase.removeChannel(channel);
-      };
+      return watchTable(supabase, "players", onChange);
     },
-    /* c8 ignore stop */
   };
 }
