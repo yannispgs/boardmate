@@ -523,16 +523,16 @@ async function nextGenerationTurn(
   // end of the generation, exactly as it has always been.
   const paused = over && phaseOut && !phaseOut.stageEnds ? phaseOut : null;
   const stage = over && paused === null ? game.stage + 1 : game.stage;
+  // A generation that rolls over is played from a clean slate: the seat is read
+  // off the new stage rather than from whoever happened to end the last one, and
+  // everybody is back in.
+  const fromSeat = over ? null : currentSeat;
+  const stillOut = over ? NOBODY_PASSED : passedSeats;
   // Nobody is up during a phase played all at once, so the marker is dropped
   // until the turns come back round.
   const seat = paused
     ? null
-    : activeSeat(
-        stage,
-        seats.length,
-        over ? null : currentSeat,
-        over ? NOBODY_PASSED : passedSeats,
-      );
+    : activeSeat(stage, seats.length, fromSeat, stillOut);
 
   return {
     turn: game.turn + 1,
