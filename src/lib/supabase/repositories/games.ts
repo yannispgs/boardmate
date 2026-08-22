@@ -325,6 +325,28 @@ type TurnState = Pick<
 
 type Seat = { player_id: string };
 
+/**
+ * The game's players, read in seat order — so a player's index *is* his seat,
+ * which is the assumption every turn computation in this file rests on. Read
+ * from the table rather than from whatever order a join happened to return.
+ */
+async function orderedSeats(
+  supabase: SupabaseClient<Database>,
+  id: GameId,
+): Promise<Seat[]> {
+  const { data: seats, error } = await supabase
+    .from("game_players")
+    .select("player_id, seat_order")
+    .eq("game_id", id)
+    .order("seat_order", { ascending: true });
+  /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */
+  if (error) {
+    throw new Error(`Lecture des joueurs: ${error.message}`);
+  }
+
+  return seats;
+}
+
 /** The passed-seat set a freshly opened generation starts from. */
 const NOBODY_PASSED: ReadonlySet<number> = new Set();
 
@@ -1044,15 +1066,7 @@ export function createGameRepository(
         throw new Error(`Lecture de la partie: ${error.message}`);
       }
 
-      const { data: seats, error: seatsError } = await supabase
-        .from("game_players")
-        .select("player_id, seat_order")
-        .eq("game_id", id)
-        .order("seat_order", { ascending: true });
-      /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */
-      if (seatsError) {
-        throw new Error(`Lecture des joueurs: ${seatsError.message}`);
-      }
+      const seats = await orderedSeats(supabase, id);
 
       // A simultaneous round is one shared turn per round (no owner, optional
       // "waited on" player); a sequential turn is one per seat.
@@ -1210,15 +1224,7 @@ export function createGameRepository(
         throw new Error(`Lecture de la partie: ${error.message}`);
       }
 
-      const { data: seats, error: seatsError } = await supabase
-        .from("game_players")
-        .select("player_id, seat_order")
-        .eq("game_id", id)
-        .order("seat_order", { ascending: true });
-      /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */
-      if (seatsError) {
-        throw new Error(`Lecture des joueurs: ${seatsError.message}`);
-      }
+      const seats = await orderedSeats(supabase, id);
 
       // A fresh generation opens on its first-player marker with everybody in.
       const stage = game.stage + 1;
