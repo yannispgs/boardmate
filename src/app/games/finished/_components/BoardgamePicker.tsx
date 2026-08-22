@@ -6,8 +6,9 @@ import type { Boardgame } from "@/lib/domain";
  * Which game the night was: the first thing asked, since everything else the
  * form shows — the sheet, the extensions, the manches — hangs off it.
  *
- * Only the games still played and actually scored against each other are
- * offered: a co-operative box has no result to record here.
+ * Every game still played is offered except a co-operative box, which has no
+ * result to record here yet — a hybrid game is scored against the table like
+ * any other and belongs in the list.
  */
 export function BoardgamePicker({
   boardgames,
