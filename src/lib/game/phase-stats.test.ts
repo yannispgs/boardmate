@@ -22,13 +22,13 @@ const PHASES: PhaseSpec[] = [
   },
   {
     key: "projects",
-    label: "Réalisation des projets",
+    label: "Projets",
     mode: "sequential",
     clock: "turnTimer",
   },
   {
     key: "production",
-    label: "Production des ressources",
+    label: "Production",
     mode: "simultaneous",
     clock: "stopwatch",
   },
@@ -193,7 +193,7 @@ describe("turnPhaseStats", () => {
     const [stat] = turnPhaseStats(records, BOARDGAMES, ANNA);
 
     expect(stat?.boardgameName).toBe("Terraforming Mars");
-    expect(stat?.label).toBe("Réalisation des projets");
+    expect(stat?.label).toBe("Projets");
     expect(stat?.averageS).toBe(50);
     expect(stat?.tableAverageS).toBe(40);
   });

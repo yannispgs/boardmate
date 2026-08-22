@@ -158,7 +158,7 @@ export function turnPhase(phases: PhaseSpec[] | null): PhaseSpec | null {
 export interface TurnPhaseStat {
   boardgameId: BoardgameId;
   boardgameName: string;
-  /** The phase the turns were taken in — « Réalisation des projets ». */
+  /** The phase the turns were taken in — « Projets ». */
   label: string;
   /** Parties of that game this player took a turn in. */
   games: number;
