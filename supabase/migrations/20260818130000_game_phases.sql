@@ -29,6 +29,11 @@ comment on column public.boardgames.phases is
 -- remaining phases of the rulebook are folded into these three in the base box,
 -- so three is the whole generation, not a simplification of it.
 --
+-- One word each (owner, 2026-08-22): the strip is read on a phone, where
+-- « Réalisation des projets » wrapped the pill onto two lines and pushed the
+-- third phase onto a second row. The rank above the name carries the ordering,
+-- so the name only has to name.
+--
 -- ⚠️ Merged with `||`, never written as a fresh row: the game''s line has been
 -- hand-edited in the editor on prod, and rewriting it would silently drop what
 -- was typed there — the trap Papayoo and Splendor both walked into.
@@ -43,13 +48,13 @@ set phases = '[
   },
   {
     "key": "projects",
-    "label": "Réalisation des projets",
+    "label": "Projets",
     "mode": "sequential",
     "clock": "turnTimer"
   },
   {
     "key": "production",
-    "label": "Production des ressources",
+    "label": "Production",
     "mode": "simultaneous",
     "clock": "stopwatch"
   }

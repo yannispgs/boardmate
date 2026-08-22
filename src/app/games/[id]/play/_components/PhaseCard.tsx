@@ -10,12 +10,11 @@ const STYLE: Readonly<Record<PhaseState, string>> = {
 };
 
 /**
- * One phase in the strip: its rank over its name. Named in full rather than
- * numbered alone — « Production des ressources » is what the table calls it, and
- * the whole point of the strip is that nobody has to translate a number back
- * into the rulebook. The rank rides above it because the rulebook *does* number
- * them, so « on est en phase 2 » and the box agree without anyone counting
- * pills.
+ * One phase in the strip: its rank over its name. Named rather than numbered
+ * alone — « Production » is what the table says, and the whole point of the
+ * strip is that nobody has to translate a number back into the rulebook. The
+ * rank rides above it because the rulebook *does* number them, so « on est en
+ * phase 2 » and the box agree without anyone counting pills.
  */
 export function PhaseCard({
   rank,

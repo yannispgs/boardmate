@@ -24,13 +24,13 @@ const TM: PhaseSpec[] = [
   },
   {
     key: "projects",
-    label: "Réalisation des projets",
+    label: "Projets",
     mode: "sequential",
     clock: "turnTimer",
   },
   {
     key: "production",
-    label: "Production des ressources",
+    label: "Production",
     mode: "simultaneous",
     clock: "stopwatch",
   },

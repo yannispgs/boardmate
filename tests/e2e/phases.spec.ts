@@ -61,13 +61,9 @@ test("lays the generation out as ranked phases and lights the current one", asyn
     await expect(strip.getByText("Phase 1", { exact: true })).toBeVisible();
     await expect(strip.getByText("Découverte", { exact: true })).toBeVisible();
     await expect(strip.getByText("Phase 2", { exact: true })).toBeVisible();
-    await expect(
-      strip.getByText("Réalisation des projets", { exact: true }),
-    ).toBeVisible();
+    await expect(strip.getByText("Projets", { exact: true })).toBeVisible();
     await expect(strip.getByText("Phase 3", { exact: true })).toBeVisible();
-    await expect(
-      strip.getByText("Production des ressources", { exact: true }),
-    ).toBeVisible();
+    await expect(strip.getByText("Production", { exact: true })).toBeVisible();
 
     // Two phases, two joins: the strip reads as an order, not as a set.
     await expect(strip.locator("svg")).toHaveCount(2);
@@ -75,17 +71,13 @@ test("lays the generation out as ranked phases and lights the current one", asyn
     // Découverte is played all at once, so the table closes it itself and is
     // told where that lands.
     await expect(page.getByText("Tour de", { exact: false })).toHaveCount(0);
-    await expect(
-      page.getByText("Ensuite : Réalisation des projets"),
-    ).toBeVisible();
+    await expect(page.getByText("Ensuite : Projets")).toBeVisible();
 
     await page.getByRole("button", { name: "Phase terminée →" }).click();
 
     // The light moves on: the projects phase is the one with turns, so the
     // per-player timer and the ribbon come back.
-    await expect(
-      page.getByText("Ensuite : Réalisation des projets"),
-    ).toHaveCount(0);
+    await expect(page.getByText("Ensuite : Projets")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Passe" })).toBeVisible();
   } finally {
     if (gameId !== "") {
