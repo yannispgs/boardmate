@@ -12,11 +12,16 @@ import { adminClient, boardgameId, seedPlayers } from "./utils/supabase";
  * tables of the same size — and say which, « WR3 ».
  */
 
-/** A party already in the books, seeded straight in with the service role. */
+/**
+ * A party already in the books, seeded straight in with the service role. Pass
+ * a `sessionId` to file several of them under the same sitting, the way
+ * chaining a new party from the score sheet does.
+ */
 async function seedParty(
   admin: ReturnType<typeof adminClient>,
   bgId: string,
-  scores: Array<{ playerId: string; score: number }>,
+  scores: Array<{ playerId: string; score: number; isWinner?: boolean }>,
+  sessionId?: string,
 ): Promise<string> {
   const { data: game } = await admin
     .from("games")
@@ -26,6 +31,7 @@ async function seedParty(
       round: 1,
       turn: 1,
       ended_at: new Date().toISOString(),
+      ...(sessionId === undefined ? {} : { session_id: sessionId }),
     })
     .select("id")
     .single();
@@ -36,7 +42,7 @@ async function seedParty(
       game_id: gameId,
       player_id: s.playerId,
       seat_order: seat,
-      is_winner: false,
+      is_winner: s.isWinner === true,
       score: s.score,
     })),
   );
@@ -180,6 +186,119 @@ test("crowns a personal best and a game record on the reveal", async ({
   }
 });
 
+test("lifts the mark onto the sitting the record party is folded into", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const players = await seedPlayers(3);
+  const gameName = `E2E Sitting ${Date.now().toString(36)}`;
+  const sessionId = crypto.randomUUID();
+  const seeded: string[] = [];
+  let bgId: string | null = null;
+
+  try {
+    bgId =
+      (
+        await admin
+          .from("boardgames")
+          .insert({
+            name: gameName,
+            min_players: 1,
+            max_players: 4,
+            round_limit: null,
+            scoring: {
+              timing: "final",
+              entry: "total",
+              winCondition: { type: "highest" },
+            },
+          })
+          .select("id")
+          .single()
+      ).data?.id ?? null;
+
+    const { data: rows } = await admin
+      .from("players")
+      .select("id, name")
+      .in("name", players);
+    const idOf = (name: string) =>
+      (rows ?? []).find(r => r.name === name)?.id as string;
+
+    // Two deals of one evening, so the list folds them into a single row: the
+    // first sets the bar at 90, the second takes it at 100.
+    seeded.push(
+      await seedParty(
+        admin,
+        bgId as string,
+        [
+          { playerId: idOf(players[0]), score: 30 },
+          { playerId: idOf(players[1]), score: 90, isWinner: true },
+          { playerId: idOf(players[2]), score: 20 },
+        ],
+        sessionId,
+      ),
+    );
+    seeded.push(
+      await seedParty(
+        admin,
+        bgId as string,
+        [
+          { playerId: idOf(players[0]), score: 100, isWinner: true },
+          { playerId: idOf(players[1]), score: 40 },
+          { playerId: idOf(players[2]), score: 10 },
+        ],
+        sessionId,
+      ),
+    );
+
+    await page.goto("/games");
+    const finished = page.locator("details", {
+      has: page.getByText("Terminées"),
+    });
+
+    // The sitting is a `<details>` of its own inside the finished one, so the
+    // disclosure of the section has to be picked as a direct child.
+    await finished.locator("> summary").click();
+
+    const sitting = finished.locator("details", {
+      has: page.getByText("2 parties"),
+    });
+
+    // Folded, the row itself says the evening holds the game's record — the
+    // whole point: a mark that has to be unfolded to be seen is a mark nobody
+    // reads.
+    await expect(
+      sitting.locator("summary").getByText("⭐ WR", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      sitting
+        .locator(`a[href="/games/${seeded[1]}/play"]`)
+        .getByText("⭐ WR", { exact: true }),
+    ).toBeHidden();
+
+    // Unfolded, it belongs to the party that took it — not to the deal of 90 it
+    // was taken from.
+    await sitting.locator("summary").click();
+    await expect(
+      sitting
+        .locator(`a[href="/games/${seeded[1]}/play"]`)
+        .getByText("⭐ WR", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      sitting
+        .locator(`a[href="/games/${seeded[0]}/play"]`)
+        .getByText("⭐ WR", { exact: true }),
+    ).toHaveCount(0);
+  } finally {
+    for (const id of seeded) {
+      await admin.from("games").delete().eq("id", id);
+    }
+    if (bgId) {
+      await admin.from("boardgames").delete().eq("id", bgId);
+    }
+    await admin.from("players").delete().in("name", players);
+  }
+});
+
 test("reads a Papayoo record against tables of the same size only", async ({
   page,
 }) => {
@@ -237,7 +356,7 @@ test("reads a Papayoo record against tables of the same size only", async ({
 
     // 20 beats his own 100 and the table's 50 — but not the 5 of the four-player
     // deal, which is why it must be left out of the comparison.
-    await page.getByRole("button", { name: "Terminer la partie" }).click();
+    await page.getByRole("button", { name: "Entrer les scores" }).click();
     await page.getByLabel(`Score de ${players[0]}`).fill("20");
     await page.getByLabel(`Score de ${players[1]}`).fill("110");
     await page.getByLabel(`Score de ${players[2]}`).fill("120");

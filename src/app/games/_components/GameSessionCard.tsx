@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 
 import { ChevronRightIcon } from "@/components/icons";
 import type { GameListItem } from "@/lib/domain";
+import { recordLabel, type ScoreRecord } from "@/lib/game/score-records";
+import { RecordChip } from "./RecordChip";
 
 /**
  * A sitting, folded into one row of the list: the parties dealt one after
@@ -11,15 +13,22 @@ import type { GameListItem } from "@/lib/domain";
  *
  * It exists because a Papayoo evening reaches « Parties » as a dozen lines that
  * say the same thing, burying every other game of the week under it. The row
- * says how many parties the evening was and when it happened, and nothing else:
- * a session has no winner and no cumulative score, so the parties inside keep
- * counting for themselves — here and in the statistics alike.
+ * says how many parties the evening was, when it happened, and whether one of
+ * the parties inside holds the game's record — and nothing else: a session has
+ * no winner and no cumulative score, so the parties inside keep counting for
+ * themselves, here and in the statistics alike.
+ *
+ * The record mark is not an exception to that rule: it stays a fact about one
+ * party, borrowed by the row only so a folded evening doesn't hide it. Leaving
+ * it inside would mean the mark is only found by opening something, which is
+ * precisely what putting it on the cards was meant to stop.
  */
 export function GameSessionCard({
   games,
   boardgameName,
   logoUrl,
   ended = false,
+  records = [],
   children,
 }: Readonly<{
   /** The parties of the sitting, in the order the list gave them. */
@@ -27,6 +36,12 @@ export function GameSessionCard({
   boardgameName: string;
   logoUrl: string | null;
   ended?: boolean;
+  /**
+   * The records worn by the parties of the sitting — usually none, one at most
+   * in practice, since chaining deals the same table again and a record is read
+   * per table size.
+   */
+  records?: readonly ScoreRecord[];
   /** The cards of those same parties, rendered by the list. */
   children: ReactNode;
 }>) {
@@ -62,7 +77,12 @@ export function GameSessionCard({
             </span>
           )}
           <div className="flex min-w-0 flex-col">
-            <span className="truncate font-medium">{boardgameName}</span>
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className="truncate font-medium">{boardgameName}</span>
+              {records.map(record => (
+                <RecordChip key={recordLabel(record)} record={record} />
+              ))}
+            </span>
             <span className="mt-0.5 text-xs text-zinc-500">
               {games.length} parties ·{" "}
               {new Date(opened).toLocaleDateString("fr-FR")}

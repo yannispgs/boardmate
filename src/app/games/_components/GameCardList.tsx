@@ -66,6 +66,15 @@ export function GameCardList({
     );
   }
 
+  /** The records worn by the parties of a sitting, to lift onto its row. */
+  function sittingRecords(sitting: GameListItem[]): ScoreRecord[] {
+    return sitting.flatMap(game => {
+      const record = records?.get(game.id);
+
+      return record === undefined ? [] : [record];
+    });
+  }
+
   const cards = (
     <ul className="flex flex-col gap-2">
       {sessionEntries(games).map(entry => {
@@ -85,6 +94,7 @@ export function GameCardList({
             boardgameName={boardgame?.name ?? "Partie"}
             logoUrl={boardgame?.logoUrl ?? null}
             ended={ended}
+            records={sittingRecords(entry.session.games)}
           >
             {entry.session.games.map(card)}
           </GameSessionCard>

@@ -9,8 +9,8 @@ import type { GameListItem, PlayerId } from "@/lib/domain";
 import type { GameProgress } from "@/lib/game/game-progress";
 import { progressSummary } from "@/lib/game/game-progress";
 import type { ScoreRecord } from "@/lib/game/score-records";
-import { recordLabel, recordTitle } from "@/lib/game/score-records";
 import { formatNames } from "@/lib/game/tie-break";
+import { RecordChip } from "./RecordChip";
 
 /** Full start timestamp (date + HH:mm:ss), shown when hovering the date. */
 function fullStart(iso: string): string {
@@ -55,26 +55,6 @@ function PlayOrder({
         );
       })}
     </ol>
-  );
-}
-
-/**
- * The mark of the party that **holds** the game's record, next to the game's
- * name. One party per game wears it — the best score nobody has beaten yet, or
- * one per table size on a game whose scores only compare between equal tables.
- */
-function RecordChip({ record }: Readonly<{ record: ScoreRecord | null }>) {
-  if (record === null) {
-    return null;
-  }
-
-  return (
-    <span
-      title={recordTitle(record)}
-      className="shrink-0 rounded-full bg-amber-500/20 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300"
-    >
-      {`⭐ ${recordLabel(record)}`}
-    </span>
   );
 }
 
