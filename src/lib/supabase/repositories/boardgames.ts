@@ -49,6 +49,7 @@ export function toBoardgame(row: BoardgameRow): Boardgame {
     // Reference data, authored in migrations — never written back from the app.
     roundGoals: row.round_goals as unknown as RoundGoal[],
     stages: (row.stages as Boardgame["stages"]) ?? null,
+    phases: (row.phases as Boardgame["phases"]) ?? null,
     milestones: (row.milestones as Boardgame["milestones"]) ?? null,
     trackSeatStats: row.track_seat_stats,
     turnCountVaries: row.turn_count_varies,

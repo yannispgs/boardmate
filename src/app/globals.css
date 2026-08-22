@@ -148,6 +148,25 @@ body {
   animation: overtime-text-pulse 1s ease-in-out infinite alternate;
 }
 
+/*
+ * Table stopwatch: a phase everybody plays at once belongs to nobody, so its
+ * disc carries no hand and no progress arc — there is nothing to run out of. It
+ * breathes instead, brightening and dimming, so a glance from across the table
+ * says « ça tourne » without anything appearing to move.
+ */
+@keyframes phase-disc-pulse {
+  from {
+    filter: brightness(0.72);
+  }
+  to {
+    filter: brightness(1.15) drop-shadow(0 0 14px rgba(59, 130, 246, 0.65));
+  }
+}
+
+.animate-phase-disc {
+  animation: phase-disc-pulse 2.4s ease-in-out infinite alternate;
+}
+
 /* Respect reduced-motion: hold the bright red steady instead of pulsing. */
 @media (prefers-reduced-motion: reduce) {
   .animate-overtime-ring {
@@ -157,6 +176,9 @@ body {
   .animate-overtime-text {
     animation: none;
     color: #ff5a5a;
+  }
+  .animate-phase-disc {
+    animation: none;
   }
 }
 

@@ -5,6 +5,7 @@ export * from "./faq";
 export * from "./feedback";
 export * from "./game";
 export * from "./ids";
+export * from "./phase";
 export * from "./player";
 export * from "./rbac";
 export * from "./round-goal";

@@ -36,6 +36,7 @@ import type {
   NewFinishedGame,
   NewGame,
   NewPlayer,
+  NextPhase,
   Permission,
   Player,
   PlayerId,
@@ -185,6 +186,35 @@ export interface GameRepository {
       advance?: StageAdvance;
       /** The player who just played passes: no more turns this generation. */
       passing?: boolean;
+      /**
+       * Where the phases put the game when that last pass would otherwise open
+       * the next generation. A game split into phases has more to play after
+       * the turns are over — Terraforming Mars still has its production to
+       * resolve — so the pass-out closes the *phase*, and the generation only
+       * turns over once the last phase does. Omitted for a game with no phases,
+       * which keeps the plain behaviour.
+       */
+      phaseOut?: NextPhase;
+    },
+  ): Promise<void>;
+  /**
+   * Closes the phase the table is in, banking how long it took, and moves to
+   * the next one — or opens the next generation when that was the last.
+   *
+   * `durationS` is added to whatever that phase already holds for the stage, so
+   * a phase closed too early and picked up again keeps one honest total.
+   */
+  endPhase(
+    id: GameId,
+    input: {
+      /** The generation the phase was played in. */
+      stage: number;
+      /** The phase's key in the boardgame's `phases`. */
+      phaseKey: string;
+      /** Active seconds it took (pauses excluded). */
+      durationS: number;
+      /** Where the phase list says the game goes next. */
+      next: NextPhase;
     },
   ): Promise<void>;
   /**

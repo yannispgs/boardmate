@@ -33,6 +33,12 @@ export interface Game {
    * `stages`. Always `1` for the lap-based games, which have no notion of one.
    */
   stage: number;
+  /**
+   * Where the game stands inside the current stage: the index of the phase
+   * being played in the boardgame's `phases`. Always `0` for a game whose
+   * boardgame declares none, which is every game but Terraforming Mars today.
+   */
+  phase: number;
   currentPlayerId: PlayerId | null;
   /** ISO 8601 timestamps. */
   startedAt: string;
@@ -153,6 +159,23 @@ export interface GameStage {
   turns: number;
 }
 
+/**
+ * How long one phase of one stage took, accumulated as the table closes it.
+ *
+ * Kept per stage rather than per game: « la découverte prend deux minutes en
+ * génération 1 et huit en génération 6 » is the whole point of timing them, and
+ * a single total per phase would say nothing of the sort. A phase reopened
+ * within its stage (the clock was closed too early) adds to the same row.
+ */
+export interface PhaseTime {
+  /** The generation this phase was played in, 1-based. */
+  stage: number;
+  /** The phase's key in the boardgame's `phases`. */
+  phaseKey: string;
+  /** Active seconds spent in it (pauses excluded, like a turn's). */
+  durationS: number;
+}
+
 /** What one player scored on one stage's goal, entered when the stage ends. */
 export interface StageScore {
   stage: number;
@@ -216,6 +239,13 @@ export interface PopulatedGame extends Game {
   winThreshold: number | null;
   /** Per-round turn-time schedule, resolved from config / template defaults. */
   turnSchedule: TurnSchedule;
+  /**
+   * Whether the table is playing the drafted draw, resolved from this game's
+   * configuration (value, else the config template's default). False for every
+   * boardgame with no draftable phase — which is every one but Terraforming
+   * Mars and L'Île des Chats.
+   */
+  drafting: boolean;
   /** Active extensions on this game (empty when none), with their scenario. */
   extensions: Array<Extension & { scenarioId: ExtensionScenarioId | null }>;
   players: Array<GamePlayer & { player: Player }>;
@@ -237,6 +267,11 @@ export interface PopulatedGame extends Game {
    * Empty until the first stage is over.
    */
   stageScores: StageScore[];
+  /**
+   * How long each phase of each stage took, oldest stage first. Empty for every
+   * game whose boardgame declares no phases, and until the first one closes.
+   */
+  phaseTimes: PhaseTime[];
   /**
    * The milestones claimed this game (empty when the game offers none, or when
    * nobody has taken one yet).

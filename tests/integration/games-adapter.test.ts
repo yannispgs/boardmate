@@ -446,6 +446,96 @@ describe("games adapter — generations (Terraforming Mars)", () => {
     expect(p?.currentPlayer?.id).toBe(playerIds[2]);
   });
 
+  it("plays a generation as its phases, and rolls over on the last one", async () => {
+    const game = await repo().create({
+      boardgameId: marsId,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    // Découverte: nobody has a turn in it, so the table closes it itself and
+    // the stopwatch it ran is banked against the generation.
+    await repo().endPhase(game.id, {
+      stage: 1,
+      phaseKey: "discovery",
+      durationS: 95,
+      next: { index: 1, stageEnds: false },
+    });
+
+    let p = await repo().getPopulated(game.id);
+
+    expect(p?.phase).toBe(1);
+    expect(p?.stage).toBe(1);
+    expect(p?.phaseTimes).toEqual([
+      { stage: 1, phaseKey: "discovery", durationS: 95 },
+    ]);
+
+    // Everybody passes. On a game played in phases that ends the *phase*, not
+    // the generation: the production still has to be resolved, and nobody is
+    // up while it is.
+    const pass = () => {
+      return repo().advanceTurn(game.id, 10, 0, 0, 0, {
+        advance: "pass",
+        passing: true,
+        phaseOut: { index: 2, stageEnds: false },
+      });
+    };
+
+    await pass();
+    await pass();
+    await pass();
+
+    p = await repo().getPopulated(game.id);
+
+    expect(p?.stage).toBe(1);
+    expect(p?.phase).toBe(2);
+    expect(p?.currentPlayer).toBeNull();
+
+    // The last phase closing is the generation ending: everybody comes back in
+    // and the first-player marker has moved on.
+    await repo().endPhase(game.id, {
+      stage: 1,
+      phaseKey: "production",
+      durationS: 40,
+      next: { index: 0, stageEnds: true },
+    });
+
+    p = await repo().getPopulated(game.id);
+
+    expect(p?.stage).toBe(2);
+    expect(p?.round).toBe(2);
+    expect(p?.phase).toBe(0);
+    expect(p?.currentPlayer?.id).toBe(playerIds[1]);
+
+    // A phase closed a shade too early and picked up again ends the generation
+    // with one honest total, not two half-truths.
+    await repo().endPhase(game.id, {
+      stage: 2,
+      phaseKey: "discovery",
+      durationS: 30,
+      next: { index: 1, stageEnds: false },
+    });
+    await repo().endPhase(game.id, {
+      stage: 2,
+      phaseKey: "discovery",
+      durationS: 12,
+      next: { index: 1, stageEnds: false },
+    });
+
+    p = await repo().getPopulated(game.id);
+
+    const timeOf = (stage: number, key: string) => {
+      return p?.phaseTimes.find(t => t.stage === stage && t.phaseKey === key)
+        ?.durationS;
+    };
+
+    expect(p?.phaseTimes.map(t => t.stage)).toEqual([1, 1, 2]);
+    expect(timeOf(1, "discovery")).toBe(95);
+    expect(timeOf(1, "production")).toBe(40);
+    expect(timeOf(2, "discovery")).toBe(42);
+  });
+
   it("hands milestones out one claimer at a time, stamped with the generation", async () => {
     const game = await repo().create({
       boardgameId: marsId,

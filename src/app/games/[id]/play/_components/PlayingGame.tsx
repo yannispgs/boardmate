@@ -3,10 +3,17 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ErrorText } from "@/components/ErrorText";
-import type { PlayerId, PopulatedGame } from "@/lib/domain";
+import type { PhaseSpec, PlayerId, PopulatedGame } from "@/lib/domain";
 import { chainedGame } from "@/lib/game/chained-game";
 import { composeGoals } from "@/lib/game/extensions";
 import { gameProgress, playProgress } from "@/lib/game/game-progress";
+import {
+  advancePhase,
+  currentPhase,
+  draftDirection,
+  needsPhaseButton,
+  nextPhase,
+} from "@/lib/game/phase";
 import { winnerDirection } from "@/lib/game/scoring";
 import {
   isLastTurnOfStage,
@@ -29,6 +36,8 @@ import { LastLapBanner } from "./LastLapBanner";
 import { LiveScoreSection } from "./LiveScoreSection";
 import { MilestonePanel } from "./MilestonePanel";
 import { namedPlayers } from "./named-players";
+import { PhaseBar } from "./PhaseBar";
+import { PhaseControls } from "./PhaseControls";
 import { PlayBlock } from "./PlayBlock";
 import { PlayStats } from "./PlayStats";
 import { SeatOrderPanel } from "./SeatOrderPanel";
@@ -166,6 +175,16 @@ export function PlayingGame({
   // none, which is every game but Terraforming Mars today.
   const milestoneSpec = game.boardgame.milestones;
 
+  // A stage played in phases: which one the table is in, where it goes next,
+  // and — on a drafted draw — which way the cards travel this generation. All
+  // null / inert for a boardgame that declares no phases, which is every one
+  // but Terraforming Mars today.
+  const phases = game.boardgame.phases;
+  const phase = currentPhase(phases, game.phase);
+  const phaseOut = advancePhase(phases, game.phase);
+  const draft =
+    phase?.draft && game.drafting ? draftDirection(phase, game.stage) : null;
+
   function pickBlocked(id: PlayerId | null) {
     setBlockedById(id);
     blockedAtRef.current = waitStart(id);
@@ -197,6 +216,9 @@ export function PlayingGame({
           waitedSeconds,
           advance: stages?.advance,
           passing,
+          // The turns running out no longer ends the generation on a game
+          // played in phases: there is still a phase after them.
+          phaseOut: phases ? phaseOut : undefined,
         },
       );
       await play.reload();
@@ -221,12 +243,48 @@ export function PlayingGame({
   }
 
   /**
+   * Closes a phase the table plays all at once, banking the stopwatch. The
+   * clock restarts on the click, like a turn's, so the next phase is not timed
+   * from whenever Supabase replies.
+   */
+  async function endPhase(closing: PhaseSpec) {
+    const durationS = timer.elapsedS;
+
+    timer.reset();
+
+    await play.run("Impossible de terminer la phase.", async () => {
+      await repo.endPhase(game.id, {
+        stage: game.stage,
+        phaseKey: closing.key,
+        durationS,
+        next: phaseOut,
+      });
+      await play.reload();
+    });
+  }
+
+  /**
    * What the table acts on: the turn controls, or — for a game with no turns to
    * speak of — the manche board. Both give way to the end-of-game score form.
    */
   function controls() {
     if (entryOpen) {
       return null;
+    }
+
+    // A phase everybody plays at once has no turn to advance, so the table
+    // closes the phase itself instead.
+    if (phase !== null && needsPhaseButton(phase)) {
+      return (
+        <PhaseControls
+          nextLabel={
+            nextPhase(phases, game.phase)?.label ??
+            `${stageLabel} ${game.stage + 1}`
+          }
+          disabled={play.busy}
+          onEndPhase={() => void endPhase(phase)}
+        />
+      );
     }
 
     // Untimed and not counted in manches either (Papayoo): nothing happens
@@ -291,6 +349,10 @@ export function PlayingGame({
 
       <LastLapBanner shown={live.lastLap} />
 
+      {phases === null ? null : (
+        <PhaseBar phases={phases} current={game.phase} draft={draft} />
+      )}
+
       {/* « Tour 1 » would sit there for the whole game on a table that never
           advances a turn, so an untimed game with no manches says nothing. */}
       {!timed && !byHand ? null : (
@@ -312,6 +374,7 @@ export function PlayingGame({
           onPickBlocked={pickBlocked}
           dice={dice}
           closingRound={live.closingRound}
+          phase={phase}
         />
       )}
 
