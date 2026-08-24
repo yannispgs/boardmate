@@ -7,6 +7,7 @@ import type {
   PlayerId,
 } from "@/lib/domain";
 import {
+  averageStageBreakdowns,
   phaseTotals,
   stageBreakdowns,
   turnPhase,
@@ -82,6 +83,55 @@ describe("stageBreakdowns", () => {
 
     expect(only?.totalS).toBe(0);
     expect(only?.slices[0]?.share).toBe(0);
+  });
+
+  it("counts no sample: a single party is not an average of anything", () => {
+    const [first] = stageBreakdowns(TIMES, PHASES);
+
+    expect(first?.games).toBeUndefined();
+  });
+});
+
+describe("averageStageBreakdowns", () => {
+  /** A shorter party than TIMES: it stops at the first generation. */
+  const SHORTER: PhaseTime[] = [
+    { stage: 1, phaseKey: "discovery", durationS: 40 },
+    { stage: 1, phaseKey: "projects", durationS: 80 },
+  ];
+
+  it("divides a stage by the parties that reached it, not by all of them", () => {
+    const [first, second] = averageStageBreakdowns([TIMES, SHORTER], PHASES);
+
+    expect(first?.totalS).toBe(160);
+    expect(first?.slices.map(s => s.durationS)).toEqual([50, 100, 10]);
+
+    // Only the longer party ever played a second generation, so its 300 s stay
+    // 300 s: halving them would read as « une G2 est courte » when it is rare.
+    expect(second?.totalS).toBe(300);
+    expect(second?.slices.map(s => s.durationS)).toEqual([100, 200]);
+  });
+
+  it("carries how many parties each stage rests on", () => {
+    const stages = averageStageBreakdowns([TIMES, SHORTER], PHASES);
+
+    expect(stages.map(s => s.games)).toEqual([2, 1]);
+  });
+
+  it("still shares out each stage against its own total", () => {
+    const [first] = averageStageBreakdowns([TIMES, SHORTER], PHASES);
+
+    expect(first?.slices.map(s => s.share)).toEqual([0.3125, 0.625, 0.0625]);
+  });
+
+  it("has nothing to show for a game that declares no phase", () => {
+    expect(averageStageBreakdowns([TIMES], null)).toEqual([]);
+    expect(averageStageBreakdowns([TIMES], [])).toEqual([]);
+  });
+
+  it("leaves out a stage no declared phase was recorded for", () => {
+    const times = [{ stage: 3, phaseKey: "gone", durationS: 30 }];
+
+    expect(averageStageBreakdowns([times], PHASES)).toEqual([]);
   });
 });
 

@@ -40,6 +40,11 @@ export interface StageBreakdown {
   /** In the boardgame's declared order; a phase never closed is absent. */
   slices: PhaseSlice[];
   totalS: number;
+  /**
+   * How many parties the figures were averaged over — absent when they come
+   * from a single party and there is nothing to average.
+   */
+  games?: number;
 }
 
 /** One phase read over a whole party, or over a whole history of parties. */
@@ -76,10 +81,41 @@ function sumByPhase(
 }
 
 /**
+ * One stage's phases, divided by however many parties they were collected from
+ * — `1` for a single party, which is then the party's own figures.
+ */
+function stageSlices(
+  rows: PhaseTime[],
+  phases: PhaseSpec[],
+  games: number,
+): { slices: PhaseSlice[]; totalS: number } {
+  const summed = sumByPhase(rows, phases);
+  const totalS = summed.reduce((sum, entry) => sum + entry.totalS, 0) / games;
+
+  return {
+    totalS,
+    slices: summed.map(entry => ({
+      key: entry.phase.key,
+      label: entry.phase.label,
+      durationS: entry.totalS / games,
+      // A stage of nothing but instant phases would divide by zero; it then
+      // has no share to give, which is the truth rather than a NaN.
+      share: totalS > 0 ? entry.totalS / games / totalS : 0,
+    })),
+  };
+}
+
+/** The stages any of the given rows touched, oldest first. */
+function stagesOf(times: PhaseTime[]): number[] {
+  return [...new Set(times.map(t => t.stage))].sort((a, b) => a - b);
+}
+
+/**
  * The party broken down stage by stage, oldest first.
  *
- * A stage that recorded nothing is left out rather than drawn as an empty bar:
- * it means the generation is still being played, not that it took no time.
+ * A stage that recorded nothing is left out rather than drawn as an empty
+ * column: it means the generation is still being played, not that it took no
+ * time.
  */
 export function stageBreakdowns(
   times: PhaseTime[],
@@ -89,25 +125,49 @@ export function stageBreakdowns(
     return [];
   }
 
-  const stages = [...new Set(times.map(t => t.stage))].sort((a, b) => a - b);
+  return stagesOf(times)
+    .map(stage => ({
+      stage,
+      ...stageSlices(
+        times.filter(t => t.stage === stage),
+        phases,
+        1,
+      ),
+    }))
+    .filter(breakdown => breakdown.slices.length > 0);
+}
 
-  return stages
+/**
+ * The same breakdown, averaged over several parties — « à quoi ressemble une
+ * génération 5 ? » rather than « à quoi a ressemblé celle de mardi ».
+ *
+ * 🔑 Each stage is divided by **the parties that reached it**, not by all of
+ * them (owner, 2026-08-24). A party stopped at the fourth generation has no
+ * opinion on what a fifth costs; counting it as a zero would drag the tail
+ * down and make the longest generations look like the cheapest — the chart
+ * would then be reading how *rare* a late generation is, not how long it is.
+ * The price of that choice is that the sample thins out to the right, which is
+ * why `games` travels with each stage and is shown under its column.
+ */
+export function averageStageBreakdowns(
+  parties: PhaseTime[][],
+  phases: PhaseSpec[] | null,
+): StageBreakdown[] {
+  if (!phases || phases.length === 0) {
+    return [];
+  }
+
+  const all = parties.flat();
+
+  return stagesOf(all)
     .map(stage => {
-      const rows = times.filter(t => t.stage === stage);
-      const totalS = rows.reduce((sum, t) => sum + t.durationS, 0);
+      const rows = all.filter(t => t.stage === stage);
+      // At least one, since the stage is only listed because a row carries it.
+      const games = parties.filter(party =>
+        party.some(t => t.stage === stage),
+      ).length;
 
-      return {
-        stage,
-        totalS,
-        slices: sumByPhase(rows, phases).map(entry => ({
-          key: entry.phase.key,
-          label: entry.phase.label,
-          durationS: entry.totalS,
-          // A stage of nothing but instant phases would divide by zero; it then
-          // has no share to give, which is the truth rather than a NaN.
-          share: totalS > 0 ? entry.totalS / totalS : 0,
-        })),
-      };
+      return { stage, games, ...stageSlices(rows, phases, games) };
     })
     .filter(breakdown => breakdown.slices.length > 0);
 }

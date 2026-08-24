@@ -6,6 +6,7 @@ import { InfoTip } from "@/components/InfoTip";
 import { MultiSelectField } from "@/components/MultiSelectField";
 import { OptionPicker, type PickerOption } from "@/components/OptionPicker";
 import { PhaseShareBar } from "@/components/phases/PhaseShareBar";
+import { PhaseStageChart } from "@/components/phases/PhaseStageChart";
 import { StatTile } from "@/components/StatTile";
 import type {
   BoardgameId,
@@ -26,7 +27,12 @@ import {
   filterRecords,
   type GlobalStats,
 } from "@/lib/game/global-stats";
-import { type PhaseTotal, phaseTotals } from "@/lib/game/phase-stats";
+import {
+  averageStageBreakdowns,
+  type PhaseTotal,
+  phaseTotals,
+  type StageBreakdown,
+} from "@/lib/game/phase-stats";
 import { winnerDirection } from "@/lib/game/scoring";
 import { computeSeatStats, type SeatStat } from "@/lib/game/seat-stats";
 import {
@@ -207,16 +213,30 @@ export function GamesTab({
   );
 
   // Games played in phases (Terraforming Mars): what each phase costs over the
-  // parties in scope. Null for every other game, and while none has been timed.
-  const phaseTimes = useMemo(() => {
-    const timed = scopedRecords.filter(r => (r.phaseTimes ?? []).length > 0);
+  // parties in scope, and what an average generation of it is made of. Null for
+  // every other game, and while none has been timed.
+  const phaseFigures = useMemo<PhaseFigures | null>(() => {
+    const played = scopedRecords.filter(r => (r.phaseTimes ?? []).length > 0);
+    const specs = boardgame?.phases ?? null;
     const totals = phaseTotals(
-      timed.flatMap(r => r.phaseTimes ?? []),
-      boardgame?.phases ?? null,
-      timed.length,
+      played.flatMap(r => r.phaseTimes ?? []),
+      specs,
+      played.length,
     );
 
-    return totals.length === 0 ? null : totals;
+    if (totals.length === 0) {
+      return null;
+    }
+
+    return {
+      totals,
+      stages: averageStageBreakdowns(
+        played.map(r => r.phaseTimes ?? []),
+        specs,
+      ),
+      specs: specs ?? [],
+      stageLabel: boardgame?.stages?.label ?? DEFAULT_STAGE_LABEL,
+    };
   }, [scopedRecords, boardgame]);
 
   // The picked players, to compare against the table on the category charts.
@@ -276,15 +296,7 @@ export function GamesTab({
           timed={timed}
           tally={tally}
           shared={shared}
-          phases={
-            phaseTimes === null
-              ? null
-              : {
-                  totals: phaseTimes,
-                  specs: boardgame?.phases ?? [],
-                  stageLabel: boardgame?.stages?.label ?? DEFAULT_STAGE_LABEL,
-                }
-          }
+          phases={phaseFigures}
         />
       )}
     </div>
@@ -469,6 +481,8 @@ function SharedPileSections({
 /** What a game played in phases costs, over the parties in scope. */
 interface PhaseFigures {
   totals: PhaseTotal[];
+  /** An average stage of it, stage by stage — empty until one is closed. */
+  stages: StageBreakdown[];
   /** The boardgame's declared phases — the order and the colours come from it. */
   specs: PhaseSpec[];
   stageLabel: string;
@@ -483,6 +497,8 @@ function PhaseSections({ phases }: Readonly<{ phases: PhaseFigures | null }>) {
   if (phases === null) {
     return null;
   }
+
+  const stageWord = phases.stageLabel.toLowerCase();
 
   return (
     <Section
@@ -508,6 +524,28 @@ function PhaseSections({ phases }: Readonly<{ phases: PhaseFigures | null }>) {
         phases={phases.specs}
         stageLabel={phases.stageLabel}
       />
+
+      {phases.stages.length > 0 ? (
+        <div className="flex flex-col gap-3 pt-2">
+          {/* « Génération par génération » — the capital comes from CSS so the
+              game's own word can be dropped in untouched. */}
+          <h3 className="text-sm font-medium text-zinc-500 first-letter:uppercase dark:text-zinc-400">
+            {stageWord} par {stageWord}
+          </h3>
+
+          <PhaseStageChart
+            stages={phases.stages}
+            phases={phases.specs}
+            stageLabel={phases.stageLabel}
+          />
+
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            Moyenne sur les parties du filtre. Entre parenthèses : le nombre de
+            parties arrivées jusque-là — toutes ne vont pas aussi loin, et une
+            colonne bâtie sur une seule soirée ne dit pas une habitude.
+          </p>
+        </div>
+      ) : null}
     </Section>
   );
 }

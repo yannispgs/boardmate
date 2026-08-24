@@ -77,6 +77,15 @@ export function PhaseStageChart({
             <span className="text-xs font-medium text-zinc-500 tabular-nums dark:text-zinc-400">
               {shortStage(stageLabel, stage.stage)}
             </span>
+
+            {/* Averaged columns say what they rest on: the last generations are
+                only reached by a handful of parties, and a spectacular column
+                built on one evening must not read like a habit. */}
+            {stage.games === undefined ? null : (
+              <span className="text-[10px] leading-none text-zinc-400 tabular-nums dark:text-zinc-500">
+                ({stage.games})
+              </span>
+            )}
           </li>
         ))}
       </ul>
