@@ -92,42 +92,13 @@ export function MultiSelectField<Id extends string>({
             filling the empty space so a tap anywhere blank opens it, and last
             the bulk button and the chevron, pinned right. */}
         <div className="flex min-h-[2.75rem] flex-wrap items-center gap-1.5 rounded-xl border border-black/10 p-2 dark:border-white/15">
-          {shown.length === 0 ? (
-            <span className="rounded-full border border-indigo-500 bg-indigo-500/10 px-3 py-1 text-sm text-indigo-700 dark:text-indigo-300">
-              {showingKept ? "Aucun" : "Tous"}
-            </span>
-          ) : (
-            <>
-              {/* Without it, a pill would read as something kept rather than
-                  as something dropped — the exact opposite of the filter. */}
-              {excluding ? (
-                <span className="pl-1 text-sm text-zinc-500 dark:text-zinc-400">
-                  {showingKept ? "Seulement" : "Tous sauf"}
-                </span>
-              ) : null}
-
-              {shown.map(id => (
-                <span
-                  key={id}
-                  className="flex items-center gap-1 rounded-full border border-indigo-500 bg-indigo-500/10 py-1 pl-3 pr-1 text-sm text-indigo-700 dark:text-indigo-300"
-                >
-                  {nameOf(id)}
-                  <button
-                    type="button"
-                    aria-label={
-                      excluding && !showingKept
-                        ? `Remettre ${nameOf(id)}`
-                        : `Retirer ${nameOf(id)}`
-                    }
-                    onClick={() => removeShown(id)}
-                    className="flex h-4 w-4 items-center justify-center rounded-full text-indigo-700/70 transition hover:bg-indigo-500/20 hover:text-indigo-700 dark:text-indigo-300/70 dark:hover:text-indigo-300"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </>
-          )}
+          <SelectionPills
+            shown={shown}
+            nameOf={nameOf}
+            excluding={excluding}
+            showingKept={showingKept}
+            onRemove={removeShown}
+          />
           {/* Unnamed on purpose: it is the same command as the chevron, and a
               second button answering to « Ouvrir la liste » would make every
               locator ambiguous. */}
@@ -195,44 +166,24 @@ export function MultiSelectField<Id extends string>({
             {/* `min-h-0` is what lets it shrink inside the capped panel — a flex
                 child otherwise refuses to go below its content's height. */}
             <ul className="max-h-56 min-h-0 flex-1 overflow-y-auto p-1">
-              {/* Named after the state they land on, and spelled out in words:
-                  the box's own button says the same thing in one glyph, which
-                  is not enough to act on when the two are opposites. */}
-              {excluding ? (
-                <>
-                  {selected.length > 0 ? (
-                    <BulkAction onClick={tickAll}>Tout cocher</BulkAction>
-                  ) : null}
-                  {kept.length > 0 ? (
-                    <BulkAction onClick={untickAll}>Tout décocher</BulkAction>
-                  ) : null}
-                </>
-              ) : selected.length > 0 ? (
-                <BulkAction onClick={tickAll}>Tous (réinitialiser)</BulkAction>
-              ) : null}
+              <PanelActions
+                excluding={excluding}
+                anyTicked={kept.length > 0}
+                anyUnticked={selected.length > 0}
+                onTickAll={tickAll}
+                onUntickAll={untickAll}
+              />
 
-              {filtered.map(o => {
-                const on = excluding
-                  ? !selected.includes(o.id)
-                  : selected.includes(o.id);
-
-                return (
-                  <li key={o.id}>
-                    <button
-                      type="button"
-                      onClick={() => toggle(o.id)}
-                      className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition hover:bg-black/5 dark:hover:bg-white/5 ${
-                        on
-                          ? "font-medium text-indigo-700 dark:text-indigo-300"
-                          : ""
-                      }`}
-                    >
-                      {o.name}
-                      {on ? <span aria-hidden>✓</span> : null}
-                    </button>
-                  </li>
-                );
-              })}
+              {filtered.map(o => (
+                <OptionRow
+                  key={o.id}
+                  name={o.name}
+                  // Ticked means « in the selection » on a plain filter, and
+                  // « not in it » when the selection is what gets taken out.
+                  ticked={selected.includes(o.id) !== excluding}
+                  onClick={() => toggle(o.id)}
+                />
+              ))}
               {filtered.length === 0 ? (
                 <li className="px-3 py-2 text-sm text-zinc-400">
                   Aucun résultat
@@ -248,11 +199,8 @@ export function MultiSelectField<Id extends string>({
 
 /**
  * What the box's bulk button does, spelled out — the glyph alone is a « ✕ » and
- * a « + » one tap apart, so the name has to carry the meaning.
- *
- * A plain filter has no use for « tout cocher »: naming every option is the
- * same scope as naming none, and on the presence filter it would ask for the
- * games where *everybody* played, which is usually none. It only ever clears.
+ * a « + » one tap apart, so the name has to carry the meaning. A plain filter
+ * only ever clears, for the reason given on {@link PanelActions}.
  */
 function bulkLabel(excluding: boolean, showingKept: boolean, label: string) {
   if (!excluding) {
@@ -260,6 +208,130 @@ function bulkLabel(excluding: boolean, showingKept: boolean, label: string) {
   }
 
   return showingKept ? `Tout cocher : ${label}` : `Tout décocher : ${label}`;
+}
+
+/**
+ * What the box spells out: the pills it currently names, or a single word when
+ * it names none — « Tous » when the filter lets everything through, « Aucun »
+ * when it lets nothing.
+ */
+function SelectionPills<Id extends string>({
+  shown,
+  nameOf,
+  excluding,
+  showingKept,
+  onRemove,
+}: Readonly<{
+  shown: Id[];
+  nameOf: (id: Id) => string;
+  excluding: boolean;
+  /** The pills are the options kept rather than the ones taken out. */
+  showingKept: boolean;
+  onRemove: (id: Id) => void;
+}>) {
+  if (shown.length === 0) {
+    return (
+      <span className="rounded-full border border-indigo-500 bg-indigo-500/10 px-3 py-1 text-sm text-indigo-700 dark:text-indigo-300">
+        {showingKept ? "Aucun" : "Tous"}
+      </span>
+    );
+  }
+
+  return (
+    <>
+      {/* Without it, a pill would read as something kept rather than as
+          something dropped — the exact opposite of the filter. */}
+      {excluding ? (
+        <span className="pl-1 text-sm text-zinc-500 dark:text-zinc-400">
+          {showingKept ? "Seulement" : "Tous sauf"}
+        </span>
+      ) : null}
+
+      {shown.map(id => (
+        <span
+          key={id}
+          className="flex items-center gap-1 rounded-full border border-indigo-500 bg-indigo-500/10 py-1 pl-3 pr-1 text-sm text-indigo-700 dark:text-indigo-300"
+        >
+          {nameOf(id)}
+          <button
+            type="button"
+            aria-label={
+              excluding && !showingKept
+                ? `Remettre ${nameOf(id)}`
+                : `Retirer ${nameOf(id)}`
+            }
+            onClick={() => onRemove(id)}
+            className="flex h-4 w-4 items-center justify-center rounded-full text-indigo-700/70 transition hover:bg-indigo-500/20 hover:text-indigo-700 dark:text-indigo-300/70 dark:hover:text-indigo-300"
+          >
+            ×
+          </button>
+        </span>
+      ))}
+    </>
+  );
+}
+
+/**
+ * The « take them all in / out » rows at the top of the panel, named after the
+ * state they land on and spelled out in words: the box's own button says the
+ * same thing in one glyph, which is not enough to act on when the two are
+ * opposites.
+ *
+ * A plain filter is only offered the way back to « Tous »: ticking every option
+ * one by one is the same scope as ticking none, and on the presence filter it
+ * would ask for the games where *everybody* played, which is usually none.
+ */
+function PanelActions({
+  excluding,
+  anyTicked,
+  anyUnticked,
+  onTickAll,
+  onUntickAll,
+}: Readonly<{
+  excluding: boolean;
+  anyTicked: boolean;
+  anyUnticked: boolean;
+  onTickAll: () => void;
+  onUntickAll: () => void;
+}>) {
+  if (!excluding) {
+    return anyUnticked ? (
+      <BulkAction onClick={onUntickAll}>Tous (réinitialiser)</BulkAction>
+    ) : null;
+  }
+
+  return (
+    <>
+      {anyUnticked ? (
+        <BulkAction onClick={onTickAll}>Tout cocher</BulkAction>
+      ) : null}
+      {anyTicked ? (
+        <BulkAction onClick={onUntickAll}>Tout décocher</BulkAction>
+      ) : null}
+    </>
+  );
+}
+
+/** One option in the panel, ticked or not. */
+function OptionRow({
+  name,
+  ticked,
+  onClick,
+}: Readonly<{ name: string; ticked: boolean; onClick: () => void }>) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onClick}
+        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition hover:bg-black/5 dark:hover:bg-white/5 ${
+          ticked ? "font-medium text-indigo-700 dark:text-indigo-300" : ""
+        }`}
+      >
+        {name}
+        {ticked ? <span aria-hidden>✓</span> : null}
+      </button>
+    </li>
+  );
 }
 
 /** One « take them all in / out » row at the top of the panel. */

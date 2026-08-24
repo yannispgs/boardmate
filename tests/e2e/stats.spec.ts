@@ -214,6 +214,23 @@ test("recomputes the ranking from games where the selected players played", asyn
 
     // Player 0 now won 1 of 2 → 50%.
     await expect(p0Row()).toContainText("50%");
+
+    // A plain filter's bulk button empties it, and emptying it is what puts
+    // every game back in scope — it never means « tous les joueurs à la fois »,
+    // which would ask for the games where everybody was at the table.
+    await page
+      .getByRole("button", { name: "Tout effacer : Avec les joueurs" })
+      .click();
+
+    await expect(p0Row()).toContainText("67%");
+
+    // Same command, spelled out in the panel.
+    await presence.click();
+    await page.getByRole("button", { name: names[2], exact: true }).click();
+    await page.getByRole("button", { name: "Tous (réinitialiser)" }).click();
+    await presence.click();
+
+    await expect(p0Row()).toContainText("67%");
   } finally {
     for (const id of gameIds) {
       await admin.from("games").delete().eq("id", id);
