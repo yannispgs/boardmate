@@ -227,10 +227,10 @@ test("recomputes the ranking from games where the selected players played", asyn
 
 /**
  * The games filter on the "Joueurs" tab (full-suite only — untagged): every
- * boardgame counts until one is unticked, and unticking the last one reads as
- * no filter at all rather than as an empty ranking.
+ * boardgame counts until one is unticked, the box empties in one tap and fills
+ * back in one tap, and it always spells out the shorter of the two sides.
  */
-test("leaves a boardgame out of the player ranking when it is unticked", async ({
+test("narrows the player ranking down to one boardgame in two taps", async ({
   page,
 }) => {
   const admin = adminClient();
@@ -286,10 +286,13 @@ test("leaves a boardgame out of the player ranking when it is unticked", async (
     const stamp = Date.now().toString(36);
     const kept = `Aaa-${stamp}`;
     const dropped = `Zzz-${stamp}`;
+    const third = `Mmm-${stamp}`;
 
-    // Player 0 wins both parties of the first game, none of the second.
+    // Player 0 wins the only party of the first game, and neither of the two
+    // others — so the ranking says something different at every step.
     await seedEndedGame(await seedBoardgame(kept), 0);
     await seedEndedGame(await seedBoardgame(dropped), 1);
+    await seedEndedGame(await seedBoardgame(third), 1);
 
     await page.goto("/stats");
 
@@ -298,27 +301,48 @@ test("leaves a boardgame out of the player ranking when it is unticked", async (
     const games = page.getByRole("button", {
       name: "Ouvrir la liste : Jeux pris en compte",
     });
+    const emptyAll = page.getByRole("button", {
+      name: "Tout décocher : Jeux pris en compte",
+    });
+    const fillAll = page.getByRole("button", {
+      name: "Tout cocher : Jeux pris en compte",
+    });
 
-    // Every game counts to begin with: player 0 won 1 of 2 → 50%.
-    await expect(p0Row()).toContainText("50%");
+    // Every game counts to begin with.
+    await expect(p0Row()).toBeVisible();
 
     await games.click();
     await page.getByRole("button", { name: dropped, exact: true }).click();
     await games.click();
 
-    // The pill says what is left out, and the ranking counts only the other
-    // game, which player 0 won → 100%.
+    // Two games left of three: the box still names the one taken out, since
+    // that is the shorter side. Player 0 won 1 of those 2 → 50%.
     await expect(page.getByText("Tous sauf")).toBeVisible();
-    await expect(p0Row()).toContainText("100%");
+    await expect(p0Row()).toContainText("50%");
 
-    // Unticking the last game left would count nothing, so everything comes
-    // back instead.
+    // Unticking the last games left is a legitimate state, and it says so
+    // instead of quietly counting everything again.
+    await emptyAll.click();
+
+    await expect(page.getByText("Aucun jeu sélectionné")).toBeVisible();
+    await expect(p0Row()).toHaveCount(0);
+
+    // The same button, now turned round, puts every game back in one tap.
+    await fillAll.click();
+
+    await expect(page.getByText("Tous sauf")).toHaveCount(0);
+    await expect(p0Row()).toBeVisible();
+
+    // And the whole point: reaching a single game is two taps — empty, then
+    // tick it — instead of unticking every other one. The box then names what
+    // it keeps rather than the longer list of what it drops.
+    await emptyAll.click();
     await games.click();
     await page.getByRole("button", { name: kept, exact: true }).click();
     await games.click();
 
-    await expect(page.getByText("Tous sauf")).toHaveCount(0);
-    await expect(p0Row()).toContainText("50%");
+    await expect(page.getByText("Seulement")).toBeVisible();
+    await expect(p0Row()).toContainText("100%");
   } finally {
     for (const id of gameIds) {
       await admin.from("games").delete().eq("id", id);
