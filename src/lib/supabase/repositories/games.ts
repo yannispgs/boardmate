@@ -529,6 +529,7 @@ async function nextGenerationTurn(
   seats: Seat[],
   passing: boolean,
   phaseOut: NextPhase | undefined,
+  phaseKey: string | undefined,
 ): Promise<NextTurn> {
   const passedSeats = await passedSeatsOfStage(
     supabase,
@@ -561,6 +562,16 @@ async function nextGenerationTurn(
   const seat = paused
     ? null
     : activeSeat(stage, seats.length, fromSeat, stillOut);
+
+  // The turns running out *is* the end of the phase they were played in, and
+  // the only moment it can be banked: no button closes a phase played in turns.
+  await bankTurnPhase(
+    supabase,
+    id,
+    game.stage,
+    over && phaseOut !== undefined,
+    phaseKey,
+  );
 
   return {
     turn: game.turn + 1,
@@ -611,6 +622,55 @@ async function bankPhase(
   }
 }
 
+/**
+ * Banks the phase the turns were played in, the moment they run out.
+ *
+ * A phase played in turns has no « Phase terminée » to press — it ends when the
+ * last player passes — so without this nothing would ever record it, and the
+ * phase would be missing from every per-phase statistic while the simultaneous
+ * ones sat right beside it.
+ *
+ * What is banked is the phase's **envelope**: the turns' own seconds plus the
+ * pauses taken during them. A phase belongs to the table, and a table that
+ * pauses is still in the phase — that is what makes this figure the same
+ * measure as the stopwatch the other phases bank, and therefore stackable with
+ * it. Summed from the turn log rather than counted on the screen: the turns are
+ * already recorded one by one, and a sum nobody can dispute beats a counter a
+ * reload would lose.
+ *
+ * ⚠️ Reads every turn of the stage, so it assumes a stage holds **one** phase
+ * played in turns — true of every game the app runs. A second one would need
+ * the turn to carry its phase.
+ */
+async function bankTurnPhase(
+  supabase: SupabaseClient<Database>,
+  id: GameId,
+  stage: number,
+  closes: boolean,
+  phaseKey: string | undefined,
+): Promise<void> {
+  if (!closes || phaseKey === undefined) {
+    return;
+  }
+
+  const { data: turns, error } = await supabase
+    .from("game_turns")
+    .select("duration_s, pause_duration_s")
+    .eq("game_id", id)
+    .eq("stage", stage);
+  /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */
+  if (error) {
+    throw new Error(`Lecture des tours de la phase: ${error.message}`);
+  }
+
+  const envelope = turns.reduce(
+    (total, turn) => total + turn.duration_s + turn.pause_duration_s,
+    0,
+  );
+
+  await bankPhase(supabase, id, { stage, phaseKey, durationS: envelope });
+}
+
 /** How the game rotates, and what the rotation needs to know. */
 interface Rotation {
   /** How the boardgame's stages end; undefined for a game turning in laps. */
@@ -620,6 +680,8 @@ interface Rotation {
   passing: boolean;
   /** Where the phases put a generation whose players have all passed. */
   phaseOut: NextPhase | undefined;
+  /** The phase the turns belong to, banked when they run out; see below. */
+  phaseKey: string | undefined;
   /** Where the plain lap arithmetic lands, which two of the three follow. */
   rotated: { turn: number; round: number; seatIndex: number };
 }
@@ -640,6 +702,7 @@ async function nextState(
       seats,
       rotation.passing,
       rotation.phaseOut,
+      rotation.phaseKey,
     );
   }
 
@@ -1055,6 +1118,7 @@ export function createGameRepository(
         advance?: StageAdvance;
         passing?: boolean;
         phaseOut?: NextPhase;
+        phaseKey?: string;
       },
     ) {
       const simultaneous = opts?.turnMode === "simultaneous";
@@ -1095,6 +1159,7 @@ export function createGameRepository(
         simultaneous,
         passing: opts?.passing === true,
         phaseOut: opts?.phaseOut,
+        phaseKey: opts?.phaseKey,
         rotated: nextTurnState(game.turn, perRound),
       });
 
