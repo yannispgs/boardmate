@@ -219,6 +219,9 @@ export function PlayingGame({
           // The turns running out no longer ends the generation on a game
           // played in phases: there is still a phase after them.
           phaseOut: phases ? phaseOut : undefined,
+          // …and the phase they were played in is banked with them, since no
+          // button will ever close it.
+          phaseKey: phase?.key,
         },
       );
       await play.reload();

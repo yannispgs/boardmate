@@ -3,13 +3,16 @@ import type { ReactNode } from "react";
 import { InfoTip } from "@/components/InfoTip";
 import { StatTile } from "@/components/StatTile";
 import type { PopulatedGame } from "@/lib/domain";
+import { DEFAULT_STAGE_LABEL } from "@/lib/game/finished-setup";
 import { formatDuration } from "@/lib/game/format-time";
+import { turnPhase } from "@/lib/game/phase-stats";
 import { buildScoreSeries } from "@/lib/game/score-series";
 import { computeGameStats } from "@/lib/game/stats";
 import { hasPlayStats } from "@/lib/game/turn-time";
 import { buildTurnTimeSeries } from "@/lib/game/turn-time-series";
 import { DiceTimeline } from "./DiceTimeline";
 import { GameHighlights } from "./GameHighlights";
+import { PhaseTimeSection } from "./PhaseTimeSection";
 import { PlayerStatCardList } from "./PlayerStatCardList";
 import { ScoreChart } from "./ScoreChart";
 import { ScorePaceStats } from "./ScorePaceStats";
@@ -61,6 +64,15 @@ export function GameStats({ game }: Readonly<{ game: PopulatedGame }>) {
 
   const dice = game.boardgame.dice;
   const rollValues = game.diceRolls.map(d => d.value);
+
+  const stageLabel = game.boardgame.stages?.label ?? DEFAULT_STAGE_LABEL;
+  // Only the turn-taking phase is timed player by player, so the pace curve is
+  // that phase's and says so — « Évolution du temps par tour » on a game where
+  // two thirds of the generation happen elsewhere reads as the whole evening.
+  const timedPhase = turnPhase(game.boardgame.phases);
+  const paceTitle = timedPhase
+    ? `Évolution du temps par tour — phase ${timedPhase.label}`
+    : "Évolution du temps par tour";
 
   const tiles: {
     label: string;
@@ -144,6 +156,10 @@ export function GameStats({ game }: Readonly<{ game: PopulatedGame }>) {
 
       <GameHighlights stats={stats} />
 
+      {/* A game split into phases spends time the turn log never sees — the
+          draft, the production. Its recap has to say where it went. */}
+      <PhaseTimeSection game={game} stageLabel={stageLabel} />
+
       {stats.turnCount > 0 && stats.totalPauseCount === 0 ? (
         <p className="text-center text-sm text-zinc-400 dark:text-zinc-500">
           Aucune pause durant la partie.
@@ -185,14 +201,19 @@ export function GameStats({ game }: Readonly<{ game: PopulatedGame }>) {
       {stats.rounds >= 2 ? (
         <div className="flex flex-col gap-3">
           <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-            Évolution du temps par tour
+            {paceTitle}
           </h3>
           <TurnTimeChart
             series={timeCurve.series}
             maxSeconds={timeCurve.maxSeconds}
-            maxTour={timeCurve.maxTour}
+            maxRound={timeCurve.maxRound}
             players={scorePlayers}
+            label={paceTitle}
           />
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            Un point par {stageLabel.toLowerCase()} : le temps moyen d&apos;un
+            tour du joueur.
+          </p>
         </div>
       ) : null}
 

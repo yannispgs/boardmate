@@ -5,16 +5,20 @@ import { DateWindow } from "@/components/DateWindow";
 import { InfoTip } from "@/components/InfoTip";
 import { MultiSelectField } from "@/components/MultiSelectField";
 import { OptionPicker, type PickerOption } from "@/components/OptionPicker";
+import { PhaseShareBar } from "@/components/phases/PhaseShareBar";
+import { PhaseStageChart } from "@/components/phases/PhaseStageChart";
 import { StatTile } from "@/components/StatTile";
 import type {
   BoardgameId,
   DiceSpec,
   GameStatsRecord,
+  PhaseSpec,
   PlayerId,
   RoundGoal,
   ScoreSheetItem,
 } from "@/lib/domain";
 import { composeGoals } from "@/lib/game/extensions";
+import { DEFAULT_STAGE_LABEL } from "@/lib/game/finished-setup";
 import { formatDuration } from "@/lib/game/format-time";
 import {
   boardgameOptions,
@@ -23,6 +27,12 @@ import {
   filterRecords,
   type GlobalStats,
 } from "@/lib/game/global-stats";
+import {
+  averageStageBreakdowns,
+  type PhaseTotal,
+  phaseTotals,
+  type StageBreakdown,
+} from "@/lib/game/phase-stats";
 import { winnerDirection } from "@/lib/game/scoring";
 import { computeSeatStats, type SeatStat } from "@/lib/game/seat-stats";
 import {
@@ -47,6 +57,7 @@ import { useExtensions } from "@/lib/hooks/use-extensions";
 import { CategoryCharts } from "./CategoryCharts";
 import { GamePlayerTable } from "./GamePlayerTable";
 import { GoalStatsTable } from "./GoalStatsTable";
+import { PhaseTimeCardList } from "./PhaseTimeCardList";
 import { ScoreDistribution } from "./ScoreDistribution";
 import { SeatStats } from "./SeatStats";
 import { StatsDiceDistribution } from "./StatsDiceDistribution";
@@ -201,6 +212,33 @@ export function GamesTab({
     [scopedRecords, boardgame],
   );
 
+  // Games played in phases (Terraforming Mars): what each phase costs over the
+  // parties in scope, and what an average generation of it is made of. Null for
+  // every other game, and while none has been timed.
+  const phaseFigures = useMemo<PhaseFigures | null>(() => {
+    const played = scopedRecords.filter(r => (r.phaseTimes ?? []).length > 0);
+    const specs = boardgame?.phases ?? null;
+    const totals = phaseTotals(
+      played.flatMap(r => r.phaseTimes ?? []),
+      specs,
+      played.length,
+    );
+
+    if (totals.length === 0) {
+      return null;
+    }
+
+    return {
+      totals,
+      stages: averageStageBreakdowns(
+        played.map(r => r.phaseTimes ?? []),
+        specs,
+      ),
+      specs: specs ?? [],
+      stageLabel: boardgame?.stages?.label ?? DEFAULT_STAGE_LABEL,
+    };
+  }, [scopedRecords, boardgame]);
+
   // The picked players, to compare against the table on the category charts.
   const comparePlayers = useMemo(
     () =>
@@ -258,6 +296,7 @@ export function GamesTab({
           timed={timed}
           tally={tally}
           shared={shared}
+          phases={phaseFigures}
         />
       )}
     </div>
@@ -439,6 +478,78 @@ function SharedPileSections({
   );
 }
 
+/** What a game played in phases costs, over the parties in scope. */
+interface PhaseFigures {
+  totals: PhaseTotal[];
+  /** An average stage of it, stage by stage — empty until one is closed. */
+  stages: StageBreakdown[];
+  /** The boardgame's declared phases — the order and the colours come from it. */
+  specs: PhaseSpec[];
+  stageLabel: string;
+}
+
+/**
+ * Where a game played in phases spends its evening: the split first, because
+ * the shape of a party is what one look should give, then what each phase
+ * actually costs.
+ */
+function PhaseSections({ phases }: Readonly<{ phases: PhaseFigures | null }>) {
+  if (phases === null) {
+    return null;
+  }
+
+  const stageWord = phases.stageLabel.toLowerCase();
+
+  return (
+    <Section
+      title={
+        <>
+          Temps par phase
+          <InfoTip label="Temps par phase">
+            <p>
+              Temps passé par <strong>toute la table</strong> dans chaque phase
+              — le chronomètre de la phase, pas la somme des tours.
+            </p>
+            <p>
+              À ne pas comparer avec « Tour moy. » : un tour appartient à un
+              joueur, une phase appartient à la table.
+            </p>
+          </InfoTip>
+        </>
+      }
+    >
+      <PhaseShareBar totals={phases.totals} phases={phases.specs} />
+      <PhaseTimeCardList
+        totals={phases.totals}
+        phases={phases.specs}
+        stageLabel={phases.stageLabel}
+      />
+
+      {phases.stages.length > 0 ? (
+        <div className="flex flex-col gap-3 pt-2">
+          {/* « Génération par génération » — the capital comes from CSS so the
+              game's own word can be dropped in untouched. */}
+          <h3 className="text-sm font-medium text-zinc-500 first-letter:uppercase dark:text-zinc-400">
+            {stageWord} par {stageWord}
+          </h3>
+
+          <PhaseStageChart
+            stages={phases.stages}
+            phases={phases.specs}
+            stageLabel={phases.stageLabel}
+          />
+
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            Moyenne sur les parties du filtre. Entre parenthèses : le nombre de
+            parties arrivées jusque-là — toutes ne vont pas aussi loin, et une
+            colonne bâtie sur une seule soirée ne dit pas une habitude.
+          </p>
+        </div>
+      ) : null}
+    </Section>
+  );
+}
+
 /** Everything shown once the filters leave at least one party. */
 function GameSections({
   stats,
@@ -454,6 +565,7 @@ function GameSections({
   timed,
   tally,
   shared,
+  phases,
 }: Readonly<{
   stats: GlobalStats;
   scored: boolean;
@@ -476,6 +588,8 @@ function GameSections({
   } | null;
   /** The figures of a game paying one shared pile; null for every other game. */
   shared: SharedPileFigures | null;
+  /** The phase clocks of a game played in phases; null for every other game. */
+  phases: PhaseFigures | null;
 }>) {
   const champion = stats.players.reduce<GlobalStats["players"][number] | null>(
     (best, p) => (p.wins > (best?.wins ?? 0) ? p : best),
@@ -510,6 +624,8 @@ function GameSections({
       ) : null}
 
       <SharedPileSections shared={shared} />
+
+      <PhaseSections phases={phases} />
 
       {showSeatStats ? <SeatStats stats={seatStats} /> : null}
 

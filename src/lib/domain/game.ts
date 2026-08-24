@@ -330,6 +330,15 @@ export interface GameStatsRecord {
    * fixtures can omit it.
    */
   stageScores?: StageScore[];
+  /**
+   * How long the table spent in each phase of each stage. Always set by the
+   * adapter (empty for every game whose boardgame declares no phase); optional
+   * so lightweight test fixtures can omit it.
+   *
+   * ⚠️ Table time, never comparable with `turns[].durationS`, which belongs to
+   * one player — see {@link PhaseTime}.
+   */
+  phaseTimes?: PhaseTime[];
 }
 
 /** One manche of a finished game: the tile it scored, and by whom. */

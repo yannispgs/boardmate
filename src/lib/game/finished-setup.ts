@@ -32,7 +32,7 @@ export interface FinishedSetup {
 }
 
 /** The default name of a stage, for a game that doesn't name its own. */
-const DEFAULT_STAGE_LABEL = "Manche";
+export const DEFAULT_STAGE_LABEL = "Manche";
 
 export function finishedSetup(
   boardgame: Boardgame | null,

@@ -195,6 +195,13 @@ export interface GameRepository {
        * which keeps the plain behaviour.
        */
       phaseOut?: NextPhase;
+      /**
+       * The phase these turns are being played in. A phase played in turns has
+       * no « Phase terminée » to press, so it is banked here instead — when the
+       * turns run out — and shows up in the per-phase statistics beside the
+       * ones the table closes by hand. Omitted for a game with no phases.
+       */
+      phaseKey?: string;
     },
   ): Promise<void>;
   /**

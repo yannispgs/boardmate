@@ -7,7 +7,7 @@ import type { PlayerTimeSeries } from "@/lib/game/turn-time-series";
 const W = 320;
 const H = 160;
 const TOP = 10;
-const BOTTOM = 22; // room for the tour labels
+const BOTTOM = 22; // room for the round labels
 const LEFT = 34; // room for the time labels
 const RIGHT = 10;
 const PLOT_W = W - LEFT - RIGHT;
@@ -15,27 +15,34 @@ const PLOT_H = H - TOP - BOTTOM;
 const MAX_X_TICKS = 8;
 
 /**
- * Each player's active time per tour, one line each, over the game's tours — so
- * you can see who dragged early vs late. Time (m:ss) runs up the left, tours
+ * Each player's average turn per round, one line each, over the game's rounds —
+ * so you can see who dragged early vs late. Time (m:ss) runs up the left, rounds
  * along the bottom. Plain SVG, matching the app's other hand-rolled charts.
+ *
+ * Each point is marked, not just joined: a player who sat out a generation, or a
+ * game only a few rounds long, otherwise leaves a bare segment with nothing to
+ * say where the readings actually were.
  */
 export function TurnTimeChart({
   series,
   maxSeconds,
-  maxTour,
+  maxRound,
   players,
+  label,
 }: Readonly<{
   series: PlayerTimeSeries[];
   maxSeconds: number;
-  maxTour: number;
+  maxRound: number;
   players: { id: PlayerId; name: string }[];
+  /** What the chart is called, so the picture and its heading agree. */
+  label: string;
 }>) {
   const colorOf = (playerId: PlayerId) => playerColorOf(players, playerId);
 
   const yStep = niceStep(maxSeconds / 4);
   const chartMax = Math.ceil(maxSeconds / yStep) * yStep;
-  const px = (tour: number) =>
-    LEFT + (maxTour <= 1 ? 0.5 : (tour - 1) / (maxTour - 1)) * PLOT_W;
+  const px = (round: number) =>
+    LEFT + (maxRound <= 1 ? 0.5 : (round - 1) / (maxRound - 1)) * PLOT_W;
   const py = (seconds: number) => H - BOTTOM - (seconds / chartMax) * PLOT_H;
 
   const yTicks: number[] = [];
@@ -43,10 +50,10 @@ export function TurnTimeChart({
     yTicks.push(t);
   }
 
-  // Up to 8 evenly-spaced tour ticks (1 … maxTour).
-  const xStep = Math.max(1, Math.ceil(maxTour / MAX_X_TICKS));
+  // Up to 8 evenly-spaced round ticks (1 … maxRound).
+  const xStep = Math.max(1, Math.ceil(maxRound / MAX_X_TICKS));
   const xTicks: number[] = [];
-  for (let t = 1; t <= maxTour; t += xStep) {
+  for (let t = 1; t <= maxRound; t += xStep) {
     xTicks.push(t);
   }
 
@@ -56,7 +63,7 @@ export function TurnTimeChart({
         viewBox={`0 0 ${W} ${H}`}
         className="w-full rounded-xl border border-black/10 dark:border-white/10"
         role="img"
-        aria-label="Évolution du temps par tour"
+        aria-label={label}
       >
         {/* Horizontal time guides + left-axis labels. */}
         {yTicks.map(t => (
@@ -83,7 +90,7 @@ export function TurnTimeChart({
           </g>
         ))}
 
-        {/* Tour labels along the bottom. */}
+        {/* Round labels along the bottom. */}
         {xTicks.map(t => (
           <text
             key={`x-${t}`}
@@ -98,17 +105,28 @@ export function TurnTimeChart({
         ))}
 
         {series.map(s => (
-          <polyline
-            key={s.playerId}
-            fill="none"
-            stroke={colorOf(s.playerId)}
-            strokeWidth={2}
-            strokeLinejoin="round"
-            strokeLinecap="round"
-            points={s.points
-              .map(pt => `${px(pt.tour)},${py(pt.seconds)}`)
-              .join(" ")}
-          />
+          <g key={s.playerId}>
+            <polyline
+              fill="none"
+              stroke={colorOf(s.playerId)}
+              strokeWidth={2}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              points={s.points
+                .map(pt => `${px(pt.round)},${py(pt.seconds)}`)
+                .join(" ")}
+            />
+
+            {s.points.map(pt => (
+              <circle
+                key={pt.round}
+                cx={px(pt.round)}
+                cy={py(pt.seconds)}
+                r={2.5}
+                fill={colorOf(s.playerId)}
+              />
+            ))}
+          </g>
         ))}
       </svg>
       <ul className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400">

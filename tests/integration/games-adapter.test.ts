@@ -474,16 +474,17 @@ describe("games adapter — generations (Terraforming Mars)", () => {
     // Everybody passes. On a game played in phases that ends the *phase*, not
     // the generation: the production still has to be resolved, and nobody is
     // up while it is.
-    const pass = () => {
-      return repo().advanceTurn(game.id, 10, 0, 0, 0, {
+    const pass = (pauseS = 0) => {
+      return repo().advanceTurn(game.id, 10, pauseS > 0 ? 1 : 0, pauseS, 0, {
         advance: "pass",
         passing: true,
         phaseOut: { index: 2, stageEnds: false },
+        phaseKey: "projects",
       });
     };
 
     await pass();
-    await pass();
+    await pass(5);
     await pass();
 
     p = await repo().getPopulated(game.id);
@@ -491,6 +492,13 @@ describe("games adapter — generations (Terraforming Mars)", () => {
     expect(p?.stage).toBe(1);
     expect(p?.phase).toBe(2);
     expect(p?.currentPlayer).toBeNull();
+
+    // Nobody presses « Phase terminée » on the phase played in turns, so the
+    // turns running out is what banks it — with the pause taken during them,
+    // since the table was still in the phase while it was on hold.
+    expect(
+      p?.phaseTimes.find(t => t.stage === 1 && t.phaseKey === "projects"),
+    ).toEqual({ stage: 1, phaseKey: "projects", durationS: 35 });
 
     // The last phase closing is the generation ending: everybody comes back in
     // and the first-player marker has moved on.
@@ -530,10 +538,23 @@ describe("games adapter — generations (Terraforming Mars)", () => {
         ?.durationS;
     };
 
-    expect(p?.phaseTimes.map(t => t.stage)).toEqual([1, 1, 2]);
+    expect(p?.phaseTimes.map(t => t.stage)).toEqual([1, 1, 1, 2]);
     expect(timeOf(1, "discovery")).toBe(95);
     expect(timeOf(1, "production")).toBe(40);
     expect(timeOf(2, "discovery")).toBe(42);
+
+    // Once the party is over the stats page reads the very same rows: without
+    // them « Temps par phase » would be empty on every game ever played.
+    await repo().end(game.id, [playerIds[0]]);
+
+    const record = (await repo().listStats()).find(r => r.gameId === game.id);
+
+    expect(record?.phaseTimes).toHaveLength(4);
+    expect(record?.phaseTimes).toContainEqual({
+      stage: 1,
+      phaseKey: "discovery",
+      durationS: 95,
+    });
   });
 
   it("hands milestones out one claimer at a time, stamped with the generation", async () => {
