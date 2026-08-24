@@ -6,10 +6,9 @@ import { turnTimerApplies } from "@/lib/game/phase";
 import { playCalendar } from "@/lib/game/stage";
 import { lastRound } from "@/lib/game/stop-condition";
 import type { UseTurnTimer } from "@/lib/hooks/use-turn-timer";
+import { ClockControls } from "./ClockControls";
 import { DiceBar } from "./DiceBar";
-import { DurationEditor } from "./DurationEditor";
 import { PhaseStopwatch } from "./PhaseStopwatch";
-import { TimerAdjust } from "./TimerAdjust";
 import { TimerRing } from "./TimerRing";
 import { TurnFlow } from "./turn-flow";
 import type { DiceLog } from "./use-dice-log";
@@ -126,23 +125,14 @@ export function PlayBlock({
         />
       )}
 
-      {/* The two ways a clock is set by hand: how long a turn lasts, and where
-          the clock actually stands. A phase timed by the table's stopwatch has
-          nothing allotted, so only the correction applies to it — and it
-          applies for the same reason as on a turn: what is banked when the
-          phase closes is the time the stopwatch was left on. */}
+      {/* A phase that declares no clock at all has nothing to set by hand. */}
       {untimed ? null : (
-        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-          {countdown ? (
-            <DurationEditor
-              durationS={durationS}
-              onChange={onDuration}
-              onPause={timer.pause}
-            />
-          ) : null}
-
-          <TimerAdjust durationS={countdown ? durationS : null} timer={timer} />
-        </div>
+        <ClockControls
+          countdown={countdown}
+          durationS={durationS}
+          onDuration={onDuration}
+          timer={timer}
+        />
       )}
 
       {spec ? (
