@@ -8,6 +8,7 @@ import { OptionPicker, type PickerOption } from "@/components/OptionPicker";
 import { PhaseShareBar } from "@/components/phases/PhaseShareBar";
 import { PhaseStageChart } from "@/components/phases/PhaseStageChart";
 import { StatTile } from "@/components/StatTile";
+import { StatGroup, StatView } from "@/components/stats/StatGroup";
 import type {
   BoardgameId,
   DiceSpec,
@@ -489,9 +490,12 @@ interface PhaseFigures {
 }
 
 /**
- * Where a game played in phases spends its evening: the split first, because
- * the shape of a party is what one look should give, then what each phase
- * actually costs.
+ * Where a game played in phases spends its evening, read twice: the shape of a
+ * party as a whole, then what an average stage of it is made of.
+ *
+ * Boxed because those two readings answer different questions from the same
+ * clocks, and side by side without a frame the second is easily taken for a
+ * detail of the first.
  */
 function PhaseSections({ phases }: Readonly<{ phases: PhaseFigures | null }>) {
   if (phases === null) {
@@ -501,7 +505,7 @@ function PhaseSections({ phases }: Readonly<{ phases: PhaseFigures | null }>) {
   const stageWord = phases.stageLabel.toLowerCase();
 
   return (
-    <Section
+    <StatGroup
       title={
         <>
           Temps par phase
@@ -518,35 +522,61 @@ function PhaseSections({ phases }: Readonly<{ phases: PhaseFigures | null }>) {
         </>
       }
     >
-      <PhaseShareBar totals={phases.totals} phases={phases.specs} />
-      <PhaseTimeCardList
-        totals={phases.totals}
-        phases={phases.specs}
-        stageLabel={phases.stageLabel}
-      />
+      <StatView
+        title="Sur toutes les parties"
+        info={
+          <>
+            <p>
+              La part moyenne de chaque phase, puis ce qu&apos;elle coûte, sur{" "}
+              <strong>toutes les parties que les filtres laissent</strong> —
+              joueurs présents et période compris.
+            </p>
+            <p>
+              Une seule barre pour toute la partie : c&apos;est la réponse à «
+              où passe la soirée ? ».
+            </p>
+          </>
+        }
+      >
+        <PhaseShareBar totals={phases.totals} phases={phases.specs} />
+        <PhaseTimeCardList
+          totals={phases.totals}
+          phases={phases.specs}
+          stageLabel={phases.stageLabel}
+        />
+      </StatView>
 
       {phases.stages.length > 0 ? (
-        <div className="flex flex-col gap-3 pt-2">
-          {/* « Génération par génération » — the capital comes from CSS so the
-              game's own word can be dropped in untouched. */}
-          <h3 className="text-sm font-medium text-zinc-500 first-letter:uppercase dark:text-zinc-400">
-            {stageWord} par {stageWord}
-          </h3>
-
+        <StatView
+          title={`${stageWord} par ${stageWord}`}
+          info={
+            <>
+              <p>
+                À quoi ressemble <strong>une {stageWord} moyenne</strong>, et
+                non ce qu&apos;a duré celle de mardi.
+              </p>
+              <p>
+                Entre parenthèses : le nombre de parties arrivées jusque-là.
+                Chaque {stageWord} est divisée par{" "}
+                <strong>les parties qui l&apos;ont atteinte</strong>, jamais par
+                toutes — une partie arrêtée avant n&apos;a pas d&apos;avis sur
+                ce que coûte la suivante.
+              </p>
+              <p>
+                L&apos;échantillon s&apos;amincit donc vers la droite : une
+                colonne bâtie sur une seule soirée ne dit pas une habitude.
+              </p>
+            </>
+          }
+        >
           <PhaseStageChart
             stages={phases.stages}
             phases={phases.specs}
             stageLabel={phases.stageLabel}
           />
-
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            Moyenne sur les parties du filtre. Entre parenthèses : le nombre de
-            parties arrivées jusque-là — toutes ne vont pas aussi loin, et une
-            colonne bâtie sur une seule soirée ne dit pas une habitude.
-          </p>
-        </div>
+        </StatView>
       ) : null}
-    </Section>
+    </StatGroup>
   );
 }
 

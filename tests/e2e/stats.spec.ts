@@ -5,6 +5,7 @@ import {
   boardgameId,
   CATAN_ID,
   seedPlayers,
+  TERRAFORMING_MARS_NAME,
 } from "./utils/supabase";
 
 /**
@@ -570,6 +571,104 @@ test("reads Odin's parties in manches rather than in time", async ({
     await expect(page.getByText("1 sortie sur 5 manches")).toBeVisible();
     await expect(page.getByText("Ce que coûte une manche")).toBeVisible();
     await expect(page.getByText(/15 manches de joueur/)).toBeVisible();
+  } finally {
+    for (const id of gameIds) {
+      await admin.from("games").delete().eq("id", id);
+    }
+    await admin.from("players").delete().in("name", names);
+  }
+});
+
+/**
+ * The framing of a section that reads one subject twice (full-suite only —
+ * untagged): « Temps par phase » puts its two charts in a single box, names
+ * each of them, and each name carries a bubble saying which parties its figures
+ * rest on. Without that, the second chart reads as a detail of the first.
+ */
+test("names both readings of the phase clocks, and what each rests on", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const names = await seedPlayers(3);
+  const gameIds: string[] = [];
+
+  try {
+    const { data: seeded } = await admin
+      .from("players")
+      .select("id, name")
+      .in("name", names);
+    const ids = (seeded ?? []).map(p => p.id as string);
+    const marsId = await boardgameId(TERRAFORMING_MARS_NAME);
+
+    /** One ended party of Terraforming Mars, timed on the given generations. */
+    async function seedEndedGame(stages: number[]) {
+      const { data: game } = await admin
+        .from("games")
+        .insert({
+          boardgame_id: marsId,
+          status: "ended",
+          round: stages.length,
+          turn: 1,
+          stage: stages.length,
+          ended_at: new Date().toISOString(),
+        })
+        .select("id")
+        .single();
+      const gameId = game?.id as string;
+      gameIds.push(gameId);
+
+      await admin.from("game_players").insert(
+        ids.map((player_id, i) => ({
+          game_id: gameId,
+          player_id,
+          seat_order: i,
+          is_winner: i === 0,
+          score: 60 - i * 5,
+        })),
+      );
+
+      await admin.from("game_phases").insert(
+        stages.flatMap(stage => [
+          { game_id: gameId, stage, phase_key: "discovery", duration_s: 60 },
+          { game_id: gameId, stage, phase_key: "projects", duration_s: 120 },
+        ]),
+      );
+    }
+
+    // The second party stops a generation earlier, so the tail of the chart
+    // rests on a single evening — exactly what its bubble warns about.
+    await seedEndedGame([1, 2]);
+    await seedEndedGame([1]);
+
+    await page.goto("/stats");
+    await page.getByRole("button", { name: "Jeux", exact: true }).click();
+    await page
+      .getByRole("button", { name: TERRAFORMING_MARS_NAME, exact: true })
+      .click();
+
+    const group = page
+      .getByTestId("stat-group")
+      .filter({ hasText: "Temps par phase" });
+
+    await expect(group).toBeVisible();
+
+    // Both readings are named inside the one box, so neither can be taken for
+    // the other. The headings are uppercased by CSS only — the text is not.
+    await expect(
+      group.getByRole("heading", { name: "Sur toutes les parties" }),
+    ).toBeVisible();
+    await expect(
+      group.getByRole("heading", { name: /génération par génération/ }),
+    ).toBeVisible();
+
+    // And the averaged one says what it divides by.
+    await group
+      .getByRole("button", { name: "génération par génération" })
+      .click();
+
+    await expect(page.getByTestId("info-bubble")).toContainText(
+      "les parties qui l'ont atteinte",
+    );
   } finally {
     for (const id of gameIds) {
       await admin.from("games").delete().eq("id", id);
