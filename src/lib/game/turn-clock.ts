@@ -37,14 +37,29 @@ export function formatClockInput(remainingS: number): string {
 }
 
 /**
- * The active seconds a turn must be credited with for its countdown to read
- * `remainingS`. Floored at zero: a turn can never have been played for less
- * than no time, so asking for more time left than the turn is long simply puts
- * the clock back to full.
+ * What a clock reads for a given time played. A countdown reads what is *left*
+ * of what was allotted; a table stopwatch — `durationS === null`, nothing
+ * allotted — reads the time played itself.
  */
-export function elapsedForRemaining(
-  durationS: number,
-  remainingS: number,
+export function clockReading(
+  durationS: number | null,
+  elapsedS: number,
 ): number {
-  return Math.max(0, Math.round(durationS - remainingS));
+  return durationS === null ? elapsedS : durationS - elapsedS;
+}
+
+/**
+ * The reverse: the active seconds a clock must be credited with for it to read
+ * `reading`. Reading and time played are two views of the same quantity, which
+ * is why one function turns each into the other.
+ *
+ * Floored at zero: no clock can have run for less than no time, so asking a
+ * countdown for more time left than the turn is long simply puts it back to
+ * full, and winding a stopwatch below zero puts it back to nought.
+ */
+export function elapsedForReading(
+  durationS: number | null,
+  reading: number,
+): number {
+  return Math.max(0, Math.round(clockReading(durationS, reading)));
 }

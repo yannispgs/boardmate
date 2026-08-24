@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  elapsedForRemaining,
+  clockReading,
+  elapsedForReading,
   formatClockInput,
   parseClock,
 } from "./turn-clock";
@@ -51,17 +52,38 @@ describe("formatClockInput", () => {
   });
 });
 
-describe("elapsedForRemaining", () => {
+describe("clockReading", () => {
+  it("reads a countdown as what is left of the turn", () => {
+    expect(clockReading(180, 40)).toBe(140);
+    expect(clockReading(180, 220)).toBe(-40);
+  });
+
+  it("reads a stopwatch as the time played itself", () => {
+    expect(clockReading(null, 40)).toBe(40);
+    expect(clockReading(null, 0)).toBe(0);
+  });
+});
+
+describe("elapsedForReading", () => {
   it("gives the time played that leaves that much on the clock", () => {
-    expect(elapsedForRemaining(180, 140)).toBe(40);
-    expect(elapsedForRemaining(180, 0)).toBe(180);
+    expect(elapsedForReading(180, 140)).toBe(40);
+    expect(elapsedForReading(180, 0)).toBe(180);
   });
 
   it("counts an overtime as time played past the turn", () => {
-    expect(elapsedForRemaining(180, -40)).toBe(220);
+    expect(elapsedForReading(180, -40)).toBe(220);
   });
 
   it("floors at zero when asked for more time than the turn is long", () => {
-    expect(elapsedForRemaining(180, 300)).toBe(0);
+    expect(elapsedForReading(180, 300)).toBe(0);
+  });
+
+  it("credits a stopwatch with the time it is wound to", () => {
+    expect(elapsedForReading(null, 140)).toBe(140);
+    expect(elapsedForReading(null, 19.6)).toBe(20);
+  });
+
+  it("floors a stopwatch wound below zero", () => {
+    expect(elapsedForReading(null, -20)).toBe(0);
   });
 });

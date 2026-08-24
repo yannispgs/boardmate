@@ -9,7 +9,8 @@ import { fieldClass, modalCardClass } from "@/components/ui";
 import { formatDuration } from "@/lib/game/format-time";
 import {
   CLOCK_STEPS_S,
-  elapsedForRemaining,
+  clockReading,
+  elapsedForReading,
   formatClockInput,
   parseClock,
 } from "@/lib/game/turn-clock";
@@ -23,9 +24,10 @@ function stepLabel(seconds: number): string {
 /** One of the two lines: the clock as it stands, and as it will read. */
 function Readout({
   label,
-  remainingS,
-}: Readonly<{ label: string; remainingS: number }>) {
-  const overtime = remainingS < 0;
+  readingS,
+}: Readonly<{ label: string; readingS: number }>) {
+  // Only a countdown ever goes negative; a stopwatch is floored at nought.
+  const overtime = readingS < 0;
 
   return (
     <div className="flex items-baseline justify-between gap-3">
@@ -36,37 +38,52 @@ function Readout({
         }`}
       >
         {overtime
-          ? `+${formatDuration(-remainingS)} de dépassement`
-          : formatDuration(remainingS)}
+          ? `+${formatDuration(-readingS)} de dépassement`
+          : formatDuration(readingS)}
       </span>
     </div>
   );
 }
 
 /**
- * Puts the current turn's countdown back where it should have been — the table
- * forgot to advance the turn, or to pause while the box was being searched.
- * It moves the *time played*, so the turn is recorded with the corrected
- * duration too, not just displayed with it.
+ * Puts the clock the table is watching back where it should have been — nobody
+ * advanced the turn, nobody closed the phase, nobody paused while the box was
+ * being searched. It moves the *time played*, so what is recorded is corrected
+ * too, not just what is displayed: a turn's duration, or the seconds a phase
+ * banks when it closes.
+ *
+ * It serves both clocks because both are wrong the same way. `durationS` is the
+ * turn's allotted time, or `null` for a phase run on the table's stopwatch —
+ * which is corrected on the time it has *run* rather than on what it has left,
+ * nothing having been allotted for it to count down from.
  *
  * Opening the sheet freezes the clock (see `setFrozen`): the figures being read
  * would otherwise drift while they are being read, and the correction would
- * land one reading late. Closing it releases the hold, which resumes the turn
+ * land one reading late. Closing it releases the hold, which resumes the clock
  * only if it was running to begin with.
  */
 export function TimerAdjust({
   durationS,
   timer,
-}: Readonly<{ durationS: number; timer: UseTurnTimer }>) {
+}: Readonly<{ durationS: number | null; timer: UseTurnTimer }>) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
 
-  const remainingS = durationS - timer.elapsedS;
+  const countdown = durationS !== null;
+  const title = countdown
+    ? "Corriger le temps restant"
+    : "Corriger le temps écoulé";
+  const readingS = clockReading(durationS, timer.elapsedS);
   const target = parseClock(value);
+
+  /** A typed or stepped time, as the clock will actually end up reading it. */
+  function settled(reading: number): number {
+    return clockReading(durationS, elapsedForReading(durationS, reading));
+  }
 
   function start() {
     timer.setFrozen(true);
-    setValue(formatClockInput(remainingS));
+    setValue(formatClockInput(readingS));
     setOpen(true);
   }
 
@@ -75,13 +92,16 @@ export function TimerAdjust({
     setOpen(false);
   }
 
+  // Stepping offers what the clock can really be set to, so a stopwatch stepped
+  // below zero stops at zero rather than proposing a time nobody can have
+  // played, and a countdown stepped past its start stops at full.
   function step(deltaS: number) {
-    setValue(formatClockInput((target ?? remainingS) + deltaS));
+    setValue(formatClockInput(settled((target ?? readingS) + deltaS)));
   }
 
   function apply() {
     if (target !== null) {
-      timer.setElapsed(elapsedForRemaining(durationS, target));
+      timer.setElapsed(elapsedForReading(durationS, target));
     }
 
     close();
@@ -94,26 +114,27 @@ export function TimerAdjust({
         onClick={start}
         className="text-sm text-zinc-500 underline-offset-2 hover:underline"
       >
-        Corriger le temps restant
+        {title}
       </button>
 
       {open ? (
         <Modal
           onClose={close}
-          label="Corriger le temps restant"
+          label={title}
           className={`${modalCardClass} max-w-sm`}
         >
           <ModalHeader
-            title="Corriger le temps restant"
+            title={title}
             hint="Le chronomètre est en attente, il repart en fermant."
             onClose={close}
           />
 
           <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-4">
-            <Readout label="Maintenant" remainingS={remainingS} />
+            <Readout label="Maintenant" readingS={readingS} />
 
             {/* Signs read on the clock, not on the time played: « + 30 s »
-                means the turn shows thirty seconds more to play. */}
+                means the turn shows thirty seconds more to play — and, on a
+                stopwatch, thirty seconds more on the phase. */}
             <div className="grid grid-cols-3 gap-2">
               {CLOCK_STEPS_S.map(s => (
                 <button
@@ -153,18 +174,21 @@ export function TimerAdjust({
                     apply();
                   }
                 }}
-                aria-label="Temps restant"
+                aria-label={countdown ? "Temps restant" : "Temps écoulé"}
                 className={`${fieldClass} bg-transparent tabular-nums outline-none focus:border-indigo-500`}
               />
             </label>
 
             {target === null ? (
-              <ErrorText message="Format attendu : 1:30, 90, ou -0:20 pour un dépassement." />
-            ) : (
-              <Readout
-                label="Après correction"
-                remainingS={durationS - elapsedForRemaining(durationS, target)}
+              <ErrorText
+                message={
+                  countdown
+                    ? "Format attendu : 1:30, 90, ou -0:20 pour un dépassement."
+                    : "Format attendu : 1:30 ou 90."
+                }
               />
+            ) : (
+              <Readout label="Après correction" readingS={settled(target)} />
             )}
           </div>
 

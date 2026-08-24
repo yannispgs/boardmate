@@ -126,20 +126,24 @@ export function PlayBlock({
         />
       )}
 
-      {/* The two ways the countdown is set by hand: how long a turn lasts, and
-          where the current one actually stands. A phase timed by the table's
-          stopwatch has neither — nothing was allotted to correct. */}
-      {countdown ? (
+      {/* The two ways a clock is set by hand: how long a turn lasts, and where
+          the clock actually stands. A phase timed by the table's stopwatch has
+          nothing allotted, so only the correction applies to it — and it
+          applies for the same reason as on a turn: what is banked when the
+          phase closes is the time the stopwatch was left on. */}
+      {untimed ? null : (
         <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-          <DurationEditor
-            durationS={durationS}
-            onChange={onDuration}
-            onPause={timer.pause}
-          />
+          {countdown ? (
+            <DurationEditor
+              durationS={durationS}
+              onChange={onDuration}
+              onPause={timer.pause}
+            />
+          ) : null}
 
-          <TimerAdjust durationS={durationS} timer={timer} />
+          <TimerAdjust durationS={countdown ? durationS : null} timer={timer} />
         </div>
-      ) : null}
+      )}
 
       {spec ? (
         <DiceBar
