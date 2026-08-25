@@ -358,10 +358,12 @@ export function remarkableScore(
     direction === "highest"
       ? Math.ceil(raw / step) * step
       : Math.floor(raw / step) * step;
-  const reachable =
-    direction === "highest"
-      ? mark <= sorted[sorted.length - 1]
-      : mark >= sorted[0];
+  // The furthest anybody ever got in the direction that wins: a mark beyond it
+  // is a bar nobody can clear.
+  const furthest = scores.reduce((far, score) =>
+    beats(score, far, direction) ? score : far,
+  );
+  const reachable = !beats(mark, furthest, direction);
 
   return reachable ? mark : null;
 }
