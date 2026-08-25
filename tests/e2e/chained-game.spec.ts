@@ -52,9 +52,29 @@ test("deals the next party from the score form, same table, same seats", async (
       }),
     ).toHaveText(["Enchaîner une nouvelle partie", "Terminer la session"]);
 
-    await page
-      .getByRole("button", { name: "Enchaîner une nouvelle partie" })
-      .click();
+    // Dealing again navigates, and `router.push` fetches the next party before
+    // the screen changes. Held open here on purpose: that wait is the window the
+    // table presses again in, thinking nothing happened — and a second press
+    // used to end the same deal twice and deal a *second* next one, a phantom
+    // deal numbered in the evening and never played.
+    await page.route("**/games/**", async route => {
+      if (route.request().headers().rsc !== undefined) {
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+
+      await route.continue();
+    });
+
+    const chain = page.getByRole("button", {
+      name: "Enchaîner une nouvelle partie",
+    });
+
+    await chain.click();
+    // Long enough for the deal to be recorded and the next one dealt, so the
+    // second press is an impatient one and not a double tap.
+    await page.waitForTimeout(1200);
+    await chain.click({ force: true });
+    await page.unroute("**/games/**");
 
     // The screen moves to another party, not back to the list.
     await expect(page).not.toHaveURL(new RegExp(`/games/${first}/play$`));
@@ -111,6 +131,22 @@ test("deals the next party from the score form, same table, same seats", async (
 
     expect(sessions.size).toBe(1);
 
+    // And the evening holds those two deals only — the double tap dealt once.
+    const { data: evening } = await admin
+      .from("games")
+      .select("id")
+      .eq("session_id", [...sessions][0] as string);
+
+    // Every deal of the evening joins the cleanup list, a phantom one included,
+    // so failing here doesn't leave rows behind for the next run.
+    for (const deal of evening ?? []) {
+      if (!games.includes(deal.id as string)) {
+        games.push(deal.id as string);
+      }
+    }
+
+    expect(evening?.length).toBe(2);
+
     // The first deal kept its scores; the second sits the same table back down
     // in the same seats, with nothing written yet.
     const seats = async (gameId: string) => {
@@ -136,6 +172,19 @@ test("deals the next party from the score form, same table, same seats", async (
       { name: players[1], score: null },
       { name: players[2], score: null },
     ]);
+
+    // On « Parties », each deal wears its rank in the evening. The two of them
+    // land in different sections — one still on the table, one over — and the
+    // numbering has to run across both rather than restart at each.
+    await page.goto("/games");
+    await page.getByText("Terminées ·").click();
+
+    await expect(page.locator(`a[href="/games/${first}/play"]`)).toContainText(
+      "#1",
+    );
+    await expect(page.locator(`a[href="/games/${second}/play"]`)).toContainText(
+      "#2",
+    );
   } finally {
     for (const gameId of games) {
       await admin.from("games").delete().eq("id", gameId);

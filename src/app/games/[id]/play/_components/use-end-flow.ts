@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { PlayerId, PopulatedGame, TieBreakRecord } from "@/lib/domain";
 import {
   categoryOutcome,
@@ -87,6 +87,29 @@ export function useEndFlow(
   // Set aside while the tie-break asks its questions: the table pressed
   // « Enchaîner », and still means to once the leaders are separated.
   const [chaining, setChaining] = useState(false);
+  // Recording the party is terminal, but the screen it is asked from does not
+  // leave the moment it lands: dealing the next party navigates, reading the
+  // recap reloads, and until either arrives the button is still under the
+  // table's thumb. A second press then recorded the same party again and dealt
+  // a **second** next one — a phantom deal, numbered in the evening and never
+  // played. `busy` cannot catch it: the first press is long over.
+  const recorded = useRef(false);
+
+  /**
+   * Records the finished party, once and once only. A failure re-opens the
+   * latch: nothing was written, and the table has to be able to try again.
+   */
+  async function recordOnce(mutate: () => Promise<void>): Promise<void> {
+    if (recorded.current) {
+      return;
+    }
+
+    recorded.current = true;
+
+    if (!(await play.run(END_FAILED, mutate))) {
+      recorded.current = false;
+    }
+  }
 
   /** Records the finished game; false when it failed and the screen must stay. */
   async function persist(
@@ -119,7 +142,7 @@ export function useEndFlow(
     scores: FinalScores | undefined,
     tieBreak: TieBreakRecord | null,
   ) {
-    await play.run(END_FAILED, async () => {
+    await recordOnce(async () => {
       await repo.end(game.id, winnerIds, scores, tieBreak);
       await play.reload();
     });
@@ -134,7 +157,7 @@ export function useEndFlow(
     tieBreak: TieBreakRecord | null,
     chain: boolean,
   ) {
-    await play.run(END_FAILED, async () => {
+    await recordOnce(async () => {
       await repo.end(game.id, ended.winners, ended.scores, tieBreak);
 
       if (chain) {
@@ -162,7 +185,7 @@ export function useEndFlow(
 
     // Cooperative games end on a shared outcome (all win, or none).
     endCoop: async won => {
-      await play.run(END_FAILED, async () => {
+      await recordOnce(async () => {
         await repo.endCoop(game.id, won);
         await play.reload();
       });
