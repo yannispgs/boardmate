@@ -9,6 +9,7 @@ import { StickyActionBar } from "@/components/StickyActionBar";
 import { useConfirm } from "@/components/use-confirm";
 import type { BoardgameId, GameListItem } from "@/lib/domain";
 import { filterGameList } from "@/lib/game/game-filters";
+import { partyRanks } from "@/lib/game/game-sessions";
 import { finishedParties, recordHolders } from "@/lib/game/score-records";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useGames } from "@/lib/hooks/use-games";
@@ -53,6 +54,10 @@ export function GamesList() {
     finishedParties(endedGames),
     new Map(boardgames.map(b => [b.id, b.scoring])),
   );
+  // Read against both sections at once: an evening usually has its last deal
+  // still running while the earlier ones are over, and numbering each section
+  // on its own would give the table two « #1 ».
+  const ranks = partyRanks([...games, ...endedGames]);
 
   function handleAbandon(game: GameListItem) {
     const name = boardgameFor(game.boardgameId)?.name ?? "cette partie";
@@ -90,6 +95,7 @@ export function GamesList() {
             <GameCardList
               games={shownGames}
               boardgameFor={boardgameFor}
+              partyRanks={ranks}
               onAbandon={handleAbandon}
             />
           ) : null}
@@ -108,6 +114,7 @@ export function GamesList() {
               collapsible
               title="Terminées"
               records={records}
+              partyRanks={ranks}
             />
           ) : null}
         </ListBody>

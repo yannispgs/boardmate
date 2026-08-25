@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { GameId, GameSessionId } from "@/lib/domain";
 
-import { partyNumber, sessionEntries } from "./game-sessions";
+import { partyNumber, partyRanks, sessionEntries } from "./game-sessions";
 
 /** A game, reduced to the only thing a grouping looks at. */
 function game(session: string, name: string) {
@@ -83,5 +83,69 @@ describe("partyNumber", () => {
 
   it("says nothing when there is no sitting to speak of", () => {
     expect(partyNumber([], "g1" as GameId)).toBeNull();
+  });
+});
+
+describe("partyRanks", () => {
+  const party = (id: string, session: string, startedAt: string) => ({
+    id: id as GameId,
+    sessionId: session as GameSessionId,
+    startedAt,
+  });
+
+  it("numbers each party of a sitting in the order it was dealt", () => {
+    // Given newest first, the way the running list reads.
+    const ranks = partyRanks([
+      party("g3", "s1", "2026-08-25T18:00:00.000Z"),
+      party("g2", "s1", "2026-08-25T17:30:00.000Z"),
+      party("g1", "s1", "2026-08-25T17:00:00.000Z"),
+    ]);
+
+    expect([...ranks]).toEqual([
+      ["g1", 1],
+      ["g2", 2],
+      ["g3", 3],
+    ]);
+  });
+
+  it("numbers an evening straddling both sections from one end to the other", () => {
+    // The two finished deals and the one still on the table reach the screen in
+    // separate lists; the numbering has to see them as one evening.
+    const ranks = partyRanks([
+      party("running", "s1", "2026-08-25T18:00:00.000Z"),
+      party("over1", "s1", "2026-08-25T17:00:00.000Z"),
+      party("over2", "s1", "2026-08-25T17:30:00.000Z"),
+    ]);
+
+    expect(ranks.get("over1" as GameId)).toBe(1);
+    expect(ranks.get("over2" as GameId)).toBe(2);
+    expect(ranks.get("running" as GameId)).toBe(3);
+  });
+
+  it("leaves a party played on its own unnumbered", () => {
+    const ranks = partyRanks([
+      party("alone", "s9", "2026-08-25T17:00:00.000Z"),
+      party("g1", "s1", "2026-08-25T17:10:00.000Z"),
+      party("g2", "s1", "2026-08-25T17:20:00.000Z"),
+    ]);
+
+    expect(ranks.has("alone" as GameId)).toBe(false);
+    expect(ranks.get("g2" as GameId)).toBe(2);
+  });
+
+  it("numbers each sitting from one, not the list", () => {
+    const ranks = partyRanks([
+      party("a1", "s1", "2026-08-25T17:00:00.000Z"),
+      party("a2", "s1", "2026-08-25T17:10:00.000Z"),
+      party("b1", "s2", "2026-08-25T20:00:00.000Z"),
+      party("b2", "s2", "2026-08-25T20:10:00.000Z"),
+    ]);
+
+    expect(ranks.get("b1" as GameId)).toBe(1);
+    expect(ranks.get("b2" as GameId)).toBe(2);
+  });
+
+  it("reads an empty list as no numbering at all", () => {
+    expect(partyRanks([]).size).toBe(0);
   });
 });

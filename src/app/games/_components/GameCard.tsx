@@ -133,8 +133,10 @@ function InlinePlayOrder({
  * surfaces how far along it is and whose turn it is; a **finished** game instead
  * shows the winner and how long it lasted (no "current" player). Both are
  * counted in the unit the box uses — laps for most, generations for Terraforming
- * Mars (see `gameProgress`). On touch devices, where hover doesn't exist, the
- * play order is shown inline.
+ * Mars (see `gameProgress`). A party dealt inside an evening wears its rank
+ * (« #2 ») next to the name, so a dozen identical Papayoo lines can be told
+ * apart at a glance. On touch devices, where hover doesn't exist, the play
+ * order is shown inline.
  */
 export function GameCard({
   game,
@@ -144,6 +146,7 @@ export function GameCard({
   ended = false,
   coop = false,
   record = null,
+  partyRank = null,
   onAbandon,
 }: Readonly<{
   game: GameListItem;
@@ -156,6 +159,11 @@ export function GameCard({
   record?: ScoreRecord | null;
   /** Cooperative game: a finished one shows a shared victory/defeat, no winner. */
   coop?: boolean;
+  /**
+   * Which party of its evening this one is, when it belongs to one — resolved
+   * by the list, since a sitting straddles the running and the finished cards.
+   */
+  partyRank?: number | null;
   /** When set (ongoing games only), shows an "abandon" (delete) button. */
   onAbandon?: () => void;
 }>) {
@@ -204,6 +212,11 @@ export function GameCard({
           <div className="flex min-w-0 flex-col">
             <span className="flex min-w-0 items-center gap-1.5">
               <span className="truncate font-medium">{boardgameName}</span>
+              {partyRank === null ? null : (
+                <span className="shrink-0 text-sm font-semibold text-zinc-400">
+                  #{partyRank}
+                </span>
+              )}
               <RecordChip record={record} />
             </span>
             <ExtensionBadgeList

@@ -32,6 +32,7 @@ export function GameCardList({
   collapsible = false,
   title,
   records,
+  partyRanks,
   onAbandon,
 }: Readonly<{
   games: GameListItem[];
@@ -44,6 +45,12 @@ export function GameCardList({
    * **every** finished party — filtering the screen must not move a record.
    */
   records?: ReadonlyMap<GameId, ScoreRecord>;
+  /**
+   * Which party of its evening each game is. Resolved once by the list against
+   * **every** party — this list only holds one status, and half an evening
+   * would be numbered from one.
+   */
+  partyRanks?: ReadonlyMap<GameId, number>;
   /** Ongoing games only: abandon (delete) a game. */
   onAbandon?: (game: GameListItem) => void;
 }>) {
@@ -61,6 +68,7 @@ export function GameCardList({
         ended={ended}
         coop={boardgame?.kind === "cooperative"}
         record={records?.get(game.id) ?? null}
+        partyRank={partyRanks?.get(game.id) ?? null}
         onAbandon={onAbandon ? () => onAbandon(game) : undefined}
       />
     );

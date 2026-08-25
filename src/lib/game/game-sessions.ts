@@ -51,6 +51,45 @@ export function partyNumber(
   return index + 1;
 }
 
+/** What numbering a whole list needs of a game, on top of its sitting. */
+export interface RankableGame extends SessionableGame {
+  id: GameId;
+  startedAt: string;
+}
+
+/**
+ * Which party of its sitting each game is, 1-based — {@link partyNumber} read
+ * for a whole list at once, so a card can say « #2 » without knowing anything
+ * about the evening it belongs to.
+ *
+ * Must be given **every** party, the ones on the table and the ones over alike:
+ * « Parties » shows them in two sections, and an evening straddling both would
+ * otherwise be numbered from one on each side. Sittings of a single party are
+ * left out, for the same reason `partyNumber` answers null on them.
+ *
+ * The order the list happens to read in is not the order the parties were
+ * dealt in (the running ones come newest first), so the numbering is taken on
+ * the start instants — ISO instants compare as text.
+ */
+export function partyRanks(
+  games: readonly RankableGame[],
+): Map<GameId, number> {
+  const dealt = [...games].sort((a, b) =>
+    a.startedAt.localeCompare(b.startedAt),
+  );
+  const ranks = new Map<GameId, number>();
+
+  for (const entry of sessionEntries(dealt)) {
+    if (entry.kind === "session") {
+      entry.session.games.forEach((game, index) => {
+        ranks.set(game.id, index + 1);
+      });
+    }
+  }
+
+  return ranks;
+}
+
 /** Several parties of one sitting, in the order the list gave them. */
 export interface GameSession<TGame> {
   sessionId: GameSessionId;
