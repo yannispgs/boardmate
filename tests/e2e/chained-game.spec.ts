@@ -65,15 +65,33 @@ test("deals the next party from the score form, same table, same seats", async (
       await route.continue();
     });
 
+    const { data: opened } = await admin
+      .from("games")
+      .select("session_id")
+      .eq("id", first)
+      .single();
+    const evening = opened?.session_id as string;
+    const dealt = async () => {
+      const { count } = await admin
+        .from("games")
+        .select("id", { count: "exact", head: true })
+        .eq("session_id", evening);
+
+      return count;
+    };
     const chain = page.getByRole("button", {
       name: "Enchaîner une nouvelle partie",
     });
 
     await chain.click();
-    // Long enough for the deal to be recorded and the next one dealt, so the
-    // second press is an impatient one and not a double tap.
-    await page.waitForTimeout(1200);
-    await chain.click({ force: true });
+
+    // Waited on the next deal existing, not on a delay: from there the first
+    // press is entirely over — recorded, dealt — and all that is left is the
+    // navigation the route above is holding. That is the impatient second
+    // press, not a double tap.
+    await expect.poll(dealt).toBe(2);
+
+    await chain.click();
     await page.unroute("**/games/**");
 
     // The screen moves to another party, not back to the list.
@@ -131,21 +149,23 @@ test("deals the next party from the score form, same table, same seats", async (
 
     expect(sessions.size).toBe(1);
 
-    // And the evening holds those two deals only — the double tap dealt once.
-    const { data: evening } = await admin
+    expect([...sessions]).toEqual([evening]);
+
+    // Any deal of the evening beyond those two joins the cleanup list, so a
+    // phantom one doesn't survive the failure it caused.
+    const { data: all } = await admin
       .from("games")
       .select("id")
-      .eq("session_id", [...sessions][0] as string);
+      .eq("session_id", evening);
 
-    // Every deal of the evening joins the cleanup list, a phantom one included,
-    // so failing here doesn't leave rows behind for the next run.
-    for (const deal of evening ?? []) {
+    for (const deal of all ?? []) {
       if (!games.includes(deal.id as string)) {
         games.push(deal.id as string);
       }
     }
 
-    expect(evening?.length).toBe(2);
+    // The evening holds those two deals only — the second press dealt nothing.
+    expect(all?.length).toBe(2);
 
     // The first deal kept its scores; the second sits the same table back down
     // in the same seats, with nothing written yet.
