@@ -423,24 +423,33 @@ function ScoreEntry({
       {refused === null ? null : (
         <p className="text-xs text-rose-600 dark:text-rose-400">{refused}</p>
       )}
-      <button
-        type="button"
-        disabled={blocked}
-        onClick={() => finish(false)}
-        className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
-      >
-        Terminer
-      </button>
+      {/* 🔑 On a table dealing party after party, dealing the next one is what
+          happens nearly every time and packing up is the exception — so it is
+          the filled button, and stopping is the outlined one. Its name says
+          « la session » too: both buttons end the deal on the table, what they
+          differ on is whether the evening goes on. */}
       {chainable ? (
         <button
           type="button"
           disabled={blocked}
           onClick={() => finish(true)}
-          className="rounded-lg border border-indigo-500 px-4 py-2 text-sm font-medium text-indigo-600 transition hover:bg-indigo-500/10 disabled:opacity-60 dark:text-indigo-400"
+          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
         >
           Enchaîner une nouvelle partie
         </button>
       ) : null}
+      <button
+        type="button"
+        disabled={blocked}
+        onClick={() => finish(false)}
+        className={
+          chainable
+            ? "rounded-lg border border-indigo-500 px-4 py-2 text-sm font-medium text-indigo-600 transition hover:bg-indigo-500/10 disabled:opacity-60 dark:text-indigo-400"
+            : "rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
+        }
+      >
+        {chainable ? "Terminer la session" : "Terminer"}
+      </button>
       <CancelLink onClick={() => onOpenChange(false)} />
     </div>
   );

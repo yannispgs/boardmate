@@ -14,11 +14,41 @@
  * Pure: no vendor types, unit-tested.
  */
 
-import type { GameSessionId } from "@/lib/domain";
+import type { GameId, GameSessionId } from "@/lib/domain";
 
 /** The little a grouping needs to know about a game. */
 export interface SessionableGame {
   sessionId: GameSessionId;
+}
+
+/**
+ * Which party of the sitting this one is, 1-based — or null while the sitting
+ * is only one party long.
+ *
+ * A first deal does not know yet that it will become an evening, and « 1ʳᵉ
+ * partie » stamped on every party ever played on its own would be a permanent
+ * line saying nothing. The counter appears when the chaining starts.
+ *
+ * `games` is the sitting oldest first, which is the order the parties were
+ * dealt in.
+ */
+export function partyNumber(
+  games: ReadonlyArray<{ id: GameId }>,
+  gameId: GameId,
+): number | null {
+  if (games.length < 2) {
+    return null;
+  }
+
+  const index = games.findIndex(game => game.id === gameId);
+
+  // A party missing from its own sitting means the list was read before it was
+  // saved; saying nothing beats numbering it wrong.
+  if (index === -1) {
+    return null;
+  }
+
+  return index + 1;
 }
 
 /** Several parties of one sitting, in the order the list gave them. */

@@ -7,6 +7,7 @@ import type { PhaseSpec, PlayerId, PopulatedGame } from "@/lib/domain";
 import { chainedGame } from "@/lib/game/chained-game";
 import { composeGoals } from "@/lib/game/extensions";
 import { gameProgress, playProgress } from "@/lib/game/game-progress";
+import { partyNumber } from "@/lib/game/game-sessions";
 import {
   advancePhase,
   currentPhase,
@@ -41,6 +42,7 @@ import { PhaseControls } from "./PhaseControls";
 import { PlayBlock } from "./PlayBlock";
 import { PlayStats } from "./PlayStats";
 import { SeatOrderPanel } from "./SeatOrderPanel";
+import { SessionStats } from "./SessionStats";
 import { StageBoard } from "./StageBoard";
 import { TimeHogBanner } from "./TimeHogBanner";
 import { TurnControls } from "./TurnControls";
@@ -51,6 +53,7 @@ import { useLiveScores } from "./use-live-scores";
 import { useMilestones } from "./use-milestones";
 import type { PlayGame } from "./use-play-game";
 import { usePlaySounds } from "./use-play-sounds";
+import { useSessionGames } from "./use-session-games";
 import { useStageGoals } from "./use-stage-goals";
 
 /**
@@ -82,6 +85,9 @@ export function PlayingGame({
   const dice = useDiceLog(game, play);
   const milestones = useMilestones(game);
   const goals = useStageGoals(game);
+  // The evening this party belongs to. A party played on its own is a sitting
+  // of one, so this is a single-row answer far more often than not.
+  const sitting = useSessionGames(game.sessionId, game.id);
 
   usePlaySounds();
 
@@ -148,6 +154,9 @@ export function PlayingGame({
 
   const scoring = game.boardgame.scoring;
   const direction = scoring ? winnerDirection(scoring.winCondition) : "highest";
+  // Null until the sitting holds a second party: a first deal has no evening
+  // behind it to be the third of.
+  const party = partyNumber(sitting, game.id);
   const stageLabel = gameProgress(game, stages).label;
   const calendar = playCalendar(
     stages?.advance,
@@ -356,6 +365,15 @@ export function PlayingGame({
         <PhaseBar phases={phases} current={game.phase} draft={draft} />
       )}
 
+      {/* Where a timed game says which lap it is on, an evening says which deal
+          it is on. The two never show together: only a game the app puts no
+          clock on can be dealt again from the score sheet. */}
+      {party === null ? null : (
+        <p className="text-sm uppercase tracking-wide text-indigo-500 dark:text-indigo-400">
+          {party}ᵉ partie de la soirée
+        </p>
+      )}
+
       {/* « Tour 1 » would sit there for the whole game on a table that never
           advances a turn, so an untimed game with no manches says nothing. */}
       {!timed && !byHand ? null : (
@@ -385,6 +403,10 @@ export function PlayingGame({
       <ErrorText message={goals.error} />
 
       {controls()}
+
+      {/* High up on purpose: on a table dealing party after party, « où on en
+          est » is the whole reason to look at the phone between two deals. */}
+      <SessionStats games={sitting} direction={direction} />
 
       <FaqPanel boardgame={game.boardgame} extensions={game.extensions} />
 

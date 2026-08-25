@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import type { GameSessionId } from "@/lib/domain";
+import type { GameId, GameSessionId } from "@/lib/domain";
 
-import { sessionEntries } from "./game-sessions";
+import { partyNumber, sessionEntries } from "./game-sessions";
 
 /** A game, reduced to the only thing a grouping looks at. */
 function game(session: string, name: string) {
@@ -58,5 +58,30 @@ describe("sessionEntries", () => {
 
   it("reads an empty list as an empty one", () => {
     expect(sessionEntries([])).toEqual([]);
+  });
+});
+
+describe("partyNumber", () => {
+  const dealt = (...ids: string[]) => ids.map(id => ({ id: id as GameId }));
+
+  it("says nothing while the sitting is one party long", () => {
+    // A first deal does not know yet that it will become an evening.
+    expect(partyNumber(dealt("g1"), "g1" as GameId)).toBeNull();
+  });
+
+  it("numbers a party by its place in the sitting", () => {
+    const sitting = dealt("g1", "g2", "g3");
+
+    expect(partyNumber(sitting, "g1" as GameId)).toBe(1);
+    expect(partyNumber(sitting, "g3" as GameId)).toBe(3);
+  });
+
+  it("says nothing about a party missing from its own sitting", () => {
+    // The list was read before the party was saved: no number beats a wrong one.
+    expect(partyNumber(dealt("g1", "g2"), "g9" as GameId)).toBeNull();
+  });
+
+  it("says nothing when there is no sitting to speak of", () => {
+    expect(partyNumber([], "g1" as GameId)).toBeNull();
   });
 });

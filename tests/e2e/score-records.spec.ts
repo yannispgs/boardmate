@@ -360,7 +360,7 @@ test("reads a Papayoo record against tables of the same size only", async ({
     await page.getByLabel(`Score de ${players[0]}`).fill("20");
     await page.getByLabel(`Score de ${players[1]}`).fill("110");
     await page.getByLabel(`Score de ${players[2]}`).fill("120");
-    await page.getByRole("button", { name: "Terminer", exact: true }).click();
+    await page.getByRole("button", { name: "Terminer la session" }).click();
 
     // Totals typed by the table skip the reveal, so the marks are read on the
     // score kept with the party.

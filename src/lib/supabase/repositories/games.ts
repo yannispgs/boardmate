@@ -299,6 +299,12 @@ type PopulatedRow = GameRow & {
   }>;
 };
 
+/** Shared by the games list and by one sitting's parties — same shape either way. */
+const LIST_SELECT =
+  "*, game_players(seat_order, is_winner, score, player:players(id, name))" +
+  ", game_extensions(extension:extensions(name, sort_order)" +
+  ", scenario:extension_scenarios(name))";
+
 const POPULATED_SELECT =
   "*, boardgame:boardgames(*, config_templates(fields)), config:configs(*), " +
   "game_players(*, player:players(*)), game_turns(*), " +
@@ -813,16 +819,28 @@ export function createGameRepository(
     async list(filter?: { status?: GameStatus }) {
       const status = filter?.status ?? "ongoing";
       const { data, error } = await games()
-        .select(
-          "*, game_players(seat_order, is_winner, score, player:players(id, name))" +
-            ", game_extensions(extension:extensions(name, sort_order)" +
-            ", scenario:extension_scenarios(name))",
-        )
+        .select(LIST_SELECT)
         .eq("status", status)
         .order("started_at", { ascending: false });
       /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */
       if (error) {
         throw new Error(`Lecture des parties: ${error.message}`);
+      }
+
+      return (data as unknown as GameListRow[]).map(toGameListItem);
+    },
+
+    async listBySession(sessionId: GameSessionId) {
+      // Oldest first, unlike the list: an evening is read in the order it was
+      // played, so the party on the table is the last line and its number is
+      // its position.
+      const { data, error } = await games()
+        .select(LIST_SELECT)
+        .eq("session_id", sessionId)
+        .order("started_at", { ascending: true });
+      /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */
+      if (error) {
+        throw new Error(`Lecture de la soirée: ${error.message}`);
       }
 
       return (data as unknown as GameListRow[]).map(toGameListItem);

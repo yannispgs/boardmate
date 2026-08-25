@@ -43,6 +43,15 @@ test("deals the next party from the score form, same table, same seats", async (
     await page.getByLabel(`Score de ${players[0]}`).fill("100");
     await page.getByLabel(`Score de ${players[1]}`).fill("150");
     await page.getByLabel(`Score de ${players[2]}`).fill("0");
+
+    // Dealing again is what an evening does nearly every time and packing up is
+    // the exception, so « Enchaîner » leads and « Terminer la session » follows.
+    await expect(
+      page.locator("button", {
+        hasText: /^(Enchaîner une nouvelle partie|Terminer la session)$/,
+      }),
+    ).toHaveText(["Enchaîner une nouvelle partie", "Terminer la session"]);
+
     await page
       .getByRole("button", { name: "Enchaîner une nouvelle partie" })
       .click();
@@ -59,6 +68,33 @@ test("deals the next party from the score form, same table, same seats", async (
     await expect(
       page.getByRole("button", { name: "Entrer les scores" }),
     ).toBeVisible();
+
+    // The evening now says where it is, which the first deal could not.
+    await expect(page.getByText("2ᵉ partie de la soirée")).toBeVisible();
+
+    // And how it is going — recomputed from the deals sharing this session,
+    // nothing about the evening being stored.
+    await expect(
+      page.getByText("Cette soirée — 1 partie terminée"),
+    ).toBeVisible();
+
+    const sitting = page.getByRole("list", {
+      name: "Classement de la soirée",
+    });
+    const rows = sitting.getByRole("listitem");
+
+    // The smallest pile takes the deal, so the winner leads the evening.
+    await expect(rows.first()).toContainText(players[2]);
+    // Nought points, first place — averages over the one deal played.
+    await expect(rows.first()).toContainText("0.0");
+    await expect(rows.first()).toContainText("1.0");
+    await expect(rows).toHaveCount(3);
+
+    // Nothing is timed here, so no turn is ever recorded: the button that used
+    // to open on « après le premier tour joué » all evening is gone.
+    await expect(
+      page.getByRole("button", { name: "Ouvrir les statistiques" }),
+    ).toHaveCount(0);
 
     const { data: statuses } = await admin
       .from("games")
