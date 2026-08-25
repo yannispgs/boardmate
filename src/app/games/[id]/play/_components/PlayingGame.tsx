@@ -7,7 +7,6 @@ import type { PhaseSpec, PlayerId, PopulatedGame } from "@/lib/domain";
 import { chainedGame } from "@/lib/game/chained-game";
 import { composeGoals } from "@/lib/game/extensions";
 import { gameProgress, playProgress } from "@/lib/game/game-progress";
-import { partyNumber } from "@/lib/game/game-sessions";
 import {
   advancePhase,
   currentPhase,
@@ -37,6 +36,7 @@ import { LastLapBanner } from "./LastLapBanner";
 import { LiveScoreSection } from "./LiveScoreSection";
 import { MilestonePanel } from "./MilestonePanel";
 import { namedPlayers } from "./named-players";
+import { PartyRank } from "./PartyRank";
 import { PhaseBar } from "./PhaseBar";
 import { PhaseControls } from "./PhaseControls";
 import { PlayBlock } from "./PlayBlock";
@@ -154,9 +154,6 @@ export function PlayingGame({
 
   const scoring = game.boardgame.scoring;
   const direction = scoring ? winnerDirection(scoring.winCondition) : "highest";
-  // Null until the sitting holds a second party: a first deal has no evening
-  // behind it to be the third of.
-  const party = partyNumber(sitting, game.id);
   const stageLabel = gameProgress(game, stages).label;
   const calendar = playCalendar(
     stages?.advance,
@@ -368,11 +365,7 @@ export function PlayingGame({
       {/* Where a timed game says which lap it is on, an evening says which deal
           it is on. The two never show together: only a game the app puts no
           clock on can be dealt again from the score sheet. */}
-      {party === null ? null : (
-        <p className="text-sm uppercase tracking-wide text-indigo-500 dark:text-indigo-400">
-          {party}ᵉ partie de la soirée
-        </p>
-      )}
+      <PartyRank games={sitting} gameId={game.id} />
 
       {/* « Tour 1 » would sit there for the whole game on a table that never
           advances a turn, so an untimed game with no manches says nothing. */}
