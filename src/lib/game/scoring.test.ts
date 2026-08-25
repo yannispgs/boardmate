@@ -21,6 +21,7 @@ import {
   rankFinalScores,
   reachedThreshold,
   scoreCategories,
+  scoreDirectionOf,
   scoreFloor,
   sheetCategories,
   stopTargetFrom,
@@ -80,6 +81,19 @@ describe("winnerDirection", () => {
   it("maps each win condition to the end of the range that takes it", () => {
     expect(winnerDirection({ type: "highest" })).toBe("highest");
     expect(winnerDirection({ type: "lowest" })).toBe("lowest");
+  });
+});
+
+describe("scoreDirectionOf", () => {
+  it("reads the direction off the boardgame's win condition", () => {
+    expect(scoreDirectionOf(scoring({}))).toBe("highest");
+    expect(
+      scoreDirectionOf(scoring({ winCondition: { type: "lowest" } })),
+    ).toBe("lowest");
+  });
+
+  it("falls back to the high end for a game that keeps no score", () => {
+    expect(scoreDirectionOf(null)).toBe("highest");
   });
 });
 

@@ -293,6 +293,15 @@ export function winnerDirection(condition: WinCondition): ScoreDirection {
 }
 
 /**
+ * The same reading straight off the boardgame, for the screens holding a
+ * `scoring` that may be null. An unscored game has no direction of its own and
+ * the high end is the harmless default — nothing compares its scores anyway.
+ */
+export function scoreDirectionOf(scoring: ScoringSpec | null): ScoreDirection {
+  return scoring ? winnerDirection(scoring.winCondition) : "highest";
+}
+
+/**
  * The first player to have reached the target (score ≥ threshold), or null —
  * the winner of a live threshold game.
  */

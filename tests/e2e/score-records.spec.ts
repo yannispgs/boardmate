@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-import { adminClient, boardgameId, seedPlayers } from "./utils/supabase";
+import {
+  adminClient,
+  boardgameId,
+  playerIds,
+  seedParty,
+  seedPlayers,
+} from "./utils/supabase";
 
 /**
  * The marks a party leaves in the books (full-suite only — untagged): « PB »
@@ -11,44 +17,6 @@ import { adminClient, boardgameId, seedPlayers } from "./utils/supabase";
  * out the same 250 points whatever the table, so its records only count between
  * tables of the same size — and say which, « WR3 ».
  */
-
-/**
- * A party already in the books, seeded straight in with the service role. Pass
- * a `sessionId` to file several of them under the same sitting, the way
- * chaining a new party from the score sheet does.
- */
-async function seedParty(
-  admin: ReturnType<typeof adminClient>,
-  bgId: string,
-  scores: Array<{ playerId: string; score: number; isWinner?: boolean }>,
-  sessionId?: string,
-): Promise<string> {
-  const { data: game } = await admin
-    .from("games")
-    .insert({
-      boardgame_id: bgId,
-      status: "ended",
-      round: 1,
-      turn: 1,
-      ended_at: new Date().toISOString(),
-      ...(sessionId === undefined ? {} : { session_id: sessionId }),
-    })
-    .select("id")
-    .single();
-  const gameId = game?.id as string;
-
-  await admin.from("game_players").insert(
-    scores.map((s, seat) => ({
-      game_id: gameId,
-      player_id: s.playerId,
-      seat_order: seat,
-      is_winner: s.isWinner === true,
-      score: s.score,
-    })),
-  );
-
-  return gameId;
-}
 
 test("crowns a personal best and a game record on the reveal", async ({
   page,
@@ -83,12 +51,7 @@ test("crowns a personal best and a game record on the reveal", async ({
           .single()
       ).data?.id ?? null;
 
-    const { data: rows } = await admin
-      .from("players")
-      .select("id, name")
-      .in("name", players);
-    const idOf = (name: string) =>
-      (rows ?? []).find(r => r.name === name)?.id as string;
+    const idOf = await playerIds(players);
 
     // One party in the books: the bar to beat is 90, held by the second player.
     seeded.push(
@@ -216,12 +179,7 @@ test("lifts the mark onto the sitting the record party is folded into", async ({
           .single()
       ).data?.id ?? null;
 
-    const { data: rows } = await admin
-      .from("players")
-      .select("id, name")
-      .in("name", players);
-    const idOf = (name: string) =>
-      (rows ?? []).find(r => r.name === name)?.id as string;
+    const idOf = await playerIds(players);
 
     // Two deals of one evening, so the list folds them into a single row: the
     // first sets the bar at 90, the second takes it at 100.
@@ -234,7 +192,7 @@ test("lifts the mark onto the sitting the record party is folded into", async ({
           { playerId: idOf(players[1]), score: 90, isWinner: true },
           { playerId: idOf(players[2]), score: 20 },
         ],
-        sessionId,
+        { sessionId },
       ),
     );
     seeded.push(
@@ -246,7 +204,7 @@ test("lifts the mark onto the sitting the record party is folded into", async ({
           { playerId: idOf(players[1]), score: 40 },
           { playerId: idOf(players[2]), score: 10 },
         ],
-        sessionId,
+        { sessionId },
       ),
     );
 
@@ -309,12 +267,7 @@ test("reads a Papayoo record against tables of the same size only", async ({
 
   try {
     const bgId = await boardgameId("Papayoo");
-    const { data: rows } = await admin
-      .from("players")
-      .select("id, name")
-      .in("name", players);
-    const idOf = (name: string) =>
-      (rows ?? []).find(r => r.name === name)?.id as string;
+    const idOf = await playerIds(players);
 
     // Three players: the smallest pile so far is 50.
     seeded.push(

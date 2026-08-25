@@ -1,6 +1,6 @@
 import type { GameListItem } from "@/lib/domain";
 import type { ScoreDirection } from "@/lib/game/scoring";
-import { sessionStanding } from "@/lib/game/session-stats";
+import { sessionParties, sessionStanding } from "@/lib/game/session-stats";
 
 import { SessionPlayerCardList } from "./SessionPlayerCardList";
 
@@ -29,13 +29,7 @@ export function SessionStats({
     return null;
   }
 
-  const stats = sessionStanding(
-    games.map(game => ({
-      ended: game.status === "ended",
-      players: game.players,
-    })),
-    direction,
-  );
+  const stats = sessionStanding(sessionParties(games), direction);
 
   return (
     <section className="flex w-full max-w-sm flex-col gap-3">

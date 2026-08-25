@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import type { PlayerId } from "@/lib/domain";
+import type { GameListItem, PlayerId } from "@/lib/domain";
 
-import { type SessionParty, sessionStanding } from "./session-stats";
+import {
+  type SessionParty,
+  sessionParties,
+  sessionStanding,
+} from "./session-stats";
 
 const ANNE = "p-anne" as PlayerId;
 const BOB = "p-bob" as PlayerId;
@@ -30,6 +34,20 @@ function party(
     })),
   };
 }
+
+describe("sessionParties", () => {
+  it("keeps only what a sitting is read from, in the order played", () => {
+    const listed = [
+      { status: "ended", players: [{ id: ANNE, name: "Anne" }] },
+      { status: "ongoing", players: [{ id: BOB, name: "Bob" }] },
+    ] as unknown as GameListItem[];
+
+    expect(sessionParties(listed)).toEqual([
+      { ended: true, players: [{ id: ANNE, name: "Anne" }] },
+      { ended: false, players: [{ id: BOB, name: "Bob" }] },
+    ]);
+  });
+});
 
 describe("sessionStanding", () => {
   it("averages the scores rather than adding them up", () => {

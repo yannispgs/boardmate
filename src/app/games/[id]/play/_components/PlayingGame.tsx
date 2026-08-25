@@ -14,7 +14,7 @@ import {
   needsPhaseButton,
   nextPhase,
 } from "@/lib/game/phase";
-import { winnerDirection } from "@/lib/game/scoring";
+import { scoreDirectionOf } from "@/lib/game/scoring";
 import {
   isLastTurnOfStage,
   playCalendar,
@@ -42,6 +42,7 @@ import { PhaseControls } from "./PhaseControls";
 import { PlayBlock } from "./PlayBlock";
 import { PlayStats } from "./PlayStats";
 import { SeatOrderPanel } from "./SeatOrderPanel";
+import { SessionFacts } from "./SessionFacts";
 import { SessionStats } from "./SessionStats";
 import { StageBoard } from "./StageBoard";
 import { TimeHogBanner } from "./TimeHogBanner";
@@ -153,7 +154,7 @@ export function PlayingGame({
   );
 
   const scoring = game.boardgame.scoring;
-  const direction = scoring ? winnerDirection(scoring.winCondition) : "highest";
+  const direction = scoreDirectionOf(scoring);
   const stageLabel = gameProgress(game, stages).label;
   const calendar = playCalendar(
     stages?.advance,
@@ -400,6 +401,11 @@ export function PlayingGame({
       {/* High up on purpose: on a table dealing party after party, « où on en
           est » is the whole reason to look at the phone between two deals. */}
       <SessionStats games={sitting} direction={direction} />
+
+      {/* What the table would say out loud between two deals, under the figures
+          that back it up. Silent on a short evening, and on a long one with
+          nothing worth telling. */}
+      <SessionFacts game={game} games={sitting} />
 
       <FaqPanel boardgame={game.boardgame} extensions={game.extensions} />
 

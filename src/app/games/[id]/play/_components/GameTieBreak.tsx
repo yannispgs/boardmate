@@ -1,7 +1,7 @@
 "use client";
 
 import type { PopulatedGame } from "@/lib/domain";
-import { winnerDirection } from "@/lib/game/scoring";
+import { scoreDirectionOf } from "@/lib/game/scoring";
 import { namedPlayers } from "./named-players";
 import { TieBreakPrompt } from "./TieBreakPrompt";
 import type { EndFlowState } from "./use-end-flow";
@@ -36,7 +36,7 @@ export function GameTieBreak({
       scores={Object.fromEntries(
         outcome.scores.map(s => [s.playerId, s.score]),
       )}
-      direction={scoring ? winnerDirection(scoring.winCondition) : "highest"}
+      direction={scoreDirectionOf(scoring)}
       // The boardgame's own secondary rules; none means the only way out is a
       // shared victory.
       rules={scoring?.tieBreak ?? []}

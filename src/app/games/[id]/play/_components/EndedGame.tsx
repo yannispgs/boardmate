@@ -15,6 +15,8 @@ import { useRecordsOfGame } from "@/lib/hooks/use-score-records";
 import { EndScorePanel } from "./EndScorePanel";
 import { GameStats } from "./GameStats";
 import { RecordBanner } from "./RecordBanner";
+import { SessionFacts } from "./SessionFacts";
+import { useSessionGames } from "./use-session-games";
 
 /**
  * Who won, under the "Partie terminée !" heading: the whole table on a
@@ -97,6 +99,9 @@ export function EndedGame({
   // worn on the score sheet, so it isn't only found by opening the sheet.
   const records = useRecordsOfGame(game);
   const record = worldRecordOf(records);
+  // The evening this party just closed — a sitting of one for most parties,
+  // which is exactly when the facts below say nothing.
+  const sitting = useSessionGames(game.sessionId, game.id);
 
   // Cooperative games have no individual winner: the whole table wins or loses
   // together (every player `isWinner`, or none).
@@ -149,6 +154,11 @@ export function EndedGame({
             />
 
             <RecordBanner record={record} score={winnerScore} />
+
+            {/* Told here, in the first screenful, rather than down with the
+                statistics: it is the story of the evening that just ended, and
+                on a game like Papayoo there is no panel below to scroll to. */}
+            <SessionFacts game={game} games={sitting} />
           </div>
         </div>
 

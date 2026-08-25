@@ -19,7 +19,7 @@
  * Pure: no vendor types, unit-tested.
  */
 
-import type { PlayerId } from "@/lib/domain";
+import type { GameListItem, PlayerId } from "@/lib/domain";
 
 import { finalStandings, type ScoreDirection } from "./scoring";
 
@@ -33,6 +33,18 @@ export interface SessionParty {
     isWinner: boolean;
     score: number | null;
   }>;
+}
+
+/**
+ * The sitting's parties as every reading of an evening wants them — one shape,
+ * so the standing and the facts can never disagree on what a party is. Order is
+ * carried through untouched: a run of defeats only exists in the order played.
+ */
+export function sessionParties(games: readonly GameListItem[]): SessionParty[] {
+  return games.map(game => ({
+    ended: game.status === "ended",
+    players: game.players,
+  }));
 }
 
 /** One player's evening. */
@@ -49,7 +61,12 @@ export interface SessionPlayerStat {
 }
 
 /** A player of a party whose box was filled in — the only rankable kind. */
-type ScoredPlayer = SessionParty["players"][number] & { score: number };
+export type ScoredPlayer = SessionParty["players"][number] & { score: number };
+
+/** The players whose box was filled in, narrowed so no `?? 0` is ever needed. */
+export function scoredPlayers(party: SessionParty): ScoredPlayer[] {
+  return party.players.filter((p): p is ScoredPlayer => p.score !== null);
+}
 
 interface Tally {
   name: string;
@@ -123,9 +140,7 @@ function partyPlaces(
   party: SessionParty,
   direction: ScoreDirection,
 ): Map<PlayerId, number> | null {
-  const scored = party.players.filter(
-    (p): p is ScoredPlayer => p.score !== null,
-  );
+  const scored = scoredPlayers(party);
 
   if (scored.length !== party.players.length || scored.length === 0) {
     return null;
