@@ -9,7 +9,7 @@ import { StickyActionBar } from "@/components/StickyActionBar";
 import { useConfirm } from "@/components/use-confirm";
 import type { BoardgameId, GameListItem } from "@/lib/domain";
 import { filterGameList } from "@/lib/game/game-filters";
-import { partyRanks } from "@/lib/game/game-sessions";
+import { partyRanks, sessionSections } from "@/lib/game/game-sessions";
 import { finishedParties, recordHolders } from "@/lib/game/score-records";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useGames } from "@/lib/hooks/use-games";
@@ -46,8 +46,13 @@ export function GamesList() {
     nameOf: id => boardgameFor(id)?.name,
   });
 
-  const shownGames = filterGameList(games, filter);
-  const shownEnded = filterGameList(endedGames, filter);
+  // Grouped across both reads before being split, so an evening whose last deal
+  // is still on the table stays whole and stays out of the « Terminées » fold.
+  const { live, finished } = sessionSections([
+    ...filterGameList(games, filter),
+    ...filterGameList(endedGames, filter),
+  ]);
+  const shown = live.length + finished.length;
   // Read against every finished party, not the shown ones: a record is a fact
   // about the game, and narrowing the screen must not hand it to someone else.
   const records = recordHolders(
@@ -86,15 +91,13 @@ export function GamesList() {
 
         <ListBody
           loading={loading}
-          message={emptyMessage(
-            games.length + endedGames.length,
-            shownGames.length + shownEnded.length,
-          )}
+          message={emptyMessage(games.length + endedGames.length, shown)}
         >
-          {shownGames.length > 0 ? (
+          {live.length > 0 ? (
             <GameCardList
-              games={shownGames}
+              entries={live}
               boardgameFor={boardgameFor}
+              records={records}
               partyRanks={ranks}
               onAbandon={handleAbandon}
             />
@@ -102,15 +105,14 @@ export function GamesList() {
 
           {/* Worth saying nothing is running — unless "Terminées" is precisely
               what was asked for. */}
-          {shownGames.length === 0 && filter.status !== "ended" ? (
+          {live.length === 0 && filter.status !== "ended" ? (
             <p className="text-sm text-zinc-500">Aucune partie en cours.</p>
           ) : null}
 
-          {shownEnded.length > 0 ? (
+          {finished.length > 0 ? (
             <GameCardList
-              games={shownEnded}
+              entries={finished}
               boardgameFor={boardgameFor}
-              ended
               collapsible
               title="Terminées"
               records={records}

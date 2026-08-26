@@ -144,7 +144,7 @@ test("deals the next party from the score form, same table, same seats", async (
     expect(byId.get(second)).toBe("ongoing");
 
     // Both deals belong to the same evening, which is what folds them into a
-    // single row of « Parties » once they are both over.
+    // single row of « Parties ».
     const sessions = new Set((statuses ?? []).map(g => g.session_id));
 
     expect(sessions.size).toBe(1);
@@ -193,18 +193,42 @@ test("deals the next party from the score form, same table, same seats", async (
       { name: players[2], score: null },
     ]);
 
-    // On « Parties », each deal wears its rank in the evening. The two of them
-    // land in different sections — one still on the table, one over — and the
-    // numbering has to run across both rather than restart at each.
+    // On « Parties », the evening stays whole while one of its deals is still
+    // on the table: one row, in plain sight, wearing « Reprendre » — not a bare
+    // « Papayoo #2 » with the deals that came before folded away behind
+    // « Terminées ».
     await page.goto("/games");
-    await page.getByText("Terminées ·").click();
 
-    await expect(page.locator(`a[href="/games/${first}/play"]`)).toContainText(
-      "#1",
-    );
-    await expect(page.locator(`a[href="/games/${second}/play"]`)).toContainText(
-      "#2",
-    );
+    await expect(page.getByText("Terminées ·")).toHaveCount(0);
+
+    const eveningRow = page
+      .locator("li")
+      .filter({ hasText: "2 parties" })
+      .first();
+    const row = eveningRow.locator("> details > summary");
+
+    await expect(row).toContainText("Reprendre");
+
+    // Opened, it holds both deals, most recent first, each wearing its own rank
+    // in the evening and its own status.
+    await row.click();
+
+    const deals = eveningRow.locator("a[href*='/play']");
+
+    await expect(deals).toHaveCount(2);
+    await expect(deals.nth(0)).toHaveAttribute("href", `/games/${second}/play`);
+    await expect(deals.nth(0)).toContainText("#2");
+    await expect(deals.nth(0)).toContainText("Reprendre");
+    await expect(deals.nth(1)).toHaveAttribute("href", `/games/${first}/play`);
+    await expect(deals.nth(1)).toContainText("#1");
+    await expect(deals.nth(1)).toContainText("Terminée");
+
+    // Papayoo hands no turn round the table: the launch seats a first player and
+    // never moves him, so a card naming him would name him for the whole
+    // evening. The players are listed, and nothing more is claimed of them.
+    await expect(page.getByText(/Au tour de/)).toHaveCount(0);
+    await expect(deals.nth(0)).toContainText(players[0]);
+    await expect(deals.nth(0)).not.toContainText(`1. ${players[0]}`);
   } finally {
     for (const gameId of games) {
       await admin.from("games").delete().eq("id", gameId);

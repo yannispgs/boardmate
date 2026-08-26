@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import type { GameId, GameSessionId } from "@/lib/domain";
+import type { GameId, GameSessionId, GameStatus } from "@/lib/domain";
 
-import { partyNumber, partyRanks, sessionEntries } from "./game-sessions";
+import {
+  entryGames,
+  partyNumber,
+  partyRanks,
+  sessionEntries,
+  sessionSections,
+} from "./game-sessions";
 
 /** A game, reduced to the only thing a grouping looks at. */
 function game(session: string, name: string) {
@@ -147,5 +153,96 @@ describe("partyRanks", () => {
 
   it("reads an empty list as no numbering at all", () => {
     expect(partyRanks([]).size).toBe(0);
+  });
+});
+
+describe("entryGames", () => {
+  it("reads a lone party as the one party it is", () => {
+    expect(entryGames({ kind: "game", game: game("s1", "Papayoo") })).toEqual([
+      game("s1", "Papayoo"),
+    ]);
+  });
+
+  it("reads a sitting as all of its parties", () => {
+    const games = [game("s1", "donne 1"), game("s1", "donne 2")];
+
+    expect(
+      entryGames({
+        kind: "session",
+        session: { sessionId: "s1" as GameSessionId, games },
+      }),
+    ).toEqual(games);
+  });
+});
+
+describe("sessionSections", () => {
+  /** A party, reduced to what the split looks at. */
+  const deal = (
+    id: string,
+    session: string,
+    startedAt: string,
+    status: GameStatus,
+  ) => ({
+    id: id as GameId,
+    sessionId: session as GameSessionId,
+    startedAt,
+    status,
+  });
+
+  it("keeps a whole evening on the table while one deal is still running", () => {
+    // The retour that asked for this: two deals over, the third on the table,
+    // and « Parties » showed a bare « Papayoo #3 » with the evening folded away
+    // under « Terminées ».
+    const { live, finished } = sessionSections([
+      deal("g1", "s1", "2026-08-26T17:00:00.000Z", "ended"),
+      deal("g2", "s1", "2026-08-26T17:30:00.000Z", "ended"),
+      deal("g3", "s1", "2026-08-26T18:00:00.000Z", "ongoing"),
+    ]);
+
+    expect(finished).toEqual([]);
+    expect(live).toHaveLength(1);
+    expect(live[0].kind).toBe("session");
+    expect(entryGames(live[0]).map(g => g.id)).toEqual(["g3", "g2", "g1"]);
+  });
+
+  it("moves an evening over once its last deal is", () => {
+    const { live, finished } = sessionSections([
+      deal("g1", "s1", "2026-08-26T17:00:00.000Z", "ended"),
+      deal("g2", "s1", "2026-08-26T17:30:00.000Z", "ended"),
+    ]);
+
+    expect(live).toEqual([]);
+    expect(finished).toHaveLength(1);
+    expect(entryGames(finished[0]).map(g => g.id)).toEqual(["g2", "g1"]);
+  });
+
+  it("files a party played on its own on the side its status says", () => {
+    const { live, finished } = sessionSections([
+      deal("alone", "s1", "2026-08-26T17:00:00.000Z", "ongoing"),
+      deal("over", "s2", "2026-08-26T16:00:00.000Z", "ended"),
+    ]);
+
+    expect(live.flatMap(entryGames).map(g => g.id)).toEqual(["alone"]);
+    expect(finished.flatMap(entryGames).map(g => g.id)).toEqual(["over"]);
+  });
+
+  it("orders both sides newest first, whichever read they came from", () => {
+    // The two sections arrive from two separate queries, so the order has to be
+    // taken back from the instants rather than from the order they arrived in.
+    const { live } = sessionSections([
+      deal("old", "s1", "2026-08-26T17:00:00.000Z", "ongoing"),
+      deal("new", "s2", "2026-08-26T21:00:00.000Z", "ongoing"),
+      deal("mid", "s3", "2026-08-26T19:00:00.000Z", "ongoing"),
+    ]);
+
+    expect(live.flatMap(entryGames).map(g => g.id)).toEqual([
+      "new",
+      "mid",
+      "old",
+    ]);
+  });
+
+  it("reads an empty list as two empty sections", () => {
+    expect(sessionSections([])).toEqual({ live: [], finished: [] });
   });
 });

@@ -14,7 +14,7 @@
  * Pure: no vendor types, unit-tested.
  */
 
-import type { GameId, GameSessionId } from "@/lib/domain";
+import type { GameId, GameSessionId, GameStatus } from "@/lib/domain";
 
 /** The little a grouping needs to know about a game. */
 export interface SessionableGame {
@@ -143,4 +143,60 @@ export function sessionEntries<TGame extends SessionableGame>(
 
     return { kind: "session", session };
   });
+}
+
+/** The parties an entry stands for — one, or the whole sitting. */
+export function entryGames<TGame>(entry: SessionEntry<TGame>): TGame[] {
+  if (entry.kind === "game") {
+    return [entry.game];
+  }
+
+  return entry.session.games;
+}
+
+/** What splitting the list into its two sections needs of a game. */
+export interface SectionableGame extends RankableGame {
+  status: GameStatus;
+}
+
+/** The two sections « Parties » reads in. */
+export interface SessionSections<TGame> {
+  /** Still on the table — including the finished deals of a running evening. */
+  live: Array<SessionEntry<TGame>>;
+  /** Over, and behind the « Terminées » fold. */
+  finished: Array<SessionEntry<TGame>>;
+}
+
+/**
+ * The list as « Parties » shows it: newest first, sittings folded, and split
+ * between what is still on the table and what is over.
+ *
+ * **An evening moves to « Terminées » only once every party of it is over.**
+ * Splitting the parties by status *first* and grouping each side on its own is
+ * what buried a running Papayoo: the evening was cut in two, the deal on the
+ * table was left alone on its side — a sitting of one is not a sitting — and it
+ * reached the screen as a bare « Papayoo #3 » while the evening it belonged to
+ * sat folded away under « Terminées ». Grouping first and splitting after keeps
+ * the evening whole and puts it where its most recent deal is.
+ *
+ * The order is decided here rather than taken from the caller, because the two
+ * halves arrive from two separate reads: an evening straddling them would
+ * otherwise be laid out by which read it came from rather than by when it was
+ * played.
+ */
+export function sessionSections<TGame extends SectionableGame>(
+  games: readonly TGame[],
+): SessionSections<TGame> {
+  const newestFirst = [...games].sort((a, b) =>
+    b.startedAt.localeCompare(a.startedAt),
+  );
+  const sections: SessionSections<TGame> = { live: [], finished: [] };
+
+  for (const entry of sessionEntries(newestFirst)) {
+    const over = entryGames(entry).every(game => game.status === "ended");
+
+    sections[over ? "finished" : "live"].push(entry);
+  }
+
+  return sections;
 }

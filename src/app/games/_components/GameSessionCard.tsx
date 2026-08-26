@@ -6,6 +6,7 @@ import { ChevronRightIcon } from "@/components/icons";
 import type { GameListItem } from "@/lib/domain";
 import { recordLabel, type ScoreRecord } from "@/lib/game/score-records";
 import { RecordChip } from "./RecordChip";
+import { StatusBadge } from "./StatusBadge";
 
 /**
  * A sitting, folded into one row of the list: the parties dealt one after
@@ -22,12 +23,16 @@ import { RecordChip } from "./RecordChip";
  * party, borrowed by the row only so a folded evening doesn't hide it. Leaving
  * it inside would mean the mark is only found by opening something, which is
  * precisely what putting it on the cards was meant to stop.
+ *
+ * An evening is over only once its last deal is, so the row reads its own
+ * parties rather than being told: one deal still running keeps the whole
+ * sitting on the table, wearing « Reprendre » so the evening doesn't have to be
+ * opened to find out there is a game waiting inside it.
  */
 export function GameSessionCard({
   games,
   boardgameName,
   logoUrl,
-  ended = false,
   records = [],
   children,
 }: Readonly<{
@@ -35,7 +40,6 @@ export function GameSessionCard({
   games: GameListItem[];
   boardgameName: string;
   logoUrl: string | null;
-  ended?: boolean;
   /**
    * The records worn by the parties of the sitting — usually none, one at most
    * in practice, since chaining deals the same table again and a record is read
@@ -51,6 +55,7 @@ export function GameSessionCard({
     (earliest, game) => (game.startedAt < earliest ? game.startedAt : earliest),
     games[0].startedAt,
   );
+  const ended = games.every(game => game.status === "ended");
 
   return (
     <li>
@@ -76,7 +81,7 @@ export function GameSessionCard({
               🎲
             </span>
           )}
-          <div className="flex min-w-0 flex-col">
+          <div className="flex min-w-0 flex-1 flex-col">
             <span className="flex min-w-0 items-center gap-1.5">
               <span className="truncate font-medium">{boardgameName}</span>
               {records.map(record => (
@@ -88,6 +93,7 @@ export function GameSessionCard({
               {new Date(opened).toLocaleDateString("fr-FR")}
             </span>
           </div>
+          <StatusBadge ended={ended} />
         </summary>
         <ul className="mt-2 flex flex-col gap-2 border-l border-black/10 pl-3 dark:border-white/10">
           {children}

@@ -20,11 +20,31 @@
 
 import type { StageSpec, TurnMode } from "@/lib/domain";
 
-/** Whether this game attributes the time it records to a single player. */
-export function tracksPlayerTime(
+/**
+ * Whether this game hands the turn from one player to the next.
+ *
+ * The same two kinds of game that never write a turn's owner down never move
+ * one either: an untimed game records no turn at all, and a simultaneous round
+ * belongs to the whole table. Their games do carry a `currentPlayerId` — the
+ * launch seats the first player, as every game does — but it stays on him from
+ * the first card to the last, so reading it as « whose turn is it » names
+ * somebody at random.
+ */
+export function tracksPlayerTurns(
   game: Readonly<{ turnMode: TurnMode; timed: boolean }>,
 ): boolean {
   return game.timed && game.turnMode !== "simultaneous";
+}
+
+/**
+ * Whether this game attributes the time it records to a single player — which
+ * is exactly the games that hand a turn from one player to the next, since the
+ * owner of the time is the owner of the turn.
+ */
+export function tracksPlayerTime(
+  game: Readonly<{ turnMode: TurnMode; timed: boolean }>,
+): boolean {
+  return tracksPlayerTurns(game);
 }
 
 /**
