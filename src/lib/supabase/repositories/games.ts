@@ -41,9 +41,16 @@ import { optionTargetModifier, stopTargetFrom } from "@/lib/game/scoring";
 import { scheduledPosition } from "@/lib/game/stage";
 import { advanceTurn as nextTurnState } from "@/lib/game/turn";
 import { turnScheduleFrom } from "@/lib/game/turn-schedule";
-import { AlreadyClaimedError } from "@/lib/repositories/errors";
+import {
+  AlreadyClaimedError,
+  AlreadyEndedError,
+} from "@/lib/repositories/errors";
 import type { GameRepository, Unsubscribe } from "@/lib/repositories/types";
-import type { Database, Json } from "@/lib/supabase/database.types";
+import type {
+  Database,
+  Json,
+  TablesUpdate,
+} from "@/lib/supabase/database.types";
 import { toBoardgame } from "@/lib/supabase/repositories/boardgames";
 import { toConfig } from "@/lib/supabase/repositories/configs";
 import { toExtension } from "@/lib/supabase/repositories/extensions";
@@ -745,6 +752,27 @@ export function createGameRepository(
   const games = () => supabase.from("games");
 
   /**
+   * Closes a game, and says how many rows that touched.
+   *
+   * Counting the points is a table-wide moment and the screen is open on every
+   * phone at once: two of them recording the same party would each write their
+   * own totals over the other's, and the last one to land would win — silently,
+   * with nobody told the sheet had changed under them. The status is what
+   * settles it: a party is `ongoing` once, so the second write matches **no
+   * row**. No lock is taken and nothing is reserved — the first count through
+   * simply becomes the one that stands, and the others are refused.
+   *
+   * Returns `count === 0` for a party already over, which the callers turn into
+   * an {@link AlreadyEndedError}.
+   */
+  function endOnce(fields: TablesUpdate<"games">, id: GameId) {
+    return games()
+      .update(fields, { count: "exact" })
+      .eq("id", id)
+      .eq("status", "ongoing");
+  }
+
+  /**
    * The calendar of a game played in stages. Shared by the launch funnel and by
    * a game entered after the fact: both write the same rows, one from the tiles
    * laid on the table, the other from the tiles the table remembers.
@@ -1401,15 +1429,20 @@ export function createGameRepository(
     },
 
     async end(id: GameId, winnerIds: PlayerId[], scores, tieBreak) {
-      const { error } = await games()
-        .update({
+      const { count, error } = await endOnce(
+        {
           status: "ended",
           ended_at: new Date().toISOString(),
           tie_break: (tieBreak ?? null) as Json,
-        })
-        .eq("id", id);
+        },
+        id,
+      );
       if (error) {
         throw new Error(`Fin de la partie: ${error.message}`);
+      }
+
+      if (count === 0) {
+        throw new AlreadyEndedError();
       }
 
       // Persist each player's final score, plus the per-category breakdown for
@@ -1487,11 +1520,16 @@ export function createGameRepository(
     },
 
     async endCoop(id: GameId, won: boolean) {
-      const { error } = await games()
-        .update({ status: "ended", ended_at: new Date().toISOString() })
-        .eq("id", id);
+      const { count, error } = await endOnce(
+        { status: "ended", ended_at: new Date().toISOString() },
+        id,
+      );
       if (error) {
         throw new Error(`Fin de la partie: ${error.message}`);
+      }
+
+      if (count === 0) {
+        throw new AlreadyEndedError();
       }
 
       // Shared outcome: everyone wins together, or no one does.

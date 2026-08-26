@@ -36,6 +36,17 @@ export class AlreadyClaimedError extends Error {
   }
 }
 
+/**
+ * The game was recorded as finished while this screen was still counting —
+ * a party ends once, and the first count is the one that stands.
+ */
+export class AlreadyEndedError extends Error {
+  constructor(message = "Cette partie vient d'être terminée.") {
+    super(message);
+    this.name = "AlreadyEndedError";
+  }
+}
+
 /** A boardgame can't be deleted because it already has games. */
 export class BoardgameInUseError extends Error {
   constructor(message = "Ce jeu a déjà des parties enregistrées.") {
