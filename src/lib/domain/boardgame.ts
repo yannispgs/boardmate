@@ -205,10 +205,21 @@ export interface ScoringSpec {
    */
   playerCountSensitive?: boolean;
   /**
-   * Whether a best score means anything on this game. Defaults to `true`. Set
-   * `false` where the number owes more to the setup than to the play: Catan's
-   * total depends on the scenario played, so its « record » would only ever
-   * mark the most generous map.
+   * Whether a single score is worth **crowning** on this game — the `PB` / `WR`
+   * marks, and nothing else. Defaults to `true`. Set `false` where one figure
+   * owes more to the draw than to the play, for either of two reasons:
+   *
+   * - the setup decides it — Catan's total depends on the scenario, so its
+   *   « record » would only ever mark the most generous map;
+   * - luck decides it — a Papayoo hand can be finished at nought by a table
+   *   playing at random and holding the right cards, and Odin is the same. Over
+   *   one party that is a lucky deal, not a performance.
+   *
+   * It does **not** silence what a game's history says in aggregate: the
+   * average total, the share of parties finished at nought, and the quartile
+   * the evening's facts read (see `comparableScores`) all stay. Those are the
+   * figures that survive a long run, which is exactly what the luck-driven
+   * games have instead of a record.
    */
   trackRecords?: boolean;
 }

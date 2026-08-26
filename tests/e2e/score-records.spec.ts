@@ -12,10 +12,12 @@ import {
  * The marks a party leaves in the books (full-suite only — untagged): « PB »
  * when a player beats his own best on the game, « WR » when he beats everyone's.
  *
- * Both are read off the parties already recorded, so both tests start by
- * putting some there. The second one is the interesting half: Papayoo shares
- * out the same 250 points whatever the table, so its records only count between
- * tables of the same size — and say which, « WR3 ».
+ * All of them are read off the parties already recorded, so each one starts by
+ * putting some there. Two are about how far a mark reaches: a game whose scale
+ * moves with the table only compares against tables of one size, and says which
+ * (« WR3 »). The last is about a game that crowns nothing at all — Papayoo,
+ * where finishing at nought is a deal that went your way rather than a
+ * performance, so the party is left unmarked however clean the sweep.
  */
 
 test("crowns a personal best and a game record on the reveal", async ({
@@ -257,21 +259,49 @@ test("lifts the mark onto the sitting the record party is folded into", async ({
   }
 });
 
-test("reads a Papayoo record against tables of the same size only", async ({
+test("reads a record against tables of the same size only", async ({
   page,
 }) => {
   const admin = adminClient();
   const players = await seedPlayers(4);
+  const gameName = `E2E Taille ${Date.now().toString(36)}`;
   const seeded: string[] = [];
+  let bgId: string | null = null;
   let gameId: string | null = null;
 
   try {
-    const bgId = await boardgameId("Papayoo");
+    // Papayoo's shape on a throwaway game rather than Papayoo itself: the same
+    // 250 points shared out whatever the table, so scores only compare between
+    // tables of one size. Reading it off a seeded row is what tied this test to
+    // a production flag — the day Papayoo stopped crowning records at all, a
+    // test about table sizes failed for a reason that had nothing to do with
+    // them.
+    bgId =
+      (
+        await admin
+          .from("boardgames")
+          .insert({
+            name: gameName,
+            min_players: 3,
+            max_players: 4,
+            round_limit: null,
+            is_timed: false,
+            scoring: {
+              timing: "final",
+              entry: "total",
+              winCondition: { type: "lowest" },
+              playerCountSensitive: true,
+            },
+          })
+          .select("id")
+          .single()
+      ).data?.id ?? null;
+
     const idOf = await playerIds(players);
 
     // Three players: the smallest pile so far is 50.
     seeded.push(
-      await seedParty(admin, bgId, [
+      await seedParty(admin, bgId as string, [
         { playerId: idOf(players[0]), score: 100 },
         { playerId: idOf(players[1]), score: 100 },
         { playerId: idOf(players[2]), score: 50 },
@@ -281,7 +311,7 @@ test("reads a Papayoo record against tables of the same size only", async ({
     // Pooled in, that 5 would own the record for good and nothing below could
     // ever be marked again — which is exactly what must not happen.
     seeded.push(
-      await seedParty(admin, bgId, [
+      await seedParty(admin, bgId as string, [
         { playerId: idOf(players[0]), score: 5 },
         { playerId: idOf(players[1]), score: 80 },
         { playerId: idOf(players[2]), score: 80 },
@@ -290,7 +320,7 @@ test("reads a Papayoo record against tables of the same size only", async ({
     );
 
     await page.goto("/games/new");
-    await page.getByRole("button", { name: "Papayoo", exact: true }).click();
+    await page.getByRole("button", { name: gameName, exact: true }).click();
     await page
       .getByRole("button", { name: "Sans configuration", exact: true })
       .click();
@@ -339,6 +369,98 @@ test("reads a Papayoo record against tables of the same size only", async ({
         .locator(`a[href="/games/${gameId}/play"]`)
         .getByText("⭐ WR3", { exact: true }),
     ).toBeVisible();
+  } finally {
+    for (const id of [...seeded, gameId]) {
+      if (id) {
+        await admin.from("games").delete().eq("id", id);
+      }
+    }
+    if (bgId) {
+      await admin.from("boardgames").delete().eq("id", bgId);
+    }
+    await admin.from("players").delete().in("name", players);
+  }
+});
+
+test("crowns nothing at Papayoo, where a nought is a lucky deal", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const players = await seedPlayers(3);
+  const seeded: string[] = [];
+  let gameId: string | null = null;
+
+  try {
+    const bgId = await boardgameId("Papayoo");
+    const idOf = await playerIds(players);
+
+    // Two parties in the books, at the very table size the party below is
+    // played at. On any other game the 50 would be a bar to beat and the 100 a
+    // player's own best — the situation that crowns.
+    seeded.push(
+      await seedParty(admin, bgId, [
+        { playerId: idOf(players[0]), score: 100 },
+        { playerId: idOf(players[1]), score: 100 },
+        { playerId: idOf(players[2]), score: 50 },
+      ]),
+    );
+    seeded.push(
+      await seedParty(admin, bgId, [
+        { playerId: idOf(players[0]), score: 90 },
+        { playerId: idOf(players[1]), score: 80 },
+        { playerId: idOf(players[2]), score: 80 },
+      ]),
+    );
+
+    await page.goto("/games/new");
+    await page.getByRole("button", { name: "Papayoo", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Sans configuration", exact: true })
+      .click();
+    for (const name of players) {
+      await page.getByRole("button", { name, exact: true }).click();
+    }
+    await page.getByRole("button", { name: "Continuer →" }).click();
+    await page.getByRole("button", { name: "Lancer la partie" }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Lancer", exact: true })
+      .click();
+
+    await expect(page).toHaveURL(/\/games\/[0-9a-f-]+\/play$/);
+    gameId = page.url().match(/games\/([0-9a-f-]+)\/play/)?.[1] ?? null;
+
+    // A clean sweep: nought beats the 50 the table had never gone under, and
+    // beats its own player's 90 on the way. It is also the one score at this
+    // game that owes as much to the deal as to the play, which is why it is
+    // worth nothing here.
+    await page.getByRole("button", { name: "Entrer les scores" }).click();
+    await page.getByLabel(`Score de ${players[0]}`).fill("0");
+    await page.getByLabel(`Score de ${players[1]}`).fill("110");
+    await page.getByLabel(`Score de ${players[2]}`).fill("140");
+    await page.getByRole("button", { name: "Terminer la session" }).click();
+
+    await expect(page.getByText("Partie terminée")).toBeVisible();
+    await page.getByRole("button", { name: "Voir le score final" }).click();
+
+    // Neither mark, in any of its shapes — the suffixed ones this game would
+    // have worn, and the bare ones it never wore.
+    await expect(page.getByText("PB3", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("WR3", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("PB", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("WR", { exact: true })).toHaveCount(0);
+
+    // Nor on the card of the party in the list, where the star used to ride.
+    await page.goto("/games");
+    const finished = page.locator("details", {
+      has: page.getByText("Terminées"),
+    });
+
+    await finished.locator("summary").click();
+    await expect(
+      finished.locator(`a[href="/games/${gameId}/play"]`),
+    ).toBeVisible();
+    await expect(finished.getByText("⭐", { exact: false })).toHaveCount(0);
   } finally {
     for (const id of [...seeded, gameId]) {
       if (id) {

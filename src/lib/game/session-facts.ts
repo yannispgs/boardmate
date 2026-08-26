@@ -389,11 +389,17 @@ function stepFor(value: number): number {
 
 /**
  * The scores of this boardgame's past parties, kept only where they are worth
- * comparing — the same honesty the record chip applies:
- * - a game that says its scores aren't comparable (`trackRecords === false`)
- *   gives none;
- * - a game whose scale moves with the table only compares against tables of the
- *   same size.
+ * comparing: a game whose scale moves with the table (`playerCountSensitive`)
+ * compares against tables of the same size and no other, since the same total
+ * is an ordinary evening at three players and a disaster at eight.
+ *
+ * Deliberately **not** filtered on `trackRecords`. That flag refuses to *crown*
+ * a score, and a game refuses it where a single figure owes more to the deal or
+ * to the map than to the play — Papayoo, Odin, Catan. What is read here is the
+ * opposite kind of number: a quartile taken over every party ever played, which
+ * says what this game usually costs. The luck that makes one Papayoo hand a
+ * poor record is exactly what a hundred of them average out, so the games with
+ * no record to hold are the ones this mark serves best.
  */
 export function comparableScores({
   history,
@@ -409,7 +415,7 @@ export function comparableScores({
   scoring: ScoringSpec | null;
   seats: number;
 }>): number[] {
-  if (scoring === null || scoring.trackRecords === false) {
+  if (scoring === null) {
     return [];
   }
 
