@@ -1,4 +1,5 @@
 import { InfoTip } from "@/components/InfoTip";
+import { StatGroup, StatView } from "@/components/stats/StatGroup";
 import type { PopulatedGame } from "@/lib/domain";
 import type { PacePlayer } from "@/lib/game/score-pace";
 import { nearMisses, scorePace } from "@/lib/game/score-pace";
@@ -43,30 +44,50 @@ export function ScorePaceStats({
   const winnerIds = game.players.filter(p => p.isWinner).map(p => p.playerId);
 
   return (
-    <div className="flex flex-col gap-3">
-      <h3 className="flex items-center gap-1.5 text-sm font-medium text-zinc-500 dark:text-zinc-400">
-        Points par tour joué
-        <InfoTip label="Points par tour joué">
-          <p>
-            La partie s&apos;est arrêtée en plein tour de table&nbsp;: tout le
-            monde n&apos;a pas joué le même nombre de tours.
-          </p>
+    <StatGroup
+      title={
+        <>
+          Tour de table incomplet
+          <InfoTip label="Tour de table incomplet">
+            <p>
+              La partie s&apos;est arrêtée en plein tour de table&nbsp;: tout le
+              monde n&apos;a pas joué le même nombre de tours.
+            </p>
+            <p>
+              <strong>Indicatif uniquement</strong>&nbsp;: le vainqueur et le
+              classement restent ceux du score final. Et les points d&apos;un
+              jeu ne tombent pas régulièrement (les combinaisons de fin comptent
+              gros), donc c&apos;est une tendance, pas une preuve.
+            </p>
+          </InfoTip>
+        </>
+      }
+    >
+      <StatView
+        title="Points par tour joué"
+        info={
           <p>
             Le score ramené au nombre de tours dit qui a été le plus efficace,
             indépendamment de qui a été servi le dernier.
           </p>
-          <p>
-            <strong>Indicatif uniquement</strong>&nbsp;: le vainqueur et le
-            classement restent ceux du score final. Et les points d&apos;un jeu
-            ne tombent pas régulièrement (les combinaisons de fin comptent
-            gros), donc c&apos;est une tendance, pas une preuve.
-          </p>
-        </InfoTip>
-      </h3>
+        }
+      >
+        <ScorePaceCardList paces={paces} winnerIds={winnerIds} />
+      </StatView>
 
-      <ScorePaceCardList paces={paces} winnerIds={winnerIds} />
-
-      {misses.length > 0 ? <NearMissCardList misses={misses} /> : null}
-    </div>
+      {misses.length > 0 ? (
+        <StatView
+          title="Ce qu'un tour de plus aurait changé"
+          info={
+            <p>
+              Ceux qui ont joué un tour de moins et qui, à leur propre rythme,
+              seraient passés devant avec ce tour-là.
+            </p>
+          }
+        >
+          <NearMissCardList misses={misses} />
+        </StatView>
+      ) : null}
+    </StatGroup>
   );
 }

@@ -34,6 +34,14 @@ export interface GameBreakdown {
   avgScore: number | null;
   /** Time index on this game, 100 = their fair share (null without time data). */
   timeIndex: number | null;
+  /**
+   * The win rate these tables hand out by chance alone: the mean of 1 / table
+   * size over the games played, 0–100. **50 % is never the neutral point** —
+   * at a table of four it is 25 %, and calling 33 % a poor record there says
+   * the opposite of the truth. Always above 0: a breakdown only exists because
+   * the player sat down.
+   */
+  expectedRate: number;
 }
 
 export interface PlayerAggregate {
@@ -66,9 +74,12 @@ export interface PlayerAggregate {
   byGame: GameBreakdown[];
   /** The boardgame they've played most (null if they've played none). */
   mostPlayedGame: GameBreakdown | null;
-  /** Best win rate (null unless they've played ≥ 2 distinct boardgames). */
+  /**
+   * The game they beat the table's own odds on by a clear margin — null when
+   * no game stands out, which is the common case and not a gap to fill.
+   */
   bestGame: GameBreakdown | null;
-  /** Worst win rate (null unless they've played ≥ 2 distinct boardgames). */
+  /** The game they fall as clearly short on. Null on the same terms. */
   worstGame: GameBreakdown | null;
 }
 
@@ -96,6 +107,8 @@ interface GameAcc {
   scored: number;
   indexSum: number;
   indexGames: number;
+  /** Sum of 1 / table size, one term per game — averaged into `expectedRate`. */
+  shareSum: number;
 }
 
 interface PlayerAcc {
@@ -160,10 +173,12 @@ function accumulateBoardgame(
     scored: 0,
     indexSum: 0,
     indexGames: 0,
+    shareSum: 0,
   };
 
   bg.games += 1;
   bg.wins += p.isWinner ? 1 : 0;
+  bg.shareSum += 1 / game.players.length;
 
   if (p.score !== null) {
     bg.scoreSum += p.score;
@@ -225,6 +240,7 @@ function toAggregate(id: PlayerId, a: PlayerAcc): PlayerAggregate {
       winRate: (g.wins / g.games) * 100,
       avgScore: g.scored > 0 ? g.scoreSum / g.scored : null,
       timeIndex: g.indexGames > 0 ? g.indexSum / g.indexGames : null,
+      expectedRate: (g.shareSum / g.games) * 100,
     }))
     .sort((x, y) => y.games - x.games || y.winRate - x.winRate);
 
@@ -262,7 +278,34 @@ function roundsOf(game: GameStatsRecord): number {
  */
 export const MIN_GAMES_FOR_EXTREME = 3;
 
-/** Most-played, best and worst boardgame from a player's per-game records. */
+/**
+ * How far from the table's own odds a record has to sit before it is worth
+ * saying out loud: a third above, or a third below.
+ *
+ * Without a margin, every player got a « meilleur » **and** a « moins bon »
+ * whatever the figures said — the two ends of a list always exist, even when
+ * they hold the same number. A player at 67 % on both his games was told he
+ * was poor at one of them, at the very rate he was praised for on the other.
+ */
+export const EXTREME_MARGIN = 1 / 3;
+
+/** How a record compares to the odds of the tables it was made at. 1 = level. */
+function againstOdds(game: GameBreakdown): number {
+  return game.winRate / game.expectedRate;
+}
+
+/**
+ * Most-played, best and worst boardgame from a player's per-game records.
+ *
+ * Best and worst are **independent** and both usually absent: each is a claim
+ * about one game, not a ranking of the others, so a player can well have a
+ * game he clearly outplays the table on and none he is outplayed at.
+ *
+ * The claim is made against the **table's own odds**, never against 50 %: at
+ * four players the even split is 25 %, so a flat band around a half would call
+ * an ordinary record poor and a strong one ordinary, depending only on how many
+ * people were sitting there.
+ */
 function extremes(byGame: GameBreakdown[]): {
   mostPlayedGame: GameBreakdown | null;
   bestGame: GameBreakdown | null;
@@ -276,19 +319,29 @@ function extremes(byGame: GameBreakdown[]): {
   // `byGame` arrives sorted most-played first, so the head is the most played.
   const mostPlayedGame = byGame[0];
 
-  // Best/worst need ≥ 2 games with a big enough sample to mean anything.
+  // A game played once or twice is noise: 0 % and 100 % are both one evening.
   const eligible = byGame.filter(g => g.games >= MIN_GAMES_FOR_EXTREME);
-  if (eligible.length < 2) {
+
+  if (eligible.length === 0) {
     return { mostPlayedGame, bestGame: null, worstGame: null };
   }
 
-  const byRate = [...eligible].sort((a, b) => a.winRate - b.winRate);
+  // Seeded with the head rather than left to fold bare: an empty `reduce()`
+  // without a seed throws, and the guard above is what rules that out.
+  const head = eligible[0];
+  const best = eligible.reduce(
+    (a, b) => (againstOdds(b) > againstOdds(a) ? b : a),
+    head,
+  );
+  const worst = eligible.reduce(
+    (a, b) => (againstOdds(b) < againstOdds(a) ? b : a),
+    head,
+  );
 
   return {
     mostPlayedGame,
-    /* c8 ignore next -- `?? null` fallback: `eligible` holds 2+ games here */
-    bestGame: byRate.at(-1) ?? null,
-    worstGame: byRate[0],
+    bestGame: againstOdds(best) >= 1 + EXTREME_MARGIN ? best : null,
+    worstGame: againstOdds(worst) <= 1 - EXTREME_MARGIN ? worst : null,
   };
 }
 

@@ -1,28 +1,20 @@
 import { StatTile } from "@/components/StatTile";
 import type { Boardgame, GameStatsRecord, PlayerId } from "@/lib/domain";
-import type { GameBreakdown, PlayerAggregate } from "@/lib/game/global-stats";
+import type { PlayerAggregate } from "@/lib/game/global-stats";
 import { turnPhaseStats } from "@/lib/game/phase-stats";
 import { winnerDirection } from "@/lib/game/scoring";
 import { tracksPlayerTime } from "@/lib/game/turn-time";
-import {
-  type WorstScoreGroup,
-  worstScoresByPlayerCount,
-} from "@/lib/game/worst-scores";
+import { tracksWorstScores, worstScoreSlices } from "@/lib/game/worst-scores";
 import { computeZeroFinishes } from "@/lib/game/zero-finishes";
 import { CategoryCharts } from "./CategoryCharts";
+import { PlayerExtremeBadge } from "./PlayerExtremeBadge";
+import { PlayerGameRowList } from "./PlayerGameRowList";
 import { TimeIndexInfo } from "./TimeIndexInfo";
 import { TurnPhaseCardList } from "./TurnPhaseCardList";
-import { WorstScoreCardList } from "./WorstScoreCardList";
-
-/** One player's record on one game whose points are a shared pile. */
-interface SharedPileBreakdown {
-  id: string;
-  name: string;
-  /** Their heaviest totals, filed under the size of the table. */
-  worst: WorstScoreGroup[];
-  /** How often they walked away with nothing; null when they never played it. */
-  zeroes: string | null;
-}
+import {
+  type WorstScoreGameView,
+  WorstScoreSection,
+} from "./WorstScoreSection";
 
 /** How often this player finished a party at nothing, spelled out. */
 function zeroesLine(stat: Readonly<{ zeroes: number; games: number }>): string {
@@ -34,79 +26,72 @@ function zeroesLine(stat: Readonly<{ zeroes: number; games: number }>): string {
 }
 
 /**
- * What a game paying one shared pile (Papayoo) has to say about one player: the
- * totals they would rather forget — read against the number of players, since
- * the table shares the same points — and how often they got away clean.
+ * How often this player got away with nothing over the given parties, or null
+ * where the figure says nothing.
+ *
+ * Only on a game paying one fixed pile (Papayoo): there, walking away at zero
+ * means the whole table took the points instead, which is worth bragging about.
+ * On any other game a zero is simply « I scored nothing » — a line that would
+ * read « 0 partie à 0 » forever.
  */
-function sharedPileBreakdown(
+function zeroesFor(
   boardgame: Boardgame,
-  records: GameStatsRecord[],
+  records: readonly GameStatsRecord[],
   playerId: PlayerId,
-): SharedPileBreakdown {
+): string | null {
+  if (boardgame.scoring?.totalSum == null) {
+    return null;
+  }
+
+  const stat = computeZeroFinishes(records).find(z => z.playerId === playerId);
+
+  return stat === undefined ? null : zeroesLine(stat);
+}
+
+/**
+ * What a game won by scoring little (Papayoo, Odin) has to say about one
+ * player: the totals they would rather forget, cut by the size of the table
+ * wherever the seat count moves the total, and how often they got away clean.
+ *
+ * Returns null when this player has no scored party on that game — a game they
+ * never played has no place in the menu.
+ */
+function worstScoreView(
+  boardgame: Boardgame,
+  records: readonly GameStatsRecord[],
+  playerId: PlayerId,
+): WorstScoreGameView | null {
   const played = records.filter(
     r =>
       r.boardgameId === boardgame.id &&
       r.players.some(p => p.playerId === playerId),
   );
-  const stat = computeZeroFinishes(played).find(z => z.playerId === playerId);
-
-  return {
-    id: boardgame.id,
-    name: boardgame.name,
-    worst: worstScoresByPlayerCount(
-      played,
-      /* c8 ignore next 3 -- a game with a totalSum is a scored game by nature */
-      boardgame.scoring
-        ? winnerDirection(boardgame.scoring.winCondition)
-        : "highest",
-      { playerId },
+  /* c8 ignore next 3 -- a game listed here is scored, by tracksWorstScores */
+  const direction = boardgame.scoring
+    ? winnerDirection(boardgame.scoring.winCondition)
+    : "lowest";
+  const slices = worstScoreSlices(played, direction, {
+    playerId,
+    byPlayerCount: boardgame.scoring?.playerCountSensitive === true,
+  }).map(slice => ({
+    ...slice,
+    note: zeroesFor(
+      boardgame,
+      slice.playerCount === null
+        ? played
+        : played.filter(r => r.players.length === slice.playerCount),
+      playerId,
     ),
-    zeroes: stat === undefined ? null : zeroesLine(stat),
-  };
+  }));
+
+  return slices.length === 0
+    ? null
+    : { id: boardgame.id, name: boardgame.name, slices };
 }
 
 /** The time index as a rounded number, or "—" when there's no time data. */
 function fmtIndex(index: number | null): string {
   return index === null ? "—" : String(Math.round(index));
-}
-
-/** One boardgame line in the player's per-game breakdown. */
-function GameRow({
-  game,
-  timed,
-}: Readonly<{
-  game: GameBreakdown;
-  /** Whether this game attributes the time it records to a single player. */
-  timed: boolean;
-}>) {
-  return (
-    <li className="flex flex-col gap-2 rounded-xl border border-black/10 bg-white p-3 dark:border-white/10 dark:bg-zinc-900">
-      <div className="flex items-center gap-3">
-        <span className="flex-1 font-medium">{game.boardgameName}</span>
-        <span className="text-sm font-semibold tabular-nums text-indigo-600 dark:text-indigo-400">
-          {Math.round(game.winRate)}%
-        </span>
-      </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
-        <div
-          className="h-full rounded-full bg-indigo-500"
-          style={{ width: `${game.winRate}%` }}
-        />
-      </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500 tabular-nums dark:text-zinc-400">
-        <span>
-          {game.games} partie{game.games > 1 ? "s" : ""}
-        </span>
-        <span>
-          {game.wins} victoire{game.wins > 1 ? "s" : ""}
-        </span>
-        <span>
-          Score moy. {game.avgScore === null ? "—" : game.avgScore.toFixed(1)}
-        </span>
-        {timed ? <span>Part du temps {fmtIndex(game.timeIndex)}</span> : null}
-      </div>
-    </li>
-  );
 }
 
 /**
@@ -146,12 +131,13 @@ export function PlayerDetail({
     boardgames.filter(tracksPlayerTime).map(b => b.id),
   );
 
-  // Games paying one shared pile (Papayoo), played by this player: their own
-  // hall of shame, the same one the « Jeux » tab shows for the whole table.
-  const sharedPileGames = boardgames
-    .filter(b => b.scoring?.totalSum != null)
-    .map(b => sharedPileBreakdown(b, records, player.playerId))
-    .filter(b => b.worst.length > 0);
+  // Games won by scoring little (Papayoo, Odin) this player has scored on:
+  // their own hall of shame, the same one the « Jeux » tab shows for the whole
+  // table. One section for all of them — the game is picked in its menu.
+  const worstScoreGames = boardgames
+    .filter(tracksWorstScores)
+    .map(b => worstScoreView(b, records, player.playerId))
+    .filter((view): view is WorstScoreGameView => view !== null);
 
   // Games played in phases (Terraforming Mars): the only one of their phases a
   // player owns a time in is the one where turns are taken — the rest belongs
@@ -186,28 +172,16 @@ export function PlayerDetail({
         />
       </div>
 
-      {player.bestGame && player.worstGame ? (
+      {/* Either claim stands on its own: a player can beat the odds on one game
+          without being outplayed on any. Most players get neither. */}
+      {player.bestGame !== null || player.worstGame !== null ? (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-3 text-sm">
-            <span aria-hidden>💪</span>
-            <span>
-              Meilleur sur{" "}
-              <span className="font-semibold">
-                {player.bestGame.boardgameName}
-              </span>{" "}
-              ({Math.round(player.bestGame.winRate)}%)
-            </span>
-          </div>
-          <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/[0.05] p-3 text-sm">
-            <span aria-hidden>😬</span>
-            <span>
-              Moins bon sur{" "}
-              <span className="font-semibold">
-                {player.worstGame.boardgameName}
-              </span>{" "}
-              ({Math.round(player.worstGame.winRate)}%)
-            </span>
-          </div>
+          {player.bestGame === null ? null : (
+            <PlayerExtremeBadge game={player.bestGame} kind="best" />
+          )}
+          {player.worstGame === null ? null : (
+            <PlayerExtremeBadge game={player.worstGame} kind="worst" />
+          )}
         </div>
       ) : null}
 
@@ -215,15 +189,7 @@ export function PlayerDetail({
         <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
           Par jeu — du plus joué au moins joué
         </h3>
-        <ul className="flex flex-col gap-2">
-          {player.byGame.map(game => (
-            <GameRow
-              key={game.boardgameId}
-              game={game}
-              timed={timedGames.has(game.boardgameId)}
-            />
-          ))}
-        </ul>
+        <PlayerGameRowList games={player.byGame} timedGames={timedGames} />
       </div>
 
       {turnPhases.length > 0 ? (
@@ -235,19 +201,13 @@ export function PlayerDetail({
         </div>
       ) : null}
 
-      {sharedPileGames.map(game => (
-        <div key={game.id} className="flex flex-col gap-3">
-          <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-            Pires scores — {game.name}
-          </h3>
-          {game.zeroes === null ? null : (
-            <p className="text-xs text-zinc-500 tabular-nums dark:text-zinc-400">
-              {game.zeroes}
-            </p>
-          )}
-          <WorstScoreCardList groups={game.worst} />
-        </div>
-      ))}
+      {worstScoreGames.length > 0 ? (
+        <WorstScoreSection
+          key={player.playerId}
+          games={worstScoreGames}
+          nameGame
+        />
+      ) : null}
 
       {categoryCharts.map(c => (
         <div key={c.id} className="flex flex-col gap-3">
