@@ -326,11 +326,16 @@ function extremes(byGame: GameBreakdown[]): {
     return { mostPlayedGame, bestGame: null, worstGame: null };
   }
 
-  const best = eligible.reduce((a, b) =>
-    againstOdds(b) > againstOdds(a) ? b : a,
+  // Seeded with the head rather than left to fold bare: an empty `reduce()`
+  // without a seed throws, and the guard above is what rules that out.
+  const head = eligible[0];
+  const best = eligible.reduce(
+    (a, b) => (againstOdds(b) > againstOdds(a) ? b : a),
+    head,
   );
-  const worst = eligible.reduce((a, b) =>
-    againstOdds(b) < againstOdds(a) ? b : a,
+  const worst = eligible.reduce(
+    (a, b) => (againstOdds(b) < againstOdds(a) ? b : a),
+    head,
   );
 
   return {

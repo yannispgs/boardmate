@@ -29,10 +29,10 @@ export function PlayerExtremeBadge({
       <span aria-hidden>{best ? "💪" : "😬"}</span>
       <span>
         {best ? "Meilleur sur " : "Moins bon sur "}
-        <span className="font-semibold">{game.boardgameName}</span> (
-        <span className="tabular-nums">{Math.round(game.winRate)}%</span> pour{" "}
-        <span className="tabular-nums">{Math.round(game.expectedRate)}%</span>{" "}
-        attendus)
+        <span className="font-semibold">{game.boardgameName}</span>
+        <span className="tabular-nums">
+          {` (${Math.round(game.winRate)}% pour ${Math.round(game.expectedRate)}% attendus)`}
+        </span>
       </span>
     </div>
   );
