@@ -8,7 +8,10 @@ import type {
   GameId,
   PlayerId,
 } from "@/lib/domain";
-import { AlreadyClaimedError } from "@/lib/repositories/errors";
+import {
+  AlreadyClaimedError,
+  AlreadyEndedError,
+} from "@/lib/repositories/errors";
 import { createGameRepository } from "@/lib/supabase/repositories/games";
 import {
   authedClient,
@@ -1309,6 +1312,98 @@ describe("games adapter — listing & ending", () => {
     const populated = await repo().getPopulated(game.id);
     expect(populated?.status).toBe("ended");
     expect(populated?.players.some(p => p.isWinner)).toBe(false);
+  });
+
+  it("refuses a second count of a party, and keeps the first one", async () => {
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    await repo().end(
+      game.id,
+      [playerIds[0]],
+      [
+        { playerId: playerIds[0], score: 12 },
+        { playerId: playerIds[1], score: 8 },
+        { playerId: playerIds[2], score: 6 },
+      ],
+    );
+
+    // Another phone at the same table, one count behind: it still has the game
+    // on screen as running, and hands in totals of its own.
+    await expect(
+      repo().end(
+        game.id,
+        [playerIds[1]],
+        [
+          { playerId: playerIds[0], score: 3 },
+          { playerId: playerIds[1], score: 20 },
+          { playerId: playerIds[2], score: 1 },
+        ],
+      ),
+    ).rejects.toThrow(AlreadyEndedError);
+
+    const populated = await repo().getPopulated(game.id);
+
+    // Nothing of the refused count landed — neither the winner it named nor
+    // the scores it carried. The sheet is the one the table actually agreed on.
+    expect(
+      populated?.players.filter(p => p.isWinner).map(p => p.playerId),
+    ).toEqual([playerIds[0]]);
+    expect(
+      populated?.players.find(p => p.playerId === playerIds[1])?.score,
+    ).toBe(8);
+  });
+
+  it("records a party once when two phones hand in their count together", async () => {
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    // Two clients started together, on the very same party: which one lands
+    // first is the database's to settle, never the screen's.
+    const both = await Promise.allSettled([
+      repo().end(game.id, [playerIds[0]]),
+      repo().end(game.id, [playerIds[1]]),
+    ]);
+
+    expect(both.filter(r => r.status === "fulfilled")).toHaveLength(1);
+
+    const refused = both.find(r => r.status === "rejected");
+
+    expect(refused?.reason).toBeInstanceOf(AlreadyEndedError);
+
+    const populated = await repo().getPopulated(game.id);
+
+    // One winner and one only: the losing run stopped on the status and never
+    // reached the players, so it wrote nothing over the winning one.
+    expect(populated?.players.filter(p => p.isWinner)).toHaveLength(1);
+  });
+
+  it("endCoop refuses a party somebody has already recorded", async () => {
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    await repo().endCoop(game.id, true);
+
+    await expect(repo().endCoop(game.id, false)).rejects.toThrow(
+      AlreadyEndedError,
+    );
+
+    const populated = await repo().getPopulated(game.id);
+
+    // A shared victory the second call would have turned into a shared defeat.
+    expect(populated?.players.every(p => p.isWinner)).toBe(true);
   });
 });
 

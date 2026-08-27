@@ -289,6 +289,13 @@ export interface GameRepository {
    * `breakdown` (category key → points) that sums to it. `winnerIds` holds
    * several players on a shared victory (ex æquo the game's tie-break rules
    * couldn't separate); `tieBreak` records what was applied, for the recap.
+   *
+   * A party ends **once**: the whole table has the screen open while the points
+   * are counted, and a second phone recording its own totals would overwrite
+   * the first count with nobody the wiser. The first one through stands, the
+   * others are refused.
+   *
+   * @throws AlreadyEndedError when the game is already over.
    */
   end(
     id: GameId,
@@ -304,6 +311,8 @@ export interface GameRepository {
    * Ends a cooperative game on a *shared* outcome: `won` marks every player a
    * winner, otherwise none — the group wins or loses together (no individual
    * winner). Scored coop games will refine this later.
+   *
+   * @throws AlreadyEndedError when the game is already over — see {@link end}.
    */
   endCoop(id: GameId, won: boolean): Promise<void>;
   /**

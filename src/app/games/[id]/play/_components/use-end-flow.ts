@@ -10,9 +10,17 @@ import {
   totalOutcome,
 } from "@/lib/game/end-outcome";
 import { getGameRepository } from "@/lib/repositories";
+import { AlreadyEndedError } from "@/lib/repositories/errors";
 import type { PlayGame } from "./use-play-game";
 
 const END_FAILED = "Impossible de terminer la partie.";
+
+/**
+ * How an end-of-game write went. « Already ended » is deliberately not a
+ * failure: nothing was written because there was nothing left to write, and
+ * the table has no reason to try again.
+ */
+type EndWrite = "done" | "failed" | "already-ended";
 
 /** Where the end-of-game sequence stands: still playing, revealing, or reading
  * the score sheet the reveal led to. */
@@ -96,8 +104,51 @@ export function useEndFlow(
   const recorded = useRef(false);
 
   /**
-   * Records the finished party, once and once only. A failure re-opens the
-   * latch: nothing was written, and the table has to be able to try again.
+   * Runs one end-of-game write and says which of the three things happened.
+   *
+   * The whole table has this screen open while the points are counted, and
+   * only the first count through is recorded — so a write can come back
+   * refused without anything being wrong. That is not a failure to retry: the
+   * party is over, somebody else added it up, and all this screen can do is
+   * drop what it was in the middle of and show what the table already decided.
+   */
+  async function recordEnd(mutate: () => Promise<void>): Promise<EndWrite> {
+    let taken = false;
+
+    const done = await play.run(END_FAILED, async () => {
+      try {
+        await mutate();
+      } catch (cause) {
+        if (!(cause instanceof AlreadyEndedError)) {
+          throw cause;
+        }
+
+        taken = true;
+
+        // Whatever the sequence had opened no longer applies to a party that
+        // is already recorded, so it all closes and the reloaded game takes
+        // over. The reason goes on **after** the reload, which clears the
+        // message on its way in.
+        setEntryOpen(false);
+        setTieOpen(false);
+        setPhase("play");
+        await play.reload();
+        play.setError(cause.message);
+      }
+    });
+
+    if (taken) {
+      return "already-ended";
+    }
+
+    return done ? "done" : "failed";
+  }
+
+  /**
+   * Records the finished party, once and once only. Only a real failure
+   * re-opens the latch: nothing was written, and the table has to be able to
+   * try again. A party recorded elsewhere leaves it shut — pressing again
+   * would just refuse again.
    */
   async function recordOnce(mutate: () => Promise<void>): Promise<void> {
     if (recorded.current) {
@@ -106,19 +157,21 @@ export function useEndFlow(
 
     recorded.current = true;
 
-    if (!(await play.run(END_FAILED, mutate))) {
+    if ((await recordEnd(mutate)) === "failed") {
       recorded.current = false;
     }
   }
 
-  /** Records the finished game; false when it failed and the screen must stay. */
+  /** Records the finished game; false when the screen must not move on. */
   async function persist(
     ended: EndOutcome,
     tieBreak: TieBreakRecord | null,
   ): Promise<boolean> {
-    return play.run(END_FAILED, () =>
+    const written = await recordEnd(() =>
       repo.end(game.id, ended.winners, ended.scores, tieBreak),
     );
+
+    return written === "done";
   }
 
   /**

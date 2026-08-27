@@ -26,7 +26,15 @@ export function PlayScreen({ gameId }: Readonly<{ gameId: GameId }>) {
   }
 
   if (play.game.status === "ended") {
-    return <EndedGame game={play.game} onReload={play.reload} />;
+    return (
+      <>
+        {/* A party recorded from another phone while this one was still
+            counting lands here mid-sentence: the recap is the right screen to
+            show, but on its own it looks as though the button did nothing. */}
+        <ErrorText message={play.error} />
+        <EndedGame game={play.game} onReload={play.reload} />
+      </>
+    );
   }
 
   return <PlayingGame game={play.game} play={play} />;
