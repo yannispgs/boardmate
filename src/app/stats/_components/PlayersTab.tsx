@@ -53,18 +53,27 @@ export function PlayersTab({
   );
 
   function dropGames(ids: BoardgameId[]) {
-    // Unticking the last one would leave nothing to count, so it reads as no
-    // filter at all instead: every game comes back, ticked.
-    const dropped = ids.length === games.length ? [] : ids;
-    const left = coPlayerOptions(keptRecords(records, games, dropped), []);
+    const left = coPlayerOptions(keptRecords(records, games, ids), []);
 
-    setDroppedIds(dropped);
+    setDroppedIds(ids);
+
+    // Unticking every game is a deliberate state — the way to « seulement
+    // celui-ci » without unticking nine others — and the presence filter is
+    // simply out of sight while it lasts, so there is nothing to prune yet.
+    if (left.length === 0) {
+      return;
+    }
+
     // Somebody nobody played those games with would otherwise sit on in the
     // presence filter as a bare id, with nothing left to count.
     setPresentIds(current =>
       current.filter(id => left.some(option => option.id === id)),
     );
   }
+
+  // Told apart from « rien n'a jamais été joué », which shows the same empty
+  // figures without anybody having asked for it.
+  const nothingKept = games.length > 0 && droppedIds.length === games.length;
 
   const detail = detailId
     ? (stats.players.find(p => p.playerId === detailId) ?? null)
@@ -101,29 +110,48 @@ export function PlayersTab({
           onChange={dropGames}
           excluding
         />
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          Tous les jeux comptent ; décoche ceux à laisser de côté.
-        </p>
+        {/* Silenced once nothing is ticked: « tous les jeux comptent » would
+            then be the opposite of what the box says right above it. */}
+        {nothingKept ? null : (
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            Tous les jeux comptent ; décoche ceux à laisser de côté.
+          </p>
+        )}
       </div>
 
-      <div className="flex flex-col gap-1">
-        <MultiSelectField
-          label="Avec les joueurs"
-          options={options}
-          selected={presentIds}
-          onChange={setPresentIds}
-        />
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          Ne garde que les parties où ces joueurs étaient présents.
+      {/* Nothing ticked is a stop on the way to « seulement celui-ci », not a
+          dead end: say so plainly rather than show an empty ranking, which
+          would read as « ces joueurs n'ont jamais rien gagné ». */}
+      {nothingKept ? (
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          Aucun jeu sélectionné. Coche ceux à prendre en compte, ou remets-les
+          tous d&apos;un coup avec le «&nbsp;+&nbsp;».
         </p>
-      </div>
+      ) : (
+        <>
+          <div className="flex flex-col gap-1">
+            <MultiSelectField
+              label="Avec les joueurs"
+              options={options}
+              selected={presentIds}
+              onChange={setPresentIds}
+            />
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Ne garde que les parties où ces joueurs étaient présents.
+            </p>
+          </div>
 
-      <div className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-          Classement des joueurs
-        </h2>
-        <PlayerRankingTable players={stats.players} onSelect={setDetailId} />
-      </div>
+          <div className="flex flex-col gap-3">
+            <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+              Classement des joueurs
+            </h2>
+            <PlayerRankingTable
+              players={stats.players}
+              onSelect={setDetailId}
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -134,9 +162,17 @@ function keptRecords(
   games: { id: BoardgameId }[],
   droppedIds: BoardgameId[],
 ): GameStatsRecord[] {
-  return filterRecords(records, {
-    boardgameIds: games
-      .filter(game => !droppedIds.includes(game.id))
-      .map(game => game.id),
-  });
+  const keptIds = games
+    .filter(game => !droppedIds.includes(game.id))
+    .map(game => game.id);
+
+  // 🔑 An empty list of ids means « no criterion » to `filterRecords`, i.e.
+  // every game — the exact opposite of what unticking the last one asks for.
+  // Nothing kept has to be spelled out here, or the screen would announce
+  // « Aucun » above a full ranking.
+  if (keptIds.length === 0) {
+    return [];
+  }
+
+  return filterRecords(records, { boardgameIds: keptIds });
 }
