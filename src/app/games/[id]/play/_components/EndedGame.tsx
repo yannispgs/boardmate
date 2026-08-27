@@ -11,11 +11,13 @@ import { worldRecordOf } from "@/lib/game/score-records";
 import { formatNames } from "@/lib/game/tie-break";
 import { hasPlayStats } from "@/lib/game/turn-time";
 import { useRecordsOfGame } from "@/lib/hooks/use-score-records";
+import { useSpeedRecord } from "@/lib/hooks/use-speed-record";
 
 import { EndScorePanel } from "./EndScorePanel";
 import { GameStats } from "./GameStats";
-import { RecordBanner } from "./RecordBanner";
+import { ScoreRecordBanner } from "./ScoreRecordBanner";
 import { SessionFacts } from "./SessionFacts";
+import { SpeedRecordBanner } from "./SpeedRecordBanner";
 import { useSessionGames } from "./use-session-games";
 
 /**
@@ -99,6 +101,9 @@ export function EndedGame({
   // worn on the score sheet, so it isn't only found by opening the sheet.
   const records = useRecordsOfGame(game);
   const record = worldRecordOf(records);
+  // The other mark a party can leave: having reached the target in fewer laps
+  // than anyone else on the same course. Only a race towards a score has one.
+  const speed = useSpeedRecord(game);
   // The evening this party just closed — a sitting of one for most parties,
   // which is exactly when the facts below say nothing.
   const sitting = useSessionGames(game.sessionId, game.id);
@@ -153,7 +158,8 @@ export function EndedGame({
               shared={shared}
             />
 
-            <RecordBanner record={record} score={winnerScore} />
+            <ScoreRecordBanner record={record} score={winnerScore} />
+            <SpeedRecordBanner record={speed} />
 
             {/* Told here, in the first screenful, rather than down with the
                 statistics: it is the story of the evening that just ended, and

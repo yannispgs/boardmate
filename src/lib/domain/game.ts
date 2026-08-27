@@ -289,9 +289,10 @@ export interface PopulatedGame extends Game {
 
 /**
  * A finished game reduced to what cross-game aggregation needs (the global
- * stats page): its boardgame, participants (winner + final score) and the turn
- * log. Lighter than `PopulatedGame` — no config/threshold/score timeline — so
- * many games can be pulled and averaged in one query.
+ * stats page): its boardgame, participants (winner + final score), the turn
+ * log, and what the party was raced to. Lighter than `PopulatedGame` — no
+ * config or score timeline — so many games can be pulled and averaged in one
+ * query.
  */
 export interface GameStatsRecord {
   gameId: GameId;
@@ -301,6 +302,32 @@ export interface GameStatsRecord {
   dice: DiceSpec | null;
   /** ISO 8601, when the game ended (null defensively — ended games have it). */
   endedAt: string | null;
+  /**
+   * Laps of the table played, as the game left it — the figure a race to a
+   * target is read on. A party keyed in after the fact never left the first
+   * lap, which is why `turns` is what says whether this number was lived or
+   * merely defaulted (see {@link SpeedRun}).
+   *
+   * Always set by the adapter; optional so lightweight test fixtures can omit
+   * it (treated as a single lap, the column's own default).
+   */
+  rounds?: number;
+  /**
+   * The score this party was played to, scenario and options resolved — the
+   * finish line it raced towards. Null for a game that aims at no score, and
+   * for a party that recorded no configuration at all.
+   *
+   * Always set by the adapter; optional so lightweight fixtures can omit it.
+   */
+  winThreshold?: number | null;
+  /**
+   * Extensions this party was played with, in application order. Empty for the
+   * base game — which is a basket of its own, not a missing value: a score or a
+   * time made with an extension does not compare to one made without it.
+   *
+   * Always set by the adapter; optional so lightweight fixtures can omit it.
+   */
+  extensions?: PlayedExtension[];
   players: Array<{
     playerId: PlayerId;
     name: string;

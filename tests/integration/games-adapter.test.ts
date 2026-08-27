@@ -1740,6 +1740,48 @@ describe("games adapter — extensions", () => {
     ]);
   });
 
+  it("resolves the same finish line in the books as on the table", async () => {
+    const admin = serviceClient();
+    const { data: ext } = await admin
+      .from("extensions")
+      .select("id")
+      .eq("name", "Catan - Marins")
+      .single();
+    const extId = ext?.id as ExtensionId;
+    const { data: sc } = await admin
+      .from("extension_scenarios")
+      .select("id")
+      .eq("name", "Les quatre îles")
+      .single();
+    const scId = sc?.id as ExtensionScenarioId;
+
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId: null,
+      playerIds,
+      extensionIds: [extId],
+      scenarioByExtension: { [extId]: scId },
+    });
+    gameIds.push(game.id);
+
+    await repo().advanceTurn(game.id, 30, 0, 0, 0);
+    await repo().end(
+      game.id,
+      [playerIds[0]],
+      [{ playerId: playerIds[0], score: 13 }],
+    );
+
+    const record = (await repo().listStats()).find(r => r.gameId === game.id);
+
+    // A race only compares to another when the line sat in the same place, so
+    // the stats row has to say 13 exactly like the play screen did.
+    expect(record?.winThreshold).toBe(13);
+    expect(record?.rounds).toBe(1);
+    expect(record?.extensions).toEqual([
+      { name: "Catan - Marins", scenarioName: "Les quatre îles" },
+    ]);
+  });
+
   it("rejects an unknown extension id (FK violation)", async () => {
     const admin = serviceClient();
     const before = new Set(
