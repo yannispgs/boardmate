@@ -201,12 +201,37 @@ describe("computeGlobalStats", () => {
     };
   }
 
+  /** The same, at a table of three — so the odds are a third, not a half. */
+  function mk3(
+    id: string,
+    boardgameId: BoardgameId,
+    name: string,
+    winner: PlayerId,
+  ): GameStatsRecord {
+    const base = mk(id, boardgameId, name, winner);
+
+    return {
+      ...base,
+      players: [
+        ...base.players,
+        {
+          playerId: CHLOE,
+          name: "Chloé",
+          seatOrder: 2,
+          isWinner: winner === CHLOE,
+          score: 3,
+        },
+      ],
+    };
+  }
+
   it("breaks each player down by game with best/worst above the sample floor", () => {
-    // Alice: Catan 3 games (2 wins → 67%), Wingspan 3 games (0 wins → 0%).
+    // Alice: Catan 4 games (3 wins → 75%), Wingspan 3 games (0 wins → 0%).
     const records = [
       mk("c1", CATAN, "Catan", ALICE),
       mk("c2", CATAN, "Catan", ALICE),
-      mk("c3", CATAN, "Catan", BOB),
+      mk("c3", CATAN, "Catan", ALICE),
+      mk("c4", CATAN, "Catan", BOB),
       mk("w1", WINGSPAN, "Wingspan", BOB),
       mk("w2", WINGSPAN, "Wingspan", BOB),
       mk("w3", WINGSPAN, "Wingspan", BOB),
@@ -216,11 +241,67 @@ describe("computeGlobalStats", () => {
     );
 
     expect(alice?.byGame).toHaveLength(2);
-    expect(alice?.mostPlayedGame?.games).toBe(3);
+    expect(alice?.mostPlayedGame?.games).toBe(4);
     expect(alice?.bestGame?.boardgameName).toBe("Catan");
-    expect(Math.round(alice?.bestGame?.winRate ?? 0)).toBe(67);
+    expect(alice?.bestGame?.winRate).toBe(75);
     expect(alice?.worstGame?.boardgameName).toBe("Wingspan");
     expect(alice?.worstGame?.winRate).toBe(0);
+  });
+
+  it("reads a record against the odds of the table it was made at", () => {
+    // One win in three, twice over — an even share at a table of three, and
+    // half of one at a table of two. Same figure, opposite verdicts.
+    const records = [
+      mk3("c1", CATAN, "Catan", ALICE),
+      mk3("c2", CATAN, "Catan", BOB),
+      mk3("c3", CATAN, "Catan", CHLOE),
+      mk("w1", WINGSPAN, "Wingspan", BOB),
+      mk("w2", WINGSPAN, "Wingspan", BOB),
+      mk("w3", WINGSPAN, "Wingspan", BOB),
+    ];
+    const alice = computeGlobalStats(records).players.find(
+      p => p.name === "Alice",
+    );
+    const catan = alice?.byGame.find(g => g.boardgameName === "Catan");
+
+    expect(Math.round(catan?.winRate ?? 0)).toBe(33);
+    expect(Math.round(catan?.expectedRate ?? 0)).toBe(33);
+
+    // Catan sits on its odds, so it is neither end — Wingspan is the shortfall.
+    expect(alice?.bestGame).toBeNull();
+    expect(alice?.worstGame?.boardgameName).toBe("Wingspan");
+  });
+
+  it("keeps quiet rather than name a « moins bon » as good as the best", () => {
+    // Both games well over the odds: one is the better, neither is a weakness.
+    const records = [
+      mk("c1", CATAN, "Catan", ALICE),
+      mk("c2", CATAN, "Catan", ALICE),
+      mk("c3", CATAN, "Catan", ALICE),
+      mk3("w1", WINGSPAN, "Wingspan", ALICE),
+      mk3("w2", WINGSPAN, "Wingspan", ALICE),
+      mk3("w3", WINGSPAN, "Wingspan", ALICE),
+    ];
+    const alice = computeGlobalStats(records).players.find(
+      p => p.name === "Alice",
+    );
+
+    expect(alice?.bestGame?.boardgameName).toBe("Wingspan");
+    expect(alice?.worstGame).toBeNull();
+  });
+
+  it("judges a lone game on its own, with nothing to compare it to", () => {
+    const records = [
+      mk("c1", CATAN, "Catan", BOB),
+      mk("c2", CATAN, "Catan", BOB),
+      mk("c3", CATAN, "Catan", BOB),
+    ];
+    const alice = computeGlobalStats(records).players.find(
+      p => p.name === "Alice",
+    );
+
+    expect(alice?.bestGame).toBeNull();
+    expect(alice?.worstGame?.boardgameName).toBe("Catan");
   });
 
   it("normalises the time index per game (100 = fair share) then averages", () => {
@@ -317,7 +398,7 @@ describe("computeGlobalStats", () => {
     expect(alice?.mostPlayedGame?.games).toBe(2);
   });
 
-  it("leaves best/worst null when no two games clear the sample floor", () => {
+  it("leaves best/worst null when no game clears the sample floor", () => {
     // Alice has 1 game on each of two boardgames — neither reaches the floor.
     const records = [
       mk("c1", CATAN, "Catan", ALICE),

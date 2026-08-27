@@ -7,6 +7,7 @@ import { tracksPlayerTime } from "@/lib/game/turn-time";
 import { tracksWorstScores, worstScoreSlices } from "@/lib/game/worst-scores";
 import { computeZeroFinishes } from "@/lib/game/zero-finishes";
 import { CategoryCharts } from "./CategoryCharts";
+import { PlayerExtremeBadge } from "./PlayerExtremeBadge";
 import { PlayerGameRowList } from "./PlayerGameRowList";
 import { TimeIndexInfo } from "./TimeIndexInfo";
 import { TurnPhaseCardList } from "./TurnPhaseCardList";
@@ -171,28 +172,16 @@ export function PlayerDetail({
         />
       </div>
 
-      {player.bestGame && player.worstGame ? (
+      {/* Either claim stands on its own: a player can beat the odds on one game
+          without being outplayed on any. Most players get neither. */}
+      {player.bestGame !== null || player.worstGame !== null ? (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-3 text-sm">
-            <span aria-hidden>💪</span>
-            <span>
-              Meilleur sur{" "}
-              <span className="font-semibold">
-                {player.bestGame.boardgameName}
-              </span>{" "}
-              ({Math.round(player.bestGame.winRate)}%)
-            </span>
-          </div>
-          <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/[0.05] p-3 text-sm">
-            <span aria-hidden>😬</span>
-            <span>
-              Moins bon sur{" "}
-              <span className="font-semibold">
-                {player.worstGame.boardgameName}
-              </span>{" "}
-              ({Math.round(player.worstGame.winRate)}%)
-            </span>
-          </div>
+          {player.bestGame === null ? null : (
+            <PlayerExtremeBadge game={player.bestGame} kind="best" />
+          )}
+          {player.worstGame === null ? null : (
+            <PlayerExtremeBadge game={player.worstGame} kind="worst" />
+          )}
         </div>
       ) : null}
 
