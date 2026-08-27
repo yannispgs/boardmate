@@ -24,10 +24,30 @@ test("scores a Papayoo party to 250 with no clock and no turns", async ({
     await page
       .getByRole("button", { name: "Sans configuration", exact: true })
       .click();
+    // Nothing hands the turn round here, so the launch has no order to build:
+    // the step title drops « dans l'ordre de jeu »…
+    await expect(
+      page.getByRole("heading", {
+        name: "3 · Choisis les joueurs",
+        exact: true,
+      }),
+    ).toBeVisible();
     for (const name of players) {
       await page.getByRole("button", { name, exact: true }).click();
     }
+
+    // …a picked player wears a checkmark instead of a seat number…
+    await expect(page.getByText("✓").first()).toBeVisible();
+
     await page.getByRole("button", { name: "Continuer →" }).click();
+
+    // …and the recap names no first player, since the launch would seat one and
+    // never move off him.
+    await expect(page.getByText("Premier joueur")).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: /Tirer au sort/ }),
+    ).toHaveCount(0);
+
     await page.getByRole("button", { name: "Lancer la partie" }).click();
     await page
       .getByRole("dialog")
@@ -46,6 +66,10 @@ test("scores a Papayoo party to 250 with no clock and no turns", async ({
       page.getByRole("button", { name: "Tour suivant →" }),
     ).toHaveCount(0);
     await expect(page.getByText("Tour 1", { exact: true })).toHaveCount(0);
+
+    // No turn is ever recorded here, so the seating would have stayed
+    // correctable all evening — for an order nothing on any screen reads.
+    await expect(page.getByText("Corriger l'ordre des joueurs")).toHaveCount(0);
 
     await page.getByRole("button", { name: "Entrer les scores" }).click();
     await page.getByLabel(`Score de ${players[0]}`).fill("100");

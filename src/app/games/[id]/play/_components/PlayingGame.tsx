@@ -420,7 +420,7 @@ export function PlayingGame({
 
       <SeatOrderPanel
         gameId={game.id}
-        turnMode={game.boardgame.turnMode}
+        boardgame={game.boardgame}
         turnsPlayed={game.turns.length}
         seats={namedPlayers(game)}
         onSaved={play.reload}

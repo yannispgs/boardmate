@@ -25,6 +25,7 @@ import { composeConfigFields, composeGoals } from "@/lib/game/extensions";
 import { DEFAULT_STAGE_LABEL } from "@/lib/game/finished-setup";
 import { type FunnelBoard, funnelBoard } from "@/lib/game/funnel-board";
 import { type StagePick, stageCalendar } from "@/lib/game/stage";
+import { tracksPlayerTurns } from "@/lib/game/turn-time";
 import { type WinTargetView, winTargetView } from "@/lib/game/win-target";
 import { useConfigs } from "@/lib/hooks/use-configs";
 import { useExtensions } from "@/lib/hooks/use-extensions";
@@ -261,9 +262,10 @@ export function RecapStep({
             boardgameName={boardgame.name}
             config={config}
             players={players}
-            // Simultaneous games have no turn order → no numbered list, no
-            // first player.
-            simultaneous={boardgame.turnMode === "simultaneous"}
+            // A game that never hands the turn round has no order to show and
+            // no first player to draw — the launch seats one and never moves
+            // off him.
+            ordered={tracksPlayerTurns(boardgame)}
             onDrawFirstPlayer={() => setWheelOpen(true)}
           />
 

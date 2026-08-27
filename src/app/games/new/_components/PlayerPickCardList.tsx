@@ -11,13 +11,14 @@ import { PlayerPickCard } from "./PlayerPickCard";
 export function PlayerPickCardList({
   players,
   selected,
-  simultaneous,
+  ordered,
   onToggle,
 }: Readonly<{
   players: Player[];
   /** The picked players' ids, in play order. */
   selected: PlayerId[];
-  simultaneous: boolean;
+  /** Whether the game hands the turn from one player to the next. */
+  ordered: boolean;
   onToggle: (id: PlayerId) => void;
 }>) {
   return (
@@ -30,7 +31,7 @@ export function PlayerPickCardList({
             <PlayerPickCard
               player={p}
               order={seat === -1 ? null : seat + 1}
-              simultaneous={simultaneous}
+              ordered={ordered}
               onToggle={() => onToggle(p.id)}
             />
           </li>
