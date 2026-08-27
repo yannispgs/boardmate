@@ -181,7 +181,7 @@ test("settles a tie over the score form when the table typed the totals", async 
     await expect(page).toHaveURL(/\/games\/[0-9a-f-]+\/play$/);
     gameId = page.url().match(/games\/([0-9a-f-]+)\/play/)?.[1] ?? null;
 
-    await page.getByRole("button", { name: "Terminer la partie" }).click();
+    await page.getByRole("button", { name: "Entrer les scores" }).click();
     await page.getByLabel(`Score de ${players[0]}`).fill("10");
     await page.getByLabel(`Score de ${players[1]}`).fill("10");
     await page.getByLabel(`Score de ${players[2]}`).fill("4");

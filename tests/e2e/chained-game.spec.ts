@@ -39,13 +39,60 @@ test("deals the next party from the score form, same table, same seats", async (
     games.push(first);
 
     // First deal, counted and handed in — but the table is staying put.
-    await page.getByRole("button", { name: "Terminer la partie" }).click();
+    await page.getByRole("button", { name: "Entrer les scores" }).click();
     await page.getByLabel(`Score de ${players[0]}`).fill("100");
     await page.getByLabel(`Score de ${players[1]}`).fill("150");
     await page.getByLabel(`Score de ${players[2]}`).fill("0");
-    await page
-      .getByRole("button", { name: "Enchaîner une nouvelle partie" })
-      .click();
+
+    // Dealing again is what an evening does nearly every time and packing up is
+    // the exception, so « Enchaîner » leads and « Terminer la session » follows.
+    await expect(
+      page.locator("button", {
+        hasText: /^(Enchaîner une nouvelle partie|Terminer la session)$/,
+      }),
+    ).toHaveText(["Enchaîner une nouvelle partie", "Terminer la session"]);
+
+    // Dealing again navigates, and `router.push` fetches the next party before
+    // the screen changes. Held open here on purpose: that wait is the window the
+    // table presses again in, thinking nothing happened — and a second press
+    // used to end the same deal twice and deal a *second* next one, a phantom
+    // deal numbered in the evening and never played.
+    await page.route("**/games/**", async route => {
+      if (route.request().headers().rsc !== undefined) {
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+
+      await route.continue();
+    });
+
+    const { data: opened } = await admin
+      .from("games")
+      .select("session_id")
+      .eq("id", first)
+      .single();
+    const evening = opened?.session_id as string;
+    const dealt = async () => {
+      const { count } = await admin
+        .from("games")
+        .select("id", { count: "exact", head: true })
+        .eq("session_id", evening);
+
+      return count;
+    };
+    const chain = page.getByRole("button", {
+      name: "Enchaîner une nouvelle partie",
+    });
+
+    await chain.click();
+
+    // Waited on the next deal existing, not on a delay: from there the first
+    // press is entirely over — recorded, dealt — and all that is left is the
+    // navigation the route above is holding. That is the impatient second
+    // press, not a double tap.
+    await expect.poll(dealt).toBe(2);
+
+    await chain.click();
+    await page.unroute("**/games/**");
 
     // The screen moves to another party, not back to the list.
     await expect(page).not.toHaveURL(new RegExp(`/games/${first}/play$`));
@@ -57,17 +104,68 @@ test("deals the next party from the score form, same table, same seats", async (
     // Nothing to fill in and nothing carried over: the new deal starts blank,
     // ready for its own scores.
     await expect(
-      page.getByRole("button", { name: "Terminer la partie" }),
+      page.getByRole("button", { name: "Entrer les scores" }),
     ).toBeVisible();
+
+    // The evening now says where it is, which the first deal could not.
+    await expect(page.getByText("2ᵉ partie de la soirée")).toBeVisible();
+
+    // And how it is going — recomputed from the deals sharing this session,
+    // nothing about the evening being stored.
+    await expect(
+      page.getByText("Cette soirée — 1 partie terminée"),
+    ).toBeVisible();
+
+    const sitting = page.getByRole("list", {
+      name: "Classement de la soirée",
+    });
+    const rows = sitting.getByRole("listitem");
+
+    // The smallest pile takes the deal, so the winner leads the evening.
+    await expect(rows.first()).toContainText(players[2]);
+    // Nought points, first place — averages over the one deal played.
+    await expect(rows.first()).toContainText("0.0");
+    await expect(rows.first()).toContainText("1.0");
+    await expect(rows).toHaveCount(3);
+
+    // Nothing is timed here, so no turn is ever recorded: the button that used
+    // to open on « après le premier tour joué » all evening is gone.
+    await expect(
+      page.getByRole("button", { name: "Ouvrir les statistiques" }),
+    ).toHaveCount(0);
 
     const { data: statuses } = await admin
       .from("games")
-      .select("id, status")
+      .select("id, status, session_id")
       .in("id", games);
     const byId = new Map((statuses ?? []).map(g => [g.id, g.status]));
 
     expect(byId.get(first)).toBe("ended");
     expect(byId.get(second)).toBe("ongoing");
+
+    // Both deals belong to the same evening, which is what folds them into a
+    // single row of « Parties ».
+    const sessions = new Set((statuses ?? []).map(g => g.session_id));
+
+    expect(sessions.size).toBe(1);
+
+    expect([...sessions]).toEqual([evening]);
+
+    // Any deal of the evening beyond those two joins the cleanup list, so a
+    // phantom one doesn't survive the failure it caused.
+    const { data: all } = await admin
+      .from("games")
+      .select("id")
+      .eq("session_id", evening);
+
+    for (const deal of all ?? []) {
+      if (!games.includes(deal.id as string)) {
+        games.push(deal.id as string);
+      }
+    }
+
+    // The evening holds those two deals only — the second press dealt nothing.
+    expect(all?.length).toBe(2);
 
     // The first deal kept its scores; the second sits the same table back down
     // in the same seats, with nothing written yet.
@@ -94,6 +192,43 @@ test("deals the next party from the score form, same table, same seats", async (
       { name: players[1], score: null },
       { name: players[2], score: null },
     ]);
+
+    // On « Parties », the evening stays whole while one of its deals is still
+    // on the table: one row, in plain sight, wearing « Reprendre » — not a bare
+    // « Papayoo #2 » with the deals that came before folded away behind
+    // « Terminées ».
+    await page.goto("/games");
+
+    await expect(page.getByText("Terminées ·")).toHaveCount(0);
+
+    const eveningRow = page
+      .locator("li")
+      .filter({ hasText: "2 parties" })
+      .first();
+    const row = eveningRow.locator("> details > summary");
+
+    await expect(row).toContainText("Reprendre");
+
+    // Opened, it holds both deals, most recent first, each wearing its own rank
+    // in the evening and its own status.
+    await row.click();
+
+    const deals = eveningRow.locator("a[href*='/play']");
+
+    await expect(deals).toHaveCount(2);
+    await expect(deals.nth(0)).toHaveAttribute("href", `/games/${second}/play`);
+    await expect(deals.nth(0)).toContainText("#2");
+    await expect(deals.nth(0)).toContainText("Reprendre");
+    await expect(deals.nth(1)).toHaveAttribute("href", `/games/${first}/play`);
+    await expect(deals.nth(1)).toContainText("#1");
+    await expect(deals.nth(1)).toContainText("Terminée");
+
+    // Papayoo hands no turn round the table: the launch seats a first player and
+    // never moves him, so a card naming him would name him for the whole
+    // evening. The players are listed, and nothing more is claimed of them.
+    await expect(page.getByText(/Au tour de/)).toHaveCount(0);
+    await expect(deals.nth(0)).toContainText(players[0]);
+    await expect(deals.nth(0)).not.toContainText(`1. ${players[0]}`);
   } finally {
     for (const gameId of games) {
       await admin.from("games").delete().eq("id", gameId);

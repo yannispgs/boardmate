@@ -20,6 +20,7 @@ import type {
   ConfigValues,
   ExtensionId,
   ExtensionScenarioId,
+  GameSessionId,
   NewGame,
   PlayerId,
   ScoringSpec,
@@ -29,6 +30,7 @@ import { initialScoreFor } from "./scoring";
 
 /** What dealing the same party again needs to know about the current one. */
 export interface ChainableGame {
+  sessionId: GameSessionId;
   boardgameId: BoardgameId;
   configId: ConfigId | null;
   configValues: ConfigValues | null;
@@ -40,9 +42,15 @@ export interface ChainableGame {
   }>;
 }
 
-/** The party to open once this one is recorded: this one, dealt again. */
+/**
+ * The party to open once this one is recorded: this one, dealt again.
+ *
+ * It joins the session of the party it follows, so the evening stays one row of
+ * the list however many deals it ends up being.
+ */
 export function chainedGame(game: ChainableGame): NewGame {
   return {
+    sessionId: game.sessionId,
     boardgameId: game.boardgameId,
     configId: game.configId,
     configValues: game.configValues,

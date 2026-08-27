@@ -9,6 +9,11 @@ import { StickyActionBar } from "@/components/StickyActionBar";
 import { useConfirm } from "@/components/use-confirm";
 import type { BoardgameId, GameListItem } from "@/lib/domain";
 import { filterGameList } from "@/lib/game/game-filters";
+import {
+  closingSessionSize,
+  partyRanks,
+  sessionSections,
+} from "@/lib/game/game-sessions";
 import { finishedParties, recordHolders } from "@/lib/game/score-records";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useGames } from "@/lib/hooks/use-games";
@@ -31,6 +36,23 @@ function emptyMessage(recorded: number, shown: number): string | null {
   return null;
 }
 
+/**
+ * What abandoning the last running deal of an evening costs, `sealed` being the
+ * finished parties it would be sealed at. Says what is kept as well as what is
+ * lost: « clôturée » on its own reads as if the whole evening went with it.
+ */
+function sealedWarning(sealed: number): string {
+  const kept =
+    sealed === 1
+      ? "La partie déjà terminée reste"
+      : `Les ${sealed} parties déjà terminées restent`;
+
+  return (
+    "C'est la dernière partie en cours de la soirée : l'abandonner clôturera " +
+    `la session, qui ne pourra plus être reprise. ${kept} dans l'historique.`
+  );
+}
+
 export function GamesList() {
   const { games, endedGames, loading, error, removeGame } = useGames();
   const { boardgames } = useBoardgames();
@@ -45,22 +67,36 @@ export function GamesList() {
     nameOf: id => boardgameFor(id)?.name,
   });
 
-  const shownGames = filterGameList(games, filter);
-  const shownEnded = filterGameList(endedGames, filter);
+  // Grouped across both reads before being split, so an evening whose last deal
+  // is still on the table stays whole and stays out of the « Terminées » fold.
+  const { live, finished } = sessionSections([
+    ...filterGameList(games, filter),
+    ...filterGameList(endedGames, filter),
+  ]);
+  const shown = live.length + finished.length;
   // Read against every finished party, not the shown ones: a record is a fact
   // about the game, and narrowing the screen must not hand it to someone else.
   const records = recordHolders(
     finishedParties(endedGames),
     new Map(boardgames.map(b => [b.id, b.scoring])),
   );
+  // Read against both sections at once: an evening usually has its last deal
+  // still running while the earlier ones are over, and numbering each section
+  // on its own would give the table two « #1 ».
+  const ranks = partyRanks([...games, ...endedGames]);
 
   function handleAbandon(game: GameListItem) {
     const name = boardgameFor(game.boardgameId)?.name ?? "cette partie";
+    // An evening is only ever continued from the deal on the table, so dropping
+    // the last one still running shuts it for good — said before the press, in
+    // amber, because nothing else on the screen hints at it.
+    const sealed = closingSessionSize(game, [...games, ...endedGames]);
 
     requestConfirm({
       message:
         `Abandonner la partie de « ${name} » ?\n\n` +
         "Elle sera définitivement supprimée (aucun score enregistré).",
+      warning: sealed === null ? undefined : sealedWarning(sealed),
       confirmLabel: "Abandonner",
       onConfirm: () => removeGame(game.id),
     });
@@ -81,33 +117,32 @@ export function GamesList() {
 
         <ListBody
           loading={loading}
-          message={emptyMessage(
-            games.length + endedGames.length,
-            shownGames.length + shownEnded.length,
-          )}
+          message={emptyMessage(games.length + endedGames.length, shown)}
         >
-          {shownGames.length > 0 ? (
+          {live.length > 0 ? (
             <GameCardList
-              games={shownGames}
+              entries={live}
               boardgameFor={boardgameFor}
+              records={records}
+              partyRanks={ranks}
               onAbandon={handleAbandon}
             />
           ) : null}
 
           {/* Worth saying nothing is running — unless "Terminées" is precisely
               what was asked for. */}
-          {shownGames.length === 0 && filter.status !== "ended" ? (
+          {live.length === 0 && filter.status !== "ended" ? (
             <p className="text-sm text-zinc-500">Aucune partie en cours.</p>
           ) : null}
 
-          {shownEnded.length > 0 ? (
+          {finished.length > 0 ? (
             <GameCardList
-              games={shownEnded}
+              entries={finished}
               boardgameFor={boardgameFor}
-              ended
               collapsible
               title="Terminées"
               records={records}
+              partyRanks={ranks}
             />
           ) : null}
         </ListBody>

@@ -147,6 +147,71 @@ export async function seedPlayers(count: number): Promise<string[]> {
 }
 
 /**
+ * Looks the seeded players' ids up by name and hands back a reader for them —
+ * what a party written straight into the books needs, since `seedPlayers` only
+ * gives back the names it drew.
+ */
+export async function playerIds(
+  names: readonly string[],
+): Promise<(name: string) => string> {
+  const { data, error } = await adminClient()
+    .from("players")
+    .select("id, name")
+    .in("name", names);
+
+  if (error) {
+    throw new Error(`Failed to read the seeded players: ${error.message}`);
+  }
+
+  const byName = new Map((data ?? []).map(row => [row.name, row.id as string]));
+
+  return name => byName.get(name) as string;
+}
+
+/**
+ * A party put straight in the books with the service role, so a scenario can
+ * start from a history instead of playing one out. Pass a `sessionId` to file
+ * several of them under the same sitting, the way chaining a new party from the
+ * score sheet does, and `ongoing` for the deal still on the table.
+ */
+export async function seedParty(
+  admin: SupabaseClient,
+  bgId: string,
+  scores: Array<{ playerId: string; score: number | null; isWinner?: boolean }>,
+  options: Readonly<{ sessionId?: string; ongoing?: boolean }> = {},
+): Promise<string> {
+  const ongoing = options.ongoing === true;
+  const { data: game } = await admin
+    .from("games")
+    .insert({
+      boardgame_id: bgId,
+      status: ongoing ? "ongoing" : "ended",
+      round: 1,
+      turn: 1,
+      current_player_id: ongoing ? scores[0]?.playerId : null,
+      ended_at: ongoing ? null : new Date().toISOString(),
+      ...(options.sessionId === undefined
+        ? {}
+        : { session_id: options.sessionId }),
+    })
+    .select("id")
+    .single();
+  const gameId = game?.id as string;
+
+  await admin.from("game_players").insert(
+    scores.map((s, seat) => ({
+      game_id: gameId,
+      player_id: s.playerId,
+      seat_order: seat,
+      is_winner: s.isWinner === true,
+      score: s.score,
+    })),
+  );
+
+  return gameId;
+}
+
+/**
  * Inserts a named config for Catan (service role) and returns its name, so the
  * new-game funnel has a config to pick. Values match Catan's template defaults.
  */

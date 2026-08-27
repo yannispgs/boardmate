@@ -1,6 +1,34 @@
 import { describe, expect, it } from "vitest";
 
-import { hasPlayStats, tracksPlayerTime } from "./turn-time";
+import { hasPlayStats, tracksPlayerTime, tracksPlayerTurns } from "./turn-time";
+
+describe("tracksPlayerTurns", () => {
+  it("hands the turn round the table on a timed, sequential game", () => {
+    expect(tracksPlayerTurns({ turnMode: "sequential", timed: true })).toBe(
+      true,
+    );
+  });
+
+  it("moves no turn on a simultaneous game — the round is the table's", () => {
+    expect(tracksPlayerTurns({ turnMode: "simultaneous", timed: true })).toBe(
+      false,
+    );
+  });
+
+  it("moves no turn on an untimed game, whoever the launch seated first", () => {
+    // Papayoo, Odin: the party carries a current player from the first second
+    // to the last, so reading it as « whose turn is it » names him at random.
+    expect(tracksPlayerTurns({ turnMode: "sequential", timed: false })).toBe(
+      false,
+    );
+  });
+
+  it("moves no turn on a game that is neither timed nor turn-based", () => {
+    expect(tracksPlayerTurns({ turnMode: "simultaneous", timed: false })).toBe(
+      false,
+    );
+  });
+});
 
 describe("tracksPlayerTime", () => {
   it("counts a player's time on a game played in individual turns", () => {

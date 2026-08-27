@@ -26,6 +26,7 @@ import type {
   Game,
   GameId,
   GameListItem,
+  GameSessionId,
   GameStatsRecord,
   GameStatus,
   NewBoardgame,
@@ -143,6 +144,12 @@ export interface GameRepository {
    * (boardgame, participants + winner/score, turn log). One query for the lot.
    */
   listStats(): Promise<GameStatsRecord[]>;
+  /**
+   * Every party of one sitting, oldest first — how the play screen says which
+   * party of the evening is on the table, and how the earlier ones went.
+   * Nothing about a sitting is stored, so this query *is* the evening.
+   */
+  listBySession(sessionId: GameSessionId): Promise<GameListItem[]>;
   getPopulated(id: GameId): Promise<PopulatedGame | null>;
   create(input: NewGame): Promise<Game>;
   /**

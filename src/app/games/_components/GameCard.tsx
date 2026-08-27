@@ -9,8 +9,9 @@ import type { GameListItem, PlayerId } from "@/lib/domain";
 import type { GameProgress } from "@/lib/game/game-progress";
 import { progressSummary } from "@/lib/game/game-progress";
 import type { ScoreRecord } from "@/lib/game/score-records";
-import { recordLabel, recordTitle } from "@/lib/game/score-records";
 import { formatNames } from "@/lib/game/tie-break";
+import { RecordChip } from "./RecordChip";
+import { StatusBadge } from "./StatusBadge";
 
 /** Full start timestamp (date + HH:mm:ss), shown when hovering the date. */
 function fullStart(iso: string): string {
@@ -25,15 +26,19 @@ function fullStart(iso: string): string {
 }
 
 /**
- * The participant list in play order, used as the player-count tooltip. The
- * player whose turn it is is emphasised so hovering the count highlights them.
+ * The participant list, used as the player-count tooltip. A game that hands the
+ * turn round the table numbers its seats and emphasises the player holding it,
+ * so hovering the count says where the game is; the others are simply who sat
+ * down, and a seat number there ranks people for nothing.
  */
 function PlayOrder({
   players,
   currentPlayerId,
+  numbered,
 }: Readonly<{
   players: GameListItem["players"];
   currentPlayerId: PlayerId | null;
+  numbered: boolean;
 }>) {
   if (players.length === 0) {
     return <span>Aucun joueur</span>;
@@ -49,7 +54,8 @@ function PlayOrder({
             key={p.id}
             className={isCurrent ? "font-semibold text-white" : "text-zinc-300"}
           >
-            {i + 1}. {p.name}
+            {numbered ? `${i + 1}. ` : ""}
+            {p.name}
             {isCurrent ? " ←" : ""}
           </li>
         );
@@ -59,28 +65,9 @@ function PlayOrder({
 }
 
 /**
- * The mark of the party that **holds** the game's record, next to the game's
- * name. One party per game wears it — the best score nobody has beaten yet, or
- * one per table size on a game whose scores only compare between equal tables.
- */
-function RecordChip({ record }: Readonly<{ record: ScoreRecord | null }>) {
-  if (record === null) {
-    return null;
-  }
-
-  return (
-    <span
-      title={recordTitle(record)}
-      className="shrink-0 rounded-full bg-amber-500/20 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300"
-    >
-      {`⭐ ${recordLabel(record)}`}
-    </span>
-  );
-}
-
-/**
  * The card's one-line status: how the finished game ended, or whose turn it is
- * in a running one. A game that hasn't started has nothing to say.
+ * in a running one. A running game with nobody to name — it never started, or
+ * the box hands no turn round the table — has nothing to say.
  */
 function StatusLine({
   ended,
@@ -116,9 +103,11 @@ function StatusLine({
 function InlinePlayOrder({
   players,
   currentPlayerId,
+  numbered,
 }: Readonly<{
   players: GameListItem["players"];
   currentPlayerId: PlayerId | null;
+  numbered: boolean;
 }>) {
   if (players.length === 0) {
     return null;
@@ -138,7 +127,8 @@ function InlinePlayOrder({
                 : "border-black/10 text-zinc-500 dark:border-white/10"
             }`}
           >
-            {i + 1}. {p.name}
+            {numbered ? `${i + 1}. ` : ""}
+            {p.name}
           </li>
         );
       })}
@@ -153,17 +143,28 @@ function InlinePlayOrder({
  * surfaces how far along it is and whose turn it is; a **finished** game instead
  * shows the winner and how long it lasted (no "current" player). Both are
  * counted in the unit the box uses — laps for most, generations for Terraforming
- * Mars (see `gameProgress`). On touch devices, where hover doesn't exist, the
- * play order is shown inline.
+ * Mars (see `gameProgress`). A party dealt inside an evening wears its rank
+ * (« #2 ») next to the name, so a dozen identical Papayoo lines can be told
+ * apart at a glance. On touch devices, where hover doesn't exist, the play
+ * order is shown inline.
+ *
+ * Whose turn it is is only said of a game that actually hands the turn round
+ * the table (`tracksTurns`): an untimed box seats a first player at launch and
+ * never moves him, so the line would name the same person for the whole evening
+ * whoever is holding the cards.
+ *
+ * The card reads its own `status`: an evening keeps its finished deals next to
+ * the one still running, so a list no longer holds one status throughout.
  */
 export function GameCard({
   game,
   boardgameName,
   logoUrl,
   progress,
-  ended = false,
+  tracksTurns,
   coop = false,
   record = null,
+  partyRank = null,
   onAbandon,
 }: Readonly<{
   game: GameListItem;
@@ -171,14 +172,24 @@ export function GameCard({
   logoUrl: string | null;
   /** How far along, in the boardgame's own unit — resolved by the list. */
   progress: GameProgress;
-  ended?: boolean;
+  /**
+   * Whether the boardgame moves the turn from player to player — resolved by
+   * the list, since it is a fact about the box, not the party.
+   */
+  tracksTurns: boolean;
   /** The game's record when this party still holds it — resolved by the list. */
   record?: ScoreRecord | null;
   /** Cooperative game: a finished one shows a shared victory/defeat, no winner. */
   coop?: boolean;
+  /**
+   * Which party of its evening this one is, when it belongs to one — resolved
+   * by the list, since a sitting straddles the running and the finished cards.
+   */
+  partyRank?: number | null;
   /** When set (ongoing games only), shows an "abandon" (delete) button. */
   onAbandon?: () => void;
 }>) {
+  const ended = game.status === "ended";
   const count = game.players.length;
   const currentPlayer = game.players.find(p => p.id === game.currentPlayerId);
   // Usually one, several on a shared victory (an ex æquo no rule separated).
@@ -194,8 +205,9 @@ export function GameCard({
     winners.length === 0 ? "" : `🏆 ${winnerLabel}${scoreLabel}`;
   const coopOutcome = coopWon ? "🎉 Victoire" : "😔 Défaite";
   const outcome = coop ? coopOutcome : winnerOutcome;
-  // A finished game has no "current" player to emphasise.
-  const highlightId = ended ? null : game.currentPlayerId;
+  // A finished game has no "current" player to emphasise, and neither has a game
+  // that never moved one.
+  const current = ended || !tracksTurns ? null : game.currentPlayerId;
 
   return (
     <li className="flex items-stretch gap-2">
@@ -224,6 +236,11 @@ export function GameCard({
           <div className="flex min-w-0 flex-col">
             <span className="flex min-w-0 items-center gap-1.5">
               <span className="truncate font-medium">{boardgameName}</span>
+              {partyRank === null ? null : (
+                <span className="shrink-0 text-sm font-semibold text-zinc-400">
+                  #{partyRank}
+                </span>
+              )}
               <RecordChip record={record} />
             </span>
             <ExtensionBadgeList
@@ -244,7 +261,8 @@ export function GameCard({
                 label={
                   <PlayOrder
                     players={game.players}
-                    currentPlayerId={highlightId}
+                    currentPlayerId={current}
+                    numbered={tracksTurns}
                   />
                 }
               >
@@ -255,23 +273,18 @@ export function GameCard({
               ended={ended}
               outcome={outcome}
               progress={progress}
-              currentPlayerName={currentPlayer?.name ?? null}
+              currentPlayerName={
+                current === null ? null : (currentPlayer?.name ?? null)
+              }
             />
             <InlinePlayOrder
               players={game.players}
-              currentPlayerId={highlightId}
+              currentPlayerId={current}
+              numbered={tracksTurns}
             />
           </div>
         </div>
-        {ended ? (
-          <span className="shrink-0 rounded-full bg-black/5 px-2 py-0.5 text-xs font-medium text-zinc-500 dark:bg-white/10 dark:text-zinc-400">
-            Terminée
-          </span>
-        ) : (
-          <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
-            Reprendre
-          </span>
-        )}
+        <StatusBadge ended={ended} />
       </Link>
       {onAbandon ? (
         <button

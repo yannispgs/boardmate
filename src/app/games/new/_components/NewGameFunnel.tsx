@@ -14,6 +14,7 @@ import type {
   PlayerId,
 } from "@/lib/domain";
 import { initialScoreFor } from "@/lib/game/scoring";
+import { tracksPlayerTurns } from "@/lib/game/turn-time";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useConfigs } from "@/lib/hooks/use-configs";
 import { useGames } from "@/lib/hooks/use-games";
@@ -115,7 +116,7 @@ export function NewGameFunnel() {
       <PlayersStep
         minPlayers={boardgame.minPlayers}
         maxPlayers={boardgame.maxPlayers}
-        simultaneous={boardgame.turnMode === "simultaneous"}
+        ordered={tracksPlayerTurns(boardgame)}
         initial={players}
         onBack={() => setStep(2)}
         onConfirm={picked => {
@@ -190,15 +191,20 @@ function ConfigStep({
 function PlayersStep({
   minPlayers,
   maxPlayers,
-  simultaneous,
+  ordered,
   initial,
   onConfirm,
   onBack,
 }: Readonly<{
   minPlayers: number | null;
   maxPlayers: number | null;
-  /** Simultaneous games have no turn order — selection is just a checkmark. */
-  simultaneous: boolean;
+  /**
+   * Whether the game hands the turn from one player to the next. When it does
+   * not, picking is just a checkmark: the click order still seats the players
+   * — it orders the score sheet — but it ranks nobody, and numbering it would
+   * promise a turn order the game never plays.
+   */
+  ordered: boolean;
   initial: Player[];
   onConfirm: (players: Player[]) => void;
   onBack: () => void;
@@ -227,9 +233,9 @@ function PlayersStep({
   return (
     <FunnelStep
       title={
-        simultaneous
-          ? "3 · Choisis les joueurs"
-          : "3 · Choisis les joueurs (dans l’ordre de jeu)"
+        ordered
+          ? "3 · Choisis les joueurs (dans l’ordre de jeu)"
+          : "3 · Choisis les joueurs"
       }
       onBack={onBack}
       footer={
@@ -265,7 +271,7 @@ function PlayersStep({
         <PlayerPickCardList
           players={listed}
           selected={selected}
-          simultaneous={simultaneous}
+          ordered={ordered}
           onToggle={toggle}
         />
       </ListState>

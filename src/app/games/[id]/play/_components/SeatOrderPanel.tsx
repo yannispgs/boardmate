@@ -3,7 +3,7 @@
 import { ErrorText } from "@/components/ErrorText";
 import { ChevronRightIcon } from "@/components/icons";
 import type { GameId } from "@/lib/domain";
-import { canReorderSeats } from "@/lib/game/seat-order";
+import { canReorderSeats, seatingMatters } from "@/lib/game/seat-order";
 import { SeatOrderCardList } from "./SeatOrderCardList";
 import { type Seat, useSeatOrder } from "./use-seat-order";
 
@@ -12,26 +12,32 @@ import { type Seat, useSeatOrder } from "./use-seat-order";
  * game was created — so a night doesn't have to be started over, and its turns
  * lost, over a wrong first player.
  *
- * Folded away, and shown only while it can still be honoured: once a game
- * turning seat by seat has actually gone round, the recorded turns *are* that
- * order and moving the seats would make them lie (see `canReorderSeats`).
+ * Folded away, and shown on two conditions. The seating has to **mean
+ * something** to the game — on Papayoo or Odin it is row order and nothing
+ * else, so the panel offered all evening to correct what no screen reads (see
+ * `seatingMatters`). And it has to still be **honourable**: once a game turning
+ * seat by seat has actually gone round, the recorded turns *are* that order and
+ * moving the seats would make them lie (see `canReorderSeats`).
  */
 export function SeatOrderPanel({
   gameId,
-  turnMode,
+  boardgame,
   turnsPlayed,
   seats,
   onSaved,
 }: Readonly<{
   gameId: GameId;
-  turnMode: Parameters<typeof canReorderSeats>[0];
+  boardgame: Parameters<typeof seatingMatters>[0];
   turnsPlayed: number;
   /** The table as it is recorded, first seat first. */
   seats: Seat[];
   /** Re-reads the game once the new order has landed. */
   onSaved: () => Promise<void>;
 }>) {
-  if (!canReorderSeats(turnMode, turnsPlayed)) {
+  if (
+    !seatingMatters(boardgame) ||
+    !canReorderSeats(boardgame.turnMode, turnsPlayed)
+  ) {
     return null;
   }
 

@@ -5,18 +5,20 @@ import { tileClass } from "./tile-class";
 
 /**
  * One player to pick for a new game. A picked player wears their seat number —
- * or a plain checkmark when the game is simultaneous and has no turn order.
+ * or a plain checkmark on a game that never hands the turn round, where the
+ * seats are recorded but rank nobody.
  */
 export function PlayerPickCard({
   player,
   order,
-  simultaneous,
+  ordered,
   onToggle,
 }: Readonly<{
   player: Player;
   /** The player's 1-based seat, or `null` when they're not in the game. */
   order: number | null;
-  simultaneous: boolean;
+  /** Whether the game hands the turn from one player to the next. */
+  ordered: boolean;
   onToggle: () => void;
 }>) {
   return (
@@ -30,7 +32,7 @@ export function PlayerPickCard({
       <span>{player.name}</span>
       {order === null ? null : (
         <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-semibold text-white">
-          {simultaneous ? "✓" : order}
+          {ordered ? order : "✓"}
         </span>
       )}
     </button>

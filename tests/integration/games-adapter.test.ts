@@ -89,6 +89,74 @@ describe("games adapter — creation & population", () => {
     expect(populated?.players.map(p => p.score)).toEqual([null, null, null]);
   });
 
+  it("opens a session of one when the party names none", async () => {
+    const first = await repo().create({
+      boardgameId: CATAN_ID,
+      configId,
+      playerIds,
+    });
+    const second = await repo().create({
+      boardgameId: CATAN_ID,
+      configId,
+      playerIds,
+    });
+
+    gameIds.push(first.id, second.id);
+
+    // Two parties that have nothing to do with each other must not end up
+    // folded into the same row of the list.
+    expect(first.sessionId).not.toBe(second.sessionId);
+  });
+
+  it("files a chained party under the session it was dealt from", async () => {
+    const first = await repo().create({
+      boardgameId: CATAN_ID,
+      configId,
+      playerIds,
+    });
+    const next = await repo().create({
+      boardgameId: CATAN_ID,
+      configId,
+      playerIds,
+      sessionId: first.sessionId,
+    });
+
+    gameIds.push(first.id, next.id);
+
+    expect(next.sessionId).toBe(first.sessionId);
+  });
+
+  it("reads a sitting back oldest first, and only that sitting", async () => {
+    const first = await repo().create({
+      boardgameId: CATAN_ID,
+      configId,
+      playerIds,
+    });
+    const next = await repo().create({
+      boardgameId: CATAN_ID,
+      configId,
+      playerIds,
+      sessionId: first.sessionId,
+    });
+    // Another evening entirely, which must not leak into the recap.
+    const other = await repo().create({
+      boardgameId: CATAN_ID,
+      configId,
+      playerIds,
+    });
+
+    gameIds.push(first.id, next.id, other.id);
+
+    const sitting = await repo().listBySession(first.sessionId);
+
+    // Oldest first: the party on the table is the last line, and its position
+    // in this list is the number the play screen puts on it.
+    expect(sitting.map(g => g.id)).toEqual([first.id, next.id]);
+    // The participants come with it — the evening's tally is computed from
+    // them, nothing about a sitting being stored.
+    expect(sitting[0].players).toHaveLength(playerIds.length);
+  });
+
   it("seeds every player's score at initialScore for live-scored games", async () => {
     const game = await repo().create({
       boardgameId: CATAN_ID,

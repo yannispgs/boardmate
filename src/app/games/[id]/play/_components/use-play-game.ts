@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { GameId, PopulatedGame } from "@/lib/domain";
 import { getGameRepository } from "@/lib/repositories";
 
@@ -34,6 +34,10 @@ export function usePlayGame(gameId: GameId): PlayGame {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // The latch {@link run} actually reads. `busy` is only what the screen is
+  // painted from: `setBusy` lands on the next render, so a second write started
+  // before that render would find it false and go through.
+  const running = useRef(false);
 
   const reload = useCallback(async () => {
     try {
@@ -63,15 +67,17 @@ export function usePlayGame(gameId: GameId): PlayGame {
   }
 
   async function run(failure: string, mutate: () => Promise<void>) {
-    if (busy) {
+    if (running.current) {
       return false;
     }
 
+    running.current = true;
     setBusy(true);
 
     try {
       return await report(failure, mutate);
     } finally {
+      running.current = false;
       setBusy(false);
     }
   }

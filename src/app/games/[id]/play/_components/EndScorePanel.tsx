@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import type { PlayerId, PopulatedGame } from "@/lib/domain";
 import { readPairBreakdown } from "@/lib/game/pair-scoring";
-import { finalStandings, winnerDirection } from "@/lib/game/scoring";
+import { finalStandings, scoreDirectionOf } from "@/lib/game/scoring";
 import { useRecordsOfGame } from "@/lib/hooks/use-score-records";
 import { CategoryBreakdownFill } from "./CategoryBreakdownFill";
 import { FinalScoreTable } from "./FinalScoreTable";
@@ -31,7 +31,7 @@ export function EndScorePanel({
   const scoring = game.boardgame.scoring;
   const sheet =
     scoring?.entry === "categories" ? (scoring.sheet ?? null) : null;
-  const direction = scoring ? winnerDirection(scoring.winCondition) : "highest";
+  const direction = scoreDirectionOf(scoring);
 
   const players = game.players.map(p => ({
     id: p.playerId,
