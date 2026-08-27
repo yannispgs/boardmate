@@ -510,7 +510,9 @@ describe("comparableScores", () => {
     expect(scores).toEqual([10, 8, 12, 9]);
   });
 
-  it("gives nothing for a game that says its scores don't compare", () => {
+  it("still reads a game that crowns no record — the mark is not one", () => {
+    // Papayoo, Odin, Catan: no single figure is worth crowning there, which is
+    // precisely why the table is told what the game usually costs instead.
     const scores = comparableScores({
       history,
       boardgameId: CATAN,
@@ -518,7 +520,7 @@ describe("comparableScores", () => {
       seats: 3,
     });
 
-    expect(scores).toEqual([]);
+    expect(scores).toEqual([10, 8, 12, 9]);
   });
 
   it("gives nothing for a game that isn't scored at all", () => {
