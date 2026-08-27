@@ -45,10 +45,7 @@ import {
   tallyPointsHistogram,
 } from "@/lib/game/tally-averages";
 import { tracksPlayerTime } from "@/lib/game/turn-time";
-import {
-  type WorstScoreGroup,
-  worstScoresByPlayerCount,
-} from "@/lib/game/worst-scores";
+import { tracksWorstScores, worstScoreSlices } from "@/lib/game/worst-scores";
 import {
   computeZeroFinishes,
   type ZeroFinishStat,
@@ -65,7 +62,10 @@ import { StatsDiceDistribution } from "./StatsDiceDistribution";
 import { TallyExitCardList } from "./TallyExitCardList";
 import { TallyPointsChart } from "./TallyPointsChart";
 import { TimeIndexInfo } from "./TimeIndexInfo";
-import { WorstScoreCardList } from "./WorstScoreCardList";
+import {
+  type WorstScoreGameView,
+  WorstScoreSection,
+} from "./WorstScoreSection";
 import { ZeroFinishCardList } from "./ZeroFinishCardList";
 
 /** Distinct boardgames present in the records, sorted by name. */
@@ -196,20 +196,35 @@ export function GamesTab({
         : null,
     [tallyMode, scopedRecords],
   );
+  // Games won by scoring little (Papayoo, Odin): the totals nobody wants back,
+  // cut by the size of the table wherever the seat count moves the total. Null
+  // for every other game — a worst total there is just a game played badly.
+  const worst = useMemo<WorstScoreGameView | null>(() => {
+    if (boardgame === null || !tracksWorstScores(boardgame)) {
+      return null;
+    }
+
+    /* c8 ignore next 3 -- a game listed here is scored, by tracksWorstScores */
+    const direction = boardgame.scoring
+      ? winnerDirection(boardgame.scoring.winCondition)
+      : "lowest";
+    const slices = worstScoreSlices(scopedRecords, direction, {
+      byPlayerCount: boardgame.scoring?.playerCountSensitive === true,
+    }).map(slice => ({ ...slice, note: null }));
+
+    return slices.length === 0
+      ? null
+      : { id: boardgame.id, name: boardgame.name, slices };
+  }, [scopedRecords, boardgame]);
+
   // Games whose points are one fixed pile shared out between the players
-  // (Papayoo): a total is only heavy for a given number of players, and a party
-  // finished at nothing is the one thing worth bragging about.
-  const shared = useMemo(
+  // (Papayoo): a party finished at nothing means the rest of the table took
+  // the points instead, which is the one thing worth bragging about.
+  const zeroes = useMemo(
     () =>
       boardgame?.scoring?.totalSum == null
-        ? null
-        : {
-            worst: worstScoresByPlayerCount(
-              scopedRecords,
-              winnerDirection(boardgame.scoring.winCondition),
-            ),
-            zeroes: computeZeroFinishes(scopedRecords),
-          },
+        ? []
+        : computeZeroFinishes(scopedRecords),
     [scopedRecords, boardgame],
   );
 
@@ -296,7 +311,8 @@ export function GamesTab({
           }
           timed={timed}
           tally={tally}
-          shared={shared}
+          worst={worst}
+          zeroes={zeroes}
           phases={phaseFigures}
         />
       )}
@@ -445,34 +461,28 @@ function ChampionBanner({
   );
 }
 
-/** The figures of a game whose points are one pile shared out at the table. */
-interface SharedPileFigures {
-  worst: WorstScoreGroup[];
-  zeroes: ZeroFinishStat[];
-}
-
 /**
  * What a game like Papayoo has to show and no other does: the totals nobody
  * wants back, read against the size of the table, and who gets away clean.
+ *
+ * The two answer to different rules — a worst total is a story wherever the
+ * small score wins, while finishing at nothing only means something where the
+ * points are one pile the table shares out — so each appears on its own.
  */
 function SharedPileSections({
-  shared,
-}: Readonly<{ shared: SharedPileFigures | null }>) {
-  if (shared === null) {
-    return null;
-  }
-
+  worst,
+  zeroes,
+}: Readonly<{
+  worst: WorstScoreGameView | null;
+  zeroes: ZeroFinishStat[];
+}>) {
   return (
     <>
-      {shared.worst.length > 0 ? (
-        <Section title="Pires scores">
-          <WorstScoreCardList groups={shared.worst} />
-        </Section>
-      ) : null}
+      {worst === null ? null : <WorstScoreSection games={[worst]} />}
 
-      {shared.zeroes.length > 0 ? (
+      {zeroes.length > 0 ? (
         <Section title="Qui finit le plus souvent à 0">
-          <ZeroFinishCardList stats={shared.zeroes} />
+          <ZeroFinishCardList stats={zeroes} />
         </Section>
       ) : null}
     </>
@@ -594,7 +604,8 @@ function GameSections({
   goalCatalogue,
   timed,
   tally,
-  shared,
+  worst,
+  zeroes,
   phases,
 }: Readonly<{
   stats: GlobalStats;
@@ -616,8 +627,10 @@ function GameSections({
     exits: TallyExitStat[];
     histogram: TallyPointsBar[];
   } | null;
-  /** The figures of a game paying one shared pile; null for every other game. */
-  shared: SharedPileFigures | null;
+  /** The totals nobody wants back; null where a worst score says nothing. */
+  worst: WorstScoreGameView | null;
+  /** Who gets away clean; empty on a game whose points are not one pile. */
+  zeroes: ZeroFinishStat[];
   /** The phase clocks of a game played in phases; null for every other game. */
   phases: PhaseFigures | null;
 }>) {
@@ -653,7 +666,7 @@ function GameSections({
         </Section>
       ) : null}
 
-      <SharedPileSections shared={shared} />
+      <SharedPileSections worst={worst} zeroes={zeroes} />
 
       <PhaseSections phases={phases} />
 
