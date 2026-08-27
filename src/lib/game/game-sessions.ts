@@ -154,6 +154,42 @@ export function entryGames<TGame>(entry: SessionEntry<TGame>): TGame[] {
   return entry.session.games;
 }
 
+/** What weighing an abandon needs of a game, on top of its sitting. */
+export interface AbandonableGame extends SessionableGame {
+  id: GameId;
+  status: GameStatus;
+}
+
+/**
+ * How many parties an evening would be sealed at if this running one were
+ * abandoned — every one of them over — and `null` when the abandon seals
+ * nothing.
+ *
+ * An evening is only ever continued from the party on the table: the score form
+ * of a running deal is what deals the next one, and a party that is over offers
+ * no such button. So abandoning the last deal still running does more than drop
+ * that deal — it shuts the evening for good, and the table deserves to be told
+ * before it presses rather than after.
+ *
+ * Two cases seal nothing. A party alone in its session takes the whole evening
+ * with it, so there is no sitting left to be shut out of. And one with another
+ * deal still on the table leaves the evening a party to be continued from.
+ */
+export function closingSessionSize<TGame extends AbandonableGame>(
+  game: TGame,
+  all: readonly TGame[],
+): number | null {
+  const rest = all.filter(
+    other => other.sessionId === game.sessionId && other.id !== game.id,
+  );
+
+  if (rest.length === 0 || rest.some(other => other.status !== "ended")) {
+    return null;
+  }
+
+  return rest.length;
+}
+
 /** What splitting the list into its two sections needs of a game. */
 export interface SectionableGame extends RankableGame {
   status: GameStatus;

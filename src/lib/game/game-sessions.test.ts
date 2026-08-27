@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { GameId, GameSessionId, GameStatus } from "@/lib/domain";
 
 import {
+  closingSessionSize,
   entryGames,
   partyNumber,
   partyRanks,
@@ -172,6 +173,58 @@ describe("entryGames", () => {
         session: { sessionId: "s1" as GameSessionId, games },
       }),
     ).toEqual(games);
+  });
+});
+
+describe("closingSessionSize", () => {
+  /** A party, reduced to what weighing an abandon looks at. */
+  const party = (id: string, session: string, status: GameStatus) => ({
+    id: id as GameId,
+    sessionId: session as GameSessionId,
+    status,
+  });
+
+  it("counts the finished parties an abandon would seal the evening at", () => {
+    // The retour that asked for this: the evening is only ever continued from
+    // the deal on the table, so dropping the last running one shuts it for good.
+    const running = party("g3", "s1", "ongoing");
+    const sealed = closingSessionSize(running, [
+      party("g1", "s1", "ended"),
+      party("g2", "s1", "ended"),
+      running,
+    ]);
+
+    expect(sealed).toBe(2);
+  });
+
+  it("seals nothing when the party is alone in its sitting", () => {
+    // Nothing survives it, so there is no evening to be shut out of.
+    const alone = party("g1", "s1", "ongoing");
+
+    expect(closingSessionSize(alone, [alone])).toBeNull();
+  });
+
+  it("seals nothing while another deal is still on the table", () => {
+    // That other deal still carries the button that deals the next one.
+    const running = party("g2", "s1", "ongoing");
+    const sealed = closingSessionSize(running, [
+      party("g1", "s1", "ongoing"),
+      running,
+    ]);
+
+    expect(sealed).toBeNull();
+  });
+
+  it("weighs its own sitting and no other", () => {
+    // A whole evening's worth of finished parties next door changes nothing.
+    const alone = party("g1", "s1", "ongoing");
+    const sealed = closingSessionSize(alone, [
+      alone,
+      party("g2", "s2", "ended"),
+      party("g3", "s2", "ended"),
+    ]);
+
+    expect(sealed).toBeNull();
   });
 });
 

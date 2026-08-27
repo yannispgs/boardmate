@@ -9,7 +9,11 @@ import { StickyActionBar } from "@/components/StickyActionBar";
 import { useConfirm } from "@/components/use-confirm";
 import type { BoardgameId, GameListItem } from "@/lib/domain";
 import { filterGameList } from "@/lib/game/game-filters";
-import { partyRanks, sessionSections } from "@/lib/game/game-sessions";
+import {
+  closingSessionSize,
+  partyRanks,
+  sessionSections,
+} from "@/lib/game/game-sessions";
 import { finishedParties, recordHolders } from "@/lib/game/score-records";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useGames } from "@/lib/hooks/use-games";
@@ -30,6 +34,23 @@ function emptyMessage(recorded: number, shown: number): string | null {
   }
 
   return null;
+}
+
+/**
+ * What abandoning the last running deal of an evening costs, `sealed` being the
+ * finished parties it would be sealed at. Says what is kept as well as what is
+ * lost: « clôturée » on its own reads as if the whole evening went with it.
+ */
+function sealedWarning(sealed: number): string {
+  const kept =
+    sealed === 1
+      ? "La partie déjà terminée reste"
+      : `Les ${sealed} parties déjà terminées restent`;
+
+  return (
+    "C'est la dernière partie en cours de la soirée : l'abandonner clôturera " +
+    `la session, qui ne pourra plus être reprise. ${kept} dans l'historique.`
+  );
 }
 
 export function GamesList() {
@@ -66,11 +87,16 @@ export function GamesList() {
 
   function handleAbandon(game: GameListItem) {
     const name = boardgameFor(game.boardgameId)?.name ?? "cette partie";
+    // An evening is only ever continued from the deal on the table, so dropping
+    // the last one still running shuts it for good — said before the press, in
+    // amber, because nothing else on the screen hints at it.
+    const sealed = closingSessionSize(game, [...games, ...endedGames]);
 
     requestConfirm({
       message:
         `Abandonner la partie de « ${name} » ?\n\n` +
         "Elle sera définitivement supprimée (aucun score enregistré).",
+      warning: sealed === null ? undefined : sealedWarning(sealed),
       confirmLabel: "Abandonner",
       onConfirm: () => removeGame(game.id),
     });
