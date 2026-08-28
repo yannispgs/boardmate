@@ -14,6 +14,64 @@ import { adminClient, playerIds, seedPlayers } from "./utils/supabase";
  * party was just played or opened again a week later.
  */
 
+/**
+ * A game that is raced: it stops when someone reaches a target, and the biggest
+ * total takes it. Nothing is declared beyond that — the shape of the scoring is
+ * what makes the laps worth counting.
+ */
+async function seedRaceGame(
+  admin: SupabaseClient,
+  name: string,
+): Promise<string> {
+  const { data: boardgame } = await admin
+    .from("boardgames")
+    .insert({
+      name,
+      min_players: 1,
+      max_players: 4,
+      round_limit: null,
+      scoring: {
+        timing: "live",
+        entry: "total",
+        stopCondition: { type: "scoreTarget", field: "pointsToWin" },
+        winCondition: { type: "highest" },
+      },
+    })
+    .select("id")
+    .single();
+  const bgId = boardgame?.id as string;
+
+  await admin.from("config_templates").insert({
+    boardgame_id: bgId,
+    fields: [
+      {
+        key: "pointsToWin",
+        label: "Points pour gagner",
+        type: "integer",
+        default: 10,
+      },
+    ],
+  });
+
+  return bgId;
+}
+
+/** Drops a seeded game and everything hung off it. */
+async function dropRaceGame(
+  admin: SupabaseClient,
+  bgId: string | null,
+  games: readonly string[],
+): Promise<void> {
+  for (const id of games) {
+    await admin.from("games").delete().eq("id", id);
+  }
+
+  if (bgId) {
+    await admin.from("config_templates").delete().eq("boardgame_id", bgId);
+    await admin.from("boardgames").delete().eq("id", bgId);
+  }
+}
+
 /** A finished race: the laps it took, the line it raced to, and who took it. */
 async function seedRace(
   admin: SupabaseClient,
@@ -73,39 +131,7 @@ test("announces the speed record a party took, and only on its own course", asyn
   let bgId: string | null = null;
 
   try {
-    // A race: the party stops when someone reaches the target, and the biggest
-    // total wins it — the one shape of game that keeps a speed record.
-    bgId =
-      (
-        await admin
-          .from("boardgames")
-          .insert({
-            name: gameName,
-            min_players: 1,
-            max_players: 4,
-            round_limit: null,
-            scoring: {
-              timing: "live",
-              entry: "total",
-              stopCondition: { type: "scoreTarget", field: "pointsToWin" },
-              winCondition: { type: "highest" },
-            },
-          })
-          .select("id")
-          .single()
-      ).data?.id ?? null;
-
-    await admin.from("config_templates").insert({
-      boardgame_id: bgId,
-      fields: [
-        {
-          key: "pointsToWin",
-          label: "Points pour gagner",
-          type: "integer",
-          default: 10,
-        },
-      ],
-    });
+    bgId = await seedRaceGame(admin, gameName);
 
     const idOf = await playerIds(players);
     const table = (winner: number) => {
@@ -170,13 +196,106 @@ test("announces the speed record a party took, and only on its own course", asyn
     await expect(page.getByText("Partie terminée !")).toBeVisible();
     await expect(page.getByText("Record de rapidité battu !")).toHaveCount(0);
   } finally {
-    for (const id of seeded) {
-      await admin.from("games").delete().eq("id", id);
+    await dropRaceGame(admin, bgId, seeded);
+    await admin.from("players").delete().in("name", players);
+  }
+});
+
+/**
+ * The same reading, spread over every party instead of one: on a game that is
+ * raced, the statistics tab plots how long a party takes in laps, where a game
+ * played for the total plots the totals. Full-suite only (untagged).
+ */
+test("plots the laps a raced game takes, and only there", async ({ page }) => {
+  const admin = adminClient();
+  const players = await seedPlayers(3);
+  const stamp = Date.now().toString(36);
+  const raceName = `E2E Course ${stamp}`;
+  const scoredName = `E2E Total ${stamp}`;
+  const raced: string[] = [];
+  const scoredGames: string[] = [];
+  let raceId: string | null = null;
+  let scoredId: string | null = null;
+
+  try {
+    raceId = await seedRaceGame(admin, raceName);
+
+    const idOf = await playerIds(players);
+    const table = players.map((name, seat) => ({
+      playerId: idOf(name),
+      score: seat === 0 ? 10 : 5,
+      isWinner: seat === 0,
+    }));
+
+    for (const rounds of [12, 4, 9]) {
+      raced.push(
+        await seedRace(admin, raceId, { rounds, target: 10, players: table }),
+      );
     }
-    if (bgId) {
-      await admin.from("config_templates").delete().eq("boardgame_id", bgId);
-      await admin.from("boardgames").delete().eq("id", bgId);
-    }
+
+    // Keyed in after the fact: no turn logged, so its « one lap » was never
+    // played and would drag the fast end of the chart down to a party nobody
+    // raced.
+    raced.push(
+      await seedRace(admin, raceId, {
+        rounds: 1,
+        target: 10,
+        players: table,
+        played: false,
+      }),
+    );
+
+    await page.goto("/stats");
+    await page.getByRole("button", { name: "Jeux", exact: true }).click();
+    await page.getByRole("button", { name: raceName, exact: true }).click();
+
+    await expect(
+      page.getByText("Répartition du nombre de tours"),
+    ).toBeVisible();
+    await expect(
+      page.getByText(/3 parties · de 4 à 12 tours · moyenne 8\.3/),
+    ).toBeVisible();
+
+    // A game played for the total has no finish line to race to, so the laps it
+    // took say nothing — only the scores are plotted.
+    scoredId =
+      (
+        await admin
+          .from("boardgames")
+          .insert({
+            name: scoredName,
+            min_players: 1,
+            max_players: 4,
+            round_limit: 3,
+            scoring: {
+              timing: "final",
+              entry: "total",
+              winCondition: { type: "highest" },
+            },
+          })
+          .select("id")
+          .single()
+      ).data?.id ?? null;
+
+    scoredGames.push(
+      await seedRace(admin, scoredId as string, {
+        rounds: 3,
+        target: 10,
+        players: table,
+      }),
+    );
+
+    await page.reload();
+    await page.getByRole("button", { name: "Jeux", exact: true }).click();
+    await page.getByRole("button", { name: scoredName, exact: true }).click();
+
+    await expect(page.getByText("Répartition des scores")).toBeVisible();
+    await expect(page.getByText("Répartition du nombre de tours")).toHaveCount(
+      0,
+    );
+  } finally {
+    await dropRaceGame(admin, raceId, raced);
+    await dropRaceGame(admin, scoredId, scoredGames);
     await admin.from("players").delete().in("name", players);
   }
 });
