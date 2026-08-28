@@ -50,10 +50,12 @@ function party(
   id: string,
   scores: Array<[PlayerId, number | null]>,
   boardgameId = GAME,
+  setup = "",
 ): PastParty {
   return {
     gameId: id as GameId,
     boardgameId,
+    setup,
     players: scores.map(([playerId, score]) => ({ playerId, score })),
   };
 }
@@ -78,11 +80,13 @@ function records(
   standings: Array<[PlayerId, number]>,
   history: PastParty[],
   winners = leaders(scoring, standings),
+  setup = "",
 ) {
   return scoreRecords({
     scoring,
     boardgameId: GAME,
     gameId: NOW,
+    setup,
     standings: standings.map(([playerId, total]) => ({ playerId, total })),
     winners,
     history,
@@ -219,12 +223,27 @@ describe("scoreRecords", () => {
     expect(marks.size).toBe(0);
   });
 
+  it("never reads a score against one made with other extensions", () => {
+    const base = [party("g-1", [[ann, 90]])];
+
+    // The same 100 points, read twice. Played with Marins it beats nothing:
+    // that board hands out points the base game never had, so the 90 posted
+    // without it was never on the same scale.
+    expect(records(HIGHEST, [[ann, 100]], base, [ann], "Marins").size).toBe(0);
+
+    expect(records(HIGHEST, [[ann, 100]], base).get(ann)).toEqual([
+      pb(90),
+      wr(90),
+    ]);
+  });
+
   it("compares at equal table size, and says which, when the scale moves", () => {
     const spec = { ...LOWEST, playerCountSensitive: true };
     const marks = scoreRecords({
       scoring: spec,
       boardgameId: GAME,
       gameId: NOW,
+      setup: "",
       // Three seats: only the three-player party below counts as history.
       standings: [
         { playerId: ann, total: 60 },
@@ -502,6 +521,9 @@ describe("finishedParties", () => {
       {
         id: "g-1" as GameId,
         boardgameId: GAME,
+        // The scenario is dropped on the way in: it splits the races, not the
+        // scores — a point scored on one Marins map is a point on any other.
+        extensions: [{ name: "Marins", scenarioName: "Les quatre îles" }],
         players: [
           { id: ann, name: "Ann", isWinner: true, score: 90 },
           { id: bob, name: "Bob", isWinner: false, score: 40 },
@@ -513,6 +535,7 @@ describe("finishedParties", () => {
       {
         gameId: "g-1",
         boardgameId: GAME,
+        setup: "Marins",
         players: [
           { playerId: ann, score: 90 },
           { playerId: bob, score: 40 },

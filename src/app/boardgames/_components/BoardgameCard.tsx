@@ -9,6 +9,7 @@ import {
   PuzzleIcon,
   SlidersIcon,
   TrashIcon,
+  TrophyIcon,
 } from "@/components/icons";
 import { dangerIconButtonClass, iconButtonClass } from "@/components/ui";
 import type { Boardgame } from "@/lib/domain";
@@ -33,10 +34,12 @@ function formatMeta(b: Boardgame): string {
 }
 
 /**
- * A single boardgame row: logo, name + meta, and the extensions / FAQ / edit /
- * deactivate / delete actions. Whether it's an active or deactivated
- * game is just the `dimmed` + `actionLabel` inputs; the extensions shortcut
- * only shows for a game that actually has some.
+ * A single boardgame row: logo, name + meta, and the extensions / records /
+ * FAQ / edit / deactivate / delete actions. Whether it's an active or
+ * deactivated game is just the `dimmed` + `actionLabel` inputs; the extensions
+ * shortcut only shows for a game that actually has some, while the records one
+ * shows for every game — an empty board is the answer to « qu'y a-t-il à
+ * prendre ? », not a reason to hide the link.
  */
 export function BoardgameCard({
   boardgame: b,
@@ -88,6 +91,14 @@ export function BoardgameCard({
           <PuzzleIcon />
         </Link>
       ) : null}
+      <Link
+        href={`/boardgames/${b.id}/records`}
+        aria-label={`Records de ${b.name}`}
+        title="Records"
+        className={iconButtonClass}
+      >
+        <TrophyIcon />
+      </Link>
       <Link
         href={`/faq?jeu=${b.id}`}
         aria-label={`FAQ de ${b.name}`}
