@@ -375,9 +375,33 @@ test("narrows the player ranking down to one boardgame in two taps", async ({
 test("charts the score distribution for a scored game", async ({ page }) => {
   const admin = adminClient();
   const names = await seedPlayers(3);
+  const gameName = `E2E Scores ${Date.now().toString(36)}`;
   const gameIds: string[] = [];
+  let bgId: string | null = null;
 
   try {
+    // A game of its own rather than a real one: the chart is shown on games
+    // played FOR the total, and which real game that is has moved before — a
+    // race plots its laps instead, so Catan no longer answers here.
+    bgId =
+      (
+        await admin
+          .from("boardgames")
+          .insert({
+            name: gameName,
+            min_players: 2,
+            max_players: 4,
+            round_limit: 3,
+            scoring: {
+              timing: "final",
+              entry: "total",
+              winCondition: { type: "highest" },
+            },
+          })
+          .select("id")
+          .single()
+      ).data?.id ?? null;
+
     const { data: seeded } = await admin
       .from("players")
       .select("id, name")
@@ -388,7 +412,7 @@ test("charts the score distribution for a scored game", async ({ page }) => {
       const { data: game } = await admin
         .from("games")
         .insert({
-          boardgame_id: CATAN_ID,
+          boardgame_id: bgId,
           status: "ended",
           round: 1,
           turn: 1,
@@ -410,13 +434,13 @@ test("charts the score distribution for a scored game", async ({ page }) => {
       );
     }
 
-    // Two scored Catan games → scores 3,5,6,8,10,10.
+    // Two scored games → scores 3,5,6,8,10,10.
     await seedScored([10, 6, 3]);
     await seedScored([10, 8, 5]);
 
     await page.goto("/stats");
     await page.getByRole("button", { name: "Jeux", exact: true }).click();
-    await page.getByRole("button", { name: "Catan", exact: true }).click();
+    await page.getByRole("button", { name: gameName, exact: true }).click();
 
     await expect(page.getByText("Répartition des scores")).toBeVisible();
     await expect(page.getByText(/6 scores · de 3 à 10/)).toBeVisible();
@@ -430,6 +454,11 @@ test("charts the score distribution for a scored game", async ({ page }) => {
     for (const id of gameIds) {
       await admin.from("games").delete().eq("id", id);
     }
+
+    if (bgId) {
+      await admin.from("boardgames").delete().eq("id", bgId);
+    }
+
     await admin.from("players").delete().in("name", names);
   }
 });

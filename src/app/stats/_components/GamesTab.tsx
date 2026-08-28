@@ -149,6 +149,11 @@ export function GamesTab({
   // everything. Only the parties actually played through the app count — one
   // keyed in after the fact never left the first lap, and would plant a phantom
   // « 1 tour » at the fast end of the chart.
+  //
+  // The two charts are one decision, not two: a race plots its length INSTEAD
+  // of its totals. On Catan the finish line moves with the scenario and the
+  // table, so the totals compare nothing; on Splendor everyone stops within a
+  // point of the same figure, so they say nothing either.
   const roundsPlayed = useMemo(
     () =>
       filterRecords(records, filters)
@@ -161,6 +166,7 @@ export function GamesTab({
   // average placement for the first / intermediate / last player to play.
   const { boardgames } = useBoardgames();
   const boardgame = boardgames.find(b => b.id === active) ?? null;
+  const raced = tracksSpeedRecord(boardgame?.scoring ?? null);
   // Category games (Cascadia): the point-distribution charts.
   const categorySheet =
     boardgame?.scoring?.entry === "categories"
@@ -313,10 +319,8 @@ export function GamesTab({
         <GameSections
           stats={stats}
           scored={scored}
-          scores={scores}
-          rounds={
-            tracksSpeedRecord(boardgame?.scoring ?? null) ? roundsPlayed : null
-          }
+          scores={raced ? null : scores}
+          rounds={raced ? roundsPlayed : null}
           dice={dice}
           seatStats={seatStats}
           showSeatStats={boardgame?.trackSeatStats ?? false}
@@ -628,7 +632,8 @@ function GameSections({
 }: Readonly<{
   stats: GlobalStats;
   scored: boolean;
-  scores: number[];
+  /** Every score posted; null on a game that is raced — see {@link rounds}. */
+  scores: number[] | null;
   /** Laps each party took, on a game that is raced; null for every other game. */
   rounds: number[] | null;
   dice: { spec: DiceSpec | null; rolls: number[] };
@@ -695,7 +700,7 @@ function GameSections({
         </Section>
       ) : null}
 
-      {scored && scores.length > 0 ? (
+      {scored && scores !== null && scores.length > 0 ? (
         <Section title="Répartition des scores">
           <ValueDistribution values={scores} />
         </Section>

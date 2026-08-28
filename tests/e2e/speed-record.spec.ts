@@ -256,6 +256,11 @@ test("plots the laps a raced game takes, and only there", async ({ page }) => {
       page.getByText(/3 parties · de 4 à 12 tours · moyenne 8\.3/),
     ).toBeVisible();
 
+    // The laps replace the scores rather than joining them: everyone stops at
+    // the finish line, which the scenario and the table move, so the spread of
+    // the totals compares nothing.
+    await expect(page.getByText("Répartition des scores")).toHaveCount(0);
+
     // A game played for the total has no finish line to race to, so the laps it
     // took say nothing — only the scores are plotted.
     scoredId =
