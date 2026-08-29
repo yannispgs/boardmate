@@ -97,6 +97,21 @@ export function playedExtensions(
 }
 
 /**
+ * What a party was played with, as one comparable handle: the extensions in
+ * application order, **scenario aside**. Empty string for the base game — a
+ * basket of its own, not a missing value, since a score made with an extension
+ * does not compare to one made without it (Marins adds points to the board,
+ * Océanie moves the nectar).
+ *
+ * Deliberately coarser than `setupKey`, which a speed record compares on: there
+ * the scenario decides the map and so belongs in the handle, while here it
+ * splits the lines of a cell rather than the baskets.
+ */
+export function extensionTab(extensions: readonly PlayedExtension[]): string {
+  return extensions.map(e => e.name).join(" + ");
+}
+
+/**
  * Merges each active extension's `configFields` onto the base config template
  * **by key** — an extension field replaces the base field of the same key (e.g.
  * a raised default), or is appended when new. Later extensions (higher

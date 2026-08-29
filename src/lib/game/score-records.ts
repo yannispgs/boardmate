@@ -18,8 +18,39 @@ import type {
   PlayerId,
   ScoringSpec,
 } from "@/lib/domain";
+import { extensionTab } from "./extensions";
 import type { ScoreDirection } from "./scoring";
 import { winnerDirection } from "./scoring";
+import { tracksSpeedRecord } from "./speed-records";
+
+/**
+ * Whether a single score is worth **crowning** on this game at all. Two things
+ * silence it, and only one of them is declared:
+ *
+ * - the game says so (`trackRecords === false`), where one figure owes more to
+ *   the setup or to the draw than to the play — Catan's scenario, Papayoo's and
+ *   Odin's hands;
+ * - **the game is a race**, where nothing needs declaring. A party that stops
+ *   the moment somebody reaches the target ends on that target, give or take the
+ *   overshoot of a single lap: every winner posts very nearly the same figure,
+ *   so the « best score » would only ever mark who overshot hardest. Worse, the
+ *   finish line moves from one party to the next — a race to 10 and a race to 15
+ *   are not comparable at all, and a score, unlike the laps, has nowhere to say
+ *   which line it was run to. What such a game holds instead is
+ *   {@link tracksSpeedRecord}: how few laps it took.
+ *
+ * It does **not** silence what a game's history says in aggregate — averages,
+ * the share of parties finished at nought, the quartile the evening's facts
+ * read. Those survive a long run, which is what these games have instead of a
+ * record.
+ */
+export function tracksScoreRecord(scoring: ScoringSpec | null): boolean {
+  if (scoring === null || scoring.trackRecords === false) {
+    return false;
+  }
+
+  return !tracksSpeedRecord(scoring);
+}
 
 /** Which record a mark stands for: the player's own best, or the game's. */
 export type RecordKind = "personal" | "world";
@@ -40,6 +71,14 @@ export interface ScoreRecord {
 export interface PastParty {
   gameId: GameId;
   boardgameId: BoardgameId;
+  /**
+   * The extensions the party was played with, as one comparable handle
+   * ({@link extensionTab}) — empty string for the base game. A score made with
+   * an extension does not compare to one made without it: Marins adds points to
+   * the board, Océanie moves the nectar. The base game is therefore a basket of
+   * its own, not a missing value.
+   */
+  setup: string;
   players: ReadonlyArray<{ playerId: PlayerId; score: number | null }>;
 }
 
@@ -92,13 +131,13 @@ function bestOf(scores: number[], direction: ScoreDirection): number {
  * The records each player of the party being recorded has just taken.
  *
  * `history` is every finished party the app knows of; the ones played on
- * another game, and the party itself, are dropped here. Excluding it by id is
- * enough to keep the comparison honest: every other party in the books was
- * finished before the one ending now.
+ * another game, **the ones played with other extensions**, and the party itself
+ * are dropped here. Excluding it by id is enough to keep the comparison honest:
+ * every other party in the books was finished before the one ending now.
  *
- * A player holds no record at all when the game says its scores aren't worth
- * comparing (`scoring.trackRecords === false`), and no player holds one on his
- * first party — there is nothing to beat yet.
+ * A player holds no record at all on a game whose scores aren't worth crowning
+ * ({@link tracksScoreRecord}), and no player holds one on his first party —
+ * there is nothing to beat yet.
  *
  * `PB` and `WR` are not read the same way. A personal best belongs to whoever
  * beat his own, win or lose. The game's record is a single figure the party
@@ -111,6 +150,7 @@ export function scoreRecords({
   scoring,
   boardgameId,
   gameId,
+  setup,
   standings,
   winners,
   history,
@@ -118,6 +158,8 @@ export function scoreRecords({
   scoring: ScoringSpec | null;
   boardgameId: BoardgameId;
   gameId: GameId;
+  /** What the party was played with — see {@link PastParty.setup}. */
+  setup: string;
   standings: ReadonlyArray<{ playerId: PlayerId; total: number }>;
   /** Who the table crowned, tie-break resolved; empty while a tie stands. */
   winners: readonly PlayerId[];
@@ -125,7 +167,7 @@ export function scoreRecords({
 }>): Map<PlayerId, ScoreRecord[]> {
   const marks = new Map<PlayerId, ScoreRecord[]>();
 
-  if (scoring === null || scoring.trackRecords === false) {
+  if (scoring === null || !tracksScoreRecord(scoring)) {
     return marks;
   }
 
@@ -141,6 +183,7 @@ export function scoreRecords({
     p =>
       p.boardgameId === boardgameId &&
       p.gameId !== gameId &&
+      p.setup === setup &&
       (!atSize || p.players.length === seats),
   );
   const everyScore = past.flatMap(p =>
@@ -236,6 +279,7 @@ export function recordHolders(
           scoring: scorings.get(party.boardgameId) ?? null,
           boardgameId: party.boardgameId,
           gameId: party.gameId,
+          setup: party.setup,
           standings,
           winners: party.winners,
           history: parties,
@@ -279,6 +323,7 @@ export function finishedParties(
   return games.map(game => ({
     gameId: game.id,
     boardgameId: game.boardgameId,
+    setup: extensionTab(game.extensions),
     players: game.players.map(p => ({ playerId: p.id, score: p.score })),
     winners: game.players.filter(p => p.isWinner).map(p => p.id),
   }));

@@ -1,11 +1,14 @@
 // Shared Tailwind class strings reused across cards/lists, so the styling of
 // an icon button or a section heading lives in one place.
 
+// `shrink-0`: an icon button is its icon. Beside a text column that is allowed
+// to shrink, a flex row would otherwise squeeze the buttons instead — and on a
+// narrow screen the squeezing lands on the text, which loses its own name.
 export const iconButtonClass =
-  "rounded-md border border-black/10 p-1.5 transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5";
+  "shrink-0 rounded-md border border-black/10 p-1.5 transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5";
 
 export const dangerIconButtonClass =
-  "rounded-md border border-black/10 p-1.5 text-red-600 transition hover:bg-red-50 dark:border-white/15 dark:text-red-400 dark:hover:bg-red-950/40";
+  "shrink-0 rounded-md border border-black/10 p-1.5 text-red-600 transition hover:bg-red-50 dark:border-white/15 dark:text-red-400 dark:hover:bg-red-950/40";
 
 export const sectionHeadingClass =
   "text-xs font-semibold uppercase tracking-wide text-zinc-400";

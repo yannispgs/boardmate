@@ -14,6 +14,7 @@ import {
   recordLabel,
   recordTitle,
   scoreRecords,
+  tracksScoreRecord,
   worldRecordOf,
 } from "./score-records";
 
@@ -35,6 +36,13 @@ const HIGHEST: ScoringSpec = {
 
 const LOWEST: ScoringSpec = { ...HIGHEST, winCondition: { type: "lowest" } };
 
+/** Splendor's own shape: a race to a target the highest score takes. */
+const RACE: ScoringSpec = {
+  ...HIGHEST,
+  timing: "live",
+  stopCondition: { type: "scoreTarget", field: "pointsToWin" },
+};
+
 /** A personal best, written the short way the expectations read best in. */
 function pb(previous: number, playerCount: number | null = null): ScoreRecord {
   return { kind: "personal", playerCount, previous };
@@ -50,10 +58,12 @@ function party(
   id: string,
   scores: Array<[PlayerId, number | null]>,
   boardgameId = GAME,
+  setup = "",
 ): PastParty {
   return {
     gameId: id as GameId,
     boardgameId,
+    setup,
     players: scores.map(([playerId, score]) => ({ playerId, score })),
   };
 }
@@ -78,11 +88,13 @@ function records(
   standings: Array<[PlayerId, number]>,
   history: PastParty[],
   winners = leaders(scoring, standings),
+  setup = "",
 ) {
   return scoreRecords({
     scoring,
     boardgameId: GAME,
     gameId: NOW,
+    setup,
     standings: standings.map(([playerId, total]) => ({ playerId, total })),
     winners,
     history,
@@ -219,12 +231,27 @@ describe("scoreRecords", () => {
     expect(marks.size).toBe(0);
   });
 
+  it("never reads a score against one made with other extensions", () => {
+    const base = [party("g-1", [[ann, 90]])];
+
+    // The same 100 points, read twice. Played with Marins it beats nothing:
+    // that board hands out points the base game never had, so the 90 posted
+    // without it was never on the same scale.
+    expect(records(HIGHEST, [[ann, 100]], base, [ann], "Marins").size).toBe(0);
+
+    expect(records(HIGHEST, [[ann, 100]], base).get(ann)).toEqual([
+      pb(90),
+      wr(90),
+    ]);
+  });
+
   it("compares at equal table size, and says which, when the scale moves", () => {
     const spec = { ...LOWEST, playerCountSensitive: true };
     const marks = scoreRecords({
       scoring: spec,
       boardgameId: GAME,
       gameId: NOW,
+      setup: "",
       // Three seats: only the three-player party below counts as history.
       standings: [
         { playerId: ann, total: 60 },
@@ -340,6 +367,42 @@ describe("scoreRecords", () => {
     const marks = records(null, [[ann, 999]], [party("g-1", [[ann, 10]])]);
 
     expect(marks.size).toBe(0);
+  });
+
+  it("hands out nothing on a race, whose totals all land on the target", () => {
+    const marks = records(RACE, [[ann, 18]], [party("g-1", [[ann, 15]])]);
+
+    expect(marks.size).toBe(0);
+  });
+});
+
+describe("tracksScoreRecord", () => {
+  it("crowns a score on a plain scored game, at either end of the scale", () => {
+    expect(tracksScoreRecord(HIGHEST)).toBe(true);
+    expect(tracksScoreRecord(LOWEST)).toBe(true);
+  });
+
+  it("says no on a game that keeps no score at all", () => {
+    expect(tracksScoreRecord(null)).toBe(false);
+  });
+
+  it("says no where the game declares its scores incomparable", () => {
+    expect(tracksScoreRecord({ ...HIGHEST, trackRecords: false })).toBe(false);
+  });
+
+  // The point of the whole predicate: Splendor never declared anything, and
+  // still must not crown a total — it stops the instant somebody reaches 15.
+  it("says no on a race, with nothing declared on the game", () => {
+    expect(tracksScoreRecord(RACE)).toBe(false);
+  });
+
+  // Odin stops on a target too, but there the small score wins, so crossing the
+  // line is what loses you the game — it is not a race, and it keeps its record
+  // unless it says otherwise.
+  it("still crowns a game that stops on a target the lowest score takes", () => {
+    expect(
+      tracksScoreRecord({ ...RACE, winCondition: { type: "lowest" } }),
+    ).toBe(true);
   });
 });
 
@@ -502,6 +565,9 @@ describe("finishedParties", () => {
       {
         id: "g-1" as GameId,
         boardgameId: GAME,
+        // The scenario is dropped on the way in: it splits the races, not the
+        // scores — a point scored on one Marins map is a point on any other.
+        extensions: [{ name: "Marins", scenarioName: "Les quatre îles" }],
         players: [
           { id: ann, name: "Ann", isWinner: true, score: 90 },
           { id: bob, name: "Bob", isWinner: false, score: 40 },
@@ -513,6 +579,7 @@ describe("finishedParties", () => {
       {
         gameId: "g-1",
         boardgameId: GAME,
+        setup: "Marins",
         players: [
           { playerId: ann, score: 90 },
           { playerId: bob, score: 40 },

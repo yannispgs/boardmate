@@ -1,6 +1,7 @@
 "use client";
 
 import type { PlayerId, PopulatedGame } from "@/lib/domain";
+import { extensionTab, playedExtensions } from "@/lib/game/extensions";
 import type { ScoreRecord } from "@/lib/game/score-records";
 import { scoreRecords } from "@/lib/game/score-records";
 import { useGameStats } from "./use-game-stats";
@@ -25,11 +26,13 @@ export function useScoreRecords(
     scoring: game.boardgame.scoring,
     boardgameId: game.boardgameId,
     gameId: game.id,
+    setup: extensionTab(playedExtensions(game.extensions)),
     standings,
     winners,
     history: records.map(r => ({
       gameId: r.gameId,
       boardgameId: r.boardgameId,
+      setup: extensionTab(r.extensions ?? []),
       players: r.players.map(p => ({
         playerId: p.playerId,
         score: p.score,
