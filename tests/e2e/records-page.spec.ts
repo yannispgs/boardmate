@@ -67,21 +67,22 @@ test("lists the marks standing on a game, and the baskets left to take", async (
     // Both parties were played at three, so the duel line is up for grabs.
     const duel = page.getByRole("listitem").filter({ hasText: "2 joueurs" });
 
-    await expect(duel).toContainText("0 partie");
     await expect(duel).toContainText("Non attribué");
 
     const full = page.getByRole("listitem").filter({ hasText: "3 joueurs" });
 
-    await expect(full).toContainText("2 parties");
     await expect(full).toContainText(players[1]);
     await expect(full).toContainText("110 points");
 
-    // The grid names the holder; the detail says where everyone else stands.
+    // The grid names the holder; the detail says where everyone else stands —
+    // and how contested the basket is, which the line no longer carries itself.
     await full.getByRole("button").click();
     await expect(
       page.getByRole("heading", { name: "Meilleurs scores" }),
     ).toBeVisible();
-    await expect(page.getByText("Jeu de base · 3 joueurs")).toBeVisible();
+    await expect(
+      page.getByText("Jeu de base · 3 joueurs · 2 parties"),
+    ).toBeVisible();
 
     const ranked = page.getByRole("dialog").getByRole("listitem");
 

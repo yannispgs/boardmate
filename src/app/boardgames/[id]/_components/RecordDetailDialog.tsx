@@ -34,7 +34,11 @@ export function RecordDetailDialog({
   tabLabel: string;
   onClose: () => void;
 }>) {
-  const hint = [tabLabel, row.label, entry.label]
+  // How contested the basket is used to sit on the grid; it left with the
+  // frame around each table size, and reads better here anyway — right above
+  // the players who played those parties.
+  const played = `${row.parties} partie${row.parties > 1 ? "s" : ""}`;
+  const hint = [tabLabel, row.label, entry.label, played]
     .filter(part => part !== null)
     .join(" · ");
 

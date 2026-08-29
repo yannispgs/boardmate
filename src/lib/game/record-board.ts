@@ -108,6 +108,35 @@ export interface RecordBoard {
   tabs: BoardTab[];
 }
 
+/** One line of the grid as it is read: a table size, and one mark set at it. */
+export interface BoardLine {
+  key: string;
+  row: BoardRow;
+  /** Null on a size nobody has played — what is left to take, not a gap. */
+  entry: RecordEntry | null;
+}
+
+/**
+ * A tab's rows flattened into the lines that are actually drawn: one per mark
+ * rather than one block per table size. A size holding two marks — Catan raced
+ * to 10 points and to 15 points are two different races — takes a line each, and
+ * a size holding none still takes one, so an empty basket keeps its place in the
+ * grid instead of disappearing from it.
+ */
+export function boardLines(rows: readonly BoardRow[]): BoardLine[] {
+  return rows.flatMap((row): BoardLine[] => {
+    if (row.entries.length === 0) {
+      return [{ key: row.label, row, entry: null }];
+    }
+
+    return row.entries.map(entry => ({
+      key: `${row.label}|${entry.key}`,
+      row,
+      entry,
+    }));
+  });
+}
+
 /** The table sizes the grid offers: what the box allows, plus what was played. */
 export function boardSizes(
   boardgame: Readonly<Pick<Boardgame, "minPlayers" | "maxPlayers">>,

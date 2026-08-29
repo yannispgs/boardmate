@@ -10,6 +10,7 @@ import type {
   ScoringSpec,
 } from "@/lib/domain";
 import {
+  boardLines,
   boardSizes,
   boardTabs,
   recordBoard,
@@ -586,5 +587,81 @@ describe("recordBoard — the speed marks", () => {
     });
 
     expect(onlyTab(board).rows[0].entries).toEqual([]);
+  });
+});
+
+describe("boardLines", () => {
+  const catan = boardgame(
+    { ...RACE, trackRecords: false, playerCountSensitive: true },
+    [3, 4],
+  );
+
+  it("gives a size holding two marks a line each", () => {
+    const board = recordBoard({
+      boardgame: catan,
+      extensions: [],
+      records: [
+        party(
+          "g-1",
+          [
+            [ann, 10],
+            [bob, 4],
+            [cat, 3],
+          ],
+          {
+            winners: [ann],
+            rounds: 17,
+            target: 10,
+          },
+        ),
+        party(
+          "g-2",
+          [
+            [ann, 15],
+            [bob, 9],
+            [cat, 7],
+          ],
+          {
+            winners: [ann],
+            rounds: 9,
+            target: 15,
+          },
+        ),
+      ],
+    });
+    const lines = boardLines(onlyTab(board).rows);
+
+    expect(lines.map(l => [l.row.label, l.entry?.label ?? null])).toEqual([
+      ["3 joueurs", "10 points"],
+      ["3 joueurs", "15 points"],
+      ["4 joueurs", null],
+    ]);
+    // Each line stands on its own: two races to two finish lines never met.
+    expect(lines[0].entry?.value).toBe(17);
+    expect(lines[1].entry?.value).toBe(9);
+  });
+
+  it("keeps a size nobody has played, as the line left to take", () => {
+    const board = recordBoard({
+      boardgame: catan,
+      extensions: [],
+      records: [],
+    });
+    const lines = boardLines(onlyTab(board).rows);
+
+    expect(lines.map(l => l.entry)).toEqual([null, null]);
+    expect(lines.map(l => l.key)).toEqual(["3 joueurs", "4 joueurs"]);
+  });
+
+  it("keys a mark by its size and its own course, so two never collide", () => {
+    const board = recordBoard({
+      boardgame: boardgame(HIGHEST),
+      extensions: [],
+      records: [party("g-1", [[ann, 30]])],
+    });
+
+    expect(boardLines(onlyTab(board).rows).map(l => l.key)).toEqual([
+      "Toutes tailles|score",
+    ]);
   });
 });
