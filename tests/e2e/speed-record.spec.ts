@@ -1,7 +1,15 @@
 import { expect, test } from "@playwright/test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { adminClient, playerIds, seedPlayers } from "./utils/supabase";
+import {
+  adminClient,
+  dropSeeded,
+  playerIds,
+  seedBoardgame,
+  seedParty,
+  seedPlayers,
+  seedTurns,
+} from "./utils/supabase";
 
 /**
  * The mark a race leaves behind (full-suite only — untagged): on a game that
@@ -23,23 +31,16 @@ async function seedRaceGame(
   admin: SupabaseClient,
   name: string,
 ): Promise<string> {
-  const { data: boardgame } = await admin
-    .from("boardgames")
-    .insert({
-      name,
-      min_players: 1,
-      max_players: 4,
-      round_limit: null,
-      scoring: {
-        timing: "live",
-        entry: "total",
-        stopCondition: { type: "scoreTarget", field: "pointsToWin" },
-        winCondition: { type: "highest" },
-      },
-    })
-    .select("id")
-    .single();
-  const bgId = boardgame?.id as string;
+  const bgId = await seedBoardgame(admin, {
+    name,
+    roundLimit: null,
+    scoring: {
+      timing: "live",
+      entry: "total",
+      stopCondition: { type: "scoreTarget", field: "pointsToWin" },
+      winCondition: { type: "highest" },
+    },
+  });
 
   await admin.from("config_templates").insert({
     boardgame_id: bgId,
@@ -62,14 +63,11 @@ async function dropRaceGame(
   bgId: string | null,
   games: readonly string[],
 ): Promise<void> {
-  for (const id of games) {
-    await admin.from("games").delete().eq("id", id);
+  if (bgId !== null) {
+    await admin.from("config_templates").delete().eq("boardgame_id", bgId);
   }
 
-  if (bgId) {
-    await admin.from("config_templates").delete().eq("boardgame_id", bgId);
-    await admin.from("boardgames").delete().eq("id", bgId);
-  }
+  await dropSeeded(admin, { games, boardgames: [bgId] });
 }
 
 /** A finished race: the laps it took, the line it raced to, and who took it. */
@@ -84,38 +82,20 @@ async function seedRace(
     played?: boolean;
   }>,
 ): Promise<string> {
-  const { data: game } = await admin
-    .from("games")
-    .insert({
-      boardgame_id: bgId,
-      status: "ended",
-      round: race.rounds,
-      turn: 1,
-      ended_at: new Date().toISOString(),
-      config_values: { pointsToWin: race.target },
-    })
-    .select("id")
-    .single();
-  const gameId = game?.id as string;
-
-  await admin.from("game_players").insert(
-    race.players.map((p, seat) => ({
-      game_id: gameId,
-      player_id: p.playerId,
-      seat_order: seat,
-      is_winner: p.isWinner === true,
-      score: p.score,
-    })),
-  );
+  const gameId = await seedParty(admin, bgId, race.players, {
+    round: race.rounds,
+    configValues: { pointsToWin: race.target },
+  });
 
   if (race.played !== false) {
-    await admin.from("game_turns").insert({
-      game_id: gameId,
-      player_id: race.players[0]?.playerId,
-      round: 1,
-      turn_no: 1,
-      duration_s: 30,
-    });
+    await seedTurns(admin, gameId, [
+      {
+        playerId: race.players[0]?.playerId ?? null,
+        round: 1,
+        turnNo: 1,
+        durationS: 30,
+      },
+    ]);
   }
 
   return gameId;
@@ -263,24 +243,15 @@ test("plots the laps a raced game takes, and only there", async ({ page }) => {
 
     // A game played for the total has no finish line to race to, so the laps it
     // took say nothing — only the scores are plotted.
-    scoredId =
-      (
-        await admin
-          .from("boardgames")
-          .insert({
-            name: scoredName,
-            min_players: 1,
-            max_players: 4,
-            round_limit: 3,
-            scoring: {
-              timing: "final",
-              entry: "total",
-              winCondition: { type: "highest" },
-            },
-          })
-          .select("id")
-          .single()
-      ).data?.id ?? null;
+    scoredId = await seedBoardgame(admin, {
+      name: scoredName,
+      roundLimit: 3,
+      scoring: {
+        timing: "final",
+        entry: "total",
+        winCondition: { type: "highest" },
+      },
+    });
 
     scoredGames.push(
       await seedRace(admin, scoredId as string, {

@@ -1668,7 +1668,11 @@ describe("games adapter — recording a finished game", () => {
 });
 
 describe("games adapter — extensions", () => {
-  it("records active extensions and locks the win target to the scenario", async () => {
+  /**
+   * A party of Catan opened on Marins' « Les quatre îles » — the scenario that
+   * imposes its own finish line, which is what makes it worth playing here.
+   */
+  async function openFourIslands() {
     const admin = serviceClient();
     const { data: ext } = await admin
       .from("extensions")
@@ -1690,8 +1694,14 @@ describe("games adapter — extensions", () => {
       extensionIds: [extId],
       scenarioByExtension: { [extId]: scId },
     });
+
     gameIds.push(game.id);
 
+    return { game, extId, scId };
+  }
+
+  it("records active extensions and locks the win target to the scenario", async () => {
+    const { game, scId } = await openFourIslands();
     const populated = await repo().getPopulated(game.id);
 
     expect(populated?.extensions.map(e => e.name)).toEqual(["Catan - Marins"]);
@@ -1741,28 +1751,7 @@ describe("games adapter — extensions", () => {
   });
 
   it("resolves the same finish line in the books as on the table", async () => {
-    const admin = serviceClient();
-    const { data: ext } = await admin
-      .from("extensions")
-      .select("id")
-      .eq("name", "Catan - Marins")
-      .single();
-    const extId = ext?.id as ExtensionId;
-    const { data: sc } = await admin
-      .from("extension_scenarios")
-      .select("id")
-      .eq("name", "Les quatre îles")
-      .single();
-    const scId = sc?.id as ExtensionScenarioId;
-
-    const game = await repo().create({
-      boardgameId: CATAN_ID,
-      configId: null,
-      playerIds,
-      extensionIds: [extId],
-      scenarioByExtension: { [extId]: scId },
-    });
-    gameIds.push(game.id);
+    const { game } = await openFourIslands();
 
     await repo().advanceTurn(game.id, 30, 0, 0, 0);
     await repo().end(

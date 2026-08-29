@@ -173,12 +173,23 @@ export async function playerIds(
  * start from a history instead of playing one out. Pass a `sessionId` to file
  * several of them under the same sitting, the way chaining a new party from the
  * score sheet does, and `ongoing` for the deal still on the table.
+ *
+ * `round` / `stage` are what the statistics read to tell how long a party ran,
+ * and `configValues` what it was played to — a party seeded without them looks
+ * like a one-lap game, which is right for a scenario that never asks.
  */
 export async function seedParty(
   admin: SupabaseClient,
   bgId: string,
   scores: Array<{ playerId: string; score: number | null; isWinner?: boolean }>,
-  options: Readonly<{ sessionId?: string; ongoing?: boolean }> = {},
+  options: Readonly<{
+    sessionId?: string;
+    ongoing?: boolean;
+    round?: number;
+    turn?: number;
+    stage?: number;
+    configValues?: Readonly<Record<string, unknown>>;
+  }> = {},
 ): Promise<string> {
   const ongoing = options.ongoing === true;
   const { data: game } = await admin
@@ -186,13 +197,17 @@ export async function seedParty(
     .insert({
       boardgame_id: bgId,
       status: ongoing ? "ongoing" : "ended",
-      round: 1,
-      turn: 1,
+      round: options.round ?? 1,
+      turn: options.turn ?? 1,
       current_player_id: ongoing ? scores[0]?.playerId : null,
       ended_at: ongoing ? null : new Date().toISOString(),
       ...(options.sessionId === undefined
         ? {}
         : { session_id: options.sessionId }),
+      ...(options.stage === undefined ? {} : { stage: options.stage }),
+      ...(options.configValues === undefined
+        ? {}
+        : { config_values: options.configValues }),
     })
     .select("id")
     .single();
@@ -209,6 +224,106 @@ export async function seedParty(
   );
 
   return gameId;
+}
+
+/**
+ * The turns of a party already in the books — what makes it a party someone
+ * *played* rather than one keyed in after the fact, and what every reading of
+ * time divides. A `playerId` of `null` is a turn the whole table took at once
+ * (a simultaneous game), owned by nobody.
+ */
+export async function seedTurns(
+  admin: SupabaseClient,
+  gameId: string,
+  turns: ReadonlyArray<{
+    playerId: string | null;
+    round: number;
+    turnNo: number;
+    durationS: number;
+  }>,
+): Promise<void> {
+  const { error } = await admin.from("game_turns").insert(
+    turns.map(t => ({
+      game_id: gameId,
+      player_id: t.playerId,
+      round: t.round,
+      turn_no: t.turnNo,
+      duration_s: t.durationS,
+    })),
+  );
+
+  if (error) {
+    throw new Error(`Failed to seed the turns: ${error.message}`);
+  }
+}
+
+/**
+ * A throwaway boardgame, for a scenario that needs a barème of its own rather
+ * than a real game's. Seeding one is what keeps a test from breaking the day a
+ * real game's scoring is changed — which has happened.
+ */
+export async function seedBoardgame(
+  admin: SupabaseClient,
+  fields: Readonly<{
+    name: string;
+    minPlayers?: number;
+    maxPlayers?: number;
+    roundLimit?: number | null;
+    scoring?: Readonly<Record<string, unknown>>;
+  }>,
+): Promise<string> {
+  const { data, error } = await admin
+    .from("boardgames")
+    .insert({
+      name: fields.name,
+      min_players: fields.minPlayers ?? 1,
+      max_players: fields.maxPlayers ?? 4,
+      ...(fields.roundLimit === undefined
+        ? {}
+        : { round_limit: fields.roundLimit }),
+      ...(fields.scoring === undefined ? {} : { scoring: fields.scoring }),
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    throw new Error(
+      `Failed to seed boardgame ${fields.name}: ${error.message}`,
+    );
+  }
+
+  return data.id as string;
+}
+
+/**
+ * Undoes what a scenario seeded, in the order the foreign keys allow: the
+ * parties first, then the games they were played on, then the players. Meant
+ * for a `finally`, so it never throws — a fixture left behind is a nuisance,
+ * a masked assertion failure is a lie.
+ */
+export async function dropSeeded(
+  admin: SupabaseClient,
+  seeded: Readonly<{
+    games?: ReadonlyArray<string | null>;
+    boardgames?: ReadonlyArray<string | null>;
+    playerNames?: readonly string[];
+  }>,
+): Promise<void> {
+  for (const id of seeded.games ?? []) {
+    if (id !== null) {
+      await admin.from("games").delete().eq("id", id);
+    }
+  }
+
+  for (const id of seeded.boardgames ?? []) {
+    if (id !== null) {
+      await admin.from("boardgames").delete().eq("id", id);
+    }
+  }
+
+  if (seeded.playerNames !== undefined) {
+    await admin.from("players").delete().in("name", seeded.playerNames);
+  }
 }
 
 /**
