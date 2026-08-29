@@ -251,7 +251,13 @@ function scoreEntry(
   return entryOf("score", null, "score", marks, direction);
 }
 
-/** « Les quatre îles — 10 points » : the course a race was run on. */
+/**
+ * « Les quatre îles — objectif 10 points » : the course a race was run on.
+ *
+ * The finish line says « objectif » out loud because the mark beside it is
+ * counted in laps: « 10 points » next to « 17 tours » otherwise reads as two
+ * halves of one figure rather than the target and the time it took.
+ */
 export function speedLabel(
   extensions: readonly PlayedExtension[],
   target: number,
@@ -259,10 +265,9 @@ export function speedLabel(
   const scenarios = extensions
     .flatMap(e => (e.scenarioName === null ? [] : [e.scenarioName]))
     .join(" + ");
+  const finish = `objectif ${target} points`;
 
-  return scenarios === ""
-    ? `${target} points`
-    : `${scenarios} — ${target} points`;
+  return scenarios === "" ? finish : `${scenarios} — ${finish}`;
 }
 
 /**
