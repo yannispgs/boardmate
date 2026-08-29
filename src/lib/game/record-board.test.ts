@@ -459,18 +459,21 @@ describe("recordBoard — the speed marks", () => {
     const board = recordBoard({
       boardgame: catan,
       extensions: [],
+      // Filed in the order they were played, longest finish line first.
       records: [
-        party("g-1", [[ann, 10]], { winners: [ann], rounds: 12, target: 10 }),
-        party("g-2", [[bob, 10]], { winners: [bob], rounds: 9, target: 10 }),
-        party("g-3", [[cat, 12]], { winners: [cat], rounds: 4, target: 12 }),
+        party("g-1", [[cat, 15]], { winners: [cat], rounds: 7, target: 15 }),
+        party("g-2", [[ann, 10]], { winners: [ann], rounds: 12, target: 10 }),
+        party("g-3", [[bob, 10]], { winners: [bob], rounds: 9, target: 10 }),
+        party("g-4", [[cat, 12]], { winners: [cat], rounds: 4, target: 12 }),
       ],
     });
     const entries = onlyTab(board).rows[0].entries;
 
-    expect(entries.map(e => e.target)).toEqual([10, 12]);
-    expect(entries.map(e => e.label)).toEqual([null, null]);
+    // Read back climbing, whatever order they were played in.
+    expect(entries.map(e => e.target)).toEqual([10, 12, 15]);
+    expect(entries.map(e => e.label)).toEqual([null, null, null]);
     // Each course counts the parties run on it, not the ones run at its table.
-    expect(entries.map(e => e.parties)).toEqual([2, 1]);
+    expect(entries.map(e => e.parties)).toEqual([2, 1, 1]);
     expect(entries[0].value).toBe(9);
     expect(entries[0].holders).toEqual(["Bob"]);
     expect(entries[0].bests).toEqual([
