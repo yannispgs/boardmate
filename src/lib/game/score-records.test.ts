@@ -14,6 +14,7 @@ import {
   recordLabel,
   recordTitle,
   scoreRecords,
+  tracksScoreRecord,
   worldRecordOf,
 } from "./score-records";
 
@@ -34,6 +35,13 @@ const HIGHEST: ScoringSpec = {
 };
 
 const LOWEST: ScoringSpec = { ...HIGHEST, winCondition: { type: "lowest" } };
+
+/** Splendor's own shape: a race to a target the highest score takes. */
+const RACE: ScoringSpec = {
+  ...HIGHEST,
+  timing: "live",
+  stopCondition: { type: "scoreTarget", field: "pointsToWin" },
+};
 
 /** A personal best, written the short way the expectations read best in. */
 function pb(previous: number, playerCount: number | null = null): ScoreRecord {
@@ -359,6 +367,42 @@ describe("scoreRecords", () => {
     const marks = records(null, [[ann, 999]], [party("g-1", [[ann, 10]])]);
 
     expect(marks.size).toBe(0);
+  });
+
+  it("hands out nothing on a race, whose totals all land on the target", () => {
+    const marks = records(RACE, [[ann, 18]], [party("g-1", [[ann, 15]])]);
+
+    expect(marks.size).toBe(0);
+  });
+});
+
+describe("tracksScoreRecord", () => {
+  it("crowns a score on a plain scored game, at either end of the scale", () => {
+    expect(tracksScoreRecord(HIGHEST)).toBe(true);
+    expect(tracksScoreRecord(LOWEST)).toBe(true);
+  });
+
+  it("says no on a game that keeps no score at all", () => {
+    expect(tracksScoreRecord(null)).toBe(false);
+  });
+
+  it("says no where the game declares its scores incomparable", () => {
+    expect(tracksScoreRecord({ ...HIGHEST, trackRecords: false })).toBe(false);
+  });
+
+  // The point of the whole predicate: Splendor never declared anything, and
+  // still must not crown a total — it stops the instant somebody reaches 15.
+  it("says no on a race, with nothing declared on the game", () => {
+    expect(tracksScoreRecord(RACE)).toBe(false);
+  });
+
+  // Odin stops on a target too, but there the small score wins, so crossing the
+  // line is what loses you the game — it is not a race, and it keeps its record
+  // unless it says otherwise.
+  it("still crowns a game that stops on a target the lowest score takes", () => {
+    expect(
+      tracksScoreRecord({ ...RACE, winCondition: { type: "lowest" } }),
+    ).toBe(true);
   });
 });
 

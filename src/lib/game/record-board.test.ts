@@ -220,14 +220,17 @@ describe("recordBoard — what a game keeps at all", () => {
     expect(board.metrics).toEqual(["speed"]);
   });
 
-  it("keeps both on a race that still compares its scores (Splendor)", () => {
+  // Splendor declares nothing at all, and still holds no score record: it stops
+  // the moment somebody reaches the target, so every winner posts that figure
+  // give or take one lap's overshoot. Being a race is reason enough.
+  it("keeps only the laps on a race that declared nothing (Splendor)", () => {
     const board = recordBoard({
       boardgame: boardgame(RACE),
       extensions: [],
       records: [],
     });
 
-    expect(board.metrics).toEqual(["score", "speed"]);
+    expect(board.metrics).toEqual(["speed"]);
   });
 
   it("keeps nothing at all on a game that compares neither (Papayoo)", () => {
