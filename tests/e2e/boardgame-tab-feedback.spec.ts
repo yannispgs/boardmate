@@ -15,9 +15,9 @@ const SERVER_DELAY_MS = 2000;
  * that window the new tab must already be the open one, with its skeleton
  * underneath.
  *
- * Only the navigation is slowed. The prefetch that Next fires when the link
- * comes into view is let through, exactly as on a real visit — it is what puts
- * the fallback in the browser's hands before the press.
+ * Only the navigation is slowed. The prefetches Next fires when the tabs come
+ * into view are let through first, exactly as on a real visit — they are what
+ * put the fallback in the browser's hands before the press.
  */
 test("moves the tab on the press and waits underneath it", async ({ page }) => {
   const admin = adminClient();
@@ -34,16 +34,19 @@ test("moves the tab on the press and waits underneath it", async ({ page }) => {
 
     const records = page.getByRole("link", { name: "Records", exact: true });
 
-    // Let the prefetch land first, then hold the real navigation back.
     await expect(records).toBeVisible();
-    await page.waitForTimeout(1000);
+
+    // Next fires more than one prefetch per tab, and their answers are what put
+    // the fallback in the browser's hands. Waiting for the network to fall
+    // quiet is waiting for the last of them: hold back one prefetch by mistake
+    // and the router has nothing to show, which would fail the test for a
+    // reason that has nothing to do with the fix.
+    await page.waitForLoadState("networkidle");
+
+    // Only from here is the server made slow, so what the press has to work
+    // with is exactly what a real visit leaves in the browser: the fallback,
+    // and nothing of the tab's own data.
     await page.route("**/records*", async route => {
-      if (route.request().headers()["next-router-prefetch"] === "1") {
-        await route.continue();
-
-        return;
-      }
-
       await new Promise(resolve => setTimeout(resolve, SERVER_DELAY_MS));
       await route.continue();
     });
