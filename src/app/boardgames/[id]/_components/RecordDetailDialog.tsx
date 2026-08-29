@@ -4,6 +4,7 @@ import { Modal } from "@/components/Modal";
 import { ModalHeader } from "@/components/ModalHeader";
 import { modalCardClass } from "@/components/ui";
 import type { BoardRow, RecordEntry } from "@/lib/game/record-board";
+import { targetLong } from "@/lib/game/record-board";
 
 /** How a mark reads in the unit it was measured in, in the detail list. */
 function figure(entry: RecordEntry, value: number): string {
@@ -34,11 +35,18 @@ export function RecordDetailDialog({
   tabLabel: string;
   onClose: () => void;
 }>) {
-  // How contested the basket is used to sit on the grid; it left with the
-  // frame around each table size, and reads better here anyway — right above
-  // the players who played those parties.
-  const played = `${row.parties} partie${row.parties > 1 ? "s" : ""}`;
-  const hint = [tabLabel, row.label, entry.label, played]
+  // The configuration said in full, where there is room for it: the grid runs
+  // on abbreviations (« 3J », « 15P ») and on a count of parties it dropped
+  // with the frame around each table size, and this is the one place both can
+  // be read as words — right above the players who played them.
+  const played = `${entry.parties} partie${entry.parties > 1 ? "s" : ""}`;
+  const hint = [
+    tabLabel,
+    row.label,
+    entry.label,
+    entry.target === null ? null : targetLong(entry.target),
+    played,
+  ]
     .filter(part => part !== null)
     .join(" · ");
 

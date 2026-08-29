@@ -1,24 +1,29 @@
 "use client";
 
-import type { BoardLine, BoardRow, RecordEntry } from "@/lib/game/record-board";
+import type { BoardRow, RecordEntry } from "@/lib/game/record-board";
 import { RecordRow } from "./RecordRow";
 
 /**
- * The lines of the tab in view. A hair rule between them rather than a frame
- * around each: the grid is read by running down it, and a game declared 2–6
- * would otherwise stack five boxes to show five figures.
+ * The table sizes of the tab in view, one group each. The rule between two
+ * sizes is heavier than the one between two marks of the same size: they are
+ * the cuts that matter — a mark only ever compares to the others under the same
+ * heading, and the eye has to find that boundary without reading the labels.
  */
 export function RecordRowList({
-  lines,
+  rows,
   onOpen,
 }: Readonly<{
-  lines: BoardLine[];
+  rows: BoardRow[];
   onOpen: (row: BoardRow, entry: RecordEntry) => void;
 }>) {
   return (
-    <ul className="flex flex-col divide-y divide-black/5 dark:divide-white/5">
-      {lines.map(line => (
-        <RecordRow key={line.key} line={line} onOpen={onOpen} />
+    <ul className="flex flex-col divide-y divide-black/15 dark:divide-white/15">
+      {rows.map(row => (
+        <RecordRow
+          key={row.label}
+          row={row}
+          onOpen={entry => onOpen(row, entry)}
+        />
       ))}
     </ul>
   );

@@ -7,6 +7,7 @@ import {
   seedBoardgame,
   seedParty,
   seedPlayers,
+  seedTurns,
 } from "./utils/supabase";
 
 /**
@@ -66,11 +67,13 @@ test("lists the marks standing on a game, and the baskets left to take", async (
     ).toBeVisible();
 
     // Both parties were played at three, so the duel line is up for grabs.
-    const duel = page.getByRole("listitem").filter({ hasText: "2 joueurs" });
+    // The grid names a table size on its left rail alone: « 2J », not
+    // « 2 joueurs » — the words are kept for the detail, which has the room.
+    const duel = page.getByRole("listitem").filter({ hasText: "2J" });
 
     await expect(duel).toContainText("Non attribué");
 
-    const full = page.getByRole("listitem").filter({ hasText: "3 joueurs" });
+    const full = page.getByRole("listitem").filter({ hasText: "3J" });
 
     await expect(full).toContainText(players[1]);
     await expect(full).toContainText("110 points");
@@ -105,6 +108,94 @@ test("lists the marks standing on a game, and the baskets left to take", async (
       await admin.from("extensions").delete().eq("base_game_id", bgId);
     }
 
+    await dropSeeded(admin, {
+      games: seeded,
+      boardgames: [bgId],
+      playerNames: players,
+    });
+  }
+});
+
+/**
+ * The same board on a game that is **raced**, where one table size holds
+ * several marks: two races to different finish lines were never the same race,
+ * so they take a mark each — under a single « 3J », not under one heading each.
+ */
+test("groups the marks of a table size under one heading", async ({ page }) => {
+  const admin = adminClient();
+  const players = await seedPlayers(3);
+  const gameName = `E2E Courses ${Date.now().toString(36)}`;
+  const seeded: string[] = [];
+  let bgId: string | null = null;
+
+  try {
+    bgId = await seedBoardgame(admin, {
+      name: gameName,
+      minPlayers: 3,
+      maxPlayers: 4,
+      roundLimit: null,
+      scoring: {
+        timing: "live",
+        entry: "total",
+        // Catan's own shape: the scenario decides the total, so the score says
+        // nothing and only the laps are worth keeping.
+        trackRecords: false,
+        stopCondition: { type: "scoreTarget", field: "pointsToWin" },
+        winCondition: { type: "highest" },
+        playerCountSensitive: true,
+      },
+    });
+
+    const idOf = await playerIds(players);
+    const race = async (scores: number[], rounds: number, target: number) => {
+      const gameId = await seedParty(
+        admin,
+        bgId as string,
+        players.map((name, seat) => ({
+          playerId: idOf(name),
+          score: scores[seat],
+          isWinner: scores[seat] === Math.max(...scores),
+        })),
+        { round: rounds, configValues: { pointsToWin: target } },
+      );
+
+      await seedTurns(admin, gameId, [
+        { playerId: idOf(players[0]), round: 1, turnNo: 1, durationS: 30 },
+      ]);
+      seeded.push(gameId);
+    };
+
+    await race([10, 4, 3], 17, 10);
+    await race([15, 9, 7], 9, 15);
+
+    await page.goto("/boardgames");
+    await page.getByRole("link", { name: `Records de ${gameName}` }).click();
+
+    // One heading for the size, two marks hanging off it, each named by the
+    // finish line it was set against rather than by repeating the size.
+    const group = page.getByRole("listitem").filter({ hasText: "3J" });
+
+    await expect(group).toHaveCount(1);
+
+    const marks = group.getByRole("listitem");
+
+    await expect(marks).toHaveCount(2);
+    await expect(marks.nth(0)).toContainText("10P");
+    await expect(marks.nth(0)).toContainText("17 tours");
+    await expect(marks.nth(1)).toContainText("15P");
+    await expect(marks.nth(1)).toContainText("9 tours");
+
+    // The size nobody sat four at is still a basket, and still empty.
+    await expect(
+      page.getByRole("listitem").filter({ hasText: "4J" }),
+    ).toContainText("Non attribué");
+
+    // The abbreviations are for the rail; the detail spells the course out.
+    await marks.nth(1).getByRole("button").click();
+    await expect(
+      page.getByText("Jeu de base · 3 joueurs · objectif 15 points · 1 partie"),
+    ).toBeVisible();
+  } finally {
     await dropSeeded(admin, {
       games: seeded,
       boardgames: [bgId],
