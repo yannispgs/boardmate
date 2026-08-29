@@ -336,21 +336,30 @@ function speedEntries(
     courses.set(key, course);
   }
 
-  return [...courses.entries()]
-    .map(([key, course]) =>
-      entryOf(
-        {
-          key: `speed:${key}`,
-          target: course.target,
-          label: course.label,
-          metric: "speed",
-          parties: course.parties,
-        },
-        course.marks,
-        "lowest",
-      ),
-    )
-    .filter(entry => entry !== null);
+  return (
+    [...courses.entries()]
+      // The rail climbs: 10P, then 12P, then 15P. Left alone, the courses come
+      // out in the order the parties happened to be played, which is the
+      // notebook's order and not the reader's — he looks down the rail for one
+      // finish line among several, and a sorted column is scanned where an
+      // unsorted one has to be read. Ties keep their order, so two scenarios
+      // raced to the same line stay as the notebook filed them.
+      .sort(([, a], [, b]) => a.target - b.target)
+      .map(([key, course]) =>
+        entryOf(
+          {
+            key: `speed:${key}`,
+            target: course.target,
+            label: course.label,
+            metric: "speed",
+            parties: course.parties,
+          },
+          course.marks,
+          "lowest",
+        ),
+      )
+      .filter(entry => entry !== null)
+  );
 }
 
 /** The whole board of one game, tab by tab and row by row. */

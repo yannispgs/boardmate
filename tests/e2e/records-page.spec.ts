@@ -164,8 +164,10 @@ test("groups the marks of a table size under one heading", async ({ page }) => {
       seeded.push(gameId);
     };
 
-    await race([10, 4, 3], 17, 10);
+    // Played longest finish line first, so the rail can only come out climbing
+    // if it sorts — not because that is the order they were filed in.
     await race([15, 9, 7], 9, 15);
+    await race([10, 4, 3], 17, 10);
 
     await page.goto("/boardgames");
     await page.getByRole("link", { name: `Records de ${gameName}` }).click();
