@@ -1,4 +1,6 @@
-import type { GameStatsRecord, PlayerId, TurnMode } from "@/lib/domain";
+import type { GameStatsRecord, TurnMode } from "@/lib/domain";
+import { placements, relativePosition } from "./placement";
+import type { ScoreDirection } from "./scoring";
 
 /**
  * Whether "first / middle / last to play" means anything for a game. It doesn't
@@ -29,38 +31,6 @@ export interface SeatStat {
   avgPosition: number | null;
 }
 
-/** Which end of the score wins: highest (Catan) or lowest (golf-like). */
-export type ScoreDirection = "highest" | "lowest";
-
-/** 1-based placement per player within one game; null if any score is missing. */
-function placements(
-  players: Array<{ playerId: PlayerId; score: number | null }>,
-  direction: ScoreDirection,
-): Map<PlayerId, number> | null {
-  if (players.some(p => p.score === null)) {
-    return null;
-  }
-
-  const sorted = [...players].sort((a, b) =>
-    direction === "highest"
-      ? (b.score as number) - (a.score as number)
-      : (a.score as number) - (b.score as number),
-  );
-  const ranks = new Map<PlayerId, number>();
-  let prevScore: number | null = null;
-  let prevRank = 0;
-
-  sorted.forEach((p, i) => {
-    // Ties share the rank of the player above; otherwise the 1-based position.
-    const rank = prevScore === p.score ? prevRank : i + 1;
-    ranks.set(p.playerId, rank);
-    prevScore = p.score;
-    prevRank = rank;
-  });
-
-  return ranks;
-}
-
 /** The seat bucket for position `idx` in an `n`-player game (sorted by seat). */
 function bucketAt(idx: number, n: number): SeatBucket {
   if (idx === 0) {
@@ -79,18 +49,6 @@ interface Bucket {
   wins: number;
   posSum: number;
   posCount: number;
-}
-
-/**
- * Rank (1 = best) as a relative position in [0, 1], independent of the player
- * count: 0 for the winner, 1 for the last. A lone player maps to 0.
- */
-function relativePosition(rank: number, n: number): number {
-  if (n <= 1) {
-    return 0;
-  }
-
-  return (rank - 1) / (n - 1);
 }
 
 /**
