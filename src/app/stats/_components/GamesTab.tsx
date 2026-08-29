@@ -36,6 +36,7 @@ import {
 } from "@/lib/game/phase-stats";
 import { winnerDirection } from "@/lib/game/scoring";
 import { computeSeatStats, type SeatStat } from "@/lib/game/seat-stats";
+import { tracksSpeedRecord } from "@/lib/game/speed-records";
 import {
   computeTallyAverages,
   computeTallyExits,
@@ -56,12 +57,12 @@ import { CategoryCharts } from "./CategoryCharts";
 import { GamePlayerTable } from "./GamePlayerTable";
 import { GoalStatsTable } from "./GoalStatsTable";
 import { PhaseTimeCardList } from "./PhaseTimeCardList";
-import { ScoreDistribution } from "./ScoreDistribution";
 import { SeatStats } from "./SeatStats";
 import { StatsDiceDistribution } from "./StatsDiceDistribution";
 import { TallyExitCardList } from "./TallyExitCardList";
 import { TallyPointsChart } from "./TallyPointsChart";
 import { TimeIndexInfo } from "./TimeIndexInfo";
+import { ValueDistribution } from "./ValueDistribution";
 import {
   type WorstScoreGameView,
   WorstScoreSection,
@@ -143,10 +144,29 @@ export function GamesTab({
 
   const scored = stats.avgScore !== null;
 
+  // Games raced rather than out-scored (Catan): everyone stops at the same
+  // total, so the score spread says nothing and the length of the race says
+  // everything. Only the parties actually played through the app count — one
+  // keyed in after the fact never left the first lap, and would plant a phantom
+  // « 1 tour » at the fast end of the chart.
+  //
+  // The two charts are one decision, not two: a race plots its length INSTEAD
+  // of its totals. On Catan the finish line moves with the scenario and the
+  // table, so the totals compare nothing; on Splendor everyone stops within a
+  // point of the same figure, so they say nothing either.
+  const roundsPlayed = useMemo(
+    () =>
+      filterRecords(records, filters)
+        .filter(g => g.turns.length > 0)
+        .map(g => g.rounds ?? 1),
+    [records, filters],
+  );
+
   // Turn-order breakdown, for games that opt into it (Catan): win rate and
   // average placement for the first / intermediate / last player to play.
   const { boardgames } = useBoardgames();
   const boardgame = boardgames.find(b => b.id === active) ?? null;
+  const raced = tracksSpeedRecord(boardgame?.scoring ?? null);
   // Category games (Cascadia): the point-distribution charts.
   const categorySheet =
     boardgame?.scoring?.entry === "categories"
@@ -299,7 +319,8 @@ export function GamesTab({
         <GameSections
           stats={stats}
           scored={scored}
-          scores={scores}
+          scores={raced ? null : scores}
+          rounds={raced ? roundsPlayed : null}
           dice={dice}
           seatStats={seatStats}
           showSeatStats={boardgame?.trackSeatStats ?? false}
@@ -595,6 +616,7 @@ function GameSections({
   stats,
   scored,
   scores,
+  rounds,
   dice,
   seatStats,
   showSeatStats,
@@ -610,7 +632,10 @@ function GameSections({
 }: Readonly<{
   stats: GlobalStats;
   scored: boolean;
-  scores: number[];
+  /** Every score posted; null on a game that is raced — see {@link rounds}. */
+  scores: number[] | null;
+  /** Laps each party took, on a game that is raced; null for every other game. */
+  rounds: number[] | null;
   dice: { spec: DiceSpec | null; rolls: number[] };
   seatStats: SeatStat[];
   showSeatStats: boolean;
@@ -648,9 +673,36 @@ function GameSections({
       )}
       <ChampionBanner champion={champion} />
 
-      {scored && scores.length > 0 ? (
+      {rounds !== null && rounds.length > 0 ? (
+        <Section
+          title={
+            <>
+              Répartition du nombre de tours
+              <InfoTip label="Répartition du nombre de tours">
+                <p>
+                  Combien de <strong>tours de table</strong> il a fallu pour
+                  qu&apos;une partie aille au bout — le chiffre qui compte sur
+                  un jeu où tout le monde s&apos;arrête au même score.
+                </p>
+                <p>
+                  Les parties <strong>saisies après coup</strong> n&apos;y sont
+                  pas : aucun tour n&apos;y a été enregistré, donc leur durée
+                  n&apos;a jamais été jouée.
+                </p>
+              </InfoTip>
+            </>
+          }
+        >
+          <ValueDistribution
+            values={rounds}
+            unit={{ noun: "partie", scale: "tours" }}
+          />
+        </Section>
+      ) : null}
+
+      {scored && scores !== null && scores.length > 0 ? (
         <Section title="Répartition des scores">
-          <ScoreDistribution scores={scores} />
+          <ValueDistribution values={scores} />
         </Section>
       ) : null}
 

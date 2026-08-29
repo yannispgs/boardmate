@@ -7,7 +7,48 @@ import type {
   StopCondition,
 } from "@/lib/domain";
 import { scenarioTarget, winTargetWithModifiers } from "./extensions";
-import { optionTargetModifier } from "./scoring";
+import { optionTargetModifier, stopTargetFrom } from "./scoring";
+
+/** An extension as it was played: the whole thing plus the scenario chosen. */
+export type PlayedWith = Extension & {
+  scenarioId: ExtensionScenarioId | null;
+};
+
+/**
+ * The score a party was actually played to, as one number — the finish line
+ * that party raced towards.
+ *
+ * A selected scenario imposes its own base over whatever the config said; the
+ * options switched on and the active extensions' modifiers then raise it, never
+ * lower it. `null` when the game aims at no score at all, or when the party
+ * never recorded one (a party keyed in after the fact has no config to read).
+ *
+ * Both the party being played and the parties in the books resolve their target
+ * here: a race is only comparable to another when the line was in the same
+ * place, so the two readings must agree to the point.
+ */
+export function resolveWinTarget(
+  stopCondition: StopCondition | null | undefined,
+  fields: FieldSpec[],
+  values: ConfigValues | null,
+  played: PlayedWith[],
+): number | null {
+  const scenarioBy = Object.fromEntries(
+    played.flatMap(e => (e.scenarioId ? [[e.id, e.scenarioId] as const] : [])),
+  );
+  const base =
+    scenarioTarget(played, scenarioBy) ??
+    stopTargetFrom(stopCondition, values, fields);
+
+  if (base === null) {
+    return null;
+  }
+
+  return winTargetWithModifiers(
+    base + optionTargetModifier(values, fields),
+    played,
+  );
+}
 
 /** Everything the recap's target bar reads, already resolved. */
 export interface WinTargetBarView {

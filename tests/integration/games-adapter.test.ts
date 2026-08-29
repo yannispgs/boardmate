@@ -1668,7 +1668,11 @@ describe("games adapter — recording a finished game", () => {
 });
 
 describe("games adapter — extensions", () => {
-  it("records active extensions and locks the win target to the scenario", async () => {
+  /**
+   * A party of Catan opened on Marins' « Les quatre îles » — the scenario that
+   * imposes its own finish line, which is what makes it worth playing here.
+   */
+  async function openFourIslands() {
     const admin = serviceClient();
     const { data: ext } = await admin
       .from("extensions")
@@ -1690,8 +1694,14 @@ describe("games adapter — extensions", () => {
       extensionIds: [extId],
       scenarioByExtension: { [extId]: scId },
     });
+
     gameIds.push(game.id);
 
+    return { game, extId, scId };
+  }
+
+  it("records active extensions and locks the win target to the scenario", async () => {
+    const { game, scId } = await openFourIslands();
     const populated = await repo().getPopulated(game.id);
 
     expect(populated?.extensions.map(e => e.name)).toEqual(["Catan - Marins"]);
@@ -1737,6 +1747,27 @@ describe("games adapter — extensions", () => {
 
     expect(listed?.extensions).toEqual([
       { name: "Catan - Marins", scenarioName: null },
+    ]);
+  });
+
+  it("resolves the same finish line in the books as on the table", async () => {
+    const { game } = await openFourIslands();
+
+    await repo().advanceTurn(game.id, 30, 0, 0, 0);
+    await repo().end(
+      game.id,
+      [playerIds[0]],
+      [{ playerId: playerIds[0], score: 13 }],
+    );
+
+    const record = (await repo().listStats()).find(r => r.gameId === game.id);
+
+    // A race only compares to another when the line sat in the same place, so
+    // the stats row has to say 13 exactly like the play screen did.
+    expect(record?.winThreshold).toBe(13);
+    expect(record?.rounds).toBe(1);
+    expect(record?.extensions).toEqual([
+      { name: "Catan - Marins", scenarioName: "Les quatre îles" },
     ]);
   });
 

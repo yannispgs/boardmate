@@ -71,16 +71,34 @@ function HistogramBars({ histogram }: Readonly<{ histogram: ScoreHistogram }>) {
 
 type View = "hist" | "dots";
 
+/** How a distribution names what it counted, so the caption says it out loud. */
+export interface DistributionUnit {
+  /** One measured value, singular: « score », « partie ». */
+  noun: string;
+  /**
+   * What the figures themselves are, when the numbers alone say nothing:
+   * « de 7 à 15 **tours** ». Left out for scores, where points are implied.
+   */
+  scale?: string;
+}
+
+const SCORES: DistributionUnit = { noun: "score" };
+
 /**
- * The distribution of the final scores a game produced, over the parties in
- * scope. Toggles between a bucketed **histogram** (the shape) and a **dot
- * plot** (every result, no bucketing — better when scores span a wide range
- * like Forêt Mixte's 100–300). Renders nothing when there are no scores.
+ * The distribution of one figure a game produced, over the parties in scope —
+ * the final scores, or the laps a party took on a game that is raced rather
+ * than out-scored. Toggles between a bucketed **histogram** (the shape) and a
+ * **dot plot** (every result, no bucketing — better when the values span a wide
+ * range like Forêt Mixte's 100–300). Renders nothing when there is nothing to
+ * plot.
  */
-export function ScoreDistribution({ scores }: Readonly<{ scores: number[] }>) {
+export function ValueDistribution({
+  values,
+  unit = SCORES,
+}: Readonly<{ values: number[]; unit?: DistributionUnit }>) {
   const [view, setView] = useState<View>("hist");
-  const histogram = useMemo(() => scoreHistogram(scores), [scores]);
-  const plot = useMemo(() => dotPlot(scores), [scores]);
+  const histogram = useMemo(() => scoreHistogram(values), [values]);
+  const plot = useMemo(() => dotPlot(values), [values]);
 
   if (histogram === null || plot === null) {
     return null;
@@ -119,8 +137,10 @@ export function ScoreDistribution({ scores }: Readonly<{ scores: number[] }>) {
       )}
 
       <p className="text-xs text-zinc-500 dark:text-zinc-400">
-        {histogram.count} score{histogram.count > 1 ? "s" : ""} · de{" "}
-        {histogram.min} à {histogram.max} · moyenne {histogram.mean.toFixed(1)}
+        {histogram.count} {unit.noun}
+        {histogram.count > 1 ? "s" : ""} · de {histogram.min} à {histogram.max}
+        {unit.scale === undefined ? "" : ` ${unit.scale}`} · moyenne{" "}
+        {histogram.mean.toFixed(1)}
         {view === "hist" && histogram.step > 1
           ? ` · tranches de ${histogram.step}`
           : ""}

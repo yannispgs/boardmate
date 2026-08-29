@@ -4,7 +4,12 @@ import {
   adminClient,
   boardgameId,
   CATAN_ID,
+  dropSeeded,
+  playerIds,
+  seedBoardgame,
+  seedParty,
   seedPlayers,
+  seedTurns,
   TERRAFORMING_MARS_NAME,
 } from "./utils/supabase";
 
@@ -19,57 +24,39 @@ test("shows player averages and per-game averages across the two tabs", async ({
   const admin = adminClient();
   const names = await seedPlayers(3);
   const gameIds: string[] = [];
-  let otherBoardgameId = "";
+  let otherBoardgameId: string | null = null;
 
   try {
-    const { data: seeded } = await admin
-      .from("players")
-      .select("id, name")
-      .in("name", names);
-    const ids = (seeded ?? []).map(p => p.id as string);
+    const idOf = await playerIds(names);
+    const ids = names.map(idOf);
 
-    const { data: other } = await admin
-      .from("boardgames")
-      .insert({
-        name: `Zzz-${Date.now().toString(36)}`,
-        min_players: 1,
-        max_players: 4,
-      })
-      .select("id")
-      .single();
-    otherBoardgameId = other?.id as string;
+    otherBoardgameId = await seedBoardgame(admin, {
+      name: `Zzz-${Date.now().toString(36)}`,
+    });
 
-    async function seedEndedGame(boardgameId: string, winnerIdx: number) {
-      const { data: game } = await admin
-        .from("games")
-        .insert({
-          boardgame_id: boardgameId,
-          status: "ended",
-          round: 1,
-          turn: 1,
-          ended_at: new Date().toISOString(),
-        })
-        .select("id")
-        .single();
-      const gameId = game?.id as string;
-      gameIds.push(gameId);
-
-      await admin.from("game_players").insert(
-        ids.map((player_id, i) => ({
-          game_id: gameId,
-          player_id,
-          seat_order: i,
-          is_winner: i === winnerIdx,
+    async function seedEndedGame(bgId: string, winnerIdx: number) {
+      const gameId = await seedParty(
+        admin,
+        bgId,
+        ids.map((playerId, i) => ({
+          playerId,
           score: 10 - i,
+          isWinner: i === winnerIdx,
         })),
       );
-      await admin.from("game_turns").insert(
-        ids.map((player_id, i) => ({
-          game_id: gameId,
-          player_id,
+
+      gameIds.push(gameId);
+
+      // Each player takes a longer turn than the one before, so the time index
+      // ranks them in a known order.
+      await seedTurns(
+        admin,
+        gameId,
+        ids.map((playerId, i) => ({
+          playerId,
           round: 1,
-          turn_no: i + 1,
-          duration_s: 30 + i * 10,
+          turnNo: i + 1,
+          durationS: 30 + i * 10,
         })),
       );
     }
@@ -115,13 +102,11 @@ test("shows player averages and per-game averages across the two tabs", async ({
       page.getByRole("listitem").filter({ hasText: names[0] }),
     ).toContainText("0%");
   } finally {
-    for (const id of gameIds) {
-      await admin.from("games").delete().eq("id", id);
-    }
-    if (otherBoardgameId) {
-      await admin.from("boardgames").delete().eq("id", otherBoardgameId);
-    }
-    await admin.from("players").delete().in("name", names);
+    await dropSeeded(admin, {
+      games: gameIds,
+      boardgames: [otherBoardgameId],
+      playerNames: names,
+    });
   }
 });
 
@@ -131,60 +116,37 @@ test("recomputes the ranking from games where the selected players played", asyn
   const admin = adminClient();
   const names = await seedPlayers(3);
   const gameIds: string[] = [];
-  let bgId = "";
+  let bgId: string | null = null;
 
   try {
-    const { data: seeded } = await admin
-      .from("players")
-      .select("id, name")
-      .in("name", names);
-    const ids = names.map(
-      n => (seeded ?? []).find(p => p.name === n)?.id as string,
-    );
+    const idOf = await playerIds(names);
+    const ids = names.map(idOf);
 
     // A boardgame that allows 2-player games (so one game can exclude a player).
-    const { data: bg } = await admin
-      .from("boardgames")
-      .insert({
-        name: `Prez-${Date.now().toString(36)}`,
-        min_players: 1,
-        max_players: 4,
-      })
-      .select("id")
-      .single();
-    bgId = bg?.id as string;
+    bgId = await seedBoardgame(admin, {
+      name: `Prez-${Date.now().toString(36)}`,
+    });
 
     async function seed(playerIdxs: number[], winnerIdx: number) {
-      const { data: game } = await admin
-        .from("games")
-        .insert({
-          boardgame_id: bgId,
-          status: "ended",
-          round: 1,
-          turn: 1,
-          ended_at: new Date().toISOString(),
-        })
-        .select("id")
-        .single();
-      const gameId = game?.id as string;
-      gameIds.push(gameId);
-
-      await admin.from("game_players").insert(
-        playerIdxs.map((idx, seat) => ({
-          game_id: gameId,
-          player_id: ids[idx],
-          seat_order: seat,
-          is_winner: idx === winnerIdx,
+      const gameId = await seedParty(
+        admin,
+        bgId as string,
+        playerIdxs.map(idx => ({
+          playerId: ids[idx],
           score: 5,
+          isWinner: idx === winnerIdx,
         })),
       );
-      await admin.from("game_turns").insert(
+
+      gameIds.push(gameId);
+      await seedTurns(
+        admin,
+        gameId,
         playerIdxs.map((idx, seat) => ({
-          game_id: gameId,
-          player_id: ids[idx],
+          playerId: ids[idx],
           round: 1,
-          turn_no: seat + 1,
-          duration_s: 20,
+          turnNo: seat + 1,
+          durationS: 20,
         })),
       );
     }
@@ -233,13 +195,11 @@ test("recomputes the ranking from games where the selected players played", asyn
 
     await expect(p0Row()).toContainText("67%");
   } finally {
-    for (const id of gameIds) {
-      await admin.from("games").delete().eq("id", id);
-    }
-    if (bgId) {
-      await admin.from("boardgames").delete().eq("id", bgId);
-    }
-    await admin.from("players").delete().in("name", names);
+    await dropSeeded(admin, {
+      games: gameIds,
+      boardgames: [bgId],
+      playerNames: names,
+    });
   }
 });
 
@@ -257,48 +217,29 @@ test("narrows the player ranking down to one boardgame in two taps", async ({
   const boardgameIds: string[] = [];
 
   try {
-    const { data: seeded } = await admin
-      .from("players")
-      .select("id, name")
-      .in("name", names);
-    const ids = (seeded ?? []).map(p => p.id as string);
+    const idOf = await playerIds(names);
+    const ids = names.map(idOf);
 
-    async function seedBoardgame(name: string) {
-      const { data } = await admin
-        .from("boardgames")
-        .insert({ name, min_players: 1, max_players: 4 })
-        .select("id")
-        .single();
-      const id = data?.id as string;
+    async function seedTracked(name: string) {
+      const id = await seedBoardgame(admin, { name });
+
       boardgameIds.push(id);
 
       return id;
     }
 
     async function seedEndedGame(bgId: string, winnerIdx: number) {
-      const { data: game } = await admin
-        .from("games")
-        .insert({
-          boardgame_id: bgId,
-          status: "ended",
-          round: 1,
-          turn: 1,
-          ended_at: new Date().toISOString(),
-        })
-        .select("id")
-        .single();
-      const gameId = game?.id as string;
-      gameIds.push(gameId);
-
-      await admin.from("game_players").insert(
-        ids.map((player_id, i) => ({
-          game_id: gameId,
-          player_id,
-          seat_order: i,
-          is_winner: i === winnerIdx,
+      const gameId = await seedParty(
+        admin,
+        bgId,
+        ids.map((playerId, i) => ({
+          playerId,
           score: 10 - i,
+          isWinner: i === winnerIdx,
         })),
       );
+
+      gameIds.push(gameId);
     }
 
     const stamp = Date.now().toString(36);
@@ -308,9 +249,9 @@ test("narrows the player ranking down to one boardgame in two taps", async ({
 
     // Player 0 wins the only party of the first game, and neither of the two
     // others — so the ranking says something different at every step.
-    await seedEndedGame(await seedBoardgame(kept), 0);
-    await seedEndedGame(await seedBoardgame(dropped), 1);
-    await seedEndedGame(await seedBoardgame(third), 1);
+    await seedEndedGame(await seedTracked(kept), 0);
+    await seedEndedGame(await seedTracked(dropped), 1);
+    await seedEndedGame(await seedTracked(third), 1);
 
     await page.goto("/stats");
 
@@ -362,61 +303,60 @@ test("narrows the player ranking down to one boardgame in two taps", async ({
     await expect(page.getByText("Seulement")).toBeVisible();
     await expect(p0Row()).toContainText("100%");
   } finally {
-    for (const id of gameIds) {
-      await admin.from("games").delete().eq("id", id);
-    }
-    for (const id of boardgameIds) {
-      await admin.from("boardgames").delete().eq("id", id);
-    }
-    await admin.from("players").delete().in("name", names);
+    await dropSeeded(admin, {
+      games: gameIds,
+      boardgames: boardgameIds,
+      playerNames: names,
+    });
   }
 });
 
 test("charts the score distribution for a scored game", async ({ page }) => {
   const admin = adminClient();
   const names = await seedPlayers(3);
+  const gameName = `E2E Scores ${Date.now().toString(36)}`;
   const gameIds: string[] = [];
+  let bgId: string | null = null;
 
   try {
-    const { data: seeded } = await admin
-      .from("players")
-      .select("id, name")
-      .in("name", names);
-    const ids = (seeded ?? []).map(p => p.id as string);
+    // A game of its own rather than a real one: the chart is shown on games
+    // played FOR the total, and which real game that is has moved before — a
+    // race plots its laps instead, so Catan no longer answers here.
+    bgId = await seedBoardgame(admin, {
+      name: gameName,
+      minPlayers: 2,
+      roundLimit: 3,
+      scoring: {
+        timing: "final",
+        entry: "total",
+        winCondition: { type: "highest" },
+      },
+    });
+
+    const idOf = await playerIds(names);
+    const ids = names.map(idOf);
 
     async function seedScored(scores: number[]) {
-      const { data: game } = await admin
-        .from("games")
-        .insert({
-          boardgame_id: CATAN_ID,
-          status: "ended",
-          round: 1,
-          turn: 1,
-          ended_at: new Date().toISOString(),
-        })
-        .select("id")
-        .single();
-      const gameId = game?.id as string;
-      gameIds.push(gameId);
-
-      await admin.from("game_players").insert(
-        ids.map((player_id, i) => ({
-          game_id: gameId,
-          player_id,
-          seat_order: i,
-          is_winner: i === 0,
+      const gameId = await seedParty(
+        admin,
+        bgId as string,
+        ids.map((playerId, i) => ({
+          playerId,
           score: scores[i],
+          isWinner: i === 0,
         })),
       );
+
+      gameIds.push(gameId);
     }
 
-    // Two scored Catan games → scores 3,5,6,8,10,10.
+    // Two scored games → scores 3,5,6,8,10,10.
     await seedScored([10, 6, 3]);
     await seedScored([10, 8, 5]);
 
     await page.goto("/stats");
     await page.getByRole("button", { name: "Jeux", exact: true }).click();
-    await page.getByRole("button", { name: "Catan", exact: true }).click();
+    await page.getByRole("button", { name: gameName, exact: true }).click();
 
     await expect(page.getByText("Répartition des scores")).toBeVisible();
     await expect(page.getByText(/6 scores · de 3 à 10/)).toBeVisible();
@@ -427,10 +367,11 @@ test("charts the score distribution for a scored game", async ({ page }) => {
       page.getByRole("img", { name: "Nuage de points des scores" }),
     ).toBeVisible();
   } finally {
-    for (const id of gameIds) {
-      await admin.from("games").delete().eq("id", id);
-    }
-    await admin.from("players").delete().in("name", names);
+    await dropSeeded(admin, {
+      games: gameIds,
+      boardgames: [bgId],
+      playerNames: names,
+    });
   }
 });
 
@@ -445,46 +386,32 @@ test("drops the per-player time figures on a simultaneous game", async ({
 }) => {
   const admin = adminClient();
   const names = await seedPlayers(3);
-  let gameId = "";
+  let gameId: string | null = null;
 
   try {
-    const { data: seeded } = await admin
-      .from("players")
-      .select("id, name")
-      .in("name", names);
-    const ids = (seeded ?? []).map(p => p.id as string);
+    const idOf = await playerIds(names);
+    const ids = names.map(idOf);
 
-    const { data: game } = await admin
-      .from("games")
-      .insert({
-        boardgame_id: await boardgameId("Splito"),
-        status: "ended",
-        round: 2,
-        turn: 2,
-        ended_at: new Date().toISOString(),
-      })
-      .select("id")
-      .single();
-    gameId = game?.id as string;
-
-    await admin.from("game_players").insert(
-      ids.map((player_id, i) => ({
-        game_id: gameId,
-        player_id,
-        seat_order: i,
-        is_winner: i === 0,
+    gameId = await seedParty(
+      admin,
+      await boardgameId("Splito"),
+      ids.map((playerId, i) => ({
+        playerId,
         score: 30 - i * 5,
+        isWinner: i === 0,
       })),
+      { round: 2, turn: 2 },
     );
 
     // Two rounds, each a single turn the whole table played at once.
-    await admin.from("game_turns").insert(
+    await seedTurns(
+      admin,
+      gameId,
       [1, 2].map(round => ({
-        game_id: gameId,
-        player_id: null,
+        playerId: null,
         round,
-        turn_no: round,
-        duration_s: 120,
+        turnNo: round,
+        durationS: 120,
       })),
     );
 
@@ -513,10 +440,7 @@ test("drops the per-player time figures on a simultaneous game", async ({
     ).toBeVisible();
     await expect(page.getByText("Part du temps")).toHaveCount(0);
   } finally {
-    if (gameId) {
-      await admin.from("games").delete().eq("id", gameId);
-    }
-    await admin.from("players").delete().in("name", names);
+    await dropSeeded(admin, { games: [gameId], playerNames: names });
   }
 });
 
@@ -534,44 +458,28 @@ test("reads Odin's parties in manches rather than in time", async ({
   const gameIds: string[] = [];
 
   try {
-    const { data: seeded } = await admin
-      .from("players")
-      .select("id, name")
-      .in("name", names);
-    const ids = (seeded ?? []).map(p => p.id as string);
+    const idOf = await playerIds(names);
+    const ids = names.map(idOf);
     const odinId = await boardgameId("Odin");
 
     /** One ended party, its manches written down one row per player. */
     async function seedOdin(manches: number[][]) {
-      const { data: game } = await admin
-        .from("games")
-        .insert({
-          boardgame_id: odinId,
-          status: "ended",
-          round: 1,
-          turn: 1,
-          stage: manches.length,
-          ended_at: new Date().toISOString(),
-        })
-        .select("id")
-        .single();
-      const gameId = game?.id as string;
-      gameIds.push(gameId);
-
       const totals = ids.map((_id, i) =>
         manches.reduce((sum, points) => sum + points[i], 0),
       );
       const best = Math.min(...totals);
-
-      await admin.from("game_players").insert(
-        ids.map((player_id, i) => ({
-          game_id: gameId,
-          player_id,
-          seat_order: i,
-          is_winner: totals[i] === best,
+      const gameId = await seedParty(
+        admin,
+        odinId,
+        ids.map((playerId, i) => ({
+          playerId,
           score: totals[i],
+          isWinner: totals[i] === best,
         })),
+        { stage: manches.length },
       );
+
+      gameIds.push(gameId);
       await admin.from("game_stage_scores").insert(
         manches.flatMap((points, stage) =>
           ids.map((player_id, i) => ({
@@ -613,10 +521,7 @@ test("reads Odin's parties in manches rather than in time", async ({
     await expect(page.getByText("Ce que coûte une manche")).toBeVisible();
     await expect(page.getByText(/15 manches de joueur/)).toBeVisible();
   } finally {
-    for (const id of gameIds) {
-      await admin.from("games").delete().eq("id", id);
-    }
-    await admin.from("players").delete().in("name", names);
+    await dropSeeded(admin, { games: gameIds, playerNames: names });
   }
 });
 
@@ -634,40 +539,24 @@ test("names both readings of the phase clocks, and what each rests on", async ({
   const gameIds: string[] = [];
 
   try {
-    const { data: seeded } = await admin
-      .from("players")
-      .select("id, name")
-      .in("name", names);
-    const ids = (seeded ?? []).map(p => p.id as string);
+    const idOf = await playerIds(names);
+    const ids = names.map(idOf);
     const marsId = await boardgameId(TERRAFORMING_MARS_NAME);
 
     /** One ended party of Terraforming Mars, timed on the given generations. */
     async function seedEndedGame(stages: number[]) {
-      const { data: game } = await admin
-        .from("games")
-        .insert({
-          boardgame_id: marsId,
-          status: "ended",
-          round: stages.length,
-          turn: 1,
-          stage: stages.length,
-          ended_at: new Date().toISOString(),
-        })
-        .select("id")
-        .single();
-      const gameId = game?.id as string;
-      gameIds.push(gameId);
-
-      await admin.from("game_players").insert(
-        ids.map((player_id, i) => ({
-          game_id: gameId,
-          player_id,
-          seat_order: i,
-          is_winner: i === 0,
+      const gameId = await seedParty(
+        admin,
+        marsId,
+        ids.map((playerId, i) => ({
+          playerId,
           score: 60 - i * 5,
+          isWinner: i === 0,
         })),
+        { round: stages.length, stage: stages.length },
       );
 
+      gameIds.push(gameId);
       await admin.from("game_phases").insert(
         stages.flatMap(stage => [
           { game_id: gameId, stage, phase_key: "discovery", duration_s: 60 },
@@ -711,9 +600,6 @@ test("names both readings of the phase clocks, and what each rests on", async ({
       "les parties qui l'ont atteinte",
     );
   } finally {
-    for (const id of gameIds) {
-      await admin.from("games").delete().eq("id", id);
-    }
-    await admin.from("players").delete().in("name", names);
+    await dropSeeded(admin, { games: gameIds, playerNames: names });
   }
 });

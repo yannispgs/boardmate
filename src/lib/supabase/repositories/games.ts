@@ -23,6 +23,7 @@ import type {
   Player,
   PlayerId,
   PopulatedGame,
+  ScoringSpec,
   StageAdvance,
   StageGoalRecord,
   StageScore,
@@ -32,15 +33,15 @@ import type {
 import {
   composeScoring,
   orderPlayed,
-  scenarioTarget,
-  winTargetWithModifiers,
+  playedExtensions,
 } from "@/lib/game/extensions";
 import { activeSeat, generationOver } from "@/lib/game/generation";
 import { draftingOn } from "@/lib/game/phase";
-import { optionTargetModifier, stopTargetFrom } from "@/lib/game/scoring";
 import { scheduledPosition } from "@/lib/game/stage";
 import { advanceTurn as nextTurnState } from "@/lib/game/turn";
 import { turnScheduleFrom } from "@/lib/game/turn-schedule";
+import type { PlayedWith } from "@/lib/game/win-target";
+import { resolveWinTarget } from "@/lib/game/win-target";
 import {
   AlreadyClaimedError,
   AlreadyEndedError,
@@ -155,7 +156,19 @@ type StatsRow = {
   id: string;
   boardgame_id: string;
   ended_at: string | null;
-  boardgame: { name: string; dice: unknown } | null;
+  round: number;
+  config_values: unknown;
+  boardgame: {
+    name: string;
+    dice: unknown;
+    scoring: unknown;
+    config_templates: { fields: unknown } | null;
+  } | null;
+  config: { values: unknown } | null;
+  game_extensions: Array<{
+    scenario_id: string | null;
+    extension: ExtensionRow & { extension_scenarios: ScenarioRow[] };
+  }>;
   game_players: Array<{
     player_id: string;
     seat_order: number;
@@ -207,7 +220,35 @@ function toStageGoals(row: StatsRow): StageGoalRecord[] {
     }));
 }
 
+/**
+ * What a finished party was raced to, resolved exactly as the party itself
+ * resolved it while it was being played: the game's own snapshot of its config
+ * wins over the source config, a scenario's target wins over both, and the
+ * options switched on raise the lot.
+ *
+ * Read here rather than in the stats layer because it takes four joined rows to
+ * answer, and none of them means anything downstream on its own.
+ */
+function toWinThreshold(row: StatsRow, played: PlayedWith[]): number | null {
+  const scoring = row.boardgame?.scoring as ScoringSpec | null | undefined;
+  const fields = (row.boardgame?.config_templates?.fields ??
+    []) as unknown as FieldSpec[];
+  const values =
+    (row.config_values as ConfigValues | null) ??
+    (row.config?.values as ConfigValues | null) ??
+    null;
+
+  return resolveWinTarget(scoring?.stopCondition, fields, values, played);
+}
+
 function toStatsRecord(row: StatsRow): GameStatsRecord {
+  // Whole extensions, not just their names: the target a scenario imposes and
+  // the points an extension adds to it are both read off these rows.
+  const played = row.game_extensions.map(ge => ({
+    ...toExtension(ge.extension),
+    scenarioId: ge.scenario_id as ExtensionScenarioId | null,
+  }));
+
   return {
     gameId: row.id as GameId,
     boardgameId: row.boardgame_id as BoardgameId,
@@ -215,6 +256,9 @@ function toStatsRecord(row: StatsRow): GameStatsRecord {
     boardgameName: row.boardgame?.name ?? "",
     dice: (row.boardgame?.dice as GameStatsRecord["dice"]) ?? null,
     endedAt: row.ended_at,
+    rounds: row.round,
+    winThreshold: toWinThreshold(row, played),
+    extensions: playedExtensions(played),
     players: row.game_players.map(gp => ({
       playerId: gp.player_id as PlayerId,
       /* c8 ignore next -- `?? "?"` guards a player row that can't be missing (FK) */
@@ -877,7 +921,11 @@ export function createGameRepository(
     async listStats() {
       const { data, error } = await games()
         .select(
-          "id, boardgame_id, ended_at, boardgame:boardgames(name, dice), " +
+          "id, boardgame_id, ended_at, round, config_values, " +
+            "boardgame:boardgames(name, dice, scoring, config_templates(fields)), " +
+            "config:configs(values), " +
+            "game_extensions(scenario_id, " +
+            "extension:extensions(*, extension_scenarios(*))), " +
             "game_players(player_id, seat_order, is_winner, score, score_breakdown, player:players(name)), " +
             "game_turns(player_id, round, duration_s, pause_duration_s, overtime_s), " +
             "dice_rolls(value, created_at), " +
@@ -937,26 +985,10 @@ export function createGameRepository(
       // config's values, which win over the template default.
       const effectiveValues =
         (row.config_values as ConfigValues | null) ?? config?.values ?? null;
-      // The win target: a selected scenario imposes its base (over the config),
-      // then the options switched on and the active extensions' modifiers raise
-      // it (never lower).
-      const scenarioBy = Object.fromEntries(
-        extensions.flatMap(e =>
-          e.scenarioId ? [[e.id, e.scenarioId] as const] : [],
-        ),
-      );
-      const baseTarget =
-        scenarioTarget(extensions, scenarioBy) ??
-        (scoring
-          ? stopTargetFrom(
-              scoring.stopCondition,
-              effectiveValues,
-              templateFields,
-            )
-          : null);
-      const optionBonus = optionTargetModifier(effectiveValues, templateFields);
-      const winThreshold = winTargetWithModifiers(
-        baseTarget === null ? null : baseTarget + optionBonus,
+      const winThreshold = resolveWinTarget(
+        scoring?.stopCondition,
+        templateFields,
+        effectiveValues,
         extensions,
       );
       const turnSchedule = turnScheduleFrom(effectiveValues, templateFields);

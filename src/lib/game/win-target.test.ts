@@ -6,7 +6,7 @@ import type {
   ExtensionScenarioId,
   FieldSpec,
 } from "@/lib/domain";
-import { winTargetView } from "./win-target";
+import { resolveWinTarget, winTargetView } from "./win-target";
 
 function ext(partial: Omit<Partial<Extension>, "id"> & { id: string }) {
   return {
@@ -181,5 +181,63 @@ describe("winTargetView", () => {
     expect(view.field).toBeNull();
     expect(view.bar?.locked).toBe(12);
     expect(view.bar?.value).toBe("");
+  });
+});
+
+describe("resolveWinTarget", () => {
+  const stop = { type: "scoreTarget", field: "pointsToWin" } as const;
+
+  /** The extension as it was played: the whole thing, plus what was chosen. */
+  function played(id: string, scenarioId: string | null, modifier = 0) {
+    return {
+      ...ext({
+        id,
+        targetModifier: modifier,
+        hasScenarios: scenarioId !== null,
+        scenarios: [
+          { id: "s1" as ExtensionScenarioId, targetScore: 12 } as never,
+        ],
+      }),
+      scenarioId: scenarioId as ExtensionScenarioId | null,
+    };
+  }
+
+  it("reads the target off the config the party was played with", () => {
+    expect(resolveWinTarget(stop, [target()], { pointsToWin: 14 }, [])).toBe(
+      14,
+    );
+  });
+
+  it("falls back to the field's default when the party set nothing", () => {
+    expect(resolveWinTarget(stop, [target()], null, [])).toBe(10);
+  });
+
+  it("is null when the game aims at no score", () => {
+    expect(resolveWinTarget(null, [target()], null, [])).toBeNull();
+  });
+
+  it("lets a scenario impose its own line over the config", () => {
+    expect(
+      resolveWinTarget(stop, [target()], { pointsToWin: 10 }, [
+        played("marins", "s1"),
+      ]),
+    ).toBe(12);
+  });
+
+  it("keeps the config's line when the extension played no scenario", () => {
+    expect(
+      resolveWinTarget(stop, [target()], { pointsToWin: 10 }, [
+        played("marins", null),
+      ]),
+    ).toBe(10);
+  });
+
+  it("raises the line by the options and the extensions", () => {
+    const values = { pointsToWin: 10, harbour: true };
+    const fields = [target(), option("harbour", 1, "Maître du port")];
+
+    expect(
+      resolveWinTarget(stop, fields, values, [played("villes", null, 2)]),
+    ).toBe(13);
   });
 });
