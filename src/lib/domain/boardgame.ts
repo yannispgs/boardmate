@@ -215,6 +215,10 @@ export interface ScoringSpec {
    *   playing at random and holding the right cards, and Odin is the same. Over
    *   one party that is a lucky deal, not a performance.
    *
+   * A **race** needs no flag: a game that stops when somebody reaches a score
+   * target already says everything this one would (`tracksScoreRecord`). Set it
+   * only where the shape of the game doesn't give the reason away.
+   *
    * It does **not** silence what a game's history says in aggregate: the
    * average total, the share of parties finished at nought, and the quartile
    * the evening's facts read (see `comparableScores`) all stay. Those are the

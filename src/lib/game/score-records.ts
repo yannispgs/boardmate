@@ -21,6 +21,36 @@ import type {
 import { extensionTab } from "./extensions";
 import type { ScoreDirection } from "./scoring";
 import { winnerDirection } from "./scoring";
+import { tracksSpeedRecord } from "./speed-records";
+
+/**
+ * Whether a single score is worth **crowning** on this game at all. Two things
+ * silence it, and only one of them is declared:
+ *
+ * - the game says so (`trackRecords === false`), where one figure owes more to
+ *   the setup or to the draw than to the play — Catan's scenario, Papayoo's and
+ *   Odin's hands;
+ * - **the game is a race**, where nothing needs declaring. A party that stops
+ *   the moment somebody reaches the target ends on that target, give or take the
+ *   overshoot of a single lap: every winner posts very nearly the same figure,
+ *   so the « best score » would only ever mark who overshot hardest. Worse, the
+ *   finish line moves from one party to the next — a race to 10 and a race to 15
+ *   are not comparable at all, and a score, unlike the laps, has nowhere to say
+ *   which line it was run to. What such a game holds instead is
+ *   {@link tracksSpeedRecord}: how few laps it took.
+ *
+ * It does **not** silence what a game's history says in aggregate — averages,
+ * the share of parties finished at nought, the quartile the evening's facts
+ * read. Those survive a long run, which is what these games have instead of a
+ * record.
+ */
+export function tracksScoreRecord(scoring: ScoringSpec | null): boolean {
+  if (scoring === null || scoring.trackRecords === false) {
+    return false;
+  }
+
+  return !tracksSpeedRecord(scoring);
+}
 
 /** Which record a mark stands for: the player's own best, or the game's. */
 export type RecordKind = "personal" | "world";
@@ -105,9 +135,9 @@ function bestOf(scores: number[], direction: ScoreDirection): number {
  * are dropped here. Excluding it by id is enough to keep the comparison honest:
  * every other party in the books was finished before the one ending now.
  *
- * A player holds no record at all when the game says its scores aren't worth
- * comparing (`scoring.trackRecords === false`), and no player holds one on his
- * first party — there is nothing to beat yet.
+ * A player holds no record at all on a game whose scores aren't worth crowning
+ * ({@link tracksScoreRecord}), and no player holds one on his first party —
+ * there is nothing to beat yet.
  *
  * `PB` and `WR` are not read the same way. A personal best belongs to whoever
  * beat his own, win or lose. The game's record is a single figure the party
@@ -137,7 +167,7 @@ export function scoreRecords({
 }>): Map<PlayerId, ScoreRecord[]> {
   const marks = new Map<PlayerId, ScoreRecord[]>();
 
-  if (scoring === null || scoring.trackRecords === false) {
+  if (scoring === null || !tracksScoreRecord(scoring)) {
     return marks;
   }
 

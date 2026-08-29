@@ -34,6 +34,7 @@ import type {
   PlayerId,
 } from "@/lib/domain";
 import { extensionTab } from "./extensions";
+import { tracksScoreRecord } from "./score-records";
 import type { ScoreDirection } from "./scoring";
 import { scoreDirectionOf } from "./scoring";
 import type { SpeedRun } from "./speed-records";
@@ -380,10 +381,11 @@ export function recordBoard({
   const parties = records.filter(r => r.boardgameId === boardgame.id);
   const metrics: RecordMetric[] = [];
 
-  // A game can silence its score record and still hold a speed one: Catan lets
-  // the scenario decide the total, so the total says nothing and the laps say
-  // everything ([[boardmate-record-flag-model]]).
-  if (scoring !== null && scoring.trackRecords !== false) {
+  // A game can silence its score record and still hold a speed one — Catan lets
+  // the scenario decide the total, and a race ends on its finish line whoever
+  // wins it, so in both cases the total says nothing and the laps say everything
+  // ([[boardmate-record-flag-model]]).
+  if (tracksScoreRecord(scoring)) {
     metrics.push("score");
   }
 
