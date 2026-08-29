@@ -1,3 +1,4 @@
+import type { Request } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
 import { adminClient, dropSeeded, seedBoardgame } from "./utils/supabase";
@@ -15,9 +16,9 @@ const SERVER_DELAY_MS = 2000;
  * that window the new tab must already be the open one, with its skeleton
  * underneath.
  *
- * Only the navigation is slowed. The prefetches Next fires when the tabs come
- * into view are let through first, exactly as on a real visit — they are what
- * put the fallback in the browser's hands before the press.
+ * Only the navigation is slowed, and only once every prefetch Next fires when
+ * the tabs come into view has come back — exactly what a real visit leaves in
+ * the browser before the press: the fallback, and nothing of the tab's data.
  */
 test("moves the tab on the press and waits underneath it", async ({ page }) => {
   const admin = adminClient();
@@ -26,6 +27,30 @@ test("moves the tab on the press and waits underneath it", async ({ page }) => {
 
   try {
     bgId = await seedBoardgame(admin, { name: gameName, maxPlayers: 4 });
+
+    // Next fires several prefetches for the tab, and it is the LAST BYTE of
+    // them that hands the fallback to the router — a prefetch whose answer has
+    // only begun leaves nothing to show. Counted here so the press can wait for
+    // the real thing rather than for a delay picked out of the air.
+    const prefetch = { started: 0, settled: 0 };
+    const isTabPrefetch = (request: Request) =>
+      request.url().includes("/records") &&
+      request.headers()["next-router-prefetch"] === "1";
+
+    page.on("request", request => {
+      if (isTabPrefetch(request)) {
+        prefetch.started += 1;
+      }
+    });
+
+    const settle = (request: Request) => {
+      if (isTabPrefetch(request)) {
+        prefetch.settled += 1;
+      }
+    };
+
+    page.on("requestfinished", settle);
+    page.on("requestfailed", settle);
 
     await page.goto(`/boardgames/${bgId}/edit`);
     await expect(
@@ -36,16 +61,12 @@ test("moves the tab on the press and waits underneath it", async ({ page }) => {
 
     await expect(records).toBeVisible();
 
-    // Next fires more than one prefetch per tab, and their answers are what put
-    // the fallback in the browser's hands. Waiting for the network to fall
-    // quiet is waiting for the last of them: hold back one prefetch by mistake
-    // and the router has nothing to show, which would fail the test for a
-    // reason that has nothing to do with the fix.
-    await page.waitForLoadState("networkidle");
+    // At least one prefetch asked for, and none of them still on the wire.
+    await expect
+      .poll(() => prefetch.started > 0 && prefetch.started === prefetch.settled)
+      .toBe(true);
 
-    // Only from here is the server made slow, so what the press has to work
-    // with is exactly what a real visit leaves in the browser: the fallback,
-    // and nothing of the tab's own data.
+    // Only from here is the server made slow.
     await page.route("**/records*", async route => {
       await new Promise(resolve => setTimeout(resolve, SERVER_DELAY_MS));
       await route.continue();
