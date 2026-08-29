@@ -21,6 +21,7 @@ export function BoardgameTabs({
   boardgameId,
 }: Readonly<{ boardgameId: string }>) {
   const pathname = usePathname();
+  const open = pathname.split("/").at(-1);
 
   return (
     <nav className={tabBarClass}>
@@ -28,7 +29,7 @@ export function BoardgameTabs({
         <Link
           key={tab.segment}
           href={`/boardgames/${boardgameId}/${tab.segment}`}
-          className={`text-center ${tabPillClass(pathname.endsWith(`/${tab.segment}`))}`}
+          className={`text-center ${tabPillClass(tab.segment === open)}`}
         >
           {tab.label}
         </Link>
