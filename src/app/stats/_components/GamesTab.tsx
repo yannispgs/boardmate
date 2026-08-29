@@ -524,6 +524,37 @@ function SharedPileSections({
   );
 }
 
+/**
+ * What a game counted manche by manche has to show: who gets out of a manche
+ * first, and what a manche usually costs the table. Both need several parties
+ * before they say anything, so each waits for its own to arrive.
+ */
+function TallySections({
+  tally,
+}: Readonly<{
+  tally: { exits: TallyExitStat[]; histogram: TallyPointsBar[] } | null;
+}>) {
+  if (tally === null) {
+    return null;
+  }
+
+  return (
+    <>
+      {tally.exits.length > 0 ? (
+        <Section title="Qui sort le plus souvent">
+          <TallyExitCardList stats={tally.exits} />
+        </Section>
+      ) : null}
+
+      {tally.histogram.length > 0 ? (
+        <Section title="Ce que coûte une manche">
+          <TallyPointsChart bars={tally.histogram} />
+        </Section>
+      ) : null}
+    </>
+  );
+}
+
 /** What a game played in phases costs, over the parties in scope. */
 interface PhaseFigures {
   totals: PhaseTotal[];
@@ -723,17 +754,7 @@ function GameSections({
         </Section>
       ) : null}
 
-      {tally && tally.exits.length > 0 ? (
-        <Section title="Qui sort le plus souvent">
-          <TallyExitCardList stats={tally.exits} />
-        </Section>
-      ) : null}
-
-      {tally && tally.histogram.length > 0 ? (
-        <Section title="Ce que coûte une manche">
-          <TallyPointsChart bars={tally.histogram} />
-        </Section>
-      ) : null}
+      <TallySections tally={tally} />
 
       <SharedPileSections worst={worst} zeroes={zeroes} />
 
