@@ -1,24 +1,24 @@
 "use client";
 
-import type { BoardRow, RecordEntry } from "@/lib/game/record-board";
+import type { BoardLine, BoardRow, RecordEntry } from "@/lib/game/record-board";
 import { RecordRow } from "./RecordRow";
 
-/** The rows of the tab in view, one table size each. */
+/**
+ * The lines of the tab in view. A hair rule between them rather than a frame
+ * around each: the grid is read by running down it, and a game declared 2–6
+ * would otherwise stack five boxes to show five figures.
+ */
 export function RecordRowList({
-  rows,
+  lines,
   onOpen,
 }: Readonly<{
-  rows: BoardRow[];
+  lines: BoardLine[];
   onOpen: (row: BoardRow, entry: RecordEntry) => void;
 }>) {
   return (
-    <ul className="flex flex-col gap-2">
-      {rows.map(row => (
-        <RecordRow
-          key={row.label}
-          row={row}
-          onOpen={entry => onOpen(row, entry)}
-        />
+    <ul className="flex flex-col divide-y divide-black/5 dark:divide-white/5">
+      {lines.map(line => (
+        <RecordRow key={line.key} line={line} onOpen={onOpen} />
       ))}
     </ul>
   );
