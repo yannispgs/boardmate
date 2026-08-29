@@ -14,7 +14,12 @@ import {
 import { dangerIconButtonClass, iconButtonClass } from "@/components/ui";
 import type { Boardgame } from "@/lib/domain";
 
-/** One-line summary of a boardgame's player range / duration / tags. */
+/**
+ * One-line summary of a boardgame's player range and duration. The tags are
+ * left out on purpose: they are unbounded, so on a phone they turned the line
+ * into a paragraph and pushed the game's own name out of the row. They stay
+ * editable in the game's settings.
+ */
 function formatMeta(b: Boardgame): string {
   const parts: string[] = [];
   if (b.minPlayers != null && b.maxPlayers != null) {
@@ -27,9 +32,7 @@ function formatMeta(b: Boardgame): string {
   if (b.avgDurationMin != null) {
     parts.push(`~${b.avgDurationMin} min`);
   }
-  if (b.tags.length > 0) {
-    parts.push(b.tags.join(" · "));
-  }
+
   return parts.join(" · ") || "Aucune info";
 }
 

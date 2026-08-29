@@ -1,12 +1,8 @@
 "use client";
 
 import { EyeIcon, EyeOffIcon, TrashIcon } from "@/components/icons";
+import { dangerIconButtonClass, iconButtonClass } from "@/components/ui";
 import type { Player } from "@/lib/domain";
-
-const iconButtonClass =
-  "rounded-md border border-black/10 p-1.5 transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5";
-const dangerIconButtonClass =
-  "rounded-md border border-black/10 p-1.5 text-red-600 transition hover:bg-red-50 dark:border-white/15 dark:text-red-400 dark:hover:bg-red-950/40";
 
 /**
  * A single player row: name + deactivate/reactivate toggle + delete. Whether
