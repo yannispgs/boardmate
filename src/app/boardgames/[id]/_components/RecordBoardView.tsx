@@ -7,7 +7,7 @@ import { ListState } from "@/components/ListState";
 import { OptionPicker } from "@/components/OptionPicker";
 import type { Boardgame } from "@/lib/domain";
 import type { BoardRow, RecordEntry } from "@/lib/game/record-board";
-import { boardLines, recordBoard } from "@/lib/game/record-board";
+import { recordBoard } from "@/lib/game/record-board";
 import { useGameStats } from "@/lib/hooks/use-game-stats";
 import { RecordDetailDialog } from "./RecordDetailDialog";
 import { RecordRowList } from "./RecordRowList";
@@ -48,7 +48,6 @@ export function RecordBoardView({
   );
 
   const tab = board.tabs.find(t => t.key === tabKey) ?? board.tabs[0];
-  const lines = boardLines(tab.rows);
 
   if (error !== null) {
     return <p className="text-sm text-red-600 dark:text-red-400">{error}</p>;
@@ -78,12 +77,17 @@ export function RecordBoardView({
         Touche une marque pour voir où chaque joueur en est
         <InfoTip label="Comment lire les records">
           <p>
-            Chaque ligne est une <strong>marque à battre</strong>, dans la
-            configuration où elle a été posée : les extensions en jeu, la taille
-            de table quand le jeu se lit à taille égale, et l&apos;objectif visé
-            sur un jeu qui se court. Deux parties ne se comparent que dans la
-            même configuration — une même taille de table peut donc tenir
-            plusieurs lignes.
+            Chaque ligne est une <strong>marque à battre</strong>. À gauche, la
+            taille de table (<strong>3J</strong> = à trois) et, sur un jeu qui
+            se court, l&apos;objectif visé (<strong>15P</strong> = jusqu&apos;à
+            15 points).
+          </p>
+          <p>
+            Deux parties ne se comparent que dans la{" "}
+            <strong>même configuration</strong> : les mêmes extensions, la même
+            taille de table, le même objectif. Une taille de table peut donc
+            tenir plusieurs marques — deux courses vers des objectifs différents
+            n&apos;ont jamais été la même course.
           </p>
           <p>
             <strong>« Non attribué »</strong> veut dire que personne n&apos;y a
@@ -95,11 +99,11 @@ export function RecordBoardView({
 
       <ListState
         loading={loading}
-        empty={lines.length === 0}
+        empty={tab.rows.length === 0}
         emptyLabel="Aucune configuration à afficher pour ce jeu."
       >
         <RecordRowList
-          lines={lines}
+          rows={tab.rows}
           onOpen={(row, entry) => setOpen({ row, entry, tabLabel: tab.label })}
         />
       </ListState>

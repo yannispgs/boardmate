@@ -10,13 +10,15 @@ import type {
   ScoringSpec,
 } from "@/lib/domain";
 import {
-  boardLines,
   boardSizes,
   boardTabs,
   recordBoard,
+  scenarioLabel,
   sizeLabel,
-  speedLabel,
+  sizeShort,
   tabLabel,
+  targetLong,
+  targetShort,
 } from "./record-board";
 
 const GAME = "bg-1" as BoardgameId;
@@ -135,21 +137,31 @@ describe("sizeLabel", () => {
   });
 });
 
-describe("speedLabel", () => {
-  it("names the course: the scenarios played, then the finish line", () => {
-    expect(speedLabel([], 10)).toBe("objectif 10 points");
+describe("scenarioLabel", () => {
+  it("names the map a race was laid out on, or nothing when it had none", () => {
+    expect(scenarioLabel([])).toBeNull();
+    expect(scenarioLabel([MARINS])).toBeNull();
     expect(
-      speedLabel([{ name: "Marins", scenarioName: "Les quatre îles" }], 14),
-    ).toBe("Les quatre îles — objectif 14 points");
+      scenarioLabel([{ name: "Marins", scenarioName: "Les quatre îles" }]),
+    ).toBe("Les quatre îles");
     expect(
-      speedLabel(
-        [
-          { name: "Marins", scenarioName: "Les quatre îles" },
-          { name: "Villes", scenarioName: "Le désert" },
-        ],
-        18,
-      ),
-    ).toBe("Les quatre îles + Le désert — objectif 18 points");
+      scenarioLabel([
+        { name: "Marins", scenarioName: "Les quatre îles" },
+        { name: "Villes", scenarioName: "Le désert" },
+      ]),
+    ).toBe("Les quatre îles + Le désert");
+  });
+});
+
+describe("the grid's short labels", () => {
+  it("shrinks a table size to the left rail, and says nothing of none", () => {
+    expect(sizeShort(3)).toBe("3J");
+    expect(sizeShort(null)).toBe("");
+  });
+
+  it("shrinks a finish line for the rail, and spells it out elsewhere", () => {
+    expect(targetShort(15)).toBe("15P");
+    expect(targetLong(15)).toBe("objectif 15 points");
   });
 });
 
@@ -262,6 +274,8 @@ describe("recordBoard — the score marks", () => {
 
     expect(entry.metric).toBe("score");
     expect(entry.label).toBeNull();
+    expect(entry.target).toBeNull();
+    expect(entry.parties).toBe(2);
     expect(entry.value).toBe(110);
     expect(entry.holders).toEqual(["Bob"]);
     expect(entry.bests).toEqual([
@@ -453,10 +467,10 @@ describe("recordBoard — the speed marks", () => {
     });
     const entries = onlyTab(board).rows[0].entries;
 
-    expect(entries.map(e => e.label)).toEqual([
-      "objectif 10 points",
-      "objectif 12 points",
-    ]);
+    expect(entries.map(e => e.target)).toEqual([10, 12]);
+    expect(entries.map(e => e.label)).toEqual([null, null]);
+    // Each course counts the parties run on it, not the ones run at its table.
+    expect(entries.map(e => e.parties)).toEqual([2, 1]);
     expect(entries[0].value).toBe(9);
     expect(entries[0].holders).toEqual(["Bob"]);
     expect(entries[0].bests).toEqual([
@@ -498,9 +512,11 @@ describe("recordBoard — the speed marks", () => {
 
     expect(marins.label).toBe("Marins");
     expect(marins.rows[0].entries.map(e => e.label)).toEqual([
-      "Les quatre îles — objectif 14 points",
-      "Le désert — objectif 14 points",
+      "Les quatre îles",
+      "Le désert",
     ]);
+    // Same finish line, two maps: the target alone would fold them into one.
+    expect(marins.rows[0].entries.map(e => e.target)).toEqual([14, 14]);
   });
 
   it("names the course by its finish line alone when it has no scenario", () => {
@@ -517,7 +533,10 @@ describe("recordBoard — the speed marks", () => {
       ],
     });
 
-    expect(board.tabs[1].rows[0].entries[0].label).toBe("objectif 10 points");
+    const entry = board.tabs[1].rows[0].entries[0];
+
+    expect(entry.label).toBeNull();
+    expect(entry.target).toBe(10);
   });
 
   it("credits the laps to whoever reached the target, runners-up aside", () => {
@@ -590,81 +609,5 @@ describe("recordBoard — the speed marks", () => {
     });
 
     expect(onlyTab(board).rows[0].entries).toEqual([]);
-  });
-});
-
-describe("boardLines", () => {
-  const catan = boardgame(
-    { ...RACE, trackRecords: false, playerCountSensitive: true },
-    [3, 4],
-  );
-
-  it("gives a size holding two marks a line each", () => {
-    const board = recordBoard({
-      boardgame: catan,
-      extensions: [],
-      records: [
-        party(
-          "g-1",
-          [
-            [ann, 10],
-            [bob, 4],
-            [cat, 3],
-          ],
-          {
-            winners: [ann],
-            rounds: 17,
-            target: 10,
-          },
-        ),
-        party(
-          "g-2",
-          [
-            [ann, 15],
-            [bob, 9],
-            [cat, 7],
-          ],
-          {
-            winners: [ann],
-            rounds: 9,
-            target: 15,
-          },
-        ),
-      ],
-    });
-    const lines = boardLines(onlyTab(board).rows);
-
-    expect(lines.map(l => [l.row.label, l.entry?.label ?? null])).toEqual([
-      ["3 joueurs", "objectif 10 points"],
-      ["3 joueurs", "objectif 15 points"],
-      ["4 joueurs", null],
-    ]);
-    // Each line stands on its own: two races to two finish lines never met.
-    expect(lines[0].entry?.value).toBe(17);
-    expect(lines[1].entry?.value).toBe(9);
-  });
-
-  it("keeps a size nobody has played, as the line left to take", () => {
-    const board = recordBoard({
-      boardgame: catan,
-      extensions: [],
-      records: [],
-    });
-    const lines = boardLines(onlyTab(board).rows);
-
-    expect(lines.map(l => l.entry)).toEqual([null, null]);
-    expect(lines.map(l => l.key)).toEqual(["3 joueurs", "4 joueurs"]);
-  });
-
-  it("keys a mark by its size and its own course, so two never collide", () => {
-    const board = recordBoard({
-      boardgame: boardgame(HIGHEST),
-      extensions: [],
-      records: [party("g-1", [[ann, 30]])],
-    });
-
-    expect(boardLines(onlyTab(board).rows).map(l => l.key)).toEqual([
-      "Toutes tailles|score",
-    ]);
   });
 });

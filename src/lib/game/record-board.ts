@@ -55,6 +55,26 @@ export function sizeLabel(playerCount: number | null): string {
   return playerCount === null ? "Toutes tailles" : `${playerCount} joueurs`;
 }
 
+/**
+ * The same, shrunk to the grid's left rail: « 3J ». The rail is a column of
+ * figures read side by side, not a sentence — the word « joueurs » repeated
+ * down it costs a fifth of a phone's width to say what the column already says
+ * once, above the marks it holds.
+ */
+export function sizeShort(playerCount: number | null): string {
+  return playerCount === null ? "" : `${playerCount}J`;
+}
+
+/** The finish line of a race, shrunk the same way: « 15P ». */
+export function targetShort(target: number): string {
+  return `${target}P`;
+}
+
+/** The finish line said in full, where there is room for it to be read. */
+export function targetLong(target: number): string {
+  return `objectif ${target} points`;
+}
+
 /** One player's own best inside a basket, and how often he played it. */
 export interface PlayerBest {
   playerId: PlayerId;
@@ -68,14 +88,26 @@ export interface PlayerBest {
 export interface RecordEntry {
   key: string;
   /**
-   * What separates this mark from the others of its cell — the scenario and
-   * the finish line, on a race. Null for a score, which a cell holds one of.
+   * The finish line this mark was set against, on a race. Null for a score,
+   * which a cell holds one of and which is raced towards nothing.
+   */
+  target: number | null;
+  /**
+   * What else separates this mark from the others of its cell — the scenario
+   * played, when there is one. Null everywhere else.
    */
   label: string | null;
   metric: RecordMetric;
   value: number;
   /** Who holds the mark; several when they are level on it. */
   holders: string[];
+  /**
+   * Parties this mark was set among — the ones on **its own course**, not the
+   * ones played at its table size. A size that holds two races holds two counts,
+   * and crediting either with the other's parties would say a mark was fought
+   * over more than it was.
+   */
+  parties: number;
   /**
    * Each player's own best, best first. A score counts everybody who posted
    * one; a race counts only its winners, since reaching the target is what the
@@ -106,35 +138,6 @@ export interface RecordBoard {
   /** What this game keeps a record of at all — empty when it keeps none. */
   metrics: RecordMetric[];
   tabs: BoardTab[];
-}
-
-/** One line of the grid as it is read: a table size, and one mark set at it. */
-export interface BoardLine {
-  key: string;
-  row: BoardRow;
-  /** Null on a size nobody has played — what is left to take, not a gap. */
-  entry: RecordEntry | null;
-}
-
-/**
- * A tab's rows flattened into the lines that are actually drawn: one per mark
- * rather than one block per table size. A size holding two marks — Catan raced
- * to 10 points and to 15 points are two different races — takes a line each, and
- * a size holding none still takes one, so an empty basket keeps its place in the
- * grid instead of disappearing from it.
- */
-export function boardLines(rows: readonly BoardRow[]): BoardLine[] {
-  return rows.flatMap((row): BoardLine[] => {
-    if (row.entries.length === 0) {
-      return [{ key: row.label, row, entry: null }];
-    }
-
-    return row.entries.map(entry => ({
-      key: `${row.label}|${entry.key}`,
-      row,
-      entry,
-    }));
-  });
 }
 
 /** The table sizes the grid offers: what the box allows, plus what was played. */
@@ -212,9 +215,15 @@ function bestsOf(
 
 /** The marks folded into one entry, or null when nobody posted any. */
 function entryOf(
-  key: string,
-  label: string | null,
-  metric: RecordMetric,
+  {
+    key,
+    target,
+    label,
+    metric,
+    parties,
+  }: Readonly<
+    Pick<RecordEntry, "key" | "target" | "label" | "metric" | "parties">
+  >,
   marks: readonly Mark[],
   direction: ScoreDirection,
 ): RecordEntry | null {
@@ -227,8 +236,10 @@ function entryOf(
 
   return {
     key,
+    target,
     label,
     metric,
+    parties,
     value: top.value,
     holders: bests.filter(b => b.value === top.value).map(b => b.name),
     bests,
@@ -248,26 +259,35 @@ function scoreEntry(
     ),
   );
 
-  return entryOf("score", null, "score", marks, direction);
+  return entryOf(
+    {
+      key: "score",
+      target: null,
+      label: null,
+      metric: "score",
+      parties: parties.length,
+    },
+    marks,
+    direction,
+  );
 }
 
 /**
- * « Les quatre îles — objectif 10 points » : the course a race was run on.
+ * « Les quatre îles » : the map a race was laid out on, or null when the
+ * extensions in play chose none.
  *
- * The finish line says « objectif » out loud because the mark beside it is
- * counted in laps: « 10 points » next to « 17 tours » otherwise reads as two
- * halves of one figure rather than the target and the time it took.
+ * Kept apart from the finish line, which the grid reads on its own rail as a
+ * figure. A scenario is a name and belongs with the holder; a target is a
+ * number and belongs in the column of numbers.
  */
-export function speedLabel(
+export function scenarioLabel(
   extensions: readonly PlayedExtension[],
-  target: number,
-): string {
+): string | null {
   const scenarios = extensions
     .flatMap(e => (e.scenarioName === null ? [] : [e.scenarioName]))
     .join(" + ");
-  const finish = `objectif ${target} points`;
 
-  return scenarios === "" ? finish : `${scenarios} — ${finish}`;
+  return scenarios === "" ? null : scenarios;
 }
 
 /**
@@ -279,7 +299,10 @@ function speedEntries(
   runs: readonly SpeedRun[],
 ): RecordEntry[] {
   const here = new Map(parties.map(p => [p.gameId, p]));
-  const courses = new Map<string, { label: string; marks: Mark[] }>();
+  const courses = new Map<
+    string,
+    { target: number; label: string | null; parties: number; marks: Mark[] }
+  >();
 
   for (const run of runs) {
     const party = here.get(run.gameId);
@@ -290,9 +313,13 @@ function speedEntries(
 
     const key = `${run.setup}|${run.target}`;
     const course = courses.get(key) ?? {
-      label: speedLabel(party.extensions ?? [], run.target),
+      target: run.target,
+      label: scenarioLabel(party.extensions ?? []),
+      parties: 0,
       marks: [],
     };
+
+    course.parties += 1;
 
     // The laps go to whoever reached the target — several only on a shared
     // victory. A runner-up ran the same race but never finished it.
@@ -311,7 +338,17 @@ function speedEntries(
 
   return [...courses.entries()]
     .map(([key, course]) =>
-      entryOf(`speed:${key}`, course.label, "speed", course.marks, "lowest"),
+      entryOf(
+        {
+          key: `speed:${key}`,
+          target: course.target,
+          label: course.label,
+          metric: "speed",
+          parties: course.parties,
+        },
+        course.marks,
+        "lowest",
+      ),
     )
     .filter(entry => entry !== null);
 }
