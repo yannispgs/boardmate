@@ -104,46 +104,6 @@ describe("extensions adapter", () => {
 
     expect(list).toEqual([]);
   });
-
-  it("lists each extended base game once, ignoring inactive extensions", async () => {
-    const admin = serviceClient();
-    const { data: other } = await admin
-      .from("boardgames")
-      .select("id")
-      .neq("id", CATAN_ID)
-      .limit(1)
-      .single();
-    const otherId = other?.id as BoardgameId;
-    // A second active Catan extension (must not duplicate Catan in the result)
-    // and a deactivated one on another game (must not appear at all).
-    const { data: added } = await admin
-      .from("extensions")
-      .insert([
-        { base_game_id: CATAN_ID, name: "Test — seconde", sort_order: 90 },
-        {
-          base_game_id: otherId,
-          name: "Test — désactivée",
-          is_active: false,
-          sort_order: 91,
-        },
-      ])
-      .select("id");
-
-    try {
-      const ids = await repo().listExtendedBaseGames();
-
-      expect(ids.filter(id => id === CATAN_ID)).toEqual([CATAN_ID]);
-      expect(ids).not.toContain(otherId);
-    } finally {
-      await admin
-        .from("extensions")
-        .delete()
-        .in(
-          "id",
-          (added ?? []).map(r => r.id),
-        );
-    }
-  });
 });
 
 describe("authored scenarios", () => {

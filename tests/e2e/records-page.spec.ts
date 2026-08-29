@@ -58,10 +58,11 @@ test("lists the marks standing on a game, and the baskets left to take", async (
     seeded.push(await seedParty(admin, bgId as string, table([70, 110, 20])));
 
     await page.goto("/boardgames");
-    await page.getByRole("link", { name: `Records de ${gameName}` }).click();
+    await page.getByRole("link", { name: gameName, exact: true }).click();
+    await page.getByRole("link", { name: "Records", exact: true }).click();
 
     await expect(
-      page.getByRole("heading", { name: `Records — ${gameName}` }),
+      page.getByRole("heading", { name: gameName, level: 1 }),
     ).toBeVisible();
 
     // Both parties were played at three, so the duel line is up for grabs.

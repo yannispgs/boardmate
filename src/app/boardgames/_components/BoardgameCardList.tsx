@@ -2,7 +2,7 @@
 
 import { ChevronRightIcon } from "@/components/icons";
 import { sectionHeadingClass } from "@/components/ui";
-import type { Boardgame, BoardgameId } from "@/lib/domain";
+import type { Boardgame } from "@/lib/domain";
 import { BoardgameCard } from "./BoardgameCard";
 
 /**
@@ -15,8 +15,6 @@ export function BoardgameCardList({
   boardgames,
   onToggle,
   actionLabel,
-  onDelete,
-  extendedIds,
   dimmed = false,
   collapsible = false,
 }: Readonly<{
@@ -24,8 +22,6 @@ export function BoardgameCardList({
   boardgames: Boardgame[];
   onToggle: (b: Boardgame) => void;
   actionLabel: string;
-  onDelete: (b: Boardgame) => void;
-  extendedIds: Set<BoardgameId>;
   dimmed?: boolean;
   collapsible?: boolean;
 }>) {
@@ -40,10 +36,8 @@ export function BoardgameCardList({
           key={b.id}
           boardgame={b}
           onToggle={onToggle}
-          onDelete={onDelete}
           actionLabel={actionLabel}
           dimmed={dimmed}
-          hasExtensions={extendedIds.has(b.id)}
         />
       ))}
     </ul>
