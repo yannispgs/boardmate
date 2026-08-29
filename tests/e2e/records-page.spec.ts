@@ -2,7 +2,9 @@ import { expect, test } from "@playwright/test";
 
 import {
   adminClient,
+  dropSeeded,
   playerIds,
+  seedBoardgame,
   seedParty,
   seedPlayers,
 } from "./utils/supabase";
@@ -26,25 +28,18 @@ test("lists the marks standing on a game, and the baskets left to take", async (
   try {
     // Declared 2–3 and read at each table size: the record of a three-player
     // table never compares to a duel's, so the grid keeps them apart.
-    bgId =
-      (
-        await admin
-          .from("boardgames")
-          .insert({
-            name: gameName,
-            min_players: 2,
-            max_players: 3,
-            round_limit: 3,
-            scoring: {
-              timing: "final",
-              entry: "total",
-              winCondition: { type: "highest" },
-              playerCountSensitive: true,
-            },
-          })
-          .select("id")
-          .single()
-      ).data?.id ?? null;
+    bgId = await seedBoardgame(admin, {
+      name: gameName,
+      minPlayers: 2,
+      maxPlayers: 3,
+      roundLimit: 3,
+      scoring: {
+        timing: "final",
+        entry: "total",
+        winCondition: { type: "highest" },
+        playerCountSensitive: true,
+      },
+    });
 
     await admin
       .from("extensions")
@@ -104,15 +99,14 @@ test("lists the marks standing on a game, and the baskets left to take", async (
     await page.getByRole("button", { name: "Extension E2E" }).click();
     await expect(page.getByText("Non attribué")).toHaveCount(2);
   } finally {
-    for (const id of seeded) {
-      await admin.from("games").delete().eq("id", id);
-    }
-
-    if (bgId) {
+    if (bgId !== null) {
       await admin.from("extensions").delete().eq("base_game_id", bgId);
-      await admin.from("boardgames").delete().eq("id", bgId);
     }
 
-    await admin.from("players").delete().in("name", players);
+    await dropSeeded(admin, {
+      games: seeded,
+      boardgames: [bgId],
+      playerNames: players,
+    });
   }
 });
