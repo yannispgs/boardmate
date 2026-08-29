@@ -137,10 +137,10 @@ describe("sizeLabel", () => {
 
 describe("speedLabel", () => {
   it("names the course: the scenarios played, then the finish line", () => {
-    expect(speedLabel([], 10)).toBe("10 points");
+    expect(speedLabel([], 10)).toBe("objectif 10 points");
     expect(
       speedLabel([{ name: "Marins", scenarioName: "Les quatre îles" }], 14),
-    ).toBe("Les quatre îles — 14 points");
+    ).toBe("Les quatre îles — objectif 14 points");
     expect(
       speedLabel(
         [
@@ -149,7 +149,7 @@ describe("speedLabel", () => {
         ],
         18,
       ),
-    ).toBe("Les quatre îles + Le désert — 18 points");
+    ).toBe("Les quatre îles + Le désert — objectif 18 points");
   });
 });
 
@@ -453,7 +453,10 @@ describe("recordBoard — the speed marks", () => {
     });
     const entries = onlyTab(board).rows[0].entries;
 
-    expect(entries.map(e => e.label)).toEqual(["10 points", "12 points"]);
+    expect(entries.map(e => e.label)).toEqual([
+      "objectif 10 points",
+      "objectif 12 points",
+    ]);
     expect(entries[0].value).toBe(9);
     expect(entries[0].holders).toEqual(["Bob"]);
     expect(entries[0].bests).toEqual([
@@ -495,8 +498,8 @@ describe("recordBoard — the speed marks", () => {
 
     expect(marins.label).toBe("Marins");
     expect(marins.rows[0].entries.map(e => e.label)).toEqual([
-      "Les quatre îles — 14 points",
-      "Le désert — 14 points",
+      "Les quatre îles — objectif 14 points",
+      "Le désert — objectif 14 points",
     ]);
   });
 
@@ -514,7 +517,7 @@ describe("recordBoard — the speed marks", () => {
       ],
     });
 
-    expect(board.tabs[1].rows[0].entries[0].label).toBe("10 points");
+    expect(board.tabs[1].rows[0].entries[0].label).toBe("objectif 10 points");
   });
 
   it("credits the laps to whoever reached the target, runners-up aside", () => {
@@ -632,8 +635,8 @@ describe("boardLines", () => {
     const lines = boardLines(onlyTab(board).rows);
 
     expect(lines.map(l => [l.row.label, l.entry?.label ?? null])).toEqual([
-      ["3 joueurs", "10 points"],
-      ["3 joueurs", "15 points"],
+      ["3 joueurs", "objectif 10 points"],
+      ["3 joueurs", "objectif 15 points"],
       ["4 joueurs", null],
     ]);
     // Each line stands on its own: two races to two finish lines never met.
