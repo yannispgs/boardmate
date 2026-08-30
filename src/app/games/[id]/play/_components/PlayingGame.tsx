@@ -7,20 +7,9 @@ import type { PhaseSpec, PlayerId, PopulatedGame } from "@/lib/domain";
 import { chainedGame } from "@/lib/game/chained-game";
 import { composeGoals } from "@/lib/game/extensions";
 import { gameProgress, playProgress } from "@/lib/game/game-progress";
-import {
-  advancePhase,
-  currentPhase,
-  draftDirection,
-  needsPhaseButton,
-  nextPhase,
-} from "@/lib/game/phase";
+import { advancePhase, currentPhase, draftDirection } from "@/lib/game/phase";
 import { scoreDirectionOf } from "@/lib/game/scoring";
-import {
-  isLastTurnOfStage,
-  playCalendar,
-  stageGoalLabel,
-  stageScores,
-} from "@/lib/game/stage";
+import { isLastTurnOfStage, playCalendar } from "@/lib/game/stage";
 import { isFinalTurn, turnsPerRound } from "@/lib/game/turn";
 import { turnDurationForRound } from "@/lib/game/turn-schedule";
 import { useOverlaysOpen } from "@/lib/hooks/use-overlays-open";
@@ -38,16 +27,14 @@ import { MilestonePanel } from "./MilestonePanel";
 import { namedPlayers } from "./named-players";
 import { PartyRank } from "./PartyRank";
 import { PhaseBar } from "./PhaseBar";
-import { PhaseControls } from "./PhaseControls";
 import { PlayBlock } from "./PlayBlock";
+import { PlayControls } from "./PlayControls";
 import { PlayStats } from "./PlayStats";
 import { SeatOrderPanel } from "./SeatOrderPanel";
 import { SessionFacts } from "./SessionFacts";
 import { SessionStats } from "./SessionStats";
-import { StageBoard } from "./StageBoard";
 import { StageCard } from "./StageCard";
 import { TimeHogBanner } from "./TimeHogBanner";
-import { TurnControls } from "./TurnControls";
 import { useChangeBeat } from "./use-change-beat";
 import { useDiceLog } from "./use-dice-log";
 import { useDimVeil } from "./use-dim-veil";
@@ -289,69 +276,6 @@ export function PlayingGame({
     });
   }
 
-  /**
-   * What the table acts on: the turn controls, or — for a game with no turns to
-   * speak of — the manche board. Both give way to the end-of-game score form.
-   */
-  function controls() {
-    if (entryOpen) {
-      return null;
-    }
-
-    // A phase everybody plays at once has no turn to advance, so the table
-    // closes the phase itself instead.
-    if (phase !== null && needsPhaseButton(phase)) {
-      return (
-        <PhaseControls
-          nextLabel={
-            nextPhase(phases, game.phase)?.label ??
-            `${stageLabel} ${game.stage + 1}`
-          }
-          disabled={play.busy || phaseSwapping}
-          onEndPhase={() => void endPhase(phase)}
-        />
-      );
-    }
-
-    // Untimed and not counted in manches either (Papayoo): nothing happens
-    // between sitting down and writing the score, so the screen offers nothing
-    // but the end-of-game form below.
-    if (!timed && !byHand) {
-      return null;
-    }
-
-    if (byHand) {
-      return (
-        <StageBoard
-          game={game}
-          goals={goals}
-          stageLabel={stageLabel}
-          direction={direction}
-          disabled={play.busy || goals.busy}
-          onNextStage={nextStage}
-          onEnd={scores => flow.finishTotals(scores, null)}
-        />
-      );
-    }
-
-    return (
-      <TurnControls
-        atFinalTurn={atFinalTurn}
-        atStageEnd={atStageEnd}
-        goalScores={stageScores(game.stages[game.stage - 1], catalogue)}
-        stage={game.stage}
-        stageLabel={stageLabel}
-        goalLabel={stageGoalLabel(game.stages[game.stage - 1], catalogue)}
-        players={namedPlayers(game)}
-        entered={goals.entered(game.stage)}
-        disabled={play.busy || goals.busy}
-        onNext={handleNext}
-        onPass={generations ? pass : null}
-        onScoreGoal={points => goals.save(game.stage, points)}
-      />
-    );
-  }
-
   // Counting the points takes over the whole screen, up to the recap.
   if (flow.outcome !== null && flow.phase !== "play") {
     return (
@@ -416,7 +340,28 @@ export function PlayingGame({
       <ErrorText message={play.error} />
       <ErrorText message={goals.error} />
 
-      {controls()}
+      <PlayControls
+        game={game}
+        goals={goals}
+        phases={phases}
+        phase={phase}
+        phaseSwapping={phaseSwapping}
+        stageLabel={stageLabel}
+        direction={direction}
+        catalogue={catalogue}
+        atFinalTurn={atFinalTurn}
+        atStageEnd={atStageEnd}
+        entryOpen={entryOpen}
+        timed={timed}
+        byHand={byHand}
+        generations={generations}
+        busy={play.busy}
+        onNext={handleNext}
+        onPass={pass}
+        onEndPhase={closing => void endPhase(closing)}
+        onNextStage={nextStage}
+        onEnd={scores => flow.finishTotals(scores, null)}
+      />
 
       {/* High up on purpose: on a table dealing party after party, « où on en
           est » is the whole reason to look at the phone between two deals. */}
