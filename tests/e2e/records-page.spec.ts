@@ -62,9 +62,16 @@ test("lists the marks standing on a game, and the baskets left to take", async (
     await page.getByRole("link", { name: gameName, exact: true }).click();
     await page.getByRole("link", { name: "Records", exact: true }).click();
 
+    // The h1 is the layout's, so it says nothing about which tab is showing:
+    // the URL is what proves the click landed. The line under it comes with the
+    // grid, so it separates « the board errored or the game keeps no record »
+    // from « the marks have not loaded yet » — three failures the missing row
+    // below used to report as one.
+    await expect(page).toHaveURL(/\/records$/);
     await expect(
       page.getByRole("heading", { name: gameName, level: 1 }),
     ).toBeVisible();
+    await expect(page.getByText("Touche une marque")).toBeVisible();
 
     // Both parties were played at three, so the duel line is up for grabs.
     // The grid names a table size on its left rail alone: « 2J », not
@@ -173,6 +180,8 @@ test("groups the marks of a table size under one heading", async ({ page }) => {
     await page.goto("/boardgames");
     await page.getByRole("link", { name: gameName, exact: true }).click();
     await page.getByRole("link", { name: "Records", exact: true }).click();
+    await expect(page).toHaveURL(/\/records$/);
+    await expect(page.getByText("Touche une marque")).toBeVisible();
 
     // One heading for the size, two marks hanging off it, each named by the
     // finish line it was set against rather than by repeating the size.

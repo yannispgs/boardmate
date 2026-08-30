@@ -44,8 +44,11 @@ test("creates, edits and deletes a boardgame", async ({ page }) => {
   ).toHaveValue("20");
   await page.getByLabel("Nom du jeu").fill(renamed);
   // Saving stays on the settings page (it's the game's hub) and confirms.
+  // The tick is part of the match: « Enregistré » alone is a case-insensitive
+  // substring of the danger zone's « une partie y est enregistrée », which sits
+  // on this same page — the assertion would pass before the save even started.
   await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
-  await expect(page.getByText("Enregistré")).toBeVisible();
+  await expect(page.getByText("Enregistré ✓")).toBeVisible();
 
   // Back to the list to see the rename.
   await page.getByRole("link", { name: "← Jeux" }).click();
@@ -236,7 +239,11 @@ test("creates a game with no clock and its own tie-break rule", async ({
     await page
       .getByRole("button", { name: "Enregistrer", exact: true })
       .click();
-    await expect(page.getByText("Enregistré")).toBeVisible();
+    // The tick matters here more than anywhere: this is the only thing standing
+    // between the click and the row read below, and « Enregistré » alone
+    // already matches the danger zone's static text on this page — so the read
+    // used to race a write nothing had waited for.
+    await expect(page.getByText("Enregistré ✓")).toBeVisible();
 
     const { data: cleared } = await admin
       .from("boardgames")
