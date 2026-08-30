@@ -16,8 +16,8 @@ import { registerOverlay } from "@/lib/ui/overlay-registry";
  *
  * It fades **in** and leaves at once. Fading out would mean staying mounted
  * after `onClose`, the way `Drawer` does — and a drawer can, because its caller
- * hands it an `open` flag. A modal's caller stops rendering it instead, in the
- * nineteen places one is opened. Closing reveals the page that was asked for,
+ * hands it an `open` flag. A modal's caller stops rendering it instead, in every
+ * one of the places one is opened. Closing reveals the page that was asked for,
  * which is its own reward; arriving is the half that needed announcing.
  */
 export function Modal({
