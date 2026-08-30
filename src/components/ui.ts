@@ -4,8 +4,18 @@
 // `shrink-0`: an icon button is its icon. Beside a text column that is allowed
 // to shrink, a flex row would otherwise squeeze the buttons instead — and on a
 // narrow screen the squeezing lands on the text, which loses its own name.
-export const iconButtonClass =
-  "shrink-0 rounded-md border border-black/10 p-1.5 transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5";
+const outlinedButtonBase =
+  "shrink-0 rounded-md border border-black/10 transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5";
+
+export const iconButtonClass = `${outlinedButtonBase} p-1.5`;
+
+/**
+ * The same button, saying its name out loud. An icon alone is read as a hint
+ * about the screen you are on; a word beside it is what tells a reader the
+ * button leads somewhere. Use it wherever the icon would otherwise pass for an
+ * info bubble.
+ */
+export const iconLabelButtonClass = `${outlinedButtonBase} inline-flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium`;
 
 export const dangerIconButtonClass =
   "shrink-0 rounded-md border border-black/10 p-1.5 text-red-600 transition hover:bg-red-50 dark:border-white/15 dark:text-red-400 dark:hover:bg-red-950/40";

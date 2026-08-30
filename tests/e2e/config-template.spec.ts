@@ -21,7 +21,7 @@ test("defines a game's configuration from scratch, with the timer preset", async
     await expect(page.getByText(name, { exact: true })).toBeVisible();
 
     // Réglages → no config yet → define it via the field editor.
-    await page.getByRole("link", { name: `Réglages de ${name}` }).click();
+    await page.getByRole("link", { name, exact: true }).click();
     await page
       .getByRole("button", { name: "Définir la configuration" })
       .click();

@@ -105,19 +105,6 @@ export function createExtensionRepository(
       ).map(toExtension);
     },
 
-    async listExtendedBaseGames() {
-      const { data, error } = await supabase
-        .from("extensions")
-        .select("base_game_id")
-        .eq("is_active", true);
-      /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */
-      if (error) {
-        throw new Error(`Lecture des extensions: ${error.message}`);
-      }
-
-      return [...new Set(data.map(r => r.base_game_id as BoardgameId))];
-    },
-
     async getByKey(key: string) {
       const { data, error } = await supabase
         .from("extensions")

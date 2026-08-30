@@ -16,19 +16,22 @@ export function TabButton({
   children: string;
 }>) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition ${
-        active
-          ? "bg-white text-indigo-700 shadow-sm dark:bg-zinc-700 dark:text-indigo-300"
-          : "text-zinc-500 dark:text-zinc-400"
-      }`}
-    >
+    <button type="button" onClick={onClick} className={tabPillClass(active)}>
       {children}
     </button>
   );
 }
+
+/**
+ * The pill itself, without the element around it — a tab that navigates is a
+ * link, not a button, and must still look like its neighbours.
+ */
+export const tabPillClass = (active: boolean) =>
+  `flex-1 rounded-lg px-4 py-2 text-sm font-medium transition ${
+    active
+      ? "bg-white text-indigo-700 shadow-sm dark:bg-zinc-700 dark:text-indigo-300"
+      : "text-zinc-500 dark:text-zinc-400"
+  }`;
 
 /** The container of a `TabButton` row. */
 export const tabBarClass =
