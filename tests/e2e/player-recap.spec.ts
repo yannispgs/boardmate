@@ -4,9 +4,11 @@ import {
   adminClient,
   dropSeeded,
   playerIds,
+  scoreTable,
   seedBoardgame,
   seedParty,
   seedPlayers,
+  TABLE_SENSITIVE_SCORING,
 } from "./utils/supabase";
 
 /**
@@ -32,22 +34,10 @@ test("places each player's evening among his own past evenings", async ({
       minPlayers: 2,
       maxPlayers: 3,
       roundLimit: 3,
-      scoring: {
-        timing: "final",
-        entry: "total",
-        winCondition: { type: "highest" },
-        playerCountSensitive: true,
-      },
+      scoring: TABLE_SENSITIVE_SCORING,
     });
 
-    const idOf = await playerIds(players);
-    const table = (scores: readonly number[]) => {
-      return players.slice(0, scores.length).map((name, seat) => ({
-        playerId: idOf(name),
-        score: scores[seat],
-        isWinner: scores[seat] === Math.max(...scores),
-      }));
-    };
+    const table = scoreTable(players, await playerIds(players));
 
     // Two evenings at three, one duel: the duel is in the history but not at
     // this table size, which is the whole point of the switch below.

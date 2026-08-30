@@ -4,10 +4,12 @@ import {
   adminClient,
   dropSeeded,
   playerIds,
+  scoreTable,
   seedBoardgame,
   seedParty,
   seedPlayers,
   seedTurns,
+  TABLE_SENSITIVE_SCORING,
 } from "./utils/supabase";
 
 /**
@@ -34,26 +36,14 @@ test("lists the marks standing on a game, and the baskets left to take", async (
       minPlayers: 2,
       maxPlayers: 3,
       roundLimit: 3,
-      scoring: {
-        timing: "final",
-        entry: "total",
-        winCondition: { type: "highest" },
-        playerCountSensitive: true,
-      },
+      scoring: TABLE_SENSITIVE_SCORING,
     });
 
     await admin
       .from("extensions")
       .insert({ base_game_id: bgId, name: "Extension E2E", sort_order: 1 });
 
-    const idOf = await playerIds(players);
-    const table = (scores: readonly number[]) => {
-      return players.map((name, seat) => ({
-        playerId: idOf(name),
-        score: scores[seat],
-        isWinner: scores[seat] === Math.max(...scores),
-      }));
-    };
+    const table = scoreTable(players, await playerIds(players));
 
     seeded.push(await seedParty(admin, bgId as string, table([90, 40, 10])));
     seeded.push(await seedParty(admin, bgId as string, table([70, 110, 20])));
@@ -154,17 +144,12 @@ test("groups the marks of a table size under one heading", async ({ page }) => {
     });
 
     const idOf = await playerIds(players);
+    const table = scoreTable(players, idOf);
     const race = async (scores: number[], rounds: number, target: number) => {
-      const gameId = await seedParty(
-        admin,
-        bgId as string,
-        players.map((name, seat) => ({
-          playerId: idOf(name),
-          score: scores[seat],
-          isWinner: scores[seat] === Math.max(...scores),
-        })),
-        { round: rounds, configValues: { pointsToWin: target } },
-      );
+      const gameId = await seedParty(admin, bgId as string, table(scores), {
+        round: rounds,
+        configValues: { pointsToWin: target },
+      });
 
       await seedTurns(admin, gameId, [
         { playerId: idOf(players[0]), round: 1, turnNo: 1, durationS: 30 },

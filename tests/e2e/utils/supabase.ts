@@ -265,6 +265,37 @@ export async function seedTurns(
 }
 
 /**
+ * The barème of a game whose scale really moves with the table: a plain total,
+ * highest takes it, read separately at each size. Several scenarios need a game
+ * like that and none of them needs a different one — records, recaps and table
+ * pills all hang off `playerCountSensitive`.
+ */
+export const TABLE_SENSITIVE_SCORING = {
+  timing: "final",
+  entry: "total",
+  winCondition: { type: "highest" },
+  playerCountSensitive: true,
+} as const;
+
+/**
+ * Turns a row of figures into a seatful of players, highest taking the win —
+ * the shape `seedParty` asks for. Fewer figures than players seats a smaller
+ * table, which is how a duel is slipped into a three-player game's history.
+ */
+export function scoreTable(
+  players: readonly string[],
+  idOf: (name: string) => string,
+) {
+  return (scores: readonly number[]) => {
+    return players.slice(0, scores.length).map((name, seat) => ({
+      playerId: idOf(name),
+      score: scores[seat],
+      isWinner: scores[seat] === Math.max(...scores),
+    }));
+  };
+}
+
+/**
  * A throwaway boardgame, for a scenario that needs a barème of its own rather
  * than a real game's. Seeding one is what keeps a test from breaking the day a
  * real game's scoring is changed — which has happened.
