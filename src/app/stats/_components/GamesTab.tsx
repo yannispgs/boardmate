@@ -29,12 +29,16 @@ import {
   type GlobalStats,
 } from "@/lib/game/global-stats";
 import {
+  computeNeighbourStats,
+  type NeighbourBoard,
+} from "@/lib/game/neighbour-stats";
+import {
   averageStageBreakdowns,
   type PhaseTotal,
   phaseTotals,
   type StageBreakdown,
 } from "@/lib/game/phase-stats";
-import { winnerDirection } from "@/lib/game/scoring";
+import { scoreDirectionOf, winnerDirection } from "@/lib/game/scoring";
 import { computeSeatStats, type SeatStat } from "@/lib/game/seat-stats";
 import { tracksSpeedRecord } from "@/lib/game/speed-records";
 import {
@@ -56,6 +60,7 @@ import { useExtensions } from "@/lib/hooks/use-extensions";
 import { CategoryCharts } from "./CategoryCharts";
 import { GamePlayerTable } from "./GamePlayerTable";
 import { GoalStatsTable } from "./GoalStatsTable";
+import { NeighbourStats } from "./NeighbourStats";
 import { PhaseTimeCardList } from "./PhaseTimeCardList";
 import { SeatStats } from "./SeatStats";
 import { StatsDiceDistribution } from "./StatsDiceDistribution";
@@ -172,6 +177,9 @@ export function GamesTab({
     boardgame?.scoring?.entry === "categories"
       ? (boardgame.scoring.sheet ?? null)
       : null;
+  // How this game is scored, when one game is in scope — « Tous les jeux » has
+  // no single answer, and every reader of it falls back the same way.
+  const scoring = boardgame?.scoring ?? null;
   // The parties the filters left, for the sections that read a game's own
   // detail: the category breakdowns and the manche goals.
   const scopedRecords = useMemo(
@@ -188,14 +196,19 @@ export function GamesTab({
     [boardgame, extensions],
   );
   const seatStats = useMemo(
+    () => computeSeatStats(scopedRecords, scoreDirectionOf(scoring)),
+    [scopedRecords, scoring],
+  );
+  // Games whose points are shared in piles (Splito): the seat is half the
+  // score, so « on perd quand il est à côté de nous » is a rule of the game and
+  // not a superstition. Null everywhere else, where a neighbour is just the
+  // player whose turn comes next.
+  const neighbours = useMemo<NeighbourBoard | null>(
     () =>
-      computeSeatStats(
-        filterRecords(records, filters),
-        boardgame?.scoring
-          ? winnerDirection(boardgame.scoring.winCondition)
-          : "highest",
-      ),
-    [records, filters, boardgame],
+      scoring?.entry === "pairs"
+        ? computeNeighbourStats(scopedRecords, scoreDirectionOf(scoring))
+        : null,
+    [scopedRecords, scoring],
   );
   // Games counted manche by manche (Odin): they record no turn at all, so the
   // time tiles would read zero — the manches take their place, plus the two
@@ -324,6 +337,7 @@ export function GamesTab({
           dice={dice}
           seatStats={seatStats}
           showSeatStats={boardgame?.trackSeatStats ?? false}
+          neighbours={neighbours}
           categorySheet={categorySheet}
           scopedRecords={scopedRecords}
           comparePlayers={comparePlayers}
@@ -510,6 +524,37 @@ function SharedPileSections({
   );
 }
 
+/**
+ * What a game counted manche by manche has to show: who gets out of a manche
+ * first, and what a manche usually costs the table. Both need several parties
+ * before they say anything, so each waits for its own to arrive.
+ */
+function TallySections({
+  tally,
+}: Readonly<{
+  tally: { exits: TallyExitStat[]; histogram: TallyPointsBar[] } | null;
+}>) {
+  if (tally === null) {
+    return null;
+  }
+
+  return (
+    <>
+      {tally.exits.length > 0 ? (
+        <Section title="Qui sort le plus souvent">
+          <TallyExitCardList stats={tally.exits} />
+        </Section>
+      ) : null}
+
+      {tally.histogram.length > 0 ? (
+        <Section title="Ce que coûte une manche">
+          <TallyPointsChart bars={tally.histogram} />
+        </Section>
+      ) : null}
+    </>
+  );
+}
+
 /** What a game played in phases costs, over the parties in scope. */
 interface PhaseFigures {
   totals: PhaseTotal[];
@@ -620,6 +665,7 @@ function GameSections({
   dice,
   seatStats,
   showSeatStats,
+  neighbours,
   categorySheet,
   scopedRecords,
   comparePlayers,
@@ -639,6 +685,8 @@ function GameSections({
   dice: { spec: DiceSpec | null; rolls: number[] };
   seatStats: SeatStat[];
   showSeatStats: boolean;
+  /** Who your neighbours are worth; null on a game not scored in piles. */
+  neighbours: NeighbourBoard | null;
   categorySheet: ScoreSheetItem[] | null;
   scopedRecords: GameStatsRecord[];
   comparePlayers: Array<{ id: PlayerId; name: string }> | undefined;
@@ -706,23 +754,15 @@ function GameSections({
         </Section>
       ) : null}
 
-      {tally && tally.exits.length > 0 ? (
-        <Section title="Qui sort le plus souvent">
-          <TallyExitCardList stats={tally.exits} />
-        </Section>
-      ) : null}
-
-      {tally && tally.histogram.length > 0 ? (
-        <Section title="Ce que coûte une manche">
-          <TallyPointsChart bars={tally.histogram} />
-        </Section>
-      ) : null}
+      <TallySections tally={tally} />
 
       <SharedPileSections worst={worst} zeroes={zeroes} />
 
       <PhaseSections phases={phases} />
 
       {showSeatStats ? <SeatStats stats={seatStats} /> : null}
+
+      {neighbours === null ? null : <NeighbourStats board={neighbours} />}
 
       {categorySheet ? (
         <Section title="Répartition des points">

@@ -181,7 +181,13 @@ export async function playerIds(
 export async function seedParty(
   admin: SupabaseClient,
   bgId: string,
-  scores: Array<{ playerId: string; score: number | null; isWinner?: boolean }>,
+  scores: Array<{
+    playerId: string;
+    score: number | null;
+    isWinner?: boolean;
+    /** How the total was made up — the two shared piles, on a pair game. */
+    breakdown?: Readonly<Record<string, number>>;
+  }>,
   options: Readonly<{
     sessionId?: string;
     ongoing?: boolean;
@@ -220,6 +226,7 @@ export async function seedParty(
       seat_order: seat,
       is_winner: s.isWinner === true,
       score: s.score,
+      ...(s.breakdown === undefined ? {} : { score_breakdown: s.breakdown }),
     })),
   );
 

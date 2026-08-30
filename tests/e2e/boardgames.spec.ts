@@ -227,6 +227,12 @@ test("creates a game with no clock and its own tie-break rule", async ({
     // shares the victory, which is not the same thing as a rule that fits
     // nobody.
     await page.getByRole("button", { name: "Supprimer la règle" }).click();
+
+    // Checked before saving: were the form ever put back the way the database
+    // still holds it, the save below would write the rule again and the failure
+    // would land on the row, three lines away from what actually went wrong.
+    await expect(page.getByLabel("Nom de la règle")).toBeHidden();
+
     await page
       .getByRole("button", { name: "Enregistrer", exact: true })
       .click();
