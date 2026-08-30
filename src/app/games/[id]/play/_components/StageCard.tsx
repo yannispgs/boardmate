@@ -29,7 +29,7 @@ export function StageCard({
   /** What this game calls one — « Génération », « Manche ». */
   label: string;
 }>) {
-  const { beating: showing } = useChangeBeat(stage, BEAT_MS);
+  const showing = useChangeBeat(stage, BEAT_MS);
 
   if (!showing) {
     return null;
@@ -44,7 +44,10 @@ export function StageCard({
     // and it is what a test can hold on to. « Génération 2 » is also written in
     // the progress line under the strip, so matching on the words alone would
     // find the wrong one half the time.
-    <output className="stage-card pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.88)_0%,rgba(0,0,0,0.72)_28%,rgba(0,0,0,0.35)_52%,transparent_72%)]">
+    // Solid black behind the number, thinning out in every direction but never
+    // to nothing: 40 % still at the edges. The whole screen dims, and the eye
+    // is pulled to the one place that is darkest — which is where the number is.
+    <output className="stage-card pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-[radial-gradient(circle_at_center,rgba(0,0,0,1)_0%,rgba(0,0,0,0.85)_25%,rgba(0,0,0,0.6)_55%,rgba(0,0,0,0.4)_100%)]">
       {/* White in both themes: the gradient it sits on is dark either way. */}
       <p className="px-6 text-center text-5xl font-black uppercase leading-tight tracking-wide text-white sm:text-6xl">
         {label} {stage}

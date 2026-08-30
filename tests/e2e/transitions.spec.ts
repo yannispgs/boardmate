@@ -36,6 +36,13 @@ async function animationOn(target: Locator): Promise<string> {
   });
 }
 
+/** How long the browser will take over a change of opacity, if any. */
+async function fadeOn(target: Locator): Promise<string> {
+  return target.first().evaluate(node => {
+    return getComputedStyle(node).transitionDuration;
+  });
+}
+
 /** Drops the game and its players, whatever the test did in between. */
 async function cleanUp(gameId: string, names: string[]): Promise<void> {
   const admin = adminClient();
@@ -72,9 +79,18 @@ test.describe("with the animations running", () => {
       await expect(page.getByRole("status")).toHaveCount(0);
       await expect(page.getByText("Ensuite : Génération 2")).toBeVisible();
 
-      // The clock block is keyed on the phase, so it fades in on arrival too —
-      // proof the animation is wired up before anything is asked of it.
-      expect(await animationOn(page.locator(".clock-in"))).toBe("clock-in");
+      // Both clocks are mounted at all times — that is what keeps the row from
+      // resizing under the swap — and the fade between them is wired up before
+      // anything is asked of it. Two durations because `visibility` crosses on
+      // the same beat as the opacity, so the clock going out stays legible for
+      // exactly as long as it is still on screen.
+      await expect(page.locator(".clock-layer")).toHaveCount(2);
+
+      expect(await fadeOn(page.locator(".clock-layer"))).toBe("0.5s, 0.5s");
+
+      // Only one of them is readable, though: both clocks run off the same
+      // timer and would otherwise both announce a pause.
+      await expect(page.locator(".clock-layer:visible")).toHaveCount(1);
 
       await page.getByRole("button", { name: "Phase terminée →" }).click();
 
@@ -142,7 +158,9 @@ test("still announces the new generation with the movement turned off", async ({
 
     await page.goto(`/games/${gameId}/play`);
 
-    expect(await animationOn(page.locator(".clock-in"))).toBe("none");
+    expect(await fadeOn(page.locator(".clock-layer"))).toBe("0s");
+
+    await expect(page.locator(".clock-layer:visible")).toHaveCount(1);
 
     await page.getByRole("button", { name: "Phase terminée →" }).click();
 

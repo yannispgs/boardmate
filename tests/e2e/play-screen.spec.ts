@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { funnelToPlay } from "./utils/funnel";
+import { pausedBadge } from "./utils/play-screen";
 import {
   adminClient,
   CATAN_ID,
@@ -23,7 +24,7 @@ test("pauses and resumes the turn timer", async ({ page }) => {
     gameId = await funnelToPlay(page, players);
 
     await page.getByRole("button", { name: "Mettre en pause" }).click();
-    await expect(page.getByText("EN PAUSE")).toBeVisible();
+    await expect(pausedBadge(page)).toBeVisible();
 
     await page.getByRole("button", { name: "Reprendre" }).click();
     await expect(
@@ -77,7 +78,7 @@ test("corrects the current turn's remaining time", async ({ page }) => {
       .click();
     await page.getByLabel("Durée du tour en secondes").fill("300");
     await page.getByRole("button", { name: "OK", exact: true }).click();
-    await expect(page.getByText("EN PAUSE")).toBeVisible();
+    await expect(pausedBadge(page)).toBeVisible();
 
     await page
       .getByRole("button", { name: "Corriger le temps restant" })
@@ -99,7 +100,7 @@ test("corrects the current turn's remaining time", async ({ page }) => {
 
     // The ring reads the corrected time, and the turn is still on hold.
     await expect(page.getByText("1:00")).toBeVisible();
-    await expect(page.getByText("EN PAUSE")).toBeVisible();
+    await expect(pausedBadge(page)).toBeVisible();
   } finally {
     const admin = adminClient();
     if (gameId) {

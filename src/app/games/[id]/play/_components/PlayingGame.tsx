@@ -59,14 +59,14 @@ import { usePlaySounds } from "./use-play-sounds";
 import { useSessionGames } from "./use-session-games";
 import { useStageGoals } from "./use-stage-goals";
 
-/** How long the two clocks take to cross — the `clock-in` keyframes. */
-const PHASE_FADE_MS = 320;
-
 /**
  * A game in progress. Takes the loaded game, so nothing below has to wonder
  * whether there is one: it drives the turn (who is up, the countdown, the dice)
  * and hands over to the end-of-game flow when the table stops playing.
  */
+/** How long the two clocks take to cross — the `clock-layer` transition. */
+const PHASE_FADE_MS = 500;
+
 export function PlayingGame({
   game,
   play,
@@ -201,19 +201,10 @@ export function PlayingGame({
   const phases = game.boardgame.phases;
   const phase = currentPhase(phases, game.phase);
   const phaseOut = advancePhase(phases, game.phase);
-  // The two clocks cross on the change of phase, so the block needs to know the
-  // phase it is leaving as well as the one it is entering. Tracked on the phase
-  // INDEX and not on the spec: a write that changes nothing about the phase
-  // still hands down a fresh object, and identity would fade on every turn.
-  //
-  // « Phase terminée → » is already dead while the write is in flight, but the
-  // fade starts *after* the reload answers: without this, a second tap during
-  // the cross-fade would close a phase the table has not seen open yet.
-  const phaseSwap = useChangeBeat(game.phase, PHASE_FADE_MS);
-  const phaseSwapping = phaseSwap.beating;
-  const leavingPhase = phaseSwap.beating
-    ? currentPhase(phases, phaseSwap.outgoing ?? 0)
-    : null;
+  // « Phase terminée → » is dead while the write is in flight, but the two
+  // clocks only start crossing once the reload has answered: without this, a
+  // second tap during the cross-fade would close a phase nobody saw open.
+  const phaseSwapping = useChangeBeat(game.phase, PHASE_FADE_MS);
   const draft =
     phase?.draft && game.drafting ? draftDirection(phase, game.stage) : null;
 
@@ -419,7 +410,6 @@ export function PlayingGame({
           dice={dice}
           closingRound={live.closingRound}
           phase={phase}
-          leaving={leavingPhase}
         />
       )}
 

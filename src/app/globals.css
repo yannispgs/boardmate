@@ -216,45 +216,32 @@ body {
  */
 
 /*
- * A phase gives way to the next, and the two clocks CROSS: the departing one is
- * still on screen, fading, while the arriving one comes up under it. They are
- * laid in the same grid cell, so this costs one extra painted disc for a third
- * of a second and nothing else — no transform, no compositing layer, no work
- * per frame beyond the opacity the browser was already interpolating.
+ * A phase gives way to the next, and the two clocks CROSS: both layers are on
+ * screen the whole time and only their opacity moves. A plain transition and not
+ * an animation, on purpose — there is nothing to replay, only a value that goes
+ * from one to the other, and the browser interpolates it without ever mounting
+ * or unmounting anything.
  *
- * Fading one out *then* the other in was the first attempt and it read as a
- * glitch: for the length of the fade the clock was simply absent, and a hole
- * where a disc was is the most violent thing the screen can do. Overlapping
- * them costs nothing extra and removes the hole entirely.
+ * That permanence is the point. The countdown carries a duration editor the
+ * stopwatch does not, so the two are not the same height: mounting one at a time
+ * made the row resize mid-fade and the whole page slid. Kept mounted, the row is
+ * always as tall as the taller of them.
  *
- * The outgoing one leaves faster than the incoming one arrives (both start
- * together): the eye should land on the clock that is taking over, not linger
- * on the one that is done.
+ * Half a second, which is long for this app. Shorter read as a flicker rather
+ * than a hand-over: the eye has to notice the old clock going before it can
+ * understand the new one arriving.
+ *
+ * `visibility` rides along because a layer at zero opacity is still a target: it
+ * takes taps and it takes focus, and both clocks carry a pause button. Hidden
+ * that way it keeps the room it occupies — which is the whole reason it stays
+ * mounted — while being inert. It is a discrete property, so the swap lands at
+ * the end of the fade going out and at the start coming in: a clock on its way
+ * out stays usable for exactly as long as it is still on screen.
  */
-@keyframes clock-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@utility clock-in {
-  animation: clock-in 320ms ease-out both;
-}
-
-@keyframes clock-out {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
-}
-
-@utility clock-out {
-  animation: clock-out 220ms ease-in both;
+@utility clock-layer {
+  transition:
+    opacity 500ms ease-in-out,
+    visibility 500ms ease-in-out;
 }
 
 /* A modal arrives instead of appearing. Both halves fade on the same beat, so
@@ -330,17 +317,15 @@ body {
  * still appears, still waits, and still goes. Only the fading stops.
  */
 @media (prefers-reduced-motion: reduce) {
-  .clock-in,
   .overlay-in,
   .stage-card,
   .place-in {
     animation: none;
   }
 
-  /* The departing clock has nothing to fade to, so it must not be left sitting
-     on top of the arriving one. */
-  .clock-out {
-    animation: none;
-    display: none;
+  /* The clocks swap on the spot: the hidden layer is still there, still holding
+     the row's height, it simply stops fading between the two. */
+  .clock-layer {
+    transition: none;
   }
 }
