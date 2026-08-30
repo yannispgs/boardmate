@@ -2,13 +2,13 @@
 
 import { useMemo, useState } from "react";
 
+import { DotPlotChart } from "@/components/stats/DotPlotChart";
 import {
   dotPlot,
   meanOffset,
   type ScoreHistogram,
   scoreHistogram,
 } from "@/lib/game/score-distribution";
-import { ScoreDotPlot } from "./ScoreDotPlot";
 
 const TRACK = 96; // px for the tallest bar
 const STUB = 4; // min height so empty buckets stay visible
@@ -133,7 +133,7 @@ export function ValueDistribution({
       {view === "hist" ? (
         <HistogramBars histogram={histogram} />
       ) : (
-        <ScoreDotPlot plot={plot} />
+        <DotPlotChart plot={plot} label="Nuage de points des scores" midTick />
       )}
 
       <p className="text-xs text-zinc-500 dark:text-zinc-400">

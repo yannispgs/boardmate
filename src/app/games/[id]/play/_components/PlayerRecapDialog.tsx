@@ -2,15 +2,38 @@
 
 import { Modal } from "@/components/Modal";
 import { ModalHeader } from "@/components/ModalHeader";
+import { DotPlotChart } from "@/components/stats/DotPlotChart";
 import type { PlayerRecap, RecapMeasure } from "@/lib/game/player-recap";
+import { dotPlot } from "@/lib/game/score-distribution";
 
-import { RecapDotPlot } from "./RecapDotPlot";
 import {
   measureHint,
   measureLabel,
   measureStanding,
   measureValue,
 } from "./recap-measure";
+
+/**
+ * One measure's spread: a dot per evening, tonight among the ones before it and
+ * picked out from them. The cloud behind it is dimmed rather than coloured —
+ * the reader is looking for a single dot, not reading the shape.
+ */
+function MeasureSpread({ measure }: Readonly<{ measure: RecapMeasure }>) {
+  const plot = dotPlot([...measure.past, measure.value]);
+
+  if (plot === null) {
+    return null;
+  }
+
+  return (
+    <DotPlotChart
+      plot={plot}
+      label={`Répartition — ${measureValue(measure.key, measure.value)}`}
+      format={v => measureValue(measure.key, v)}
+      highlight={measure.value}
+    />
+  );
+}
 
 /** One measure in full: tonight's figure, where it stands, and the spread. */
 function MeasureBlock({ measure }: Readonly<{ measure: RecapMeasure }>) {
@@ -39,11 +62,7 @@ function MeasureBlock({ measure }: Readonly<{ measure: RecapMeasure }>) {
           Rien à comparer encore — c&apos;est la première.
         </p>
       ) : (
-        <RecapDotPlot
-          measureKey={measure.key}
-          value={measure.value}
-          past={measure.past}
-        />
+        <MeasureSpread measure={measure} />
       )}
 
       {hint === null ? null : (

@@ -67,5 +67,7 @@ export function measureStanding(measure: RecapMeasure): string | null {
     return "1ʳᵉ fois";
   }
 
-  return `${measure.rank === 1 ? "1ᵉʳ" : `${measure.rank}ᵉ`} sur ${total}`;
+  const ordinal = measure.rank === 1 ? "1ᵉʳ" : `${measure.rank}ᵉ`;
+
+  return `${ordinal} sur ${total}`;
 }
