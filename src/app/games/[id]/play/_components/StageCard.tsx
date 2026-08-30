@@ -39,17 +39,15 @@ export function StageCard({
     // Click-through on purpose: it is an announcement, not a step. A table that
     // has already seen it must not have to dismiss it, and a tap aimed at the
     // board underneath must land on the board.
-    // `status` is the one role that names it for what it is — an announcement
-    // that arrives and leaves on its own — and it is what a test can hold on to.
-    // « Génération 2 » is also written in the progress line under the strip, so
-    // matching on the words alone would find the wrong one half the time.
-    <div
-      role="status"
-      className="stage-card pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-black/40"
-    >
+    // `output` carries the `status` role on its own — the one name for what
+    // this is, an announcement that arrives and leaves without being asked —
+    // and it is what a test can hold on to. « Génération 2 » is also written in
+    // the progress line under the strip, so matching on the words alone would
+    // find the wrong one half the time.
+    <output className="stage-card pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-black/40">
       <p className="rounded-2xl bg-white/95 px-8 py-6 text-center text-2xl font-bold uppercase tracking-wide text-zinc-900 shadow-2xl dark:bg-zinc-900/95 dark:text-zinc-50">
         {label} {stage}
       </p>
-    </div>
+    </output>
   );
 }
