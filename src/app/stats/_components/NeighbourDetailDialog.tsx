@@ -28,7 +28,9 @@ export function NeighbourDetailDialog({
 }>) {
   const hint = [
     `${stat.parties} partie${stat.parties > 1 ? "s" : ""}`,
-    pileAverage === null ? null : `pile moyenne ${pileFigure(pileAverage)}`,
+    pileAverage === null
+      ? null
+      : `piles adjacentes, moyenne ${pileFigure(pileAverage)}`,
   ]
     .filter(part => part !== null)
     .join(" · ");

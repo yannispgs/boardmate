@@ -45,7 +45,12 @@ export function NeighbourCard({
           <span className="min-w-0 truncate font-medium">
             À côté de {stat.name}
           </span>
+          {/* Named: a bare « 58 / 100 » next to a name reads as a score its
+              owner earned, not as where the players beside him finish. */}
           <span className="shrink-0 text-sm tabular-nums">
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">
+              placement{" "}
+            </span>
             <span className="font-semibold">{index ?? "—"}</span>{" "}
             <span className="text-zinc-500 dark:text-zinc-400">/ 100</span>
           </span>
@@ -59,14 +64,13 @@ export function NeighbourCard({
         </div>
 
         <p className="text-xs text-zinc-500 tabular-nums dark:text-zinc-400">
-          {stat.parties} partie{stat.parties > 1 ? "s" : ""} · {stat.encounters}{" "}
-          voisinage{stat.encounters > 1 ? "s" : ""}
+          {stat.parties} partie{stat.parties > 1 ? "s" : ""}
           {stat.neighbourWinRate === null
             ? null
             : ` · ${Math.round(stat.neighbourWinRate * 100)} % de victoires`}
           {stat.sharedPile === null ? null : (
             <>
-              {" · pile "}
+              {" · piles adjacentes "}
               <span className="font-medium">{pileFigure(stat.sharedPile)}</span>
               {pileAverage === null
                 ? null

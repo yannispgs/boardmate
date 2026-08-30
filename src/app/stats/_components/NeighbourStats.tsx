@@ -19,6 +19,10 @@ import { NeighbourDetailDialog } from "./NeighbourDetailDialog";
  * Renders nothing until somebody clears {@link MIN_PARTIES}: an empty section
  * says « not yet », a section holding one player's single evening says
  * something false.
+ *
+ * Framed, unlike the shorter sections above it: one line per player is a tall
+ * run of near-identical cards, and past the third one nothing says where the
+ * statistic stops and the next begins.
  */
 export function NeighbourStats({ board }: Readonly<{ board: NeighbourBoard }>) {
   const [open, setOpen] = useState<NeighbourStat | null>(null);
@@ -28,7 +32,7 @@ export function NeighbourStats({ board }: Readonly<{ board: NeighbourBoard }>) {
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <section className="flex flex-col gap-3 rounded-2xl border border-black/10 p-3 sm:p-4 dark:border-white/10">
       <h2 className="flex items-center gap-1 text-sm font-medium text-zinc-500 dark:text-zinc-400">
         Ce que valent vos voisins
         <InfoTip label="Détails sur le voisinage">
@@ -47,7 +51,10 @@ export function NeighbourStats({ board }: Readonly<{ board: NeighbourBoard }>) {
             page&nbsp;: le petit chiffre est le bon.
           </p>
           <p>
-            <strong>La pile partagée</strong> est la mesure la plus honnête des
+            <strong>Les piles adjacentes</strong> sont la hauteur moyenne des
+            piles montées à côté de ce joueur, à comparer à la moyenne de toutes
+            les piles donnée entre parenthèses&nbsp;: au-dessus, il fait monter
+            les piles de ses voisins. C&apos;est la mesure la plus honnête des
             deux&nbsp;: un classement se fabrique avec les <em>deux</em> piles
             d&apos;un joueur, donc il porte aussi son autre voisin, alors
             qu&apos;une pile ne porte que ces deux-là.
@@ -73,6 +80,6 @@ export function NeighbourStats({ board }: Readonly<{ board: NeighbourBoard }>) {
           onClose={() => setOpen(null)}
         />
       )}
-    </div>
+    </section>
   );
 }
