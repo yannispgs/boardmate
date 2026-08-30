@@ -200,3 +200,108 @@ body {
 .animate-dim-in {
   animation: dim-in 600ms ease-out both;
 }
+
+/*
+ * ── Fades ──────────────────────────────────────────────────────────────────
+ *
+ * What gets animated is decided by FREQUENCY, not by how nice it looks: 300 ms
+ * on a turn, played a hundred times an evening, is thirty seconds of a table
+ * waiting on its phone. So the rare and the meaningful move, and the frequent
+ * does not — the turn ribbon already slides and nothing was added to it.
+ *
+ * All of these fade and none of them transforms. `TurnFlow` carries the scar:
+ * a GPU-composited layer repaints an SVG **black** on WebKit/iOS. Half the
+ * screens below hold an SVG (the clock discs, the wheel, the icons), so a
+ * `scale` or a `translate` here would be betting on which ones don't.
+ */
+
+/* A phase gives way to the next: the clock block it owns fades back in rather
+ * than being swapped under the table's nose. Short on purpose — the figure has
+ * already changed underneath, this only says that it did. */
+@keyframes clock-swap {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@utility clock-swap {
+  animation: clock-swap 200ms ease-out both;
+}
+
+/* A modal arrives instead of appearing. Both halves fade on the same beat, so
+ * the card never floats over an undimmed page for a frame. */
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@utility overlay-in {
+  animation: overlay-in 160ms ease-out both;
+}
+
+/*
+ * The generation card: « GÉNÉRATION 4 » laid over the play screen, which stays
+ * readable underneath through the veil. It answers the one complaint a quiet
+ * counter cannot — « on est passés en G4 sans que personne le voie ».
+ *
+ * One envelope, 1.4 s end to end: in over 200 ms, held for 800, out over 400.
+ * Out is slower than in because the table looks up at the card and back down at
+ * the board — leaving is allowed to take its time, arriving is not.
+ */
+@keyframes stage-card {
+  0% {
+    opacity: 0;
+  }
+  14.3% {
+    opacity: 1;
+  }
+  71.4% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@utility stage-card {
+  animation: stage-card 1400ms ease-in-out both;
+}
+
+/* The final standings come out one place at a time, worst first. Each place
+ * fades in as it is called; the ones already out do not move again, so the
+ * board fills up rather than reshuffling itself at every step. */
+@keyframes place-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@utility place-in {
+  animation: place-in 260ms ease-out both;
+}
+
+/*
+ * Reduced motion is an OS setting he may well have on, not a compliance box:
+ * every fade above is decoration over a change that has already happened, so
+ * dropping it costs nothing. The generation card is the exception worth
+ * spelling out — it is held on screen by a timer, not by its animation, so it
+ * still appears, still waits, and still goes. Only the fading stops.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .clock-swap,
+  .overlay-in,
+  .stage-card,
+  .place-in {
+    animation: none;
+  }
+}

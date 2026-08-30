@@ -13,6 +13,12 @@ import { registerOverlay } from "@/lib/ui/overlay-registry";
  * Set `dismissable={false}` for a modal where an outside click would throw away
  * work in progress (e.g. the category scoresheet mid-entry): then only its own
  * close/cancel control shuts it.
+ *
+ * It fades **in** and leaves at once. Fading out would mean staying mounted
+ * after `onClose`, the way `Drawer` does — and a drawer can, because its caller
+ * hands it an `open` flag. A modal's caller stops rendering it instead, in the
+ * nineteen places one is opened. Closing reveals the page that was asked for,
+ * which is its own reward; arriving is the half that needed announcing.
  */
 export function Modal({
   onClose,
@@ -54,11 +60,14 @@ export function Modal({
       aria-modal="true"
       aria-label={label}
       onClick={dismissable ? onClose : undefined}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="overlay-in fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
     >
-      {/* Clicks inside the card are its own; they must not reach the backdrop. */}
+      {/* Clicks inside the card are its own; they must not reach the backdrop.
+          The card fades on the backdrop's own beat rather than a beat of its
+          own: two overlapping fades read as one arrival, two staggered ones
+          read as a page that is still loading. */}
       <div // NOSONAR: same call as above.
-        className={className}
+        className={`overlay-in ${className ?? ""}`}
         onClick={e => e.stopPropagation()}
       >
         {children}

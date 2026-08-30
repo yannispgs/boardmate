@@ -105,35 +105,52 @@ export function PlayBlock({
     <>
       {turnless ? null : ribbon()}
 
-      {countdown ? (
-        <TimerRing
-          remainingS={durationS - timer.elapsedS}
-          durationS={durationS}
-          running={timer.running}
-          onToggle={timer.toggle}
-          size={spec ? 168 : undefined}
-        />
-      ) : null}
+      {/* One phase's clock gives way to the next one's — a countdown to a table
+          stopwatch, or either to nothing at all. Keyed on the phase so the fade
+          replays on the change and only on it: React remounts the block, the
+          browser runs the animation once, and a re-render for any other reason
+          (the second ticking) leaves it alone.
 
-      {countdown || untimed ? null : (
-        <PhaseStopwatch
-          elapsedS={timer.elapsedS}
-          running={timer.running}
-          onToggle={timer.toggle}
-          label={phase?.label ?? ""}
-          size={spec ? 168 : undefined}
-        />
-      )}
+          The figures have already switched by the time this runs. The clock
+          belongs to the data — the per-phase time statistics are read off it —
+          so the animation is told about the change, never asked to make it.
 
-      {/* A phase that declares no clock at all has nothing to set by hand. */}
-      {untimed ? null : (
-        <ClockControls
-          countdown={countdown}
-          durationS={durationS}
-          onDuration={onDuration}
-          timer={timer}
-        />
-      )}
+          Full width and the play screen's own gap, so wrapping the three of them
+          together changes what they look like in no way at all. */}
+      <div
+        key={phase?.key ?? "no-phase"}
+        className="clock-swap flex w-full flex-col items-center gap-8"
+      >
+        {countdown ? (
+          <TimerRing
+            remainingS={durationS - timer.elapsedS}
+            durationS={durationS}
+            running={timer.running}
+            onToggle={timer.toggle}
+            size={spec ? 168 : undefined}
+          />
+        ) : null}
+
+        {countdown || untimed ? null : (
+          <PhaseStopwatch
+            elapsedS={timer.elapsedS}
+            running={timer.running}
+            onToggle={timer.toggle}
+            label={phase?.label ?? ""}
+            size={spec ? 168 : undefined}
+          />
+        )}
+
+        {/* A phase that declares no clock at all has nothing to set by hand. */}
+        {untimed ? null : (
+          <ClockControls
+            countdown={countdown}
+            durationS={durationS}
+            onDuration={onDuration}
+            timer={timer}
+          />
+        )}
+      </div>
 
       {spec ? (
         <DiceBar

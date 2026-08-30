@@ -45,8 +45,10 @@ import { SeatOrderPanel } from "./SeatOrderPanel";
 import { SessionFacts } from "./SessionFacts";
 import { SessionStats } from "./SessionStats";
 import { StageBoard } from "./StageBoard";
+import { StageCard } from "./StageCard";
 import { TimeHogBanner } from "./TimeHogBanner";
 import { TurnControls } from "./TurnControls";
+import { useChangeBeat } from "./use-change-beat";
 import { useDiceLog } from "./use-dice-log";
 import { useDimVeil } from "./use-dim-veil";
 import { useEndFlow } from "./use-end-flow";
@@ -56,6 +58,9 @@ import type { PlayGame } from "./use-play-game";
 import { usePlaySounds } from "./use-play-sounds";
 import { useSessionGames } from "./use-session-games";
 import { useStageGoals } from "./use-stage-goals";
+
+/** How long the clock block takes to fade back in — the `clock-swap` keyframes. */
+const PHASE_FADE_MS = 200;
 
 /**
  * A game in progress. Takes the loaded game, so nothing below has to wonder
@@ -189,6 +194,11 @@ export function PlayingGame({
   const phases = game.boardgame.phases;
   const phase = currentPhase(phases, game.phase);
   const phaseOut = advancePhase(phases, game.phase);
+  // The clock block fades back in on the change of phase. « Phase terminée → »
+  // is already dead while the write is in flight, but the fade starts *after*
+  // the reload answers: without this, a second tap in those 200 ms would close
+  // a phase the table has not seen open yet.
+  const phaseSwapping = useChangeBeat(game.phase, PHASE_FADE_MS);
   const draft =
     phase?.draft && game.drafting ? draftDirection(phase, game.stage) : null;
 
@@ -291,7 +301,7 @@ export function PlayingGame({
             nextPhase(phases, game.phase)?.label ??
             `${stageLabel} ${game.stage + 1}`
           }
-          disabled={play.busy}
+          disabled={play.busy || phaseSwapping}
           onEndPhase={() => void endPhase(phase)}
         />
       );
@@ -351,6 +361,11 @@ export function PlayingGame({
 
   return (
     <div className="flex flex-col items-center gap-8">
+      {/* A game played in generations is the one that loses its table: the
+          others either announce the change themselves (Odin's manche recap) or
+          never leave the first stage at all. */}
+      {generations ? <StageCard stage={game.stage} label={stageLabel} /> : null}
+
       <TimeHogBanner
         players={game.players}
         turns={game.turns}

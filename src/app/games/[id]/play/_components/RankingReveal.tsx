@@ -104,9 +104,13 @@ export function RankingReveal({
           const isLatest = latest?.rank === r.rank;
 
           return (
+            // The place called last fades in; the ones already out keep their
+            // key, so React leaves them alone and the browser has no animation
+            // to replay on them. The board fills up instead of reshuffling
+            // itself at every step — which is the whole suspense of a reveal.
             <li
               key={r.playerId}
-              className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 transition ${
+              className={`place-in flex items-center justify-between gap-3 rounded-xl border px-4 py-3 transition ${
                 isWinner && done
                   ? "border-amber-500 bg-amber-500/10"
                   : "border-black/10 dark:border-white/10"
