@@ -7,7 +7,7 @@ import type { PhaseSpec, PlayerId, PopulatedGame } from "@/lib/domain";
 import { chainedGame } from "@/lib/game/chained-game";
 import { composeGoals } from "@/lib/game/extensions";
 import { gameProgress, playProgress } from "@/lib/game/game-progress";
-import { advancePhase, currentPhase, draftDirection } from "@/lib/game/phase";
+import { advancePhase, currentPhase, playedDraft } from "@/lib/game/phase";
 import { scoreDirectionOf } from "@/lib/game/scoring";
 import { isLastTurnOfStage, playCalendar } from "@/lib/game/stage";
 import { isFinalTurn, turnsPerRound } from "@/lib/game/turn";
@@ -185,8 +185,7 @@ export function PlayingGame({
   // clocks only start crossing once the reload has answered: without this, a
   // second tap during the cross-fade would close a phase nobody saw open.
   const phaseSwapping = useChangeBeat(game.phase, PHASE_FADE_MS);
-  const draft =
-    phase?.draft && game.drafting ? draftDirection(phase, game.stage) : null;
+  const draft = playedDraft(phase, game.drafting, game.stage);
 
   function pickBlocked(id: PlayerId | null) {
     setBlockedById(id);
@@ -294,9 +293,7 @@ export function PlayingGame({
 
       <LastLapBanner shown={live.lastLap} />
 
-      {phases === null ? null : (
-        <PhaseBar phases={phases} current={game.phase} draft={draft} />
-      )}
+      <PhaseBar phases={phases} current={game.phase} draft={draft} />
 
       {/* Where a timed game says which lap it is on, an evening says which deal
           it is on. The two never show together: only a game the app puts no
@@ -365,14 +362,12 @@ export function PlayingGame({
 
       <FaqPanel boardgame={game.boardgame} extensions={game.extensions} />
 
-      {milestoneSpec === null ? null : (
-        <MilestonePanel
-          spec={milestoneSpec}
-          gameName={game.boardgame.name}
-          seats={namedPlayers(game)}
-          log={milestones}
-        />
-      )}
+      <MilestonePanel
+        spec={milestoneSpec}
+        gameName={game.boardgame.name}
+        seats={namedPlayers(game)}
+        log={milestones}
+      />
 
       <SeatOrderPanel
         gameId={game.id}
@@ -407,9 +402,7 @@ export function PlayingGame({
 
       {/* Last, so the veil covers everything above it — including the tie-break
           that may be open when the table stops the clock to argue. */}
-      {veil.dimmed ? (
-        <DimVeil elapsedS={timer.elapsedS} onLift={veil.lift} />
-      ) : null}
+      <DimVeil veil={veil} elapsedS={timer.elapsedS} />
     </div>
   );
 }

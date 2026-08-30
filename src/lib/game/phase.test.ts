@@ -10,6 +10,7 @@ import {
   draftingOn,
   needsPhaseButton,
   nextPhase,
+  playedDraft,
   turnTimerApplies,
 } from "./phase";
 
@@ -110,6 +111,27 @@ describe("draftDirection", () => {
 
   it("says nothing about a phase that is never drafted", () => {
     expect(draftDirection(TM[1], 1)).toBeNull();
+  });
+});
+
+describe("playedDraft", () => {
+  it("gives the phase's direction while the table is drafting", () => {
+    expect(playedDraft(TM[0], true, 1)).toBe("right");
+    expect(playedDraft(TM[0], true, 2)).toBe("left");
+  });
+
+  it("says nothing when the game is played without the draft", () => {
+    // The phase is the drafted one, but this table chose the plain draw at
+    // launch, so there is no direction to announce.
+    expect(playedDraft(TM[0], false, 1)).toBeNull();
+  });
+
+  it("says nothing when the game declares no phases", () => {
+    expect(playedDraft(null, true, 1)).toBeNull();
+  });
+
+  it("says nothing during a phase that is not the drafted one", () => {
+    expect(playedDraft(TM[1], true, 1)).toBeNull();
   });
 });
 
