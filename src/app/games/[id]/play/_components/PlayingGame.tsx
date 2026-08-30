@@ -59,8 +59,8 @@ import { usePlaySounds } from "./use-play-sounds";
 import { useSessionGames } from "./use-session-games";
 import { useStageGoals } from "./use-stage-goals";
 
-/** How long the clock block takes to fade back in — the `clock-swap` keyframes. */
-const PHASE_FADE_MS = 200;
+/** How long the two clocks take to cross — the `clock-in` keyframes. */
+const PHASE_FADE_MS = 320;
 
 /**
  * A game in progress. Takes the loaded game, so nothing below has to wonder
@@ -142,6 +142,13 @@ export function PlayingGame({
   const stages = game.boardgame.stages;
   const generations = stages?.advance === "pass";
   const byHand = stages?.advance === "manual";
+  // Which stage changes are worth announcing on screen: the ones the table does
+  // not close itself. Terraforming Mars steps out of a generation one player at
+  // a time, Wingspan runs off a calendar laid out at launch — in both, the stage
+  // turns over while everyone is looking at their cards. A manche the table ends
+  // by hand (Odin, Papayoo) is already announced twice: somebody said it out
+  // loud, and its own recap modal follows.
+  const announcesStage = stages !== null && !byHand;
   // A game that times nothing has no play block and no turn to advance: the
   // screen is the tally board (Odin) or, with no stages either, the score sheet
   // and the button that opens it (Papayoo).
@@ -194,11 +201,19 @@ export function PlayingGame({
   const phases = game.boardgame.phases;
   const phase = currentPhase(phases, game.phase);
   const phaseOut = advancePhase(phases, game.phase);
-  // The clock block fades back in on the change of phase. « Phase terminée → »
-  // is already dead while the write is in flight, but the fade starts *after*
-  // the reload answers: without this, a second tap in those 200 ms would close
-  // a phase the table has not seen open yet.
-  const phaseSwapping = useChangeBeat(game.phase, PHASE_FADE_MS);
+  // The two clocks cross on the change of phase, so the block needs to know the
+  // phase it is leaving as well as the one it is entering. Tracked on the phase
+  // INDEX and not on the spec: a write that changes nothing about the phase
+  // still hands down a fresh object, and identity would fade on every turn.
+  //
+  // « Phase terminée → » is already dead while the write is in flight, but the
+  // fade starts *after* the reload answers: without this, a second tap during
+  // the cross-fade would close a phase the table has not seen open yet.
+  const phaseSwap = useChangeBeat(game.phase, PHASE_FADE_MS);
+  const phaseSwapping = phaseSwap.beating;
+  const leavingPhase = phaseSwap.beating
+    ? currentPhase(phases, phaseSwap.outgoing ?? 0)
+    : null;
   const draft =
     phase?.draft && game.drafting ? draftDirection(phase, game.stage) : null;
 
@@ -361,10 +376,9 @@ export function PlayingGame({
 
   return (
     <div className="flex flex-col items-center gap-8">
-      {/* A game played in generations is the one that loses its table: the
-          others either announce the change themselves (Odin's manche recap) or
-          never leave the first stage at all. */}
-      {generations ? <StageCard stage={game.stage} label={stageLabel} /> : null}
+      {announcesStage ? (
+        <StageCard stage={game.stage} label={stageLabel} />
+      ) : null}
 
       <TimeHogBanner
         players={game.players}
@@ -405,6 +419,7 @@ export function PlayingGame({
           dice={dice}
           closingRound={live.closingRound}
           phase={phase}
+          leaving={leavingPhase}
         />
       )}
 

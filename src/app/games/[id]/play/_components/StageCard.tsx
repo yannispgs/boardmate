@@ -2,14 +2,14 @@
 
 import { useChangeBeat } from "./use-change-beat";
 
-/** In 200 ms, held 800, out 400 — the envelope of the `stage-card` keyframes. */
-const BEAT_MS = 1400;
+/** In 500 ms, held 800, out 700 — the envelope of the `stage-card` keyframes. */
+const BEAT_MS = 2000;
 
 /**
- * « GÉNÉRATION 4 », laid over the play screen for a beat when the game moves on
- * to the next one.
+ * « GÉNÉRATION 4 », « MANCHE 2 » — laid over the play screen for a beat when the
+ * game moves on to the next stage.
  *
- * A generation turns over about eight times in a party, and the counter that
+ * A stage turns over a handful of times in a party, and the counter that
  * announced it was a line of small text somewhere on the screen: the table
  * routinely found out two turns late that it had moved on. A card that takes
  * the screen for a second and a half is the only thing that catches a table
@@ -29,7 +29,7 @@ export function StageCard({
   /** What this game calls one — « Génération », « Manche ». */
   label: string;
 }>) {
-  const showing = useChangeBeat(stage, BEAT_MS);
+  const { beating: showing } = useChangeBeat(stage, BEAT_MS);
 
   if (!showing) {
     return null;
@@ -44,8 +44,9 @@ export function StageCard({
     // and it is what a test can hold on to. « Génération 2 » is also written in
     // the progress line under the strip, so matching on the words alone would
     // find the wrong one half the time.
-    <output className="stage-card pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-black/40">
-      <p className="rounded-2xl bg-white/95 px-8 py-6 text-center text-2xl font-bold uppercase tracking-wide text-zinc-900 shadow-2xl dark:bg-zinc-900/95 dark:text-zinc-50">
+    <output className="stage-card pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.88)_0%,rgba(0,0,0,0.72)_28%,rgba(0,0,0,0.35)_52%,transparent_72%)]">
+      {/* White in both themes: the gradient it sits on is dark either way. */}
+      <p className="px-6 text-center text-5xl font-black uppercase leading-tight tracking-wide text-white sm:text-6xl">
         {label} {stage}
       </p>
     </output>

@@ -74,7 +74,7 @@ test.describe("with the animations running", () => {
 
       // The clock block is keyed on the phase, so it fades in on arrival too —
       // proof the animation is wired up before anything is asked of it.
-      expect(await animationOn(page.locator(".clock-swap"))).toBe("clock-swap");
+      expect(await animationOn(page.locator(".clock-in"))).toBe("clock-in");
 
       await page.getByRole("button", { name: "Phase terminée →" }).click();
 
@@ -142,7 +142,7 @@ test("still announces the new generation with the movement turned off", async ({
 
     await page.goto(`/games/${gameId}/play`);
 
-    expect(await animationOn(page.locator(".clock-swap"))).toBe("none");
+    expect(await animationOn(page.locator(".clock-in"))).toBe("none");
 
     await page.getByRole("button", { name: "Phase terminée →" }).click();
 

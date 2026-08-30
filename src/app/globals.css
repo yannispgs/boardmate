@@ -215,10 +215,23 @@ body {
  * `scale` or a `translate` here would be betting on which ones don't.
  */
 
-/* A phase gives way to the next: the clock block it owns fades back in rather
- * than being swapped under the table's nose. Short on purpose — the figure has
- * already changed underneath, this only says that it did. */
-@keyframes clock-swap {
+/*
+ * A phase gives way to the next, and the two clocks CROSS: the departing one is
+ * still on screen, fading, while the arriving one comes up under it. They are
+ * laid in the same grid cell, so this costs one extra painted disc for a third
+ * of a second and nothing else — no transform, no compositing layer, no work
+ * per frame beyond the opacity the browser was already interpolating.
+ *
+ * Fading one out *then* the other in was the first attempt and it read as a
+ * glitch: for the length of the fade the clock was simply absent, and a hole
+ * where a disc was is the most violent thing the screen can do. Overlapping
+ * them costs nothing extra and removes the hole entirely.
+ *
+ * The outgoing one leaves faster than the incoming one arrives (both start
+ * together): the eye should land on the clock that is taking over, not linger
+ * on the one that is done.
+ */
+@keyframes clock-in {
   from {
     opacity: 0;
   }
@@ -227,8 +240,21 @@ body {
   }
 }
 
-@utility clock-swap {
-  animation: clock-swap 200ms ease-out both;
+@utility clock-in {
+  animation: clock-in 320ms ease-out both;
+}
+
+@keyframes clock-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@utility clock-out {
+  animation: clock-out 220ms ease-in both;
 }
 
 /* A modal arrives instead of appearing. Both halves fade on the same beat, so
@@ -243,26 +269,32 @@ body {
 }
 
 @utility overlay-in {
-  animation: overlay-in 160ms ease-out both;
+  animation: overlay-in 260ms ease-out both;
 }
 
 /*
  * The generation card: « GÉNÉRATION 4 » laid over the play screen, which stays
- * readable underneath through the veil. It answers the one complaint a quiet
- * counter cannot — « on est passés en G4 sans que personne le voie ».
+ * readable underneath. It answers the one complaint a quiet counter cannot —
+ * « on est passés en G4 sans que personne le voie ».
  *
- * One envelope, 1.4 s end to end: in over 200 ms, held for 800, out over 400.
- * Out is slower than in because the table looks up at the card and back down at
- * the board — leaving is allowed to take its time, arriving is not.
+ * There is no card and no frame: the dark is a radial gradient, solid behind the
+ * words and thinning out in every direction until it is gone before the edges.
+ * A bordered box would be a thing to dismiss; a shadow that gathers around a
+ * number is weather. It also means the corners of the board — the ribbon, the
+ * buttons — are never covered at all, only the middle is.
+ *
+ * One envelope, 2 s end to end: in over 500 ms, held for 800, out over 700.
+ * Both ends are slow. Arriving fast is what made it feel like an error dialog;
+ * arriving slowly is what makes a table look up.
  */
 @keyframes stage-card {
   0% {
     opacity: 0;
   }
-  14.3% {
+  25% {
     opacity: 1;
   }
-  71.4% {
+  65% {
     opacity: 1;
   }
   100% {
@@ -271,7 +303,7 @@ body {
 }
 
 @utility stage-card {
-  animation: stage-card 1400ms ease-in-out both;
+  animation: stage-card 2000ms ease-in-out both;
 }
 
 /* The final standings come out one place at a time, worst first. Each place
@@ -287,7 +319,7 @@ body {
 }
 
 @utility place-in {
-  animation: place-in 260ms ease-out both;
+  animation: place-in 400ms ease-out both;
 }
 
 /*
@@ -298,10 +330,17 @@ body {
  * still appears, still waits, and still goes. Only the fading stops.
  */
 @media (prefers-reduced-motion: reduce) {
-  .clock-swap,
+  .clock-in,
   .overlay-in,
   .stage-card,
   .place-in {
     animation: none;
+  }
+
+  /* The departing clock has nothing to fade to, so it must not be left sitting
+     on top of the arriving one. */
+  .clock-out {
+    animation: none;
+    display: none;
   }
 }
