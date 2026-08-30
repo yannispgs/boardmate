@@ -129,13 +129,6 @@ export function PlayingGame({
   const stages = game.boardgame.stages;
   const generations = stages?.advance === "pass";
   const byHand = stages?.advance === "manual";
-  // Which stage changes are worth announcing on screen: the ones the table does
-  // not close itself. Terraforming Mars steps out of a generation one player at
-  // a time, Wingspan runs off a calendar laid out at launch — in both, the stage
-  // turns over while everyone is looking at their cards. A manche the table ends
-  // by hand (Odin, Papayoo) is already announced twice: somebody said it out
-  // loud, and its own recap modal follows.
-  const announcesStage = stages !== null && !byHand;
   // A game that times nothing has no play block and no turn to advance: the
   // screen is the tally board (Odin) or, with no stages either, the score sheet
   // and the button that opens it (Papayoo).
@@ -291,9 +284,7 @@ export function PlayingGame({
 
   return (
     <div className="flex flex-col items-center gap-8">
-      {announcesStage ? (
-        <StageCard stage={game.stage} label={stageLabel} />
-      ) : null}
+      <StageCard stage={game.stage} label={stageLabel} stages={stages} />
 
       <TimeHogBanner
         players={game.players}

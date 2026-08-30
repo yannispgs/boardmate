@@ -1,5 +1,6 @@
 "use client";
 
+import type { StageSpec } from "@/lib/domain";
 import { useChangeBeat } from "./use-change-beat";
 
 /** In 500 ms, held 800, out 700 — the envelope of the `stage-card` keyframes. */
@@ -19,19 +20,31 @@ const BEAT_MS = 2000;
  * Nothing here is a turn: a turn changes a hundred times an evening and gets no
  * card, no fade and no beat, because the cost of a transition is how often it
  * is paid.
+ *
+ * Which games get one is decided here rather than by the screen, because the
+ * answer is about the card and not about the screen: it is worth showing where
+ * the stage turns over while everyone is looking at their cards — Terraforming
+ * Mars, where one player steps out at a time, Wingspan, which runs off a
+ * calendar laid out at launch. A manche the table closes by hand (Odin,
+ * Papayoo) is already announced twice: somebody said it out loud, and its own
+ * recap modal follows.
  */
 export function StageCard({
   stage,
   label,
+  stages,
 }: Readonly<{
   /** The generation now being played. */
   stage: number;
   /** What this game calls one — « Génération », « Manche ». */
   label: string;
+  /** How this game turns its stages over, or null for a game with none. */
+  stages: StageSpec | null;
 }>) {
   const showing = useChangeBeat(stage, BEAT_MS);
+  const announces = stages !== null && stages.advance !== "manual";
 
-  if (!showing) {
+  if (!showing || !announces) {
     return null;
   }
 
