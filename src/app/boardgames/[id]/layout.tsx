@@ -2,8 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-import { InfoIcon } from "@/components/icons";
-import { iconButtonClass } from "@/components/ui";
+import { HelpIcon } from "@/components/icons";
+import { iconLabelButtonClass } from "@/components/ui";
 import type { BoardgameId } from "@/lib/domain";
 import { createBoardgameRepository } from "@/lib/supabase/repositories/boardgames";
 import { createClient } from "@/lib/supabase/server";
@@ -59,13 +59,13 @@ export default async function BoardgameLayout({
           <h1 className="min-w-0 text-3xl font-semibold tracking-tight">
             {boardgame.name}
           </h1>
-          <Link
-            href={`/faq?jeu=${id}`}
-            aria-label={`FAQ de ${boardgame.name}`}
-            title="FAQ"
-            className={iconButtonClass}
-          >
-            <InfoIcon />
+          {/* A question mark and the word, not the ⓘ: that one is the mark of
+              a note about the page, so it was read as a tooltip rather than as
+              the door to the game's questions. Same icon as the FAQ panel
+              opened in a game. */}
+          <Link href={`/faq?jeu=${id}`} className={iconLabelButtonClass}>
+            <HelpIcon />
+            FAQ
           </Link>
         </div>
 
