@@ -7,14 +7,18 @@ import { Drawer } from "@/components/Drawer";
 import { ExtensionBadgeList } from "@/components/games/ExtensionBadgeList";
 import type { PopulatedGame } from "@/lib/domain";
 import { playedExtensions } from "@/lib/game/extensions";
+import type { RecapScope } from "@/lib/game/player-recap";
+import { hasComparablePast } from "@/lib/game/player-recap";
 import { worldRecordOf } from "@/lib/game/score-records";
 import { formatNames } from "@/lib/game/tie-break";
 import { hasPlayStats } from "@/lib/game/turn-time";
+import { usePlayerRecaps } from "@/lib/hooks/use-player-recaps";
 import { useRecordsOfGame } from "@/lib/hooks/use-score-records";
 import { useSpeedRecord } from "@/lib/hooks/use-speed-record";
 
 import { EndScorePanel } from "./EndScorePanel";
 import { GameStats } from "./GameStats";
+import { PlayerRecapSection } from "./PlayerRecapSection";
 import { ScoreRecordBanner } from "./ScoreRecordBanner";
 import { SessionFacts } from "./SessionFacts";
 import { SpeedRecordBanner } from "./SpeedRecordBanner";
@@ -116,9 +120,13 @@ export function EndedGame({
   // The score slide-over only makes sense once someone actually has a score.
   const hasScore = game.players.some(p => p.score !== null);
 
-  // A party that recorded neither turn nor manche (Papayoo) has no panel below,
-  // so the link down to it would scroll to nothing.
-  const stats = hasPlayStats(game.boardgame);
+  // A party that recorded neither turn nor manche (Papayoo) has no panel below
+  // — but its players still have a history, so the link down is worth showing
+  // as soon as either of the two sections has something to say.
+  const [scope, setScope] = useState<RecapScope>("all");
+  const { recaps, byTable, loading } = usePlayerRecaps(game, scope);
+  const comparable = !loading && hasComparablePast(recaps);
+  const stats = hasPlayStats(game.boardgame) || comparable;
 
   const seeStats = () => {
     statsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -188,8 +196,21 @@ export function EndedGame({
         </div>
       </div>
 
-      <div ref={statsRef} className="scroll-mt-6">
+      {/* Two readings of the same evening, in this order: what the table did,
+          then what each player did against his own past. The second is a
+          sibling of the first, never a part of it — a game that records neither
+          turn nor manche has no panel above and still has a history below. */}
+      <div ref={statsRef} className="flex flex-col gap-10 scroll-mt-6">
         <GameStats game={game} />
+
+        {comparable ? (
+          <PlayerRecapSection
+            recaps={recaps}
+            byTable={byTable}
+            scope={scope}
+            onScope={setScope}
+          />
+        ) : null}
       </div>
 
       {hasScore ? (

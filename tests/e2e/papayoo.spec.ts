@@ -117,8 +117,15 @@ test("scores a Papayoo party to 250 with no clock and no turns", async ({
     ]);
 
     // The party counted neither turn nor manche: rather than a wall of zeros,
-    // the finished screen shows no statistics panel and no link down to one.
-    await expect(page.getByText("Statistiques de la partie")).toHaveCount(0);
+    // the finished screen shows no statistics panel. These players had never
+    // played it either, so the players' section has nothing to place tonight
+    // among — and with both halves empty there is no link down to offer.
+    await expect(
+      page.getByRole("heading", { name: "La partie", exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("heading", { name: "Les joueurs", exact: true }),
+    ).toHaveCount(0);
     await expect(page.getByText("Voir les statistiques ↓")).toHaveCount(0);
 
     // « Jeux » tab: the two figures a shared pile of points is worth reading.
