@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.5.0](https://github.com/yannispgs/boardmate/compare/v1.4.0...v1.5.0) (2026-08-30)
+
+
+### Features
+
+* add a per-game records page ([7334338](https://github.com/yannispgs/boardmate/commit/73343383818c995a9982739aa8f5f6fa44606761))
+* **boardgames:** frame each extension on its own tab ([20c1832](https://github.com/yannispgs/boardmate/commit/20c1832b2e3893ce1f5ee0c313011e0d6153382f))
+* **boardgames:** give a game its own page instead of six side doors ([4548649](https://github.com/yannispgs/boardmate/commit/454864946857696161dc4eb98dee1e612c742ae3))
+* **boardgames:** give a game its own page instead of six side doors ([38f3451](https://github.com/yannispgs/boardmate/commit/38f345126f5f94969260184381797e807945c15d))
+* **boardgames:** say "FAQ" on the button that opens it ([d13e86b](https://github.com/yannispgs/boardmate/commit/d13e86b4fee3a11e745874b4bbc7925f738120c1))
+* crown the speed record on a race to a score ([53a931e](https://github.com/yannispgs/boardmate/commit/53a931ef479887120d8312f20842b235193c7b24))
+* drop the score distribution on a game that is raced ([ec52888](https://github.com/yannispgs/boardmate/commit/ec52888af90e953e2de27cc8c5ee52471584880f))
+* page « records » par jeu ([7a3d56d](https://github.com/yannispgs/boardmate/commit/7a3d56d743a88786a79bbf9b4ddabdc2fb792d02))
+* record de rapidité sur une course au score ([4b95798](https://github.com/yannispgs/boardmate/commit/4b95798a55829b19b6160d2a908032e0499b1140))
+* **stats:** name the neighbour figures and frame the section ([ba41690](https://github.com/yannispgs/boardmate/commit/ba4169013d1cc5ddfef803edad1067df4508cf4b))
+* **stats:** plot how many laps a raced game takes ([bd6d161](https://github.com/yannispgs/boardmate/commit/bd6d161e11fea34b71ef8b6bf4ff929958c49154))
+* **stats:** tell what sitting next to a player is worth ([7d6db3a](https://github.com/yannispgs/boardmate/commit/7d6db3a488a9884e99409e8f1f0c1dcea100d08e))
+* **stats:** tell what sitting next to a player is worth ([44f6928](https://github.com/yannispgs/boardmate/commit/44f6928ec9463b84d112237ae577c3357bec00ab))
+
+
+### Bug Fixes
+
+* **boardgames:** answer the press on a tab instead of the server ([56f6349](https://github.com/yannispgs/boardmate/commit/56f6349975e3e991188fb389c398d3e8d5ab8525))
+* **boardgames:** keep a game's own name readable on a narrow row ([e963c09](https://github.com/yannispgs/boardmate/commit/e963c093934e4ff2472e5f71c3fc6dcb72cb30ef))
+* **records:** let a race keep its laps and nothing else ([39e0735](https://github.com/yannispgs/boardmate/commit/39e073562bf19d0bebc6f7833bc22009a390c8e5))
+* **records:** name the finish line so it isn't read as part of the mark ([1fcd6d9](https://github.com/yannispgs/boardmate/commit/1fcd6d975050583bc5a546f7acc76c00990a890e))
+* **records:** read the finish lines of a table size climbing ([4b2f55c](https://github.com/yannispgs/boardmate/commit/4b2f55cfa93013fbc6ac3bf1bf1bd36ba9e10f74))
+
 ## [1.4.0](https://github.com/yannispgs/boardmate/compare/v1.3.0...v1.4.0) (2026-08-27)
 
 
