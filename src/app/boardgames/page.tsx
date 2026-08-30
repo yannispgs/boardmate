@@ -19,7 +19,8 @@ export default function BoardgamesPage() {
         </Link>
         <h1 className="text-3xl font-semibold tracking-tight">Jeux</h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          La ludothèque du groupe : nombre de joueurs, durée, logo et tags.
+          La ludothèque du groupe. Ouvre un jeu pour ses réglages, ses
+          extensions et ses records.
         </p>
       </header>
 

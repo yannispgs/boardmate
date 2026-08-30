@@ -71,17 +71,18 @@ test("launches a Catan game with the Marins extension and a scenario", {
 });
 
 /**
- * Browsing a game's extensions from the "Jeux" list: the puzzle shortcut opens
- * the dedicated screen, which lists what the extension changes and each of its
- * scenarios with the fixed score to reach.
+ * Browsing a game's extensions from the "Jeux" list: the row opens the game,
+ * and its extensions are one of the game's tabs — which lists what each
+ * extension changes and each of its scenarios with the fixed score to reach.
  */
 test("browses the Catan extensions from the games list", async ({ page }) => {
   await page.goto("/boardgames");
-  await page.getByRole("link", { name: `Extensions de ${CATAN_NAME}` }).click();
+  await page.getByRole("link", { name: CATAN_NAME, exact: true }).click();
+  await page.getByRole("link", { name: "Extensions", exact: true }).click();
 
   await expect(page).toHaveURL(/\/boardgames\/[0-9a-f-]+\/extensions/);
   await expect(
-    page.getByRole("heading", { name: `Extensions — ${CATAN_NAME}` }),
+    page.getByRole("heading", { name: CATAN_NAME, level: 1 }),
   ).toBeVisible();
 
   await expect(

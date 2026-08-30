@@ -348,8 +348,6 @@ export interface ExtensionRepository {
    * them needs (the FAQ offers a section per extension and has to name them).
    */
   listAll(): Promise<Extension[]>;
-  /** The ids of the base games that have at least one active extension. */
-  listExtendedBaseGames(): Promise<BoardgameId[]>;
   /**
    * One extension by its stable key — how a screen built around a specific
    * extension (the Marins board generator) finds it without knowing an id.

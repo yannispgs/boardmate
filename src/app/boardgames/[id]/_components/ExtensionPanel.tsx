@@ -31,15 +31,22 @@ function Scenarios({ extension }: Readonly<{ extension: Extension }>) {
   );
 }
 
-/** One extension: what it changes, then its scenarios. */
+/**
+ * One extension: what it changes, then its scenarios.
+ *
+ * Framed, because an extension has no other edge: with a single one the tab bar
+ * above is hidden, so a bare column of headings never says where the extension
+ * starts and where it stops. The frame is outlined rather than filled — the
+ * scenarios inside are white cards, which would vanish on a white panel.
+ */
 export function ExtensionPanel({
   extension,
 }: Readonly<{ extension: Extension }>) {
   const effects = extensionEffects(extension);
 
   return (
-    <div className="flex flex-col gap-6">
-      <section className="flex max-w-2xl flex-col gap-3">
+    <section className="flex flex-col gap-6 rounded-2xl border border-black/10 p-4 sm:p-5 dark:border-white/10">
+      <header className="flex max-w-2xl flex-col gap-3">
         <h2 className="text-lg font-semibold tracking-tight">
           {extension.name}
         </h2>
@@ -63,9 +70,9 @@ export function ExtensionPanel({
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
           Coche-la au lancement d&apos;une partie pour l&apos;activer.
         </p>
-      </section>
+      </header>
 
       {extension.hasScenarios ? <Scenarios extension={extension} /> : null}
-    </div>
+    </section>
   );
 }

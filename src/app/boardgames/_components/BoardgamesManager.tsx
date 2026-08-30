@@ -8,14 +8,10 @@ import { StickyActionBar } from "@/components/StickyActionBar";
 import { useConfirm } from "@/components/use-confirm";
 import type { Boardgame } from "@/lib/domain";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
-import { useExtendedBaseGames } from "@/lib/hooks/use-extension-base-games";
-import { BoardgameInUseError } from "@/lib/repositories/errors";
 import { BoardgameCardList } from "./BoardgameCardList";
 
 export function BoardgamesManager() {
-  const { boardgames, loading, error, setActive, removeBoardgame } =
-    useBoardgames();
-  const extendedIds = useExtendedBaseGames();
+  const { boardgames, loading, error, setActive } = useBoardgames();
 
   const active = boardgames.filter(b => b.isActive);
   const inactive = boardgames.filter(b => !b.isActive);
@@ -54,30 +50,6 @@ export function BoardgamesManager() {
     });
   }
 
-  function handleDelete(b: Boardgame) {
-    requestConfirm({
-      message: `Supprimer « ${b.name} » ? Cette action est définitive.`,
-      confirmLabel: "Supprimer",
-      onConfirm: () => deleteBoardgame(b),
-    });
-  }
-
-  async function deleteBoardgame(b: Boardgame) {
-    setActionError(null);
-    try {
-      await removeBoardgame(b.id);
-    } catch (e) {
-      if (e instanceof BoardgameInUseError) {
-        setActionError(
-          `« ${b.name} » a déjà des parties enregistrées : impossible de le ` +
-            "supprimer. Tu peux le désactiver à la place.",
-        );
-      } else {
-        setActionError("Suppression impossible. Réessaie.");
-      }
-    }
-  }
-
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <ErrorText message={actionError} />
@@ -97,8 +69,6 @@ export function BoardgamesManager() {
             boardgames={active}
             onToggle={b => handleToggle(b, false)}
             actionLabel="Désactiver"
-            onDelete={handleDelete}
-            extendedIds={extendedIds}
           />
           {inactive.length > 0 ? (
             <BoardgameCardList
@@ -106,8 +76,6 @@ export function BoardgamesManager() {
               boardgames={inactive}
               onToggle={b => handleToggle(b, true)}
               actionLabel="Réactiver"
-              onDelete={handleDelete}
-              extendedIds={extendedIds}
               dimmed
               collapsible
             />

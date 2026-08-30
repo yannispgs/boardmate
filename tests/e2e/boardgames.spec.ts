@@ -34,10 +34,11 @@ test("creates, edits and deletes a boardgame", async ({ page }) => {
 
   await expect(page.getByText(name, { exact: true })).toBeVisible();
 
-  // Edit → the unified settings page → the round limit round-trips → rename.
-  await page.getByRole("link", { name: `Réglages de ${name}` }).click();
+  // The row itself opens the game, on its first tab: the game's own name titles
+  // the page, and the round limit round-trips into the form under it.
+  await page.getByRole("link", { name, exact: true }).click();
   await expect(page).toHaveURL(/\/boardgames\/[0-9a-f-]+\/edit$/);
-  await expect(page.getByRole("heading", { name: /Réglages/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name, level: 1 })).toBeVisible();
   await expect(
     page.getByLabel("Nombre de tours (vide = illimité)"),
   ).toHaveValue("20");
@@ -46,17 +47,21 @@ test("creates, edits and deletes a boardgame", async ({ page }) => {
   await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
   await expect(page.getByText("Enregistré")).toBeVisible();
 
-  // Back to the list to see the rename and delete it.
+  // Back to the list to see the rename.
   await page.getByRole("link", { name: "← Jeux" }).click();
   await expect(page.getByText(renamed, { exact: true })).toBeVisible();
   await expect(page.getByText(name, { exact: true })).toHaveCount(0);
 
-  // Delete → confirmation dialog → gone.
+  // Deleting is no longer a small red target on a row: it waits at the foot of
+  // the game's own settings, where you went on purpose.
+  await page.getByRole("link", { name: renamed, exact: true }).click();
   await page.getByRole("button", { name: `Supprimer ${renamed}` }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: "Supprimer" }).click();
 
+  // Deleting the game you were looking at leaves you where it used to be.
+  await expect(page).toHaveURL(/\/boardgames$/);
   await expect(page.getByText(renamed, { exact: true })).toHaveCount(0);
 });
 
@@ -90,7 +95,7 @@ test("edits a boardgame's scoring type", async ({ page }) => {
     await expect(page.getByText(name, { exact: true })).toBeVisible();
 
     // Re-open the edit form: all of it round-trips.
-    await page.getByRole("link", { name: `Réglages de ${name}` }).click();
+    await page.getByRole("link", { name, exact: true }).click();
     await expect(
       page.getByLabel("Ce jeu se joue avec des points"),
     ).toBeChecked();
@@ -133,7 +138,7 @@ test("builds a category scoresheet from the edit form", async ({ page }) => {
     await expect(page.getByText(name, { exact: true })).toBeVisible();
 
     // Re-open: the whole sheet round-trips into the editor.
-    await page.getByRole("link", { name: `Réglages de ${name}` }).click();
+    await page.getByRole("link", { name, exact: true }).click();
     await expect(page.getByLabel("Décompte des points")).toHaveValue(
       "categories",
     );
@@ -210,7 +215,7 @@ test("creates a game with no clock and its own tie-break rule", async ({
     ]);
 
     // Re-open the settings: both round-trip into the form.
-    await page.getByRole("link", { name: `Réglages de ${name}` }).click();
+    await page.getByRole("link", { name, exact: true }).click();
     await expect(page.getByLabel("Chronométrer les tours")).not.toBeChecked();
     await page.getByText("Départage des égalités").click();
     await expect(page.getByLabel("Nom de la règle")).toHaveValue(
@@ -328,7 +333,12 @@ test("edits a boardgame with a logo without touching it", async ({ page }) => {
     await page
       .getByRole("button", { name: "Enregistrer", exact: true })
       .click();
-    await expect(page.getByText(/impossible|invalide/i)).toHaveCount(0);
+    // Read the page's own alerts rather than its prose: the settings now end on
+    // a deletion block that says out loud what deleting a played game makes
+    // impossible, and a word-match would take that for a failure. Scoped to
+    // `main` because Next's route announcer is an empty alert of its own,
+    // outside it, on every page.
+    await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 
     // Clicking "modifier" reveals the picker (and a way to cancel back).
     await page.getByRole("button", { name: "Modifier le logo" }).click();

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import type { BoardgameId } from "@/lib/domain";
@@ -37,27 +36,16 @@ export default async function BoardgameRecordsPage({
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-6 py-10">
-      <header className="flex flex-col gap-1">
-        <Link
-          href="/boardgames"
-          className="text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
-        >
-          ← Jeux
-        </Link>
-        <h1 className="text-3xl font-semibold tracking-tight">
-          Records — {boardgame.name}
-        </h1>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Ce qui est détenu, et ce qu&apos;il reste à prendre.
-        </p>
-      </header>
+    <div className="flex w-full max-w-2xl flex-col gap-6">
+      <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        Ce qui est détenu, et ce qu&apos;il reste à prendre.
+      </p>
 
       {/* `listByBase` already reads them in application order. */}
       <RecordBoardView
         boardgame={boardgame}
         extensions={extensions.map(e => e.name)}
       />
-    </main>
+    </div>
   );
 }
