@@ -52,18 +52,17 @@ export function SpreadBar({
         className="stroke-black/10 dark:stroke-white/15"
       />
 
-      {bar.marks.map((t, i) => (
-        <circle
-          // Two evenings on the same figure sit at the same spot, so the index
-          // is the only thing telling them apart.
-          // biome-ignore lint/suspicious/noArrayIndexKey: values repeat.
-          key={i}
-          cx={x(t)}
-          cy={mid}
-          r={MARK}
-          className="fill-zinc-300 dark:fill-zinc-600"
-        />
-      ))}
+      {/* One path for every past evening rather than one circle each. Two
+          evenings on the same figure land on the same spot, so as elements they
+          would have nothing to be told apart by; as a single path they are just
+          ink. A zero-length subpath under a round cap is drawn as a disc — the
+          spec's own way of writing a dot. */}
+      <path
+        d={bar.marks.map(t => `M${x(t)} ${mid}h0`).join("")}
+        strokeWidth={MARK * 2}
+        strokeLinecap="round"
+        className="stroke-zinc-300 dark:stroke-zinc-600"
+      />
 
       <rect
         x={x(bar.cursor) - 1.5}
