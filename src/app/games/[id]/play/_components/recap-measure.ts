@@ -1,6 +1,6 @@
 import { formatDuration } from "@/lib/game/format-time";
 import type { MeasureKey, RecapMeasure } from "@/lib/game/player-recap";
-import { quarterOf } from "@/lib/game/recap-spread";
+import { topPercent } from "@/lib/game/recap-spread";
 
 /** What each measure is called on screen, in the order they are read in. */
 const LABELS: Record<MeasureKey, string> = {
@@ -48,24 +48,16 @@ export function measureHint(key: MeasureKey): string | null {
   return null;
 }
 
-/** Each quarter of a player's own evenings, best first. */
-const QUARTERS = [
-  "meilleur quart",
-  "2ᵉ quart",
-  "3ᵉ quart",
-  "dernier quart",
-] as const;
-
 /**
- * Where tonight stands, in words — or null when the measure has no good end.
- * A share of the table's time is a fact about an evening, so it is shown and
- * never placed; saying « 3ᵉ quart » of it would invent a competition.
+ * Where this party stands, in words — or null when the measure has no good end.
+ * A share of the table's time is a fact about a party, so it is shown and never
+ * placed; saying « top 75 % » of it would invent a competition.
  *
- * The quarter says it rather than an exact rank: « 2ᵉ sur 4 » and a bar showing
- * the same four evenings said one thing twice, and the reader who wants the
- * count has it on the player's own line (« 3 parties avant ce soir »). A best
- * quarter is never called a record either — the marks a party really takes are
- * crowned once, by the banners at the top of this screen.
+ * A percentile says it rather than an exact rank: « 3ᵉ sur 4 » and a bar showing
+ * the same four parties said one thing twice, and the reader who wants the count
+ * has it on the player's own line (« 3 parties avant celle-ci »). A top 25 % is
+ * never called a record either — the marks a party really takes are crowned
+ * once, by the banners at the top of this screen.
  */
 export function measureStanding(measure: RecapMeasure): string | null {
   if (measure.rank === null) {
@@ -76,5 +68,5 @@ export function measureStanding(measure: RecapMeasure): string | null {
     return "1ʳᵉ fois";
   }
 
-  return QUARTERS[quarterOf(measure.rank, measure.past.length + 1) - 1];
+  return `top ${topPercent(measure.rank, measure.past.length + 1)} %`;
 }

@@ -3,19 +3,19 @@ import type { Spread } from "@/lib/game/recap-spread";
 const WIDTH = 320; // viewBox width (scales to the container via w-full)
 const HEIGHT = 14;
 const PAD = 5; // room for the cursor at either end, so it is never clipped
-const MARK = 2.5; // radius of a past evening
+const MARK = 2.5; // radius of a past party
 
 /**
  * One measure's spread on a single line: a track running from the smallest
- * figure to the largest, a grey dot for each evening already played, and a
- * cursor on tonight's.
+ * figure to the largest, a grey dot for each party already played, and a
+ * cursor on the one just played.
  *
- * It replaces a dot plot in a modal. The plot said more — how many evenings
+ * It replaces a dot plot in a modal. The plot said more — how many parties
  * shared a figure, since the dots stacked — but it said it a tap away and one
  * player at a time. At the end of a six-handed game the question is « où je me
  * situe », and that answer belongs on the line, not behind a press.
  *
- * Evenings that land close together overlap here rather than stacking. That is
+ * Parties that land close together overlap here rather than stacking. That is
  * the price of the line: the bar is read for where the cursor sits among the
  * others, not for the shape of the crowd.
  */
@@ -52,8 +52,8 @@ export function SpreadBar({
         className="stroke-black/10 dark:stroke-white/15"
       />
 
-      {/* One path for every past evening rather than one circle each. Two
-          evenings on the same figure land on the same spot, so as elements they
+      {/* One path for every past party rather than one circle each. Two
+          parties on the same figure land on the same spot, so as elements they
           would have nothing to be told apart by; as a single path they are just
           ink. A zero-length subpath under a round cap is drawn as a disc — the
           spec's own way of writing a dot. */}

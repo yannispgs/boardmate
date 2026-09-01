@@ -14,11 +14,11 @@ import {
 
 /**
  * The « joueurs » half of the finished-game screen (full-suite only —
- * untagged): each player of the party read against **his own** past evenings on
+ * untagged): each player of the party read against **his own** past parties on
  * the same game, and never against the table — the score sheet already ranks
  * that.
  */
-test("places each player's evening among his own past evenings", async ({
+test("places each player's party among his own past parties", async ({
   page,
 }) => {
   const admin = adminClient();
@@ -43,7 +43,7 @@ test("places each player's evening among his own past evenings", async ({
 
     const table = scoreTable(players, await playerIds(players));
 
-    // Two evenings at three, one duel: the duel is in the history but not at
+    // Two parties at three, one duel: the duel is in the history but not at
     // this table size, which is the whole point of the switch below.
     seeded.push(await seedParty(admin, bgId as string, table([40, 10, 20])));
     seeded.push(await seedParty(admin, bgId as string, table([60, 30, 5])));
@@ -71,15 +71,15 @@ test("places each player's evening among his own past evenings", async ({
       page.getByRole("button", { name: "Les joueurs", exact: true }),
     ).toHaveCount(0);
 
-    // 50 tonight, against 40 / 60 / 20 before — the second quarter of his own
-    // four evenings, and the bar behind the figure spans exactly those four.
+    // 50 tonight, against 40 / 60 / 20 before — second of his own four parties,
+    // so the top half, and the bar behind the figure spans exactly those four.
     const first = page.getByRole("listitem").filter({ hasText: players[0] });
 
-    await expect(first).toContainText("3 parties avant ce soir");
+    await expect(first).toContainText("3 parties avant celle-ci");
     await expect(first).toContainText("50 pts");
-    await expect(first).toContainText("2ᵉ quart");
+    await expect(first).toContainText("top 50 %");
     await expect(
-      first.getByRole("img", { name: /Score — 50 pts parmi ses 4 soirées/ }),
+      first.getByRole("img", { name: /Score — 50 pts parmi ses 4 parties/ }),
     ).toBeVisible();
 
     // The duel drops out at the same table size: 50 against 40 and 60 only.
@@ -89,9 +89,9 @@ test("places each player's evening among his own past evenings", async ({
       .getByRole("checkbox", { name: "À nombre de joueurs égal", exact: true })
       .check();
 
-    await expect(first).toContainText("2 parties avant ce soir");
+    await expect(first).toContainText("2 parties avant celle-ci");
     await expect(
-      first.getByRole("img", { name: /Score — 50 pts parmi ses 3 soirées/ }),
+      first.getByRole("img", { name: /Score — 50 pts parmi ses 3 parties/ }),
     ).toBeVisible();
 
     // « Position » is an index that runs down, which no bar can say on its own:
@@ -102,7 +102,7 @@ test("places each player's evening among his own past evenings", async ({
       "0 = premier, 100 = dernier.",
     );
 
-    // The player who sat at every evening is read on his own scale, not on the
+    // The player who sat at every party is read on his own scale, not on the
     // winner's: 30 tonight against 10, 30 and 90.
     const second = page.getByRole("listitem").filter({ hasText: players[1] });
 
@@ -117,7 +117,7 @@ test("places each player's evening among his own past evenings", async ({
 });
 
 /**
- * The same screen when the evening has both things to say. Stacked, the two
+ * The same screen when the party has both things to say. Stacked, the two
  * readings made a page you scrolled twice over; they now sit behind two tabs,
  * one shown at a time, and the bar is the only place either is named.
  */
@@ -129,7 +129,7 @@ test("puts the party and the players behind two tabs", async ({ page }) => {
   let bgId: string | null = null;
 
   try {
-    // Timed this time (the column's default), which is what gives the evening a
+    // Timed this time (the column's default), which is what gives the party a
     // party panel next to the players' one.
     bgId = await seedBoardgame(admin, {
       name: gameName,
@@ -142,7 +142,7 @@ test("puts the party and the players behind two tabs", async ({ page }) => {
     const ids = await playerIds(players);
     const table = scoreTable(players, ids);
 
-    // Two evenings behind them: enough for tonight to be placed among a past.
+    // Two parties behind them: enough for this one to be placed among a past.
     seeded.push(await seedParty(admin, bgId as string, table([40, 10, 20])));
     seeded.push(await seedParty(admin, bgId as string, table([60, 30, 5])));
 
@@ -186,7 +186,7 @@ test("puts the party and the players behind two tabs", async ({ page }) => {
       page.getByRole("heading", { name: "Les joueurs", exact: true }),
     ).toHaveCount(0);
 
-    // The evening opens on itself; the careers are one tap away, not a scroll.
+    // The screen opens on the party itself; the careers are one tap away, not a scroll.
     await expect(page.getByText("Temps de jeu")).toBeVisible();
     await expect(
       page.getByText("Chacun face à ses propres parties sur ce jeu"),
@@ -203,7 +203,7 @@ test("puts the party and the players behind two tabs", async ({ page }) => {
     // here through the tab rather than by scrolling past the party's.
     await expect(
       page.getByRole("listitem").filter({ hasText: players[0] }),
-    ).toContainText("2ᵉ quart");
+    ).toContainText("top 67 %");
 
     // And back, which is the half of a tab bar a single click never proves.
     await partyTab.click();

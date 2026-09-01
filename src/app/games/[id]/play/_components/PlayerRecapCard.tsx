@@ -12,23 +12,29 @@ import {
   measureValue,
 } from "./recap-measure";
 
-/** « 4 parties avant ce soir » — or the line that says there were none. */
+/**
+ * « 4 parties avant celle-ci » — or the line that says there were none.
+ *
+ * « avant ce soir » would have been a lie on the usual evening: two or three
+ * parties of the same game in a row is the normal way this app gets used, and
+ * the earlier ones are in the count.
+ */
 function partiesLine(parties: number): string {
   if (parties === 0) {
     return "Première partie sur ce jeu";
   }
 
   return parties === 1
-    ? "1 partie avant ce soir"
-    : `${parties} parties avant ce soir`;
+    ? "1 partie avant celle-ci"
+    : `${parties} parties avant celle-ci`;
 }
 
 /**
  * One measure, on two lines: the figure and where it falls above, the spread of
- * his own evenings below with tonight's cursor on it.
+ * his own parties below with this party's cursor on it.
  *
  * The two lines are the compromise the width forces. Squeezed onto one, the bar
- * keeps about 150 px on a phone, and four evenings within a few points of each
+ * keeps about 150 px on a phone, and four parties within a few points of each
  * other become a single smudge — the one thing the bar exists to show.
  */
 function Measure({ measure }: Readonly<{ measure: RecapMeasure }>) {
@@ -72,7 +78,7 @@ function Measure({ measure }: Readonly<{ measure: RecapMeasure }>) {
             label={`${measureLabel(measure.key)} — ${measureValue(
               measure.key,
               measure.value,
-            )} parmi ses ${measure.past.length + 1} soirées`}
+            )} parmi ses ${measure.past.length + 1} parties`}
           />
 
           <span className="w-10 shrink-0 text-[10px] tabular-nums text-zinc-400 dark:text-zinc-500">
@@ -85,8 +91,8 @@ function Measure({ measure }: Readonly<{ measure: RecapMeasure }>) {
 }
 
 /**
- * One player's evening: his name, how many of his own evenings it is read
- * against, then one bar per figure with tonight's cursor on it.
+ * One player's party: his name, how many of his own parties it is read
+ * against, then one bar per figure with this party's cursor on it.
  *
  * It used to be a card you pressed to reveal the spread in a modal. The spread
  * is now on the bar, so there is nothing left behind the press and nothing left
