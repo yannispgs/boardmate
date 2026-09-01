@@ -7,9 +7,14 @@ import { PlayerRecapCard } from "./PlayerRecapCard";
 /** The table's recaps, in seating order — the order the sheet is read in. */
 export function PlayerRecapCardList({
   recaps,
-}: Readonly<{ recaps: readonly PlayerRecap[] }>) {
+  rightGutter,
+}: Readonly<{
+  recaps: readonly PlayerRecap[];
+  /** Keep the rows clear of whatever is pinned to the screen's right edge. */
+  rightGutter: boolean;
+}>) {
   return (
-    <ul className="flex flex-col gap-3">
+    <ul className={`flex flex-col gap-3 ${rightGutter ? "pe-10" : ""}`}>
       {recaps.map(recap => (
         <PlayerRecapCard key={recap.playerId} recap={recap} />
       ))}

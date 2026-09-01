@@ -43,12 +43,20 @@ export function PlayerRecapSection({
   byTable,
   scope,
   onScope,
+  rightGutter,
 }: Readonly<{
   recaps: readonly PlayerRecap[];
   /** Whether the « à nombre de joueurs égal » switch is worth offering. */
   byTable: boolean;
   scope: RecapScope;
   onScope: (scope: RecapScope) => void;
+  /**
+   * Whether something is pinned to the screen's right edge. Only the rows make
+   * room for it: they are the one thing here that runs to the edge, and the
+   * sentence and the switch above are centred text that would visibly drift off
+   * the page's own centre if they were inset too.
+   */
+  rightGutter: boolean;
 }>) {
   return (
     <section className="flex flex-col gap-4">
@@ -67,7 +75,7 @@ export function PlayerRecapSection({
         />
       ) : null}
 
-      <PlayerRecapCardList recaps={recaps} />
+      <PlayerRecapCardList recaps={recaps} rightGutter={rightGutter} />
     </section>
   );
 }

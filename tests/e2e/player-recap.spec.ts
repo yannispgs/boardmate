@@ -127,6 +127,22 @@ test("places each player's party among his own past parties", async ({
     await expect(first).toContainText("3 parties avant celle-ci");
     await expect(wide).toHaveCSS("font-weight", "600");
 
+    // The score handle is pinned to the right edge for the whole screen, and
+    // the end of a player's line is where the figure and « sa meilleure » are:
+    // the block has to stop short of it rather than run underneath. Asserted on
+    // the boxes, since the overlap is a geometry fact no text assertion sees —
+    // a covered line still matches `toContainText`.
+    const handle = page.getByRole("button", { name: "Voir le score final" });
+    const handleBox = await handle.boundingBox();
+    const rowBox = await first.boundingBox();
+
+    expect(handleBox).not.toBeNull();
+    expect(rowBox).not.toBeNull();
+
+    expect((rowBox?.x ?? 0) + (rowBox?.width ?? 0)).toBeLessThanOrEqual(
+      handleBox?.x ?? 0,
+    );
+
     // « Position » is an index that runs down, which no bar can say on its own:
     // the sentence that used to live in the detail is on the figure itself.
     await first.getByRole("button", { name: "Position", exact: true }).click();

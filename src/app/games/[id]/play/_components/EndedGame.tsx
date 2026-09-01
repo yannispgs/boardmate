@@ -214,6 +214,13 @@ export function EndedGame({
                 byTable={byTable}
                 scope={scope}
                 onScope={setScope}
+                // The score handle below is pinned to the right edge and stays
+                // there while this block scrolls, so whichever line happens to
+                // be halfway down the screen is drawn under it — and the end of
+                // a player's line is exactly where the figure and « sa
+                // meilleure » live. The rows stop short of it rather than run
+                // beneath.
+                rightGutter={hasScore}
               />
             ) : null
           }
