@@ -79,9 +79,11 @@ test("places each player's evening among his own past evenings", async ({
     await expect(first).toContainText("2ᵉ sur 4");
 
     // The duel drops out at the same table size: 50 against 40 and 60 only.
+    // The narrow reading is a box you tick, so the wide one is what an
+    // untouched screen shows — which is what the figures above just proved.
     await page
-      .getByRole("button", { name: "À nombre de joueurs égal", exact: true })
-      .click();
+      .getByRole("checkbox", { name: "À nombre de joueurs égal", exact: true })
+      .check();
 
     await expect(first).toContainText("2 parties avant ce soir");
     await expect(first).toContainText("2ᵉ sur 3");

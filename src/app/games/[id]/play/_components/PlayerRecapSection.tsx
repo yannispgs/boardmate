@@ -2,14 +2,19 @@
 
 import { useState } from "react";
 
-import { TabButton, tabBarClass } from "@/components/TabButton";
+import { Checkbox } from "@/components/Checkbox";
 import type { PlayerId } from "@/lib/domain";
 import type { PlayerRecap, RecapScope } from "@/lib/game/player-recap";
 
 import { PlayerRecapCardList } from "./PlayerRecapCardList";
 import { PlayerRecapDialog } from "./PlayerRecapDialog";
 
-/** How each scope is named on the switch — and echoed in the detail's header. */
+/**
+ * How each scope is named. Only the narrow one is ever offered — it is the box
+ * you tick — but the detail's header still has to name the wide one, since a
+ * modale that says nothing about its scope reads as « all evenings » whichever
+ * one is in force.
+ */
 export const SCOPE_LABELS: Record<RecapScope, string> = {
   all: "Toutes les parties",
   sameTable: "À nombre de joueurs égal",
@@ -29,6 +34,12 @@ export const SCOPE_LABELS: Record<RecapScope, string> = {
  * The whole section carries **one** switch, at the top. Per-card switches would
  * let two players be read on two different sets of evenings side by side, which
  * is exactly the comparison this section is built not to invite.
+ *
+ * That switch is a **tick box on the narrow reading**, not a pair of pills: the
+ * pills would be a second row of them right under the tab bar that opens this
+ * section, two identical-looking rows saying two different kinds of thing. A
+ * box left unticked is also the honest default — all of a player's evenings —
+ * where a lit pill reads as a filter somebody chose.
  *
  * Its name lives on the tab that opens it ({@link EndRecapTabs}), not here.
  */
@@ -54,17 +65,12 @@ export function PlayerRecapSection({
       </p>
 
       {byTable ? (
-        <div className={tabBarClass}>
-          <TabButton active={scope === "all"} onClick={() => onScope("all")}>
-            {SCOPE_LABELS.all}
-          </TabButton>
-          <TabButton
-            active={scope === "sameTable"}
-            onClick={() => onScope("sameTable")}
-          >
-            {SCOPE_LABELS.sameTable}
-          </TabButton>
-        </div>
+        <Checkbox
+          label={SCOPE_LABELS.sameTable}
+          checked={scope === "sameTable"}
+          onChange={on => onScope(on ? "sameTable" : "all")}
+          className="justify-center text-zinc-500 dark:text-zinc-400"
+        />
       ) : null}
 
       <PlayerRecapCardList recaps={recaps} onOpen={setOpen} />
