@@ -72,15 +72,20 @@ test("places each player's party among his own past parties", async ({
     ).toHaveCount(0);
 
     // 50 tonight, against 40 / 60 / 20 before — second of his own four parties,
-    // so the top half, and the bar behind the figure spans exactly those four.
+    // written as a plain rank because four is a number a reader can hold, and
+    // the bar behind the figure spans exactly those four.
     const first = page.getByRole("listitem").filter({ hasText: players[0] });
 
     await expect(first).toContainText("3 parties avant celle-ci");
     await expect(first).toContainText("50 pts");
-    await expect(first).toContainText("top 50 %");
+    await expect(first).toContainText("2ᵉ sur 4");
     await expect(
       first.getByRole("img", { name: /Score — 50 pts parmi ses 4 parties/ }),
     ).toBeVisible();
+
+    // He led three of those four tables, so his position ties for the good end
+    // — and a tie at an end still gets that end's word rather than a rank.
+    await expect(first).toContainText("sa meilleure");
 
     // The duel drops out at the same table size: 50 against 40 and 60 only.
     // The narrow reading is a box you tick, so the wide one is what an
@@ -93,6 +98,11 @@ test("places each player's party among his own past parties", async ({
     await expect(
       first.getByRole("img", { name: /Score — 50 pts parmi ses 3 parties/ }),
     ).toBeVisible();
+
+    // Without the duel he was first at all three tables: nothing separates the
+    // positions any more, so neither end is his and the rank says it plainly.
+    await expect(first).toContainText("1ʳᵉ sur 3");
+    await expect(first).not.toContainText("sa meilleure");
 
     // « Position » is an index that runs down, which no bar can say on its own:
     // the sentence that used to live in the detail is on the figure itself.
@@ -203,7 +213,7 @@ test("puts the party and the players behind two tabs", async ({ page }) => {
     // here through the tab rather than by scrolling past the party's.
     await expect(
       page.getByRole("listitem").filter({ hasText: players[0] }),
-    ).toContainText("top 67 %");
+    ).toContainText("2ᵉ sur 3");
 
     // And back, which is the half of a tab bar a single click never proves.
     await partyTab.click();

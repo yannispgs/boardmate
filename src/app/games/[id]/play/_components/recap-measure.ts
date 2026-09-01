@@ -1,6 +1,6 @@
 import { formatDuration } from "@/lib/game/format-time";
 import type { MeasureKey, RecapMeasure } from "@/lib/game/player-recap";
-import { topPercent } from "@/lib/game/recap-spread";
+import { standing } from "@/lib/game/recap-spread";
 
 /** What each measure is called on screen, in the order they are read in. */
 const LABELS: Record<MeasureKey, string> = {
@@ -48,19 +48,22 @@ export function measureHint(key: MeasureKey): string | null {
   return null;
 }
 
+/** « 3ᵉ », « 1ʳᵉ » — feminine, because what is being ranked is a « partie ». */
+function ordinal(rank: number): string {
+  return rank === 1 ? "1ʳᵉ" : `${rank}ᵉ`;
+}
+
 /**
  * Where this party stands, in words — or null when the measure has no good end.
  * A share of the table's time is a fact about a party, so it is shown and never
  * placed; saying « top 75 % » of it would invent a competition.
  *
- * A percentile says it rather than an exact rank: « 3ᵉ sur 4 » and a bar showing
- * the same four parties said one thing twice, and the reader who wants the count
- * has it on the player's own line (« 3 parties avant celle-ci »). A top 25 % is
- * never called a record either — the marks a party really takes are crowned
- * once, by the banners at the top of this screen.
+ * Neither « meilleure » nor a percentage is ever called a record: the marks a
+ * party really takes are crowned once, by the banners at the top of this screen.
+ * These read against one player's own history, and nobody else's.
  */
 export function measureStanding(measure: RecapMeasure): string | null {
-  if (measure.rank === null) {
+  if (measure.rank === null || measure.direction === null) {
     return null;
   }
 
@@ -68,5 +71,21 @@ export function measureStanding(measure: RecapMeasure): string | null {
     return "1ʳᵉ fois";
   }
 
-  return `top ${topPercent(measure.rank, measure.past.length + 1)} %`;
+  const where = standing(
+    measure.rank,
+    measure.value,
+    measure.past,
+    measure.direction,
+  );
+
+  switch (where.kind) {
+    case "best":
+      return "sa meilleure";
+    case "worst":
+      return "sa pire";
+    case "rank":
+      return `${ordinal(where.rank)} sur ${where.total}`;
+    default:
+      return `top ${where.percent} %`;
+  }
 }

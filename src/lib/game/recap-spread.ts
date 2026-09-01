@@ -5,6 +5,8 @@
  * Pure: no vendor types, unit-tested.
  */
 
+import type { ScoreDirection } from "./scoring";
+
 export interface Spread {
   /** The smallest figure the bar spans — its left end. */
   min: number;
@@ -48,12 +50,64 @@ export function spread(past: readonly number[], value: number): Spread | null {
  * Read off the **rank**, never off the figures: a measure whose small end is
  * the good one (Odin's points, the laps of a Catan race) then needs no special
  * case, because the rank already knows which way is up.
- *
- * The scale is the player's own history, so it is as fine as that history is
- * long — over four parties the only values are 25, 50, 75 and 100. The exact
- * count stays on the player's own line, which is where a reader checks how much
- * a percentage is worth.
  */
 export function topPercent(rank: number, total: number): number {
   return Math.round((rank / total) * 100);
+}
+
+/**
+ * Above this many parties of his own, a rank stops meaning anything: « 37ᵉ sur
+ * 62 » is a number the reader has to divide himself. At or below it the rank is
+ * the better sentence — it is exact, and a percentage over ten parties can only
+ * land on ten values anyway.
+ */
+const RANK_UP_TO = 10;
+
+/** Where one party sits among a player's own — the two ends get their own word. */
+export type Standing =
+  | { kind: "best" }
+  | { kind: "worst" }
+  | { kind: "rank"; rank: number; total: number }
+  | { kind: "percent"; percent: number };
+
+/**
+ * How this party should be said, given where it ranks among the player's own.
+ *
+ * The two ends come first and are read off the **figures**, not off the rank:
+ * ranks are shared by ties, so the worst of three parties two of which tie for
+ * last carries rank 2, not rank 3. Comparing the figure to the end of the scale
+ * catches those ex-æquo, which is the point — a party nothing beat is his best
+ * whether or not it was beaten to it.
+ *
+ * A run where every figure is identical is neither: it is the same party played
+ * over, and calling it his best would be flattery.
+ */
+export function standing(
+  rank: number,
+  value: number,
+  past: readonly number[],
+  direction: ScoreDirection,
+): Standing {
+  const low = Math.min(value, ...past);
+  const high = Math.max(value, ...past);
+  const best = direction === "highest" ? high : low;
+  const worst = direction === "highest" ? low : high;
+
+  if (low !== high) {
+    if (value === best) {
+      return { kind: "best" };
+    }
+
+    if (value === worst) {
+      return { kind: "worst" };
+    }
+  }
+
+  const total = past.length + 1;
+
+  if (total <= RANK_UP_TO) {
+    return { kind: "rank", rank, total };
+  }
+
+  return { kind: "percent", percent: topPercent(rank, total) };
 }
