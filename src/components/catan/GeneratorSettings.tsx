@@ -1,8 +1,9 @@
 "use client";
 
 import { type ReactNode, useState } from "react";
-import { Checkbox } from "@/components/Checkbox";
+
 import type { GeneratorOptions } from "@/lib/catan/generator-options";
+import { Check } from "./Check";
 import { ToleranceRange } from "./ToleranceRange";
 
 /** Which desert rule the board being generated actually has. */
@@ -37,7 +38,7 @@ function DesertRules({
     return (
       <div className="flex flex-col gap-1.5">
         <span className="text-sm font-medium">Déserts</span>
-        <Checkbox
+        <Check
           label="Autoriser les deux déserts adjacents"
           checked={options.allowAdjacentDeserts}
           onChange={v => onChange({ allowAdjacentDeserts: v })}
@@ -49,12 +50,12 @@ function DesertRules({
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-sm font-medium">Permettre un désert sur :</span>
-      <Checkbox
+      <Check
         label="la couronne intérieure"
         checked={options.desertInner}
         onChange={v => onChange({ desertInner: v })}
       />
-      <Checkbox
+      <Check
         label="la couronne extérieure"
         checked={options.desertOuter}
         onChange={v => onChange({ desertOuter: v })}
@@ -135,39 +136,39 @@ export function GeneratorSettings({
 
         <div className="flex flex-col gap-1.5">
           <span className="text-sm font-medium">Contraintes</span>
-          <Checkbox
+          <Check
             label="Pas de 6/8 adjacents"
             checked={options.avoidReds}
             onChange={v => onChange({ avoidReds: v })}
           />
           {goldRivers ? (
-            <Checkbox
+            <Check
               label="Pas de 6/8 sur les rivières d'or"
               checked={options.avoidGoldReds}
               onChange={v => onChange({ avoidGoldReds: v })}
             />
           ) : null}
-          <Checkbox
+          <Check
             label="Pas de nombres identiques adjacents"
             checked={options.avoidDuplicates}
             onChange={v => onChange({ avoidDuplicates: v })}
           />
-          <Checkbox
+          <Check
             label="Éviter les paquets de ressources identiques"
             checked={options.avoidClusters}
             onChange={v => onChange({ avoidClusters: v })}
           />
-          <Checkbox
+          <Check
             label="Équilibrer les intersections"
             checked={options.balanceInter}
             onChange={v => onChange({ balanceInter: v })}
           />
-          <Checkbox
+          <Check
             label="Éviter les ressources trop concentrées"
             checked={options.penalizeVariance}
             onChange={v => onChange({ penalizeVariance: v })}
           />
-          <Checkbox
+          <Check
             label="Pas de port 2:1 adjacent à sa ressource"
             checked={options.avoidPortRes}
             onChange={v => onChange({ avoidPortRes: v })}
@@ -189,7 +190,7 @@ export function GeneratorSettings({
 
         {zones === undefined ? null : (
           <div className="flex flex-col gap-2">
-            <Checkbox
+            <Check
               label="Équilibrer aussi au sein des zones"
               checked={options.balanceZones}
               onChange={v => onChange({ balanceZones: v })}
@@ -204,7 +205,7 @@ export function GeneratorSettings({
         )}
 
         <div className="flex flex-col gap-2">
-          <Checkbox
+          <Check
             label="Limiter la force d'une intersection"
             checked={options.limitInterPips}
             onChange={v => onChange({ limitInterPips: v })}

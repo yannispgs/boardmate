@@ -1,6 +1,6 @@
 "use client";
 
-import { Checkbox } from "@/components/Checkbox";
+import { Check } from "@/components/catan/Check";
 import { ToleranceRange } from "@/components/catan/ToleranceRange";
 import { DEFAULT_TOLERANCE_PCT } from "@/lib/catan/generator-options";
 import type { ScenarioZone } from "@/lib/catan/scenario-spec";
@@ -21,7 +21,7 @@ export function ZoneBalanceCard({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <Checkbox
+      <Check
         label={zone.name}
         checked={tolerance !== undefined}
         onChange={on => onChange(on ? DEFAULT_TOLERANCE_PCT : null)}

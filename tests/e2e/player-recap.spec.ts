@@ -88,11 +88,11 @@ test("places each player's party among his own past parties", async ({
     await expect(first).toContainText("sa meilleure");
 
     // The duel drops out at the same table size: 50 against 40 and 60 only.
-    // The narrow reading is a box you tick, so the wide one is what an
+    // The narrow reading is a switch you flick, so the wide one is what an
     // untouched screen shows — which is what the figures above just proved.
     await page
-      .getByRole("checkbox", { name: "À nombre de joueurs égal", exact: true })
-      .check();
+      .getByRole("switch", { name: "À nombre de joueurs égal", exact: true })
+      .click();
 
     await expect(first).toContainText("2 parties avant celle-ci");
     await expect(
@@ -103,6 +103,29 @@ test("places each player's party among his own past parties", async ({
     // positions any more, so neither end is his and the rank says it plainly.
     await expect(first).toContainText("1ʳᵉ sur 3");
     await expect(first).not.toContainText("sa meilleure");
+
+    // Both readings stay written either way; the bold one is the one the
+    // figures are counted on, which is what makes the scale readable without
+    // touching anything. Asserted on the weight rather than the class, since
+    // the weight is what a reader actually sees.
+    const wide = page.getByRole("button", {
+      name: "Toutes les parties",
+      exact: true,
+    });
+    const narrow = page.getByRole("button", {
+      name: "À nombre de joueurs égal",
+      exact: true,
+    });
+
+    await expect(narrow).toHaveCSS("font-weight", "600");
+    await expect(wide).not.toHaveCSS("font-weight", "600");
+
+    // And a name is its own target: clicking « Toutes les parties » means that,
+    // never « inverse ce qui est coché ».
+    await wide.click();
+
+    await expect(first).toContainText("3 parties avant celle-ci");
+    await expect(wide).toHaveCSS("font-weight", "600");
 
     // « Position » is an index that runs down, which no bar can say on its own:
     // the sentence that used to live in the detail is on the figure itself.
@@ -196,7 +219,8 @@ test("puts the party and the players behind two tabs", async ({ page }) => {
       page.getByRole("heading", { name: "Les joueurs", exact: true }),
     ).toHaveCount(0);
 
-    // The screen opens on the party itself; the careers are one tap away, not a scroll.
+    // The screen opens on the party itself; the careers are one tap away
+    // rather than a scroll.
     await expect(page.getByText("Temps de jeu")).toBeVisible();
     await expect(
       page.getByText("Chacun face à ses propres parties sur ce jeu"),

@@ -1,11 +1,12 @@
 "use client";
 
-import { Checkbox } from "@/components/Checkbox";
+import { Toggle } from "@/components/Toggle";
 import type { PlayerRecap, RecapScope } from "@/lib/game/player-recap";
 
 import { PlayerRecapCardList } from "./PlayerRecapCardList";
 
-/** The narrow reading, named on the box that turns it on. */
+/** The two readings, both written on the switch so neither is left implicit. */
+const ALL_LABEL = "Toutes les parties";
 const SAME_TABLE_LABEL = "À nombre de joueurs égal";
 
 /**
@@ -28,11 +29,12 @@ const SAME_TABLE_LABEL = "À nombre de joueurs égal";
  * would let two players be read on two different sets of parties side by side,
  * which is exactly the comparison this section is built not to invite.
  *
- * That switch is a **tick box on the narrow reading**, not a pair of pills: the
+ * That switch is a **toggle carrying both names**, not a pair of pills: the
  * pills would be a second row of them right under the tab bar that opens this
- * section, two identical-looking rows saying two different kinds of thing. A
- * box left unticked is also the honest default — all of a player's parties —
- * where a lit pill reads as a filter somebody chose.
+ * section, two identical-looking rows saying two different kinds of thing. The
+ * name in bold is the one the figures below are counted on, so what is being
+ * read is legible without touching anything — and the switch left off is the
+ * honest default, all of a player's parties.
  *
  * Its name lives on the tab that opens it ({@link EndRecapTabs}), not here.
  */
@@ -56,11 +58,12 @@ export function PlayerRecapSection({
       </p>
 
       {byTable ? (
-        <Checkbox
-          label={SAME_TABLE_LABEL}
+        <Toggle
+          off={ALL_LABEL}
+          on={SAME_TABLE_LABEL}
           checked={scope === "sameTable"}
           onChange={on => onScope(on ? "sameTable" : "all")}
-          className="justify-center text-zinc-500 dark:text-zinc-400"
+          className="self-center"
         />
       ) : null}
 
