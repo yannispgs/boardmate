@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { spread, standing, topPercent } from "./recap-spread";
+import { spread, standing, standingTone, topPercent } from "./recap-spread";
 
 describe("spread", () => {
   it("places every party between the smallest and the largest", () => {
@@ -129,5 +129,41 @@ describe("standing", () => {
 
     expect(standing(1, 100, long, "highest")).toEqual({ kind: "best" });
     expect(standing(12, 10, long, "highest")).toEqual({ kind: "worst" });
+  });
+});
+
+describe("standingTone", () => {
+  it("colours the two ends whatever the arithmetic says", () => {
+    // Three parties put his best in the top 33 %, which is outside the fifth —
+    // and leaving « sa meilleure » grey is the one reading nobody would accept.
+    expect(standingTone({ kind: "best" })).toBe("good");
+    expect(standingTone({ kind: "worst" })).toBe("bad");
+  });
+
+  it("colours the top fifth of a rank and the bottom fifth", () => {
+    expect(standingTone({ kind: "rank", rank: 1, total: 5 })).toBe("good");
+    expect(standingTone({ kind: "rank", rank: 5, total: 5 })).toBe("bad");
+  });
+
+  it("leaves everything between the two fifths alone", () => {
+    // 40 %, 60 % and 80 % — the last one sits exactly on the edge and stays
+    // out, since « les 20 % pires » is the fifth below it.
+    expect(standingTone({ kind: "rank", rank: 2, total: 5 })).toBe("neutral");
+    expect(standingTone({ kind: "rank", rank: 3, total: 5 })).toBe("neutral");
+    expect(standingTone({ kind: "rank", rank: 4, total: 5 })).toBe("neutral");
+  });
+
+  it("reads a percentage on the same two thresholds", () => {
+    expect(standingTone({ kind: "percent", percent: 20 })).toBe("good");
+    expect(standingTone({ kind: "percent", percent: 21 })).toBe("neutral");
+    expect(standingTone({ kind: "percent", percent: 80 })).toBe("neutral");
+    expect(standingTone({ kind: "percent", percent: 81 })).toBe("bad");
+  });
+
+  it("says nothing of a rank too short to have a fifth", () => {
+    // Four parties: no rank falls in the top 20 %, so only the two ends are
+    // ever coloured — which is exactly what the ends' own rule already does.
+    expect(standingTone({ kind: "rank", rank: 1, total: 4 })).toBe("neutral");
+    expect(standingTone({ kind: "rank", rank: 2, total: 4 })).toBe("neutral");
   });
 });

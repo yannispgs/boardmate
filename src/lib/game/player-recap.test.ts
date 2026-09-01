@@ -75,7 +75,9 @@ function measures(recaps: ReturnType<typeof playerRecaps>, id: PlayerId) {
 }
 
 describe("playerRecaps", () => {
-  it("gives one recap per seat of tonight, in seating order", () => {
+  it("gives one recap per seat of tonight, the winner first", () => {
+    // Bob sat first and finished second: the order the sheet was filled in is
+    // not the order the evening is told in.
     const tonight = party("t", [
       [bob, 30],
       [ann, 50, true],
@@ -88,8 +90,82 @@ describe("playerRecaps", () => {
       scope: "all",
     });
 
+    expect(recaps.map(r => r.playerId)).toEqual([ann, bob]);
+    expect(recaps.map(r => r.name)).toEqual(["Ann", "Bob"]);
+    expect(recaps.map(r => r.place)).toEqual([1, 2]);
+  });
+
+  it("gives two players level for the lead the same place", () => {
+    // Ties share the place of the player above, so nobody is second and the
+    // next one down is third — the arithmetic the score sheet already prints.
+    const tonight = party("t", [
+      [cat, 20],
+      [bob, 50, true],
+      [ann, 50, true],
+    ]);
+    const recaps = playerRecaps({
+      tonight,
+      history: [tonight],
+      names,
+      setup: scored,
+      scope: "all",
+    });
+
+    expect(recaps.map(r => r.place)).toEqual([1, 1, 3]);
+    expect(recaps.map(r => r.playerId)).toEqual([bob, ann, cat]);
+  });
+
+  it("keeps the seating order when the party ranks nobody", () => {
+    // A cooperative game has no places to sort on, and inventing one would put
+    // a table that won together in an order it never played in.
+    const tonight = party("t", [
+      [bob, null],
+      [ann, null],
+    ]);
+    const recaps = playerRecaps({
+      tonight,
+      history: [tonight],
+      names,
+      setup: unscored,
+      scope: "all",
+    });
+
     expect(recaps.map(r => r.playerId)).toEqual([bob, ann]);
-    expect(recaps.map(r => r.name)).toEqual(["Bob", "Ann"]);
+    expect(recaps.map(r => r.place)).toEqual([null, null]);
+  });
+
+  it("ranks nobody when tonight's sheet is left half filled", () => {
+    const tonight = party("t", [
+      [bob, 30],
+      [ann, null],
+    ]);
+    const recaps = playerRecaps({
+      tonight,
+      history: [tonight],
+      names,
+      setup: scored,
+      scope: "all",
+    });
+
+    expect(recaps.map(r => r.playerId)).toEqual([bob, ann]);
+    expect(recaps.map(r => r.place)).toEqual([null, null]);
+  });
+
+  it("puts the smallest total first on a game the smallest total wins", () => {
+    const tonight = party("t", [
+      [bob, 30],
+      [ann, 50],
+    ]);
+    const recaps = playerRecaps({
+      tonight,
+      history: [tonight],
+      names,
+      setup: { scoring: lowest, timed: false },
+      scope: "all",
+    });
+
+    expect(recaps.map(r => r.playerId)).toEqual([bob, ann]);
+    expect(recaps.map(r => r.place)).toEqual([1, 2]);
   });
 
   it("falls back to an empty name for a player it was given none for", () => {

@@ -68,6 +68,13 @@ export interface RecapMeasure {
 export interface PlayerRecap {
   playerId: PlayerId;
   name: string;
+  /**
+   * Where he finished tonight, 1 = won, ties sharing a place — or `null` when
+   * the party ranks nobody (a cooperative game, a sheet left half-filled).
+   * This is the one figure in this file that reads across the table rather than
+   * against a player's own past, and it exists only to order the section.
+   */
+  place: number | null;
   /** Parties before tonight this recap reads on — 0 on a first evening. */
   parties: number;
   measures: RecapMeasure[];
@@ -338,7 +345,13 @@ function measuresOf(
 }
 
 /**
- * One recap per player of tonight's party, in seating order.
+ * One recap per player of tonight's party, **the winner first**.
+ *
+ * Seating order was the order the score sheet is filled in, not the order the
+ * evening is told in: the first thing anybody looks for at the end of a game is
+ * who won, and finding him third because he sat third is a small search nobody
+ * should have to do. A party that ranks nobody — a cooperative game, a sheet
+ * left half-filled — keeps the seating order, since there is no other.
  *
  * `history` is every finished party in the books — tonight's included, since a
  * game that has just ended is already recorded; it is filtered out by id rather
@@ -359,14 +372,28 @@ export function playerRecaps({
   scope: RecapScope;
 }>): PlayerRecap[] {
   const parties = historyFor(tonight, history, scope);
+  const direction =
+    setup.scoring === null ? null : winnerDirection(setup.scoring.winCondition);
+  const places =
+    direction === null ? null : placements(tonight.players, direction);
 
-  return tonight.players.map(player => {
+  const recaps = tonight.players.map(player => {
     return {
       playerId: player.playerId,
       name: names.get(player.playerId) ?? "",
+      place: places?.get(player.playerId) ?? null,
       parties: partiesOf(parties, player.playerId),
       measures: measuresOf(tonight, parties, player.playerId, setup),
     };
+  });
+
+  // Stable, so an unranked party — every place null — comes out in the order it
+  // went in, which is the seating order.
+  return recaps.sort((a, b) => {
+    return (
+      (a.place ?? Number.POSITIVE_INFINITY) -
+      (b.place ?? Number.POSITIVE_INFINITY)
+    );
   });
 }
 

@@ -3,6 +3,7 @@
 import { InfoTip } from "@/components/InfoTip";
 import { SpreadBar } from "@/components/stats/SpreadBar";
 import type { PlayerRecap, RecapMeasure } from "@/lib/game/player-recap";
+import type { Tone } from "@/lib/game/recap-spread";
 import { spread } from "@/lib/game/recap-spread";
 
 import {
@@ -28,6 +29,35 @@ function partiesLine(parties: number): string {
     ? "1 partie avant celle-ci"
     : `${parties} parties avant celle-ci`;
 }
+
+/**
+ * The colour a standing is said in: the top fifth of his own parties reads as a
+ * good evening, the bottom fifth as a bad one, everything between as a figure.
+ * Only the sentence is painted — the figure itself keeps the text colour, since
+ * « 54 pts » is neither good nor bad until it is placed.
+ */
+const TONE: Record<Tone, string> = {
+  good: "text-emerald-600 dark:text-emerald-400",
+  bad: "text-rose-600 dark:text-rose-400",
+  neutral: "text-zinc-500 dark:text-zinc-400",
+};
+
+/**
+ * The three places that get a metal, largest first. Nothing below the podium is
+ * painted: a fourth place named in a colour of its own would be a fourth medal.
+ *
+ * Places are shared by ties, so two players level for the lead are both gold and
+ * nobody is silver — the same arithmetic the score sheet already prints.
+ */
+const PODIUM: Record<number, string> = {
+  1: "text-xl font-bold text-amber-500 dark:text-amber-400",
+  // Silver is the awkward one: a pale grey on a dark screen is white, which is
+  // the colour every other name already has. It is therefore taken a shade
+  // down, where it reads as metal rather than as text — the size and the weight
+  // are what say « second », the colour only says which metal.
+  2: "text-lg font-bold text-slate-500 dark:text-slate-400",
+  3: "font-bold text-orange-800 dark:text-orange-500",
+};
 
 /**
  * One measure, on two lines: the figure and where it falls above, the spread of
@@ -59,9 +89,9 @@ function Measure({ measure }: Readonly<{ measure: RecapMeasure }>) {
             {measureValue(measure.key, measure.value)}
           </span>
           {standing === null ? null : (
-            <span className="text-zinc-500 dark:text-zinc-400">
+            <span className={TONE[standing.tone]}>
               {" · "}
-              {standing}
+              {standing.text}
             </span>
           )}
         </span>
@@ -99,12 +129,20 @@ function Measure({ measure }: Readonly<{ measure: RecapMeasure }>) {
  * for the card's frame to hold apart — six framed cards at the end of a
  * six-handed game were a scrolling exercise. A name and a rule are enough to
  * say where one player stops and the next begins.
+ *
+ * The rows come ordered by where each player finished, and the first three
+ * names wear their metal. Nothing here recomputes that order: a ranking done
+ * twice is a ranking that will one day disagree with itself.
  */
 export function PlayerRecapCard({ recap }: Readonly<{ recap: PlayerRecap }>) {
+  const podium = recap.place === null ? undefined : PODIUM[recap.place];
+
   return (
     <li className="flex flex-col gap-2 border-t border-black/[0.07] pt-3 first:border-t-0 first:pt-0 dark:border-white/10">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="truncate font-medium">{recap.name}</span>
+        <span className={`truncate ${podium ?? "font-medium"}`}>
+          {recap.name}
+        </span>
         <span className="shrink-0 text-xs text-zinc-500 dark:text-zinc-400">
           {partiesLine(recap.parties)}
         </span>

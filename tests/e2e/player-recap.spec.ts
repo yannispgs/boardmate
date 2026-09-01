@@ -156,6 +156,26 @@ test("places each player's party among his own past parties", async ({
     const second = page.getByRole("listitem").filter({ hasText: players[1] });
 
     await expect(second).toContainText("30 pts");
+
+    // A standing is said and painted: the top fifth of his own parties in one
+    // colour, the bottom fifth in another, the middle in the text colour. He
+    // led three of his four tables (« sa meilleure ») and finished 2ᵉ sur 4 on
+    // the score, and the third player never got off the bottom (« sa pire »).
+    // Asserted as three colours that differ, not as three hex values: the
+    // palette has a light reading and a dark one, and the fact under test is
+    // that the three are told apart.
+    const third = page.getByRole("listitem").filter({ hasText: players[2] });
+    const good = await first.getByText("sa meilleure").evaluate(node => {
+      return getComputedStyle(node).color;
+    });
+    const plain = await first.getByText("sur 4").evaluate(node => {
+      return getComputedStyle(node).color;
+    });
+    const bad = await third.getByText("sa pire").evaluate(node => {
+      return getComputedStyle(node).color;
+    });
+
+    expect(new Set([good, plain, bad]).size).toBe(3);
   } finally {
     await dropSeeded(admin, {
       games: seeded,
@@ -195,7 +215,9 @@ test("puts the party and the players behind two tabs", async ({ page }) => {
     seeded.push(await seedParty(admin, bgId as string, table([40, 10, 20])));
     seeded.push(await seedParty(admin, bgId as string, table([60, 30, 5])));
 
-    const tonight = await seedParty(admin, bgId as string, table([50, 30, 10]));
+    // The second seat wins tonight, so the order the rows come out in cannot
+    // be the order they were seeded in.
+    const tonight = await seedParty(admin, bgId as string, table([30, 50, 10]));
 
     seeded.push(tonight);
 
@@ -249,11 +271,34 @@ test("puts the party and the players behind two tabs", async ({ page }) => {
     ).toBeVisible();
     await expect(page.getByText("Temps de jeu")).toHaveCount(0);
 
-    // 50 tonight against 40 and 60 — the figures of the other test, reached
-    // here through the tab rather than by scrolling past the party's.
-    await expect(
-      page.getByRole("listitem").filter({ hasText: players[0] }),
-    ).toContainText("2ᵉ sur 3");
+    // The evening is told in the order it finished in, not in the order the
+    // sheet was filled: the second seat won, so he opens the list.
+    const rows = page.getByTestId("player-recaps").getByRole("listitem");
+
+    await expect(rows).toHaveCount(3);
+    await expect(rows.nth(0)).toContainText(players[1]);
+    await expect(rows.nth(1)).toContainText(players[0]);
+    await expect(rows.nth(2)).toContainText(players[2]);
+
+    // And the podium is worn on the name: gold, silver and bronze, the metal
+    // getting bigger as it gets better. Read on the size rather than the
+    // colour, which has a light reading and a dark one.
+    await expect(rows.nth(0).getByText(players[1])).toHaveCSS(
+      "font-size",
+      "20px",
+    );
+    await expect(rows.nth(1).getByText(players[0])).toHaveCSS(
+      "font-size",
+      "18px",
+    );
+    await expect(rows.nth(2).getByText(players[2])).toHaveCSS(
+      "font-size",
+      "16px",
+    );
+
+    // 50 tonight against 10 and 30 — the figures of a career, reached here
+    // through the tab rather than by scrolling past the party's.
+    await expect(rows.nth(0)).toContainText("50 pts");
 
     // And back, which is the half of a tab bar a single click never proves.
     await partyTab.click();

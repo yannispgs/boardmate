@@ -111,3 +111,40 @@ export function standing(
 
   return { kind: "percent", percent: topPercent(rank, total) };
 }
+
+/** The share of his own parties that counts as one end of his range. */
+const EDGE_PERCENT = 20;
+
+/** How loudly a standing should be said: worth noticing, or just a figure. */
+export type Tone = "good" | "bad" | "neutral";
+
+/**
+ * Whether a standing is worth colouring — the top fifth of his own parties, the
+ * bottom fifth, or neither.
+ *
+ * The two ends are always coloured, whatever the arithmetic says: on three
+ * parties his best is the top 33 %, and leaving « sa meilleure » grey because
+ * three is a small number would be the one reading nobody would accept. Past
+ * five parties the ends fall inside the fifth anyway, so the rule and the
+ * exception agree and only the short histories need saying.
+ */
+export function standingTone(where: Standing): Tone {
+  if (where.kind === "best") {
+    return "good";
+  }
+
+  if (where.kind === "worst") {
+    return "bad";
+  }
+
+  const percent =
+    where.kind === "percent"
+      ? where.percent
+      : topPercent(where.rank, where.total);
+
+  if (percent <= EDGE_PERCENT) {
+    return "good";
+  }
+
+  return percent > 100 - EDGE_PERCENT ? "bad" : "neutral";
+}

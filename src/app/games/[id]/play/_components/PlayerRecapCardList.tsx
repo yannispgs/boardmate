@@ -4,7 +4,7 @@ import type { PlayerRecap } from "@/lib/game/player-recap";
 
 import { PlayerRecapCard } from "./PlayerRecapCard";
 
-/** The table's recaps, in seating order — the order the sheet is read in. */
+/** The table's recaps, already ordered by where each player finished. */
 export function PlayerRecapCardList({
   recaps,
   rightGutter,
@@ -14,7 +14,13 @@ export function PlayerRecapCardList({
   rightGutter: boolean;
 }>) {
   return (
-    <ul className={`flex flex-col gap-3 ${rightGutter ? "pe-10" : ""}`}>
+    <ul
+      // A hook for the e2e suite, which is the only thing that measures this
+      // list: the order of the rows and the size of the podium's names are
+      // facts about the whole list, not about any one row.
+      data-testid="player-recaps"
+      className={`flex flex-col gap-3 ${rightGutter ? "pe-10" : ""}`}
+    >
       {recaps.map(recap => (
         <PlayerRecapCard key={recap.playerId} recap={recap} />
       ))}
