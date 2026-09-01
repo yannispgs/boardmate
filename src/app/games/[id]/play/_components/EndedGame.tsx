@@ -16,6 +16,7 @@ import { usePlayerRecaps } from "@/lib/hooks/use-player-recaps";
 import { useRecordsOfGame } from "@/lib/hooks/use-score-records";
 import { useSpeedRecord } from "@/lib/hooks/use-speed-record";
 
+import { EndRecapTabs } from "./EndRecapTabs";
 import { EndScorePanel } from "./EndScorePanel";
 import { GameStats } from "./GameStats";
 import { PlayerRecapSection } from "./PlayerRecapSection";
@@ -81,11 +82,12 @@ function Outcome({
 }
 
 /**
- * The finished-game screen: a winner banner filling the view, then the
- * statistics panel below. A button scrolls the stats into view so the reward
- * (who won) stays front and centre while the numbers are one tap away. A
- * right-edge tab slides in the final score (with the per-category detail for
- * category games), keeping the stats at the bottom and the score on the side.
+ * The finished-game screen: a winner banner filling the view, then the two
+ * readings of the evening below ({@link EndRecapTabs}). A button scrolls them
+ * into view so the reward (who won) stays front and centre while the numbers
+ * are one tap away. A right-edge handle slides in the final score (with the
+ * per-category detail for category games), keeping the recap at the bottom and
+ * the score on the side.
  */
 export function EndedGame({
   game,
@@ -196,21 +198,26 @@ export function EndedGame({
         </div>
       </div>
 
-      {/* Two readings of the same evening, in this order: what the table did,
-          then what each player did against his own past. The second is a
-          sibling of the first, never a part of it — a game that records neither
-          turn nor manche has no panel above and still has a history below. */}
-      <div ref={statsRef} className="flex flex-col gap-10 scroll-mt-6">
-        <GameStats game={game} />
-
-        {comparable ? (
-          <PlayerRecapSection
-            recaps={recaps}
-            byTable={byTable}
-            scope={scope}
-            onScope={setScope}
-          />
-        ) : null}
+      {/* Two readings of the same evening, behind two tabs: what the table did,
+          then what each player did against his own past. Siblings, never one
+          inside the other — a game that records neither turn nor manche has no
+          party panel and still has a history to show. */}
+      <div ref={statsRef} className="scroll-mt-6">
+        <EndRecapTabs
+          party={
+            hasPlayStats(game.boardgame) ? <GameStats game={game} /> : null
+          }
+          players={
+            comparable ? (
+              <PlayerRecapSection
+                recaps={recaps}
+                byTable={byTable}
+                scope={scope}
+                onScope={setScope}
+              />
+            ) : null
+          }
+        />
       </div>
 
       {hasScore ? (

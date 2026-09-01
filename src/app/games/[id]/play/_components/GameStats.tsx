@@ -138,8 +138,6 @@ export function GameStats({ game }: Readonly<{ game: PopulatedGame }>) {
 
   return (
     <section className="flex flex-col gap-6">
-      <h2 className="text-center text-lg font-semibold">La partie</h2>
-
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {tiles.map(t => (
           <StatTile

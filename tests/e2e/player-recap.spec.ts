@@ -8,6 +8,7 @@ import {
   seedBoardgame,
   seedParty,
   seedPlayers,
+  seedTurns,
   TABLE_SENSITIVE_SCORING,
 } from "./utils/supabase";
 
@@ -28,12 +29,15 @@ test("places each player's evening among his own past evenings", async ({
 
   try {
     // Declared 2–3 and sensitive to the table, which is what puts the « à
-    // nombre de joueurs égal » switch on the section.
+    // nombre de joueurs égal » switch on the section. Untimed on purpose: the
+    // column defaults to timed, and a timed game would grow the party panel
+    // this scenario is built to do without.
     bgId = await seedBoardgame(admin, {
       name: gameName,
       minPlayers: 2,
       maxPlayers: 3,
       roundLimit: 3,
+      isTimed: false,
       scoring: TABLE_SENSITIVE_SCORING,
     });
 
@@ -56,10 +60,16 @@ test("places each player's evening among his own past evenings", async ({
     await expect(
       page.getByRole("heading", { name: "La partie", exact: true }),
     ).toHaveCount(0);
+    await expect(page.getByText("Voir les statistiques ↓")).toBeVisible();
+
+    // With one side of the recap empty there is nothing to switch between, so
+    // the name goes back to being a plain heading and no tab bar is offered.
     await expect(
       page.getByRole("heading", { name: "Les joueurs", exact: true }),
     ).toBeVisible();
-    await expect(page.getByText("Voir les statistiques ↓")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Les joueurs", exact: true }),
+    ).toHaveCount(0);
 
     // 50 tonight, against 40 / 60 / 20 before — second of the four evenings.
     const first = page.getByRole("listitem").filter({ hasText: players[0] });
@@ -96,6 +106,108 @@ test("places each player's evening among his own past evenings", async ({
     const second = page.getByRole("listitem").filter({ hasText: players[1] });
 
     await expect(second).toContainText("30 pts");
+  } finally {
+    await dropSeeded(admin, {
+      games: seeded,
+      boardgames: [bgId],
+      playerNames: players,
+    });
+  }
+});
+
+/**
+ * The same screen when the evening has both things to say. Stacked, the two
+ * readings made a page you scrolled twice over; they now sit behind two tabs,
+ * one shown at a time, and the bar is the only place either is named.
+ */
+test("puts the party and the players behind two tabs", async ({ page }) => {
+  const admin = adminClient();
+  const players = await seedPlayers(3);
+  const gameName = `E2E Onglets ${Date.now().toString(36)}`;
+  const seeded: string[] = [];
+  let bgId: string | null = null;
+
+  try {
+    // Timed this time (the column's default), which is what gives the evening a
+    // party panel next to the players' one.
+    bgId = await seedBoardgame(admin, {
+      name: gameName,
+      minPlayers: 2,
+      maxPlayers: 3,
+      roundLimit: 3,
+      scoring: TABLE_SENSITIVE_SCORING,
+    });
+
+    const ids = await playerIds(players);
+    const table = scoreTable(players, ids);
+
+    // Two evenings behind them: enough for tonight to be placed among a past.
+    seeded.push(await seedParty(admin, bgId as string, table([40, 10, 20])));
+    seeded.push(await seedParty(admin, bgId as string, table([60, 30, 5])));
+
+    const tonight = await seedParty(admin, bgId as string, table([50, 30, 10]));
+
+    seeded.push(tonight);
+
+    // One round actually played, so the party panel holds figures rather than
+    // a row of zeros.
+    await seedTurns(
+      admin,
+      tonight,
+      players.map((name, seat) => ({
+        playerId: ids(name),
+        round: 1,
+        turnNo: seat + 1,
+        durationS: 30 + seat * 10,
+      })),
+    );
+
+    await page.goto(`/games/${tonight}/play`);
+
+    const partyTab = page.getByRole("button", {
+      name: "La partie",
+      exact: true,
+    });
+    const playersTab = page.getByRole("button", {
+      name: "Les joueurs",
+      exact: true,
+    });
+
+    await expect(partyTab).toBeVisible();
+    await expect(playersTab).toBeVisible();
+
+    // Named on the bar and nowhere else: a pill above a heading saying the same
+    // thing is the duplication the tabs were meant to remove.
+    await expect(
+      page.getByRole("heading", { name: "La partie", exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("heading", { name: "Les joueurs", exact: true }),
+    ).toHaveCount(0);
+
+    // The evening opens on itself; the careers are one tap away, not a scroll.
+    await expect(page.getByText("Temps de jeu")).toBeVisible();
+    await expect(
+      page.getByText("Chacun face à ses propres parties sur ce jeu."),
+    ).toHaveCount(0);
+
+    await playersTab.click();
+
+    await expect(
+      page.getByText("Chacun face à ses propres parties sur ce jeu."),
+    ).toBeVisible();
+    await expect(page.getByText("Temps de jeu")).toHaveCount(0);
+
+    // 50 tonight against 40 and 60 — the figures of the other test, reached
+    // here through the tab rather than by scrolling past the party's.
+    await expect(
+      page.getByRole("listitem").filter({ hasText: players[0] }),
+    ).toContainText("2ᵉ sur 3");
+
+    // And back, which is the half of a tab bar a single click never proves.
+    await partyTab.click();
+
+    await expect(page.getByText("Temps de jeu")).toBeVisible();
   } finally {
     await dropSeeded(admin, {
       games: seeded,

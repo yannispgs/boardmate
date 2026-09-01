@@ -308,6 +308,13 @@ export async function seedBoardgame(
     maxPlayers?: number;
     roundLimit?: number | null;
     scoring?: Readonly<Record<string, unknown>>;
+    /**
+     * Whether the app runs a clock on the turns. ⚠️ The column defaults to
+     * `true`, so a game seeded without saying otherwise DOES get the « La
+     * partie » panel on the finished screen — pass `false` for a scenario that
+     * must not have one (Papayoo's kind).
+     */
+    isTimed?: boolean;
   }>,
 ): Promise<string> {
   const { data, error } = await admin
@@ -316,6 +323,7 @@ export async function seedBoardgame(
       name: fields.name,
       min_players: fields.minPlayers ?? 1,
       max_players: fields.maxPlayers ?? 4,
+      ...(fields.isTimed === undefined ? {} : { is_timed: fields.isTimed }),
       ...(fields.roundLimit === undefined
         ? {}
         : { round_limit: fields.roundLimit }),

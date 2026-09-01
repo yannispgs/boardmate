@@ -29,6 +29,8 @@ export const SCOPE_LABELS: Record<RecapScope, string> = {
  * The whole section carries **one** switch, at the top. Per-card switches would
  * let two players be read on two different sets of evenings side by side, which
  * is exactly the comparison this section is built not to invite.
+ *
+ * Its name lives on the tab that opens it ({@link EndRecapTabs}), not here.
  */
 export function PlayerRecapSection({
   recaps,
@@ -47,8 +49,6 @@ export function PlayerRecapSection({
 
   return (
     <section className="flex flex-col gap-4">
-      <h2 className="text-center text-lg font-semibold">Les joueurs</h2>
-
       <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
         Chacun face à ses propres parties sur ce jeu.
       </p>
