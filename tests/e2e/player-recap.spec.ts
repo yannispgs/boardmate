@@ -71,12 +71,16 @@ test("places each player's evening among his own past evenings", async ({
       page.getByRole("button", { name: "Les joueurs", exact: true }),
     ).toHaveCount(0);
 
-    // 50 tonight, against 40 / 60 / 20 before — second of the four evenings.
+    // 50 tonight, against 40 / 60 / 20 before — the second quarter of his own
+    // four evenings, and the bar behind the figure spans exactly those four.
     const first = page.getByRole("listitem").filter({ hasText: players[0] });
 
     await expect(first).toContainText("3 parties avant ce soir");
     await expect(first).toContainText("50 pts");
-    await expect(first).toContainText("2ᵉ sur 4");
+    await expect(first).toContainText("2ᵉ quart");
+    await expect(
+      first.getByRole("img", { name: /Score — 50 pts parmi ses 4 soirées/ }),
+    ).toBeVisible();
 
     // The duel drops out at the same table size: 50 against 40 and 60 only.
     // The narrow reading is a box you tick, so the wide one is what an
@@ -86,22 +90,17 @@ test("places each player's evening among his own past evenings", async ({
       .check();
 
     await expect(first).toContainText("2 parties avant ce soir");
-    await expect(first).toContainText("2ᵉ sur 3");
-
-    // The card carries the figures; the spread behind them is one tap away.
-    await first.getByRole("button").click();
-
-    const detail = page.getByRole("dialog");
-
     await expect(
-      detail.getByRole("heading", { name: players[0], exact: true }),
+      first.getByRole("img", { name: /Score — 50 pts parmi ses 3 soirées/ }),
     ).toBeVisible();
-    await expect(detail).toContainText("À nombre de joueurs égal");
-    await expect(detail).toContainText("Position");
-    await expect(detail).toContainText("0 = premier, 100 = dernier.");
 
-    await page.getByRole("button", { name: "Fermer" }).click();
-    await expect(detail).toHaveCount(0);
+    // « Position » is an index that runs down, which no bar can say on its own:
+    // the sentence that used to live in the detail is on the figure itself.
+    await first.getByRole("button", { name: "Position", exact: true }).click();
+
+    await expect(page.getByTestId("info-bubble")).toContainText(
+      "0 = premier, 100 = dernier.",
+    );
 
     // The player who sat at every evening is read on his own scale, not on the
     // winner's: 30 tonight against 10, 30 and 90.
@@ -190,13 +189,13 @@ test("puts the party and the players behind two tabs", async ({ page }) => {
     // The evening opens on itself; the careers are one tap away, not a scroll.
     await expect(page.getByText("Temps de jeu")).toBeVisible();
     await expect(
-      page.getByText("Chacun face à ses propres parties sur ce jeu."),
+      page.getByText("Chacun face à ses propres parties sur ce jeu"),
     ).toHaveCount(0);
 
     await playersTab.click();
 
     await expect(
-      page.getByText("Chacun face à ses propres parties sur ce jeu."),
+      page.getByText("Chacun face à ses propres parties sur ce jeu"),
     ).toBeVisible();
     await expect(page.getByText("Temps de jeu")).toHaveCount(0);
 
@@ -204,7 +203,7 @@ test("puts the party and the players behind two tabs", async ({ page }) => {
     // here through the tab rather than by scrolling past the party's.
     await expect(
       page.getByRole("listitem").filter({ hasText: players[0] }),
-    ).toContainText("2ᵉ sur 3");
+    ).toContainText("2ᵉ quart");
 
     // And back, which is the half of a tab bar a single click never proves.
     await partyTab.click();
