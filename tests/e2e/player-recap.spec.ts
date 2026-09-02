@@ -215,9 +215,19 @@ test("puts the party and the players behind two tabs", async ({ page }) => {
     seeded.push(await seedParty(admin, bgId as string, table([40, 10, 20])));
     seeded.push(await seedParty(admin, bgId as string, table([60, 30, 5])));
 
-    // The second seat wins tonight, so the order the rows come out in cannot
-    // be the order they were seeded in.
-    const tonight = await seedParty(admin, bgId as string, table([30, 50, 10]));
+    // The two first seats finish level on 50 and the game's tie-break crowns
+    // the second — Splito's shape. The order the rows come out in is therefore
+    // neither the seating order nor the one the totals alone would give: read on
+    // the points, the first two seats would both be first and both wear gold.
+    const tonight = await seedParty(
+      admin,
+      bgId as string,
+      players.map((name, seat) => ({
+        playerId: ids(name),
+        score: [50, 50, 10][seat],
+        isWinner: seat === 1,
+      })),
+    );
 
     seeded.push(tonight);
 
@@ -272,7 +282,8 @@ test("puts the party and the players behind two tabs", async ({ page }) => {
     await expect(page.getByText("Temps de jeu")).toHaveCount(0);
 
     // The evening is told in the order it finished in, not in the order the
-    // sheet was filled: the second seat won, so he opens the list.
+    // sheet was filled: the second seat won the tie-break, so he opens the list
+    // and the player he beat on the same 50 points comes next.
     const rows = page.getByTestId("player-recaps").getByRole("listitem");
 
     await expect(rows).toHaveCount(3);
@@ -282,7 +293,8 @@ test("puts the party and the players behind two tabs", async ({ page }) => {
 
     // And the podium is worn on the name: gold, silver and bronze, the metal
     // getting bigger as it gets better. Read on the size rather than the
-    // colour, which has a light reading and a dark one.
+    // colour, which has a light reading and a dark one. The second line is what
+    // the tie-break buys: on the totals alone it would be a second gold.
     await expect(rows.nth(0).getByText(players[1])).toHaveCSS(
       "font-size",
       "20px",
@@ -304,6 +316,21 @@ test("puts the party and the players behind two tabs", async ({ page }) => {
     await partyTab.click();
 
     await expect(page.getByText("Temps de jeu")).toBeVisible();
+
+    // The score handle covers this panel exactly as it covered the rows, and
+    // this one is charts and tiles that all run to the right edge — the end of
+    // a curve is where the party finished. Same geometry assertion, since the
+    // overlap is a fact no text assertion can see.
+    const handle = page.getByRole("button", { name: "Voir le score final" });
+    const handleBox = await handle.boundingBox();
+    const panelBox = await page.getByTestId("party-panel").boundingBox();
+
+    expect(handleBox).not.toBeNull();
+    expect(panelBox).not.toBeNull();
+
+    expect((panelBox?.x ?? 0) + (panelBox?.width ?? 0)).toBeLessThanOrEqual(
+      handleBox?.x ?? 0,
+    );
   } finally {
     await dropSeeded(admin, {
       games: seeded,

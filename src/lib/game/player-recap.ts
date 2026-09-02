@@ -1,5 +1,5 @@
 import type { BoardgameId, GameId, PlayerId, ScoringSpec } from "@/lib/domain";
-import { placements, relativePosition } from "./placement";
+import { finishPlaces, relativePosition } from "./placement";
 import type { ScoreDirection } from "./scoring";
 import { winnerDirection } from "./scoring";
 import { tracksSpeedRecord } from "./speed-records";
@@ -73,6 +73,9 @@ export interface PlayerRecap {
    * the party ranks nobody (a cooperative game, a sheet left half-filled).
    * This is the one figure in this file that reads across the table rather than
    * against a player's own past, and it exists only to order the section.
+   *
+   * The crown comes before the total (see {@link finishPlaces}): a tie the game
+   * settled has one winner, not two.
    */
   place: number | null;
   /** Parties before tonight this recap reads on — 0 on a first evening. */
@@ -136,13 +139,16 @@ function avgTurn(party: RecapParty, playerId: PlayerId): number | null {
  * His placement on the 0–100 scale used everywhere else on the app (0 = he won,
  * 100 = he finished last), or null when the party ranks nobody — a half-filled
  * sheet does, and so does an evening he simply wasn't at.
+ *
+ * Read on {@link finishPlaces}, so a tie-break counts: the player the table
+ * crowned gets the 0. Anything else would print a 0 next to a silver name.
  */
 function placement(
   party: RecapParty,
   playerId: PlayerId,
   direction: ScoreDirection,
 ): number | null {
-  const rank = placements(party.players, direction)?.get(playerId);
+  const rank = finishPlaces(party.players, direction)?.get(playerId);
 
   if (rank === undefined) {
     return null;
@@ -375,7 +381,7 @@ export function playerRecaps({
   const direction =
     setup.scoring === null ? null : winnerDirection(setup.scoring.winCondition);
   const places =
-    direction === null ? null : placements(tonight.players, direction);
+    direction === null ? null : finishPlaces(tonight.players, direction);
 
   const recaps = tonight.players.map(player => {
     return {

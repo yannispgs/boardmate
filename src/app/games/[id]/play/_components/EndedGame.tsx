@@ -205,7 +205,20 @@ export function EndedGame({
       <div ref={statsRef} className="scroll-mt-6">
         <EndRecapTabs
           party={
-            hasPlayStats(game.boardgame) ? <GameStats game={game} /> : null
+            hasPlayStats(game.boardgame) ? (
+              // Same gutter, for the same reason as the rows below — the handle
+              // covers whatever is halfway down the screen, and this panel is
+              // charts and tiles that all run to the right edge. Applied here
+              // rather than inside the panel: what is pinned to the screen is a
+              // fact this component knows and the statistics do not, and the
+              // one wrapper covers the three variants the panel dispatches to.
+              <div
+                data-testid="party-panel"
+                className={hasScore ? "pe-10" : ""}
+              >
+                <GameStats game={game} />
+              </div>
+            ) : null
           }
           players={
             comparable ? (

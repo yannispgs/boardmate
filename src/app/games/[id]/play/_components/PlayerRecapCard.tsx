@@ -46,8 +46,10 @@ const TONE: Record<Tone, string> = {
  * The three places that get a metal, largest first. Nothing below the podium is
  * painted: a fourth place named in a colour of its own would be a fourth medal.
  *
- * Places are shared by ties, so two players level for the lead are both gold and
- * nobody is silver — the same arithmetic the score sheet already prints.
+ * The place is the one the table finished on, crown first: two players level on
+ * points whom the game's tie-break separated give **one** gold and one silver,
+ * since the app has already crowned one of them by name. Only a victory the
+ * table genuinely shared leaves two golds and nobody in silver.
  */
 const PODIUM: Record<number, string> = {
   1: "text-xl font-bold text-amber-500 dark:text-amber-400",

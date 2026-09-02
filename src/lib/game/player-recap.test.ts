@@ -115,6 +115,32 @@ describe("playerRecaps", () => {
     expect(recaps.map(r => r.playerId)).toEqual([bob, ann, cat]);
   });
 
+  it("puts the player a tie-break crowned ahead of the one he beat", () => {
+    // Splito's rule settled this table: two players level on 50, one of them
+    // recorded the winner. Reading the totals alone would call them both first
+    // and contradict the name the score sheet has just crowned.
+    const tonight = party("t", [
+      [cat, 20],
+      [bob, 50],
+      [ann, 50, true],
+    ]);
+    const recaps = playerRecaps({
+      tonight,
+      history: [tonight],
+      names,
+      setup: scored,
+      scope: "all",
+    });
+
+    expect(recaps.map(r => r.playerId)).toEqual([ann, bob, cat]);
+    expect(recaps.map(r => r.place)).toEqual([1, 2, 3]);
+
+    // And the « Position » figure on the same row agrees: the crowned player is
+    // the 0, not both of them.
+    expect(measures(recaps, ann).get("placement")?.value).toBe(0);
+    expect(measures(recaps, bob).get("placement")?.value).toBe(50);
+  });
+
   it("keeps the seating order when the party ranks nobody", () => {
     // A cooperative game has no places to sort on, and inventing one would put
     // a table that won together in an order it never played in.
