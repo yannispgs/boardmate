@@ -99,7 +99,8 @@ export interface PartyMeasuresInput {
   history: ReadonlyArray<readonly FigureTurn[]>;
   /**
    * The rulebook's fixed number of laps, when the game has one — Cascadia's 20,
-   * Smallworld's 9. Used to drop a count that only repeats the rules.
+   * Smallworld's 9. Its presence alone drops a count that only repeats the
+   * rules; the value is never compared against the party's own.
    */
   roundLimit: number | null;
   /** Whether the table plays each lap at once, in which case no turn is one player's. */
@@ -111,10 +112,18 @@ export interface PartyMeasuresInput {
  *
  * Two figures are dropped rather than shown empty:
  *
- * - **the lap count, once the party reached the game's fixed limit.** « Tours 20 »
- *   on a Cascadia is the rulebook, not the evening. It comes back the moment the
- *   party stopped short of the limit, where it becomes the only thing on the
- *   screen saying the game was abandoned.
+ * - **the lap count, on a game that runs to a fixed number of laps.** « Tours 20 »
+ *   on a Cascadia is the rulebook, not the evening.
+ *
+ *   Dropped on the game rather than on the party: a game carrying a `roundLimit`
+ *   has no other way of ending — none of the three that do (Cascadia, Smallworld,
+ *   Splito) also wins on a threshold or stops mid-lap — so the count is the
+ *   rulebook whatever the log says. Showing it back on a party that *looks* short
+ *   was worse than useless: the turn log closes on the lap the table was playing
+ *   when the game ended, so a Splito played to its twelfth lap records eleven,
+ *   and the tile came back on every single one of them reading « Tours 11 ».
+ *   The day a game both stops at a limit and can end before it, this wants a flag
+ *   of its own rather than a count read off the log.
  * - **the mean player turn on a simultaneous game.** Everyone plays the lap at
  *   once, so dividing the table's time by the number of turns would answer a
  *   question nobody asked.
@@ -134,7 +143,7 @@ export function partyMeasures({
 
   const keys: PartyFigureKey[] = ["playTime"];
 
-  if (roundLimit === null || figures.rounds < roundLimit) {
+  if (roundLimit === null) {
     keys.push("rounds");
   }
 

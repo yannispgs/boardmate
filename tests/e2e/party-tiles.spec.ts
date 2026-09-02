@@ -122,8 +122,8 @@ test("places the party's figures among the parties before it", async ({
 
     await expect(tile(panel, "Temps de jeu")).toContainText("2:00");
 
-    // The lap count says nothing here: the game stops at two laps and the party
-    // played two. « Tours 2 » would be the rulebook printed on the recap.
+    // The lap count says nothing on a game that runs to a fixed number of laps:
+    // « Tours 2 » would be the rulebook printed on the recap.
     await expect(panel.getByText("Tours", { exact: true })).toHaveCount(0);
 
     // A lap took a minute, one player's go a third of it — and the two are told
@@ -136,26 +136,26 @@ test("places the party's figures among the parties before it", async ({
       .poll(fillRatio(tile(panel, "Temps de jeu")))
       .toBeCloseTo(0.5, 1);
 
-    // A party that stopped short of the limit is the one case where the count
-    // is the only thing on the screen saying the game was abandoned — so it
-    // comes back, on the very same game.
-    const abandoned = await seedParty(admin, bgId as string, table([5, 4, 3]));
+    // And a party whose log stops short of the limit keeps it hidden. This is
+    // the ordinary case rather than the odd one: the log closes on the lap the
+    // table was playing when the game ended, so the count read off it is one
+    // short on nearly every party of such a game.
+    const short2 = await seedParty(admin, bgId as string, table([5, 4, 3]));
 
-    seeded.push(abandoned);
+    seeded.push(short2);
 
-    await seedTurns(admin, abandoned, lap(ids, players, 1, 20));
+    await seedTurns(admin, short2, lap(ids, players, 1, 20));
 
-    await page.goto(`/games/${abandoned}/play`);
+    await page.goto(`/games/${short2}/play`);
 
-    const abandonedPanel = page.getByTestId("party-panel");
+    const shortPanel = page.getByTestId("party-panel");
 
-    await expect(
-      abandonedPanel.getByText("Tours", { exact: true }),
-    ).toBeVisible();
+    await expect(tile(shortPanel, "Temps de jeu")).toContainText("1:00");
+    await expect(shortPanel.getByText("Tours", { exact: true })).toHaveCount(0);
 
     // 60 s against 60, 120 and 180: the shortest evening ever played on this
     // game at three, and an empty bar is what says so.
-    await expect.poll(fillRatio(tile(abandonedPanel, "Temps de jeu"))).toBe(0);
+    await expect.poll(fillRatio(tile(shortPanel, "Temps de jeu"))).toBe(0);
   } finally {
     await dropSeeded(admin, {
       games: seeded,

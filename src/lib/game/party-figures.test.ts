@@ -89,7 +89,7 @@ describe("partyMeasures", () => {
   });
 
   // « Tours 20 » on a Cascadia is the rulebook, not the evening.
-  it("drops the lap count once the party reached the game's fixed limit", () => {
+  it("drops the lap count on a game that runs to a fixed number of laps", () => {
     const measures = partyMeasures({
       ...base,
       tonight: log(20, 3, 30),
@@ -99,15 +99,16 @@ describe("partyMeasures", () => {
     expect(keysOf(measures)).not.toContain("rounds");
   });
 
-  // And it comes back the moment it says something the rulebook doesn't.
-  it("keeps the lap count when the party stopped short of the limit", () => {
+  // Even a log that stops short of the limit, which is what a log normally does:
+  // it closes on the lap the table was playing when the game ended.
+  it("drops it on a party whose log stops short of that limit", () => {
     const measures = partyMeasures({
       ...base,
-      tonight: log(14, 3, 30),
-      roundLimit: 20,
+      tonight: log(11, 3, 30),
+      roundLimit: 12,
     });
 
-    expect(keysOf(measures)).toContain("rounds");
+    expect(keysOf(measures)).not.toContain("rounds");
   });
 
   it("drops the mean player turn when the table plays each lap at once", () => {
