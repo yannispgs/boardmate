@@ -43,23 +43,62 @@ const TONE: Record<Tone, string> = {
 };
 
 /**
- * The three places that get a metal, largest first. Nothing below the podium is
- * painted: a fourth place named in a colour of its own would be a fourth medal.
+ * How a podium name is worn, largest first: its size, and its metal taken
+ * towards the **light** rather than towards the dark.
+ *
+ * This screen paints itself dark whatever the reader's system says, so the two
+ * instincts pull apart there: a colour deepened to stand out from its
+ * background stands out from a white page and sinks into this one. Bronze
+ * proves it — an `orange-800` name on the bronze wash below comes out dimmer
+ * than the plain grey « 5 parties avant celle-ci » on its own line, which is a
+ * medal that costs its holder legibility.
+ *
+ * Silver is deliberately the odd one. A light grey **is** the colour every
+ * other name on the screen already has, so there is no silver to take: pushed
+ * lighter it is white, pushed darker it is faded text. Second place is
+ * therefore said by the wash behind it and by the size — the name only stops
+ * short of claiming a metal it cannot have.
+ *
+ * Nothing below the podium is grown or painted: a fourth place with a size and
+ * a colour of its own would be a fourth medal.
  *
  * The place is the one the table finished on, crown first: two players level on
  * points whom the game's tie-break separated give **one** gold and one silver,
  * since the app has already crowned one of them by name. Only a victory the
  * table genuinely shared leaves two golds and nobody in silver.
  */
-const PODIUM: Record<number, string> = {
-  1: "text-xl font-bold text-amber-500 dark:text-amber-400",
-  // Silver is the awkward one: a pale grey on a dark screen is white, which is
-  // the colour every other name already has. It is therefore taken a shade
-  // down, where it reads as metal rather than as text — the size and the weight
-  // are what say « second », the colour only says which metal.
-  2: "text-lg font-bold text-slate-500 dark:text-slate-400",
-  3: "font-bold text-orange-800 dark:text-orange-500",
+const PODIUM_NAME: Record<number, string> = {
+  1: "text-xl font-bold text-amber-300",
+  2: "text-lg font-bold text-slate-300",
+  3: "font-bold text-orange-400",
 };
+
+/**
+ * The metal, washed under the **whole block** — the name and the bars that
+ * belong to it — rather than behind the name alone.
+ *
+ * A tint on the name is a label; a tint under the block also says which lines
+ * belong to which player, which is the thing this list was hardest to read
+ * without: a hairline rule between two players is a pixel, and at six players
+ * the reader is scrolling. The wash carries the grouping and the medal at once.
+ *
+ * A quarter strength, which a name-sized chip could never have got away with:
+ * the figures and the bars are printed **on** this, so it has to stay under
+ * what would compete with them — and a surface this large registers at a
+ * strength a chip would be invisible at.
+ */
+const PODIUM_TINT: Record<number, string> = {
+  1: "bg-amber-400/25",
+  2: "bg-slate-400/25",
+  3: "bg-orange-600/25",
+};
+
+/**
+ * What a player off the podium sits on. Barely a tint — but the row has to be a
+ * panel like the others, or the medals would read as « these three blocks
+ * exist » against « this one is floating », which is not what a podium says.
+ */
+const PLAIN_TINT = "bg-black/[0.03] dark:bg-white/[0.04]";
 
 /**
  * One measure, on two lines: the figure and where it falls above, the spread of
@@ -127,20 +166,29 @@ function Measure({ measure }: Readonly<{ measure: RecapMeasure }>) {
  * against, then one bar per figure with this party's cursor on it.
  *
  * It used to be a card you pressed to reveal the spread in a modal. The spread
- * is now on the bar, so there is nothing left behind the press and nothing left
- * for the card's frame to hold apart — six framed cards at the end of a
- * six-handed game were a scrolling exercise. A name and a rule are enough to
- * say where one player stops and the next begins.
+ * is now on the bar, so there is nothing left behind the press — six framed
+ * cards at the end of a six-handed game were a scrolling exercise. What is left
+ * is a panel with no frame and no press: it groups a player's lines and, on the
+ * podium, carries his metal, which a hairline rule could do neither of.
  *
- * The rows come ordered by where each player finished, and the first three
- * names wear their metal. Nothing here recomputes that order: a ranking done
- * twice is a ranking that will one day disagree with itself.
+ * The rows come ordered by where each player finished, and the first three wear
+ * their metal. Nothing here recomputes that order: a ranking done twice is a
+ * ranking that will one day disagree with itself.
  */
 export function PlayerRecapCard({ recap }: Readonly<{ recap: PlayerRecap }>) {
-  const podium = recap.place === null ? undefined : PODIUM[recap.place];
+  const place = recap.place;
+  const podium = place === null ? undefined : PODIUM_NAME[place];
 
   return (
-    <li className="flex flex-col gap-2 border-t border-black/[0.07] pt-3 first:border-t-0 first:pt-0 dark:border-white/10">
+    // Every row is the same panel with the same padding, painted or not, so the
+    // bars of a medalled block line up with the bars of the one below it. A
+    // tint that indented its own player would read as a layout fault, not as a
+    // medal.
+    <li
+      className={`flex flex-col gap-2 rounded-lg p-2.5 ${
+        (place === null ? undefined : PODIUM_TINT[place]) ?? PLAIN_TINT
+      }`}
+    >
       <div className="flex items-baseline justify-between gap-2">
         <span className={`truncate ${podium ?? "font-medium"}`}>
           {recap.name}

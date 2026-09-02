@@ -192,7 +192,7 @@ test("places each player's party among his own past parties", async ({
  */
 test("puts the party and the players behind two tabs", async ({ page }) => {
   const admin = adminClient();
-  const players = await seedPlayers(3);
+  const players = await seedPlayers(4);
   const gameName = `E2E Onglets ${Date.now().toString(36)}`;
   const seeded: string[] = [];
   let bgId: string | null = null;
@@ -203,7 +203,7 @@ test("puts the party and the players behind two tabs", async ({ page }) => {
     bgId = await seedBoardgame(admin, {
       name: gameName,
       minPlayers: 2,
-      maxPlayers: 3,
+      maxPlayers: 4,
       roundLimit: 3,
       scoring: TABLE_SENSITIVE_SCORING,
     });
@@ -212,8 +212,10 @@ test("puts the party and the players behind two tabs", async ({ page }) => {
     const table = scoreTable(players, ids);
 
     // Two parties behind them: enough for this one to be placed among a past.
-    seeded.push(await seedParty(admin, bgId as string, table([40, 10, 20])));
-    seeded.push(await seedParty(admin, bgId as string, table([60, 30, 5])));
+    seeded.push(
+      await seedParty(admin, bgId as string, table([40, 10, 20, 15])),
+    );
+    seeded.push(await seedParty(admin, bgId as string, table([60, 30, 5, 25])));
 
     // The two first seats finish level on 50 and the game's tie-break crowns
     // the second — Splito's shape. The order the rows come out in is therefore
@@ -224,7 +226,7 @@ test("puts the party and the players behind two tabs", async ({ page }) => {
       bgId as string,
       players.map((name, seat) => ({
         playerId: ids(name),
-        score: [50, 50, 10][seat],
+        score: [50, 50, 10, 5][seat],
         isWinner: seat === 1,
       })),
     );
@@ -286,15 +288,16 @@ test("puts the party and the players behind two tabs", async ({ page }) => {
     // and the player he beat on the same 50 points comes next.
     const rows = page.getByTestId("player-recaps").getByRole("listitem");
 
-    await expect(rows).toHaveCount(3);
+    await expect(rows).toHaveCount(4);
     await expect(rows.nth(0)).toContainText(players[1]);
     await expect(rows.nth(1)).toContainText(players[0]);
     await expect(rows.nth(2)).toContainText(players[2]);
+    await expect(rows.nth(3)).toContainText(players[3]);
 
-    // And the podium is worn on the name: gold, silver and bronze, the metal
-    // getting bigger as it gets better. Read on the size rather than the
-    // colour, which has a light reading and a dark one. The second line is what
-    // the tie-break buys: on the totals alone it would be a second gold.
+    // The podium is worn on the whole block — the name grows, and the metal is
+    // washed under the player's lines rather than behind his name alone. The
+    // second row is what the tie-break buys: on the totals alone it would be a
+    // second gold.
     await expect(rows.nth(0).getByText(players[1])).toHaveCSS(
       "font-size",
       "20px",
@@ -307,6 +310,19 @@ test("puts the party and the players behind two tabs", async ({ page }) => {
       "font-size",
       "16px",
     );
+
+    // And the four backgrounds are four different colours: three metals and the
+    // plain panel a player off the podium sits on. Asserted as « they differ »
+    // rather than as four values, since the wash is an alpha over whatever the
+    // screen is painted — the fact under test is that a reader tells them
+    // apart, not which hex the compositor lands on.
+    const washes = await rows.evaluateAll(nodes => {
+      return nodes.map(node => {
+        return getComputedStyle(node).backgroundColor;
+      });
+    });
+
+    expect(new Set(washes).size).toBe(4);
 
     // 50 tonight against 10 and 30 — the figures of a career, reached here
     // through the tab rather than by scrolling past the party's.
