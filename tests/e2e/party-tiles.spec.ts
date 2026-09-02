@@ -18,6 +18,7 @@ function lap(
   players: readonly string[],
   round: number,
   durationS: number,
+  pauseDurationS = 0,
 ) {
   return players.map((name, seat) => {
     return {
@@ -25,6 +26,7 @@ function lap(
       round,
       turnNo: (round - 1) * players.length + seat + 1,
       durationS,
+      pauseDurationS,
     };
   });
 }
@@ -131,6 +133,12 @@ test("places the party's figures among the parties before it", async ({
     await expect(tile(panel, "Tour de table")).toContainText("1:00");
     await expect(tile(panel, "Tour moyen")).toContainText("0:20");
 
+    // The table never stopped, so the pause-included time would be the played
+    // one written out a second time.
+    await expect(panel.getByText("Temps total", { exact: true })).toHaveCount(
+      0,
+    );
+
     // 120 s between 60 and 180: the bar is painted half way.
     await expect
       .poll(fillRatio(tile(panel, "Temps de jeu")))
@@ -230,6 +238,55 @@ test("reads a party against every table size when the game allows it", async ({
     await expect(page.getByTestId("info-bubble")).toContainText(
       "quel que soit le nombre de joueurs",
     );
+  } finally {
+    await dropSeeded(admin, {
+      games: seeded,
+      boardgames: [bgId],
+      playerNames: players,
+    });
+  }
+});
+
+/**
+ * The evening's other length: what the party lasted rather than what it was
+ * played, which only exists — and is only shown — once the table has stopped.
+ */
+test("adds the pause-included time to a party that stopped", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const players = await seedPlayers(3);
+  const gameName = `E2E Pauses ${Date.now().toString(36)}`;
+  const seeded: string[] = [];
+  let bgId: string | null = null;
+
+  try {
+    bgId = await seedBoardgame(admin, {
+      name: gameName,
+      minPlayers: 2,
+      maxPlayers: 4,
+      roundLimit: null,
+      scoring: TABLE_SENSITIVE_SCORING,
+    });
+
+    const ids = await playerIds(players);
+    const table = scoreTable(players, ids);
+    const tonight = await seedParty(admin, bgId as string, table([50, 30, 10]));
+
+    seeded.push(tonight);
+
+    // A lap of 20 s a seat, each stopped for 10 s: 60 s played, 30 s waited.
+    await seedTurns(admin, tonight, lap(ids, players, 1, 20, 10));
+
+    await page.goto(`/games/${tonight}/play`);
+
+    const panel = page.getByTestId("party-panel");
+
+    await expect(tile(panel, "Temps de jeu")).toContainText("1:00");
+    await expect(tile(panel, "Temps en pause")).toContainText("0:30");
+
+    // The two added up — the time the table was actually sat down.
+    await expect(tile(panel, "Temps total")).toContainText("1:30");
   } finally {
     await dropSeeded(admin, {
       games: seeded,

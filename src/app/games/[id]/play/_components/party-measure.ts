@@ -11,6 +11,7 @@ import type { PartyFigureKey } from "@/lib/game/party-figures";
  */
 const LABELS: Record<PartyFigureKey, string> = {
   playTime: "Temps de jeu",
+  totalTime: "Temps total",
   rounds: "Tours",
   avgRound: "Tour de table",
   avgTurn: "Tour moyen",

@@ -11,9 +11,10 @@ import { usePartyMeasures } from "@/lib/hooks/use-party-measures";
 import { partyLabel, partyValue } from "./party-measure";
 
 /**
- * A word on the figures a reader can mix up. Two of them are durations whose
- * names differ by one word, and a third is a count of the thing they measure —
- * so each tip says what it is *and* what it is not.
+ * A word on the figures a reader can mix up. The panel is nearly all durations,
+ * two pairs of which differ by a single word — the played time against the total
+ * one, the table's lap against a player's go — and one of them is a count of
+ * what the others measure. So each tip says what it is *and* what it is not.
  */
 const HINTS: Partial<Record<PartyFigureKey, ReactNode>> = {
   playTime: (
@@ -25,6 +26,18 @@ const HINTS: Partial<Record<PartyFigureKey, ReactNode>> = {
         La barre situe ce chiffre parmi les parties précédentes&nbsp;: vide, la
         table n&apos;a jamais fait plus bas&nbsp;; pleine, jamais plus haut. Les
         petits traits sont ces parties, sur la même échelle.
+      </p>
+    </>
+  ),
+  totalTime: (
+    <>
+      <p>
+        Temps passé autour de la table, <strong>pauses comprises</strong> — «
+        Temps de jeu » plus « Temps en pause ».
+      </p>
+      <p>
+        Il n&apos;apparaît que si la table s&apos;est arrêtée au moins une
+        fois&nbsp;: sans pause, il répéterait le temps de jeu.
       </p>
     </>
   ),

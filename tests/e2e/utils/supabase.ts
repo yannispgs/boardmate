@@ -237,7 +237,8 @@ export async function seedParty(
  * The turns of a party already in the books — what makes it a party someone
  * *played* rather than one keyed in after the fact, and what every reading of
  * time divides. A `playerId` of `null` is a turn the whole table took at once
- * (a simultaneous game), owned by nobody.
+ * (a simultaneous game), owned by nobody. `pauseDurationS` is the time the turn
+ * spent stopped, which the played seconds deliberately leave out.
  */
 export async function seedTurns(
   admin: SupabaseClient,
@@ -247,6 +248,7 @@ export async function seedTurns(
     round: number;
     turnNo: number;
     durationS: number;
+    pauseDurationS?: number;
   }>,
 ): Promise<void> {
   const { error } = await admin.from("game_turns").insert(
@@ -256,6 +258,7 @@ export async function seedTurns(
       round: t.round,
       turn_no: t.turnNo,
       duration_s: t.durationS,
+      pause_duration_s: t.pauseDurationS ?? 0,
     })),
   );
 

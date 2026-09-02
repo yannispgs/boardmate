@@ -53,6 +53,13 @@ describe("partyFigures", () => {
     expect(figures.overtime).toBe(12);
   });
 
+  it("counts the paused seconds back in to say how long the table sat", () => {
+    const figures = partyFigures(log(2, 2, 10, { pauseDurationS: 7 }));
+
+    expect(figures.playTime).toBe(40);
+    expect(figures.totalTime).toBe(68);
+  });
+
   it("answers zeroes rather than dividing by nothing on an empty log", () => {
     const figures = partyFigures([]);
 
@@ -137,6 +144,27 @@ describe("partyMeasures", () => {
 
     expect(keysOf(measures)).toContain("pauseTime");
     expect(keysOf(measures)).toContain("overtime");
+  });
+
+  // Without a pause the two durations are the same number, and two tiles saying
+  // it would have the reader hunt for a difference that cannot be there.
+  it("holds back the pause-included time until the table stopped once", () => {
+    const measures = partyMeasures({ ...base, tonight: log(4, 3, 30) });
+
+    expect(keysOf(measures)).not.toContain("totalTime");
+  });
+
+  it("shows it next to the played time as soon as it stopped", () => {
+    const measures = partyMeasures({
+      ...base,
+      tonight: log(4, 3, 30, { pauseDurationS: 5 }),
+    });
+    const total = measures.find(m => {
+      return m.key === "totalTime";
+    });
+
+    expect(keysOf(measures).slice(0, 2)).toEqual(["playTime", "totalTime"]);
+    expect(total?.value).toBe(420);
   });
 
   it("draws no bar at all on a first party of this game", () => {

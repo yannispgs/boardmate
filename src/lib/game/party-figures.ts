@@ -23,6 +23,7 @@ export interface FigureTurn {
 /** The figures a party can be read on. */
 export type PartyFigureKey =
   | "playTime"
+  | "totalTime"
   | "rounds"
   | "avgRound"
   | "avgTurn"
@@ -33,6 +34,11 @@ export type PartyFigureKey =
 export interface PartyFigures {
   /** Seconds actually played, pauses excluded. */
   playTime: number;
+  /**
+   * Seconds the party occupied the table, **pauses included** — how long the
+   * evening lasted rather than how long it was played.
+   */
+  totalTime: number;
   /** Laps of the table reached. */
   rounds: number;
   turnCount: number;
@@ -65,16 +71,23 @@ export function partyFigures(turns: readonly FigureTurn[]): PartyFigures {
   const rounds = turns.reduce((max, t) => {
     return Math.max(max, t.round);
   }, 0);
+  const pauseTime = turns.reduce((sum, t) => {
+    return sum + t.pauseDurationS;
+  }, 0);
 
   return {
     playTime,
+    // Summed off the same log rather than read as « ended_at - started_at »:
+    // that wall answers a different question. A party is opened when the box
+    // comes out and closed whenever someone thinks of it, so dev holds parties
+    // of ten seconds' play stamped three weeks apart. Play plus pause is the
+    // time the table was actually sat down.
+    totalTime: playTime + pauseTime,
     rounds,
     turnCount: turns.length,
     avgRound: rounds > 0 ? playTime / rounds : 0,
     avgTurn: turns.length > 0 ? playTime / turns.length : 0,
-    pauseTime: turns.reduce((sum, t) => {
-      return sum + t.pauseDurationS;
-    }, 0),
+    pauseTime,
     overtime: turns.reduce((sum, t) => {
       return sum + t.overtimeS;
     }, 0),
@@ -130,7 +143,11 @@ export interface PartyMeasuresInput {
  *
  * A pause total and an overtime total that are zero are dropped too — the party
  * never paused and never ran over, and a tile saying « 0 » twice is two tiles
- * spent on nothing.
+ * spent on nothing. The **pause-included time** rides on the same condition,
+ * for a stronger reason than tidiness: a party that never stopped played for
+ * exactly as long as it lasted, so showing both would print the same duration
+ * twice under two names and invite the reader to look for a difference there
+ * isn't one.
  */
 export function partyMeasures({
   tonight,
@@ -142,6 +159,10 @@ export function partyMeasures({
   const past = history.map(partyFigures);
 
   const keys: PartyFigureKey[] = ["playTime"];
+
+  if (figures.pauseTime > 0) {
+    keys.push("totalTime");
+  }
 
   if (roundLimit === null) {
     keys.push("rounds");
