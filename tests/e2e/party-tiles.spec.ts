@@ -39,6 +39,29 @@ function tile(panel: Locator, label: string): Locator {
 }
 
 /**
+ * How much of a tile's bar is painted, from 0 (empty) to 1 (full). Measured on
+ * the boxes rather than on the inline style, since what the reader is given is
+ * a length on the glass and the fill is a percentage of a parent.
+ *
+ * Handed back as a **function**, for `expect.poll` to call until it settles:
+ * `boundingBox()` carries no timeout of its own — it reads whatever is on the
+ * page at that instant — and a bar arrives one request behind the figure it
+ * sits under, since placing a party needs the game's whole history first. A
+ * plain read passes on a quiet machine and comes back null on a busy one.
+ */
+function fillRatio(stat: Locator): () => Promise<number | null> {
+  return async () => {
+    const fill = stat.getByTestId("gauge-fill");
+    const fillBox = await fill.boundingBox();
+    const trackBox = await fill.locator("..").boundingBox();
+
+    return fillBox === null || trackBox === null
+      ? null
+      : fillBox.width / trackBox.width;
+  };
+}
+
+/**
  * The « La partie » tiles of the finished-game screen (full-suite only —
  * untagged): each table figure placed among the parties played before it on the
  * same game at the same table size, and the two figures that are dropped rather
@@ -108,20 +131,10 @@ test("places the party's figures among the parties before it", async ({
     await expect(tile(panel, "Tour de table")).toContainText("1:00");
     await expect(tile(panel, "Tour moyen")).toContainText("0:20");
 
-    // 120 s between 60 and 180: the bar is painted half way. Measured on the
-    // boxes rather than on the inline style, since what the reader is given is
-    // a length on the glass and the fill is a percentage of a parent.
-    const fill = tile(panel, "Temps de jeu").getByTestId("gauge-fill");
-    const fillBox = await fill.boundingBox();
-    const trackBox = await fill.locator("..").boundingBox();
-
-    expect(fillBox).not.toBeNull();
-    expect(trackBox).not.toBeNull();
-
-    const ratio = (fillBox?.width ?? 0) / (trackBox?.width ?? 1);
-
-    expect(ratio).toBeGreaterThan(0.45);
-    expect(ratio).toBeLessThan(0.55);
+    // 120 s between 60 and 180: the bar is painted half way.
+    await expect
+      .poll(fillRatio(tile(panel, "Temps de jeu")))
+      .toBeCloseTo(0.5, 1);
 
     // A party that stopped short of the limit is the one case where the count
     // is the only thing on the screen saying the game was abandoned — so it
@@ -142,11 +155,81 @@ test("places the party's figures among the parties before it", async ({
 
     // 60 s against 60, 120 and 180: the shortest evening ever played on this
     // game at three, and an empty bar is what says so.
-    const emptyFill = tile(abandonedPanel, "Temps de jeu").getByTestId(
-      "gauge-fill",
-    );
+    await expect.poll(fillRatio(tile(abandonedPanel, "Temps de jeu"))).toBe(0);
+  } finally {
+    await dropSeeded(admin, {
+      games: seeded,
+      boardgames: [bgId],
+      playerNames: players,
+    });
+  }
+});
 
-    expect((await emptyFill.boundingBox())?.width ?? -1).toBe(0);
+/**
+ * The basket, on a game whose scale does **not** move with the table: every
+ * party of the game counts, whatever the seat count — and one party before is
+ * enough for a bar, which is the commonest history there is.
+ */
+test("reads a party against every table size when the game allows it", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const players = await seedPlayers(3);
+  const gameName = `E2E Panier ${Date.now().toString(36)}`;
+  const seeded: string[] = [];
+  let bgId: string | null = null;
+
+  try {
+    // A plain total, highest takes it — and no `playerCountSensitive`, which is
+    // what widens the basket.
+    bgId = await seedBoardgame(admin, {
+      name: gameName,
+      minPlayers: 2,
+      maxPlayers: 4,
+      roundLimit: null,
+      scoring: {
+        timing: "final",
+        entry: "total",
+        winCondition: { type: "highest" },
+      },
+    });
+
+    const ids = await playerIds(players);
+    const table = scoreTable(players, ids);
+
+    // The only party before, and it was played at three.
+    const past = await seedParty(admin, bgId as string, table([40, 10, 20]));
+
+    seeded.push(past);
+
+    await seedTurns(admin, past, lap(ids, players, 1, 10));
+
+    // Tonight, at two — a table size that has never been played on this game.
+    const duel = players.slice(0, 2);
+    const tonight = await seedParty(admin, bgId as string, table([50, 30]));
+
+    seeded.push(tonight);
+
+    await seedTurns(admin, tonight, lap(ids, duel, 1, 40));
+
+    await page.goto(`/games/${tonight}/play`);
+
+    const panel = page.getByTestId("party-panel");
+
+    await expect(tile(panel, "Temps de jeu")).toContainText("1:20");
+
+    // 80 s against the 30 s of a party played at another table size: the bar
+    // exists at all, and it is full — the longest evening on this game.
+    await expect.poll(fillRatio(tile(panel, "Temps de jeu"))).toBe(1);
+
+    // And the tip says which parties were counted, since the bars carry no text.
+    await tile(panel, "Temps de jeu")
+      .getByRole("button", { name: "Temps de jeu" })
+      .click();
+
+    await expect(page.getByTestId("info-bubble")).toContainText(
+      "quel que soit le nombre de joueurs",
+    );
   } finally {
     await dropSeeded(admin, {
       games: seeded,

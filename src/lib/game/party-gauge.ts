@@ -28,21 +28,26 @@ export interface Gauge {
   marks: number[];
 }
 
+/** Where a history with no width of its own is drawn: dead centre. */
+const MIDDLE = 0.5;
+
 /**
  * The bar behind one figure, or `null` when there is nothing to place it
- * against.
- *
- * Null covers the two cases that have no scale rather than an empty one: a
- * first party on this game, and a run of parties that all landed on the same
- * figure. Both would otherwise divide by a width of zero — and, worse, a bar
- * drawn empty would claim « the lowest ever », which is a statement about a
- * history that does not exist.
+ * against — a first party on this game, and nothing else.
  *
  * The scale is set by the **past** parties alone, never by tonight. That is what
  * makes the two ends readable as records: tonight below everything clamps the
  * fill to 0 and tonight above everything clamps it to 1, so an empty bar and a
  * full one each mean something, instead of being the two values every scale
  * hands out for free.
+ *
+ * ⚠️ A history can have **no width**: one party before this one, or several that
+ * all landed on the same figure. There is no scale to stretch then — but there
+ * is still an answer, and it is the one a reader most wants on a second party:
+ * longer, shorter, or the same. So the reference is drawn as a single mark in
+ * the middle and the bar goes empty, half or full against it. Returning null
+ * there would have hidden the bar on exactly the evenings that start a history
+ * — which is what it did, on a table that had played a game twice.
  */
 export function gauge(past: readonly number[], value: number): Gauge | null {
   if (past.length === 0) {
@@ -54,7 +59,10 @@ export function gauge(past: readonly number[], value: number): Gauge | null {
   const width = max - min;
 
   if (width === 0) {
-    return null;
+    return {
+      fill: value === min ? MIDDLE : Number(value > min),
+      marks: [MIDDLE],
+    };
   }
 
   const at = (v: number) => {

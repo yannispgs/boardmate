@@ -16,6 +16,18 @@ import { partyLabel, partyValue } from "./party-measure";
  * so each tip says what it is *and* what it is not.
  */
 const HINTS: Partial<Record<PartyFigureKey, ReactNode>> = {
+  playTime: (
+    <>
+      <p>
+        Temps réellement joué, <strong>pauses déduites</strong>.
+      </p>
+      <p>
+        La barre situe ce chiffre parmi les parties précédentes&nbsp;: vide, la
+        table n&apos;a jamais fait plus bas&nbsp;; pleine, jamais plus haut. Les
+        petits traits sont ces parties, sur la même échelle.
+      </p>
+    </>
+  ),
   rounds: (
     <>
       <p>
@@ -90,12 +102,27 @@ export function PartyStatTiles({
   extra?: readonly PlainTile[];
 }>) {
   const measures = usePartyMeasures(game, simultaneous);
+  // Which parties the bars are counted on changes with the game, and the bars
+  // themselves cannot say so — carrying no text is the point of them. The tip
+  // on the headline figure is where the reader can go and find out.
+  const basket =
+    game.boardgame.scoring?.playerCountSensitive === true
+      ? "Sont comparées les parties de ce jeu au même nombre de joueurs : sur ce jeu-là, la table change les chiffres."
+      : "Sont comparées toutes les parties de ce jeu, quel que soit le nombre de joueurs.";
 
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
       {measures.flatMap(m => {
         const label = partyLabel(m.key);
-        const hint = HINTS[m.key];
+        const hint =
+          m.key === "playTime" ? (
+            <>
+              {HINTS.playTime}
+              <p>{basket}</p>
+            </>
+          ) : (
+            HINTS[m.key]
+          );
         const tile = (
           <StatTile
             key={label}

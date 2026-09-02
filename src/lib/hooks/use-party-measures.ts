@@ -8,24 +8,28 @@ import { partyMeasures } from "@/lib/game/party-figures";
 import { useGameStats } from "./use-game-stats";
 
 /**
- * The parties tonight is read against: the same game, at the **same table
- * size**, tonight left out.
+ * The parties tonight is read against: the same game, tonight left out, and —
+ * on a game whose figures really move with the table — the same table size.
  *
- * The table size is not a nicety. Half the figures on this panel are durations,
- * and a Cascadia at two and a Cascadia at four are not long and short versions
- * of the same evening — mixed together, a bar on « Temps de jeu » would mostly
- * report how many people were sitting down. A party is not a reference for
- * itself either, which is the second half of the filter.
+ * The size is only applied where the game says it counts (`playerCountSensitive`,
+ * the same flag the records and the player recaps read). Narrowing everywhere
+ * looked right and was mostly a way of emptying the panel: on a real history,
+ * five parties out of six had **nobody** to be compared with at their own table
+ * size, so the bars simply never appeared. A game the flag leaves out is one
+ * whose scale barely moves with the seat count, and there the wider basket is
+ * both fuller and no less honest.
  */
 function comparable(
   records: readonly GameStatsRecord[],
   game: PopulatedGame,
 ): GameStatsRecord[] {
+  const atSize = game.boardgame.scoring?.playerCountSensitive === true;
+
   return records.filter(r => {
     return (
       r.boardgameId === game.boardgameId &&
       r.gameId !== game.id &&
-      r.players.length === game.players.length
+      (!atSize || r.players.length === game.players.length)
     );
   });
 }

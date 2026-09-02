@@ -43,9 +43,17 @@ describe("gauge", () => {
     expect(gauge([], 40)).toBeNull();
   });
 
-  // An empty bar would claim « the lowest ever » against parties that were all
-  // the same figure — a record read off a history with no width.
-  it("draws no bar when every past party landed on the same figure", () => {
-    expect(gauge([30, 30, 30], 12)).toBeNull();
+  // A history with no width of its own still answers the question a second
+  // party asks — longer, shorter, or the same — so the reference is drawn as
+  // one mark in the middle and the bar is read against it.
+  it("reads a party against a history that has no width", () => {
+    expect(gauge([30, 30, 30], 12)).toEqual({ fill: 0, marks: [0.5] });
+    expect(gauge([30, 30, 30], 44)).toEqual({ fill: 1, marks: [0.5] });
+    expect(gauge([30, 30, 30], 30)).toEqual({ fill: 0.5, marks: [0.5] });
+  });
+
+  // The commonest case of all: a game played twice.
+  it("reads a party against the only one before it", () => {
+    expect(gauge([30], 44)).toEqual({ fill: 1, marks: [0.5] });
   });
 });
