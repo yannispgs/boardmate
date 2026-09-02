@@ -39,7 +39,7 @@ export function measureValue(key: MeasureKey, value: number): string {
  */
 export function measureHint(key: MeasureKey): string | null {
   if (key === "placement") {
-    return "0 = premier, 100 = dernier.";
+    return "0 = premier, 100 = dernier. La barre garde le bon côté à droite, comme les autres.";
   }
 
   if (key === "speed") {

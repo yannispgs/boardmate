@@ -108,9 +108,10 @@ describe("finishPlaces", () => {
     expect(finishPlaces(crowned([ann, 10], [bob, null]), "highest")).toBeNull();
   });
 
-  // The statistics screens count on the totals and nothing else: « the first to
-  // play finishes 2.4th on average » is a fact about points, and a tie settled
-  // by a die roll has no business moving it.
+  // The two are deliberately kept apart while the statistics screens still
+  // count on the totals alone. Not because the totals are the better reading —
+  // every tie-break the app carries is a rulebook criterion — but because those
+  // figures are older than this function and moving them is its own change.
   it("is the one ranking that reads the crown — placements ignores it", () => {
     const table = crowned([ann, 10], [bob, 10, true]);
 

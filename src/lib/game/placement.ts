@@ -64,11 +64,13 @@ function byScore(direction: ScoreDirection) {
  * 1-based placement per player within one party, **on the score alone** —
  * `null` if any score is missing, ties sharing the rank above.
  *
- * This is the ranking the statistics screens are counted on, and it deliberately
- * ignores who the table crowned: « the first to play finishes 2.4th on average »
- * is a fact about totals, and a tie-break settled by a die roll would put noise
- * into it. When the question is who finished where **tonight**, that is
- * {@link finishPlaces}.
+ * This is what the statistics screens are still counted on — the average
+ * position of a seat, and of a neighbour. It is **not** the better reading:
+ * every tie-break the app actually carries is a rulebook criterion (Splito's
+ * fewest Splito cards, Cascadia's nature tokens, Splendor's development cards),
+ * so a player the rules put second belongs second in an average too. Those two
+ * figures are simply older than {@link finishPlaces} and move published numbers
+ * when they change, which is a change of its own.
  */
 export function placements(
   players: ReadonlyArray<Scored>,

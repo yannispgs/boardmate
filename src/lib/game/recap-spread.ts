@@ -8,10 +8,10 @@
 import type { ScoreDirection } from "./scoring";
 
 export interface Spread {
-  /** The smallest figure the bar spans — its left end. */
-  min: number;
-  /** The largest — its right end. */
-  max: number;
+  /** The figure the bar starts on, at its left end. */
+  left: number;
+  /** The figure it ends on — the good end, whenever the measure has one. */
+  right: number;
   /** Each past party at its place along the bar, 0 = left, 1 = right. */
   marks: number[];
   /** This party, on the same scale: where the cursor goes. */
@@ -22,11 +22,25 @@ export interface Spread {
  * The bar behind one measure, or `null` when there is nothing to draw — a first
  * party has a figure and no spread.
  *
- * Parties that all landed on the same figure have no width either. Rather than
- * divide by nothing, everything stacks in the middle: one mark with the cursor
- * on it, which is exactly what happened.
+ * **The good end is always the right one.** Stacked one under the other, bars
+ * that disagreed on which way is up would make a column of cursors where a
+ * cursor far right means a fine evening on one line and a poor one on the next
+ * — read at a glance, which is the only way a column of bars is read. So a
+ * measure whose small figure wins (a placement, the laps of a Catan race,
+ * Odin's points) runs its scale backwards, and its two end labels swap with it.
+ *
+ * A measure with no good end at all (a share of the table's time) keeps the
+ * natural order, smallest first: there is nothing to point the other way.
+ *
+ * Parties that all landed on the same figure have no width. Rather than divide
+ * by nothing, everything stacks in the middle: one mark with the cursor on it,
+ * which is exactly what happened.
  */
-export function spread(past: readonly number[], value: number): Spread | null {
+export function spread(
+  past: readonly number[],
+  value: number,
+  direction: ScoreDirection | null,
+): Spread | null {
   if (past.length === 0) {
     return null;
   }
@@ -35,12 +49,24 @@ export function spread(past: readonly number[], value: number): Spread | null {
   const min = Math.min(...all);
   const max = Math.max(...all);
   const width = max - min;
+  const descending = direction === "lowest";
 
   const at = (v: number) => {
-    return width === 0 ? 0.5 : (v - min) / width;
+    if (width === 0) {
+      return 0.5;
+    }
+
+    const t = (v - min) / width;
+
+    return descending ? 1 - t : t;
   };
 
-  return { min, max, marks: past.map(at), cursor: at(value) };
+  return {
+    left: descending ? max : min,
+    right: descending ? min : max,
+    marks: past.map(at),
+    cursor: at(value),
+  };
 }
 
 /**

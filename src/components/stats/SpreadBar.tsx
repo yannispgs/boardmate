@@ -6,9 +6,12 @@ const PAD = 5; // room for the cursor at either end, so it is never clipped
 const MARK = 2.5; // radius of a past party
 
 /**
- * One measure's spread on a single line: a track running from the smallest
- * figure to the largest, a grey dot for each party already played, and a
+ * One measure's spread on a single line: a track running from the measure's
+ * poor end to its good one, a grey dot for each party already played, and a
  * cursor on the one just played.
+ *
+ * Which figure sits at which end is {@link Spread}'s business, not this
+ * component's — it draws left to right and asks nothing about what it means.
  *
  * It replaces a dot plot in a modal. The plot said more — how many parties
  * shared a figure, since the dots stacked — but it said it a tap away and one

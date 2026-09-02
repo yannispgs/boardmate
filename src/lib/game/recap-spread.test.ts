@@ -4,38 +4,67 @@ import { spread, standing, standingTone, topPercent } from "./recap-spread";
 
 describe("spread", () => {
   it("places every party between the smallest and the largest", () => {
-    const bar = spread([40, 60], 50);
+    const bar = spread([40, 60], 50, "highest");
 
     expect(bar).toEqual({
-      min: 40,
-      max: 60,
+      left: 40,
+      right: 60,
       marks: [0, 1],
       cursor: 0.5,
     });
   });
 
   it("puts this party at an end when this party is the end", () => {
-    const low = spread([40, 60], 30);
-    const high = spread([40, 60], 90);
+    const low = spread([40, 60], 30, "highest");
+    const high = spread([40, 60], 90, "highest");
 
     expect(low?.cursor).toBe(0);
-    expect(low?.min).toBe(30);
+    expect(low?.left).toBe(30);
     expect(high?.cursor).toBe(1);
-    expect(high?.max).toBe(90);
+    expect(high?.right).toBe(90);
+  });
+
+  // Every bar on the screen puts the good evening on the right, so a measure
+  // the small figure wins runs backwards — labels and all.
+  it("turns the bar around when the small figure is the good one", () => {
+    const bar = spread([40, 60], 50, "lowest");
+
+    expect(bar).toEqual({
+      left: 60,
+      right: 40,
+      marks: [1, 0],
+      cursor: 0.5,
+    });
+  });
+
+  it("puts the best of a descending measure hard against the right end", () => {
+    const bar = spread([40, 60], 30, "lowest");
+
+    expect(bar?.cursor).toBe(1);
+    expect(bar?.right).toBe(30);
+  });
+
+  // A share of the table's time has no good end, so there is nothing to point
+  // the other way and the natural order stands.
+  it("keeps the natural order on a measure with no good end", () => {
+    const bar = spread([40, 60], 50, null);
+
+    expect(bar?.left).toBe(40);
+    expect(bar?.right).toBe(60);
   });
 
   it("has nothing to draw on a first party", () => {
-    expect(spread([], 50)).toBeNull();
+    expect(spread([], 50, "highest")).toBeNull();
   });
 
   it("stacks a run of identical figures in the middle", () => {
     // Nothing ever moved, so there is no width to divide by — and the picture
     // of one mark under the cursor is the truthful one.
-    const bar = spread([50, 50], 50);
+    const bar = spread([50, 50], 50, "highest");
 
     expect(bar).toEqual({
-      min: 50,
-      max: 50,
+      left: 50,
+      right: 50,
       marks: [0.5, 0.5],
       cursor: 0.5,
     });

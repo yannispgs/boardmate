@@ -70,7 +70,7 @@ const PODIUM: Record<number, string> = {
  * other become a single smudge — the one thing the bar exists to show.
  */
 function Measure({ measure }: Readonly<{ measure: RecapMeasure }>) {
-  const bar = spread(measure.past, measure.value);
+  const bar = spread(measure.past, measure.value, measure.direction);
   const standing = measureStanding(measure);
   const hint = measureHint(measure.key);
 
@@ -102,7 +102,7 @@ function Measure({ measure }: Readonly<{ measure: RecapMeasure }>) {
       {bar === null ? null : (
         <div className="flex items-center gap-1.5">
           <span className="w-10 shrink-0 text-right text-[10px] tabular-nums text-zinc-400 dark:text-zinc-500">
-            {measureValue(measure.key, bar.min)}
+            {measureValue(measure.key, bar.left)}
           </span>
 
           <SpreadBar
@@ -114,7 +114,7 @@ function Measure({ measure }: Readonly<{ measure: RecapMeasure }>) {
           />
 
           <span className="w-10 shrink-0 text-[10px] tabular-nums text-zinc-400 dark:text-zinc-500">
-            {measureValue(measure.key, bar.max)}
+            {measureValue(measure.key, bar.right)}
           </span>
         </div>
       )}
