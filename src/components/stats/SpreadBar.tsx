@@ -1,9 +1,18 @@
 import type { Spread } from "@/lib/game/recap-spread";
 
+/**
+ * The drawing is in viewBox units, and the box is **wider than the space it is
+ * given**: 320 units land on about 190 px between the two end labels on a
+ * phone, so every figure below is worth roughly **0.59 px** on the glass.
+ *
+ * That ratio is the thing to hold in mind when touching these. A radius of 2.5
+ * — which reads as a comfortable dot in the source — is a 3 px speck once
+ * drawn, and it was too small to find on the track.
+ */
 const WIDTH = 320; // viewBox width (scales to the container via w-full)
 const HEIGHT = 14;
 const PAD = 5; // room for the cursor at either end, so it is never clipped
-const MARK = 2.5; // radius of a past party
+const MARK = 3.5; // radius of a past party — 4.2 px on the glass
 
 /**
  * One measure's spread on a single line: a track running from the measure's
@@ -60,20 +69,31 @@ export function SpreadBar({
           would have nothing to be told apart by; as a single path they are just
           ink. A zero-length subpath under a round cap is drawn as a disc — the
           spec's own way of writing a dot. */}
+      {/* Grey on the dark reading is one step lighter than the instinct: this
+          bar lives on a screen that paints itself dark, where a colour taken
+          down to sit behind the cursor simply stops being there. A dot has to
+          be findable on its own — it is the one that says where the player's
+          other parties fell — so it is lit to about the weight of the two end
+          labels, and told apart from the cursor by its colour, not by being
+          faint. */}
       <path
         d={bar.marks.map(t => `M${x(t)} ${mid}h0`).join("")}
         strokeWidth={MARK * 2}
         strokeLinecap="round"
-        className="stroke-zinc-300 dark:stroke-zinc-600"
+        className="stroke-zinc-300 dark:stroke-zinc-500"
       />
 
+      {/* The party just played, and the only mark the reader actually looks
+          for — so it is the widest thing on the line and the brightest, which
+          it was neither of: 3 units of an indigo pitched for a white page came
+          out as the faintest stroke of the whole bar on this one. */}
       <rect
-        x={x(bar.cursor) - 1.5}
+        x={x(bar.cursor) - 2}
         y={0}
-        width={3}
+        width={4}
         height={HEIGHT}
-        rx={1.5}
-        className="fill-indigo-500"
+        rx={2}
+        className="fill-indigo-500 dark:fill-indigo-400"
       />
     </svg>
   );
