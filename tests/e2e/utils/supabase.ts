@@ -315,6 +315,8 @@ export async function seedBoardgame(
      * must not have one (Papayoo's kind).
      */
     isTimed?: boolean;
+    /** `"simultaneous"` for a game whose table plays each lap at once (Splito). */
+    turnMode?: "sequential" | "simultaneous";
   }>,
 ): Promise<string> {
   const { data, error } = await admin
@@ -324,6 +326,7 @@ export async function seedBoardgame(
       min_players: fields.minPlayers ?? 1,
       max_players: fields.maxPlayers ?? 4,
       ...(fields.isTimed === undefined ? {} : { is_timed: fields.isTimed }),
+      ...(fields.turnMode === undefined ? {} : { turn_mode: fields.turnMode }),
       ...(fields.roundLimit === undefined
         ? {}
         : { round_limit: fields.roundLimit }),

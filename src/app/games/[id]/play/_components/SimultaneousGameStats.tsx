@@ -1,7 +1,7 @@
-import { StatTile } from "@/components/StatTile";
 import type { PopulatedGame } from "@/lib/domain";
 import { formatDuration } from "@/lib/game/format-time";
 import { computeSimultaneousStats } from "@/lib/game/simultaneous-stats";
+import { PartyStatTiles, type PlainTile } from "./PartyStatTiles";
 
 /**
  * End-of-game statistics for a simultaneous game (everyone plays each round at
@@ -18,33 +18,20 @@ export function SimultaneousGameStats({
 
   const scale = stats.longestRound?.durationS ?? 0;
 
-  const tiles: { label: string; value: string; accent?: boolean }[] = [
-    {
-      label: "Temps de jeu",
-      value: formatDuration(stats.totalS),
-      accent: true,
-    },
-    { label: "Tours", value: String(stats.roundCount) },
-  ];
-  if (stats.longestRound) {
-    tiles.push({
-      label: "Tour le plus long",
-      value: formatDuration(stats.longestRound.durationS),
-    });
-  }
+  // The longest lap is this party's alone: the history says how long a lap took
+  // on average, never which one of them was the worst.
+  const extra: PlainTile[] = stats.longestRound
+    ? [
+        {
+          label: "Tour le plus long",
+          value: formatDuration(stats.longestRound.durationS),
+        },
+      ]
+    : [];
 
   return (
     <section className="flex flex-col gap-6">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {tiles.map(t => (
-          <StatTile
-            key={t.label}
-            label={t.label}
-            value={t.value}
-            accent={t.accent}
-          />
-        ))}
-      </div>
+      <PartyStatTiles game={game} simultaneous extra={extra} />
 
       {stats.waited.length > 0 ? (
         <div className="flex flex-col gap-2">

@@ -1,10 +1,5 @@
-import type { ReactNode } from "react";
-
-import { InfoTip } from "@/components/InfoTip";
-import { StatTile } from "@/components/StatTile";
 import type { PopulatedGame } from "@/lib/domain";
 import { DEFAULT_STAGE_LABEL } from "@/lib/game/finished-setup";
-import { formatDuration } from "@/lib/game/format-time";
 import { turnPhase } from "@/lib/game/phase-stats";
 import { buildScoreSeries } from "@/lib/game/score-series";
 import { computeGameStats } from "@/lib/game/stats";
@@ -12,6 +7,7 @@ import { hasPlayStats } from "@/lib/game/turn-time";
 import { buildTurnTimeSeries } from "@/lib/game/turn-time-series";
 import { DiceTimeline } from "./DiceTimeline";
 import { GameHighlights } from "./GameHighlights";
+import { PartyStatTiles } from "./PartyStatTiles";
 import { PhaseTimeSection } from "./PhaseTimeSection";
 import { PlayerStatCardList } from "./PlayerStatCardList";
 import { ScoreChart } from "./ScoreChart";
@@ -22,8 +18,9 @@ import { TurnTimeChart } from "./TurnTimeChart";
 
 /**
  * The end-of-game statistics panel (time & rhythm). Reveals below the winner
- * banner when the player scrolls. All figures are derived client-side from the
- * turn log by `computeGameStats`; nothing here needs the network.
+ * banner when the player scrolls. Everything below the tiles is derived
+ * client-side from this party's own turn log by `computeGameStats`; only the
+ * tiles look further, at the parties before this one.
  */
 export function GameStats({ game }: Readonly<{ game: PopulatedGame }>) {
   // Nothing was timed and nothing was counted in manches (Papayoo): the party
@@ -74,81 +71,13 @@ export function GameStats({ game }: Readonly<{ game: PopulatedGame }>) {
     ? `Évolution du temps par tour — phase ${timedPhase.label}`
     : "Évolution du temps par tour";
 
-  const tiles: {
-    label: string;
-    value: string;
-    accent?: boolean;
-    info?: ReactNode;
-  }[] = [
-    {
-      label: "Temps de jeu",
-      value: formatDuration(stats.activeTotalS),
-      accent: true,
-    },
-    {
-      label: "Tours",
-      value: String(stats.rounds),
-      info: (
-        <InfoTip label="Tours">
-          <p>
-            Nombre de <strong>tours de table</strong> joués (un tour = chaque
-            joueur a joué une fois).
-          </p>
-          <p>Différent de « Tour moyen », qui est une durée.</p>
-        </InfoTip>
-      ),
-    },
-    {
-      label: "Tour moyen",
-      value: formatDuration(stats.avgRoundS),
-      info: (
-        <InfoTip label="Tour moyen">
-          <p>
-            <strong>Durée moyenne d&apos;un tour de table</strong> (tous les
-            joueurs).
-          </p>
-          <p>Différent de « Tours », qui en compte le nombre.</p>
-        </InfoTip>
-      ),
-    },
-  ];
-
-  // Pauses only earn their tiles when there were any; otherwise a discreet line.
-  if (stats.totalPauseCount > 0) {
-    tiles.push(
-      { label: "Pauses", value: String(stats.totalPauseCount) },
-      { label: "Temps en pause", value: formatDuration(stats.totalPauseS) },
-    );
-  }
-
-  // Overtime tile only when someone ran over the allotted time.
-  if (stats.totalOvertimeS > 0) {
-    tiles.push({
-      label: "Dépassement",
-      value: formatDuration(stats.totalOvertimeS),
-      info: (
-        <InfoTip label="Dépassement">
-          Temps total joué <strong>au-delà du chrono du tour</strong> (le
-          minuteur compte à rebours, puis compte le dépassement une fois à
-          zéro).
-        </InfoTip>
-      ),
-    });
-  }
-
   return (
     <section className="flex flex-col gap-6">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {tiles.map(t => (
-          <StatTile
-            key={t.label}
-            label={t.label}
-            value={t.value}
-            accent={t.accent}
-            info={t.info}
-          />
-        ))}
-      </div>
+      <PartyStatTiles
+        game={game}
+        simultaneous={false}
+        pauseCount={stats.totalPauseCount}
+      />
 
       <GameHighlights stats={stats} />
 
