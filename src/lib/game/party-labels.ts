@@ -56,7 +56,7 @@ const LABELS: Record<PartyFigureKey, string> = {
 
 /** The two figures the turn log alone can measure, and therefore the two a
  *  phased game has to qualify: they price the turn-taking phase, not the party. */
-const TURN_PHASE_KEYS: readonly PartyFigureKey[] = ["avgRound", "avgTurn"];
+const TURN_PHASE_KEYS = new Set<PartyFigureKey>(["avgRound", "avgTurn"]);
 
 export function partyLabel(key: PartyFigureKey, naming: PartyNaming): string {
   // « Tours 14 » on a Terraforming Mars names something nobody at that table
@@ -65,7 +65,7 @@ export function partyLabel(key: PartyFigureKey, naming: PartyNaming): string {
     return `${naming.roundLabel}s`;
   }
 
-  if (naming.turnPhaseLabel !== null && TURN_PHASE_KEYS.includes(key)) {
+  if (naming.turnPhaseLabel !== null && TURN_PHASE_KEYS.has(key)) {
     return `${LABELS[key]} — ${naming.turnPhaseLabel}`;
   }
 
