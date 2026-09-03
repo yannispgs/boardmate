@@ -39,8 +39,8 @@ test("records a finished game with final scores and a winner", async ({
     await page.getByRole("spinbutton", { name: names[0] }).fill("10");
     await page.getByRole("spinbutton", { name: names[1] }).fill("8");
 
-    // No tie → the winner is unambiguous (top scorer), so no picker is shown.
-    await expect(page.getByText("Vainqueur")).toBeHidden();
+    // No tie → the winner is unambiguous (top scorer), so nothing is asked.
+    await expect(page.getByText("qui a gagné")).toBeHidden();
 
     await page.getByRole("button", { name: "Enregistrer la partie" }).click();
 
@@ -103,17 +103,21 @@ test("asks for the winner only on a tie, among the tied players", async ({
     await page.getByRole("spinbutton", { name: names[1] }).fill("10");
     await page.getByRole("spinbutton", { name: names[2] }).fill("5");
 
-    // The tie surfaces the picker; only the two tied players are candidates
+    // The tie surfaces the question; only the two tied players are candidates
     // (the third, not tied for the lead, has no winner card).
-    await expect(page.getByText("Vainqueur")).toBeVisible();
+    await expect(page.getByText("Égalité — qui a gagné ?")).toBeVisible();
     await expect(
       page.getByRole("button", { name: names[2], exact: true }),
     ).toHaveCount(0);
 
-    // Both tied players are proposed (a shared victory); dropping the first
-    // leaves the second as the lone winner.
-    await page.getByRole("button", { name: names[0], exact: true }).click();
-    await page.getByRole("button", { name: "Enregistrer la partie" }).click();
+    // Neither is proposed: until the table designates one, there is nothing to
+    // record and the party can't be filed.
+    const save = page.getByRole("button", { name: "Enregistrer la partie" });
+
+    await expect(save).toBeDisabled();
+
+    await page.getByRole("button", { name: names[1], exact: true }).click();
+    await save.click();
     await expect(page).toHaveURL(/\/games$/);
 
     const { data: gps } = await admin
@@ -158,8 +162,8 @@ test("records a tie left unbroken as a shared victory (two winners)", async ({
     await page.getByRole("spinbutton", { name: names[0] }).fill("10");
     await page.getByRole("spinbutton", { name: names[1] }).fill("10");
 
-    // Both tied players stay selected → the victory is shared.
-    await expect(page.getByText("Vainqueurs")).toBeVisible();
+    // Sharing it is a choice of its own, not what happens when nobody answers.
+    await page.getByRole("button", { name: "Victoire partagée" }).click();
     await page.getByRole("button", { name: "Enregistrer la partie" }).click();
     await expect(page).toHaveURL(/\/games$/);
 
@@ -425,6 +429,81 @@ test("records a pair-scored game on its shared piles", async ({ page }) => {
     if (gameId) {
       await admin.from("games").delete().eq("id", gameId);
     }
+    await admin.from("players").delete().in("name", names);
+  }
+});
+
+/**
+ * The tie a pair-scored game falls into all by itself: three equal piles round
+ * the ring give every seat the same product. The form must then name Splito's
+ * own rule, refuse to file the night until somebody is designated, and take
+ * back the winner alone — never the card count the table settled it on.
+ */
+test("names the game's tie-break rule and waits for an answer", async ({
+  page,
+}) => {
+  const names = await seedPlayers(3);
+  const admin = adminClient();
+  let gameId: string | undefined;
+
+  try {
+    await page.goto("/games/finished");
+    await page.getByRole("button", { name: "Splito", exact: true }).click();
+    for (const name of names) {
+      await page.getByRole("button", { name, exact: true }).click();
+    }
+
+    // Left at the count they are seeded with, the three piles are equal — so
+    // are the three products, and the table is level.
+    for (const pair of [
+      [names[0], names[1]],
+      [names[1], names[2]],
+      [names[2], names[0]],
+    ]) {
+      await page
+        .getByRole("button", { name: `Tas entre ${pair[0]} et ${pair[1]}` })
+        .click();
+    }
+
+    const save = page.getByRole("button", { name: "Enregistrer la partie" });
+
+    await expect(page.getByText("Égalité — qui a gagné ?")).toBeVisible();
+    await expect(page.getByText("Le moins de cartes Splito")).toBeVisible();
+    await expect(save).toBeDisabled();
+
+    // The rule is named, not applied: no field asks for the card count.
+    await expect(
+      page.getByRole("spinbutton", { name: /cartes Splito/ }),
+    ).toHaveCount(0);
+
+    await page.getByRole("button", { name: names[2], exact: true }).click();
+    await expect(save).toBeEnabled();
+    await save.click();
+
+    await expect(page).toHaveURL(/\/games$/);
+
+    const { data: seeded } = await admin
+      .from("players")
+      .select("id, name")
+      .in("name", names);
+    const winnerId = (seeded ?? []).find(p => p.name === names[2])?.id;
+    const { data: gps } = await admin
+      .from("game_players")
+      .select("game_id, is_winner, player_id")
+      .in(
+        "player_id",
+        (seeded ?? []).map(p => p.id),
+      );
+    const rows = gps ?? [];
+    gameId = rows[0]?.game_id as string;
+
+    expect(rows.filter(r => r.is_winner)).toHaveLength(1);
+    expect(rows.find(r => r.is_winner)?.player_id).toBe(winnerId);
+  } finally {
+    if (gameId) {
+      await admin.from("games").delete().eq("id", gameId);
+    }
+
     await admin.from("players").delete().in("name", names);
   }
 });

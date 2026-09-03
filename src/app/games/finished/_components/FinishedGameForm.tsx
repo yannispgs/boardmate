@@ -17,6 +17,7 @@ import {
   type StageGoalRaw,
 } from "@/lib/game/finished-goals";
 import { finishedSetup } from "@/lib/game/finished-setup";
+import { finishedWinners } from "@/lib/game/finished-winner";
 import { localDay } from "@/lib/game/game-filters";
 import { type StagePick, stageGoalPrefill } from "@/lib/game/stage";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
@@ -98,14 +99,12 @@ export function FinishedGameForm() {
     piles,
   );
 
-  const needsWinnerChoice =
-    scoring === null ? selected.length >= 1 : entry.winnerCandidates.length > 1;
-  // A scored game proposes its co-leaders (one of them when there is a clear
-  // top scorer, all of them on a tie — a shared victory until narrowed down);
-  // an unscored one has nothing to propose.
-  const suggestedWinners =
-    scoring === null ? [] : entry.winnerCandidates.map(p => p.id);
-  const effectiveWinners = winnerIds ?? suggestedWinners;
+  const choice = finishedWinners(
+    scoring,
+    selected.length,
+    entry.winnerCandidates,
+  );
+  const effectiveWinners = winnerIds ?? choice.preselected;
 
   function chooseBoardgame(b: Boardgame) {
     setBoardgame(b);
@@ -254,7 +253,7 @@ export function FinishedGameForm() {
           catRaw={catRaw}
           piles={piles}
           winners={effectiveWinners}
-          needsWinnerChoice={needsWinnerChoice}
+          choice={choice}
           disabled={submitting}
           onEndedAt={setEndedAt}
           onPicks={next => {
@@ -287,6 +286,9 @@ export function FinishedGameForm() {
             setPiles(p => ({ ...p, [key]: value }));
           }}
           onWinner={id => setWinnerIds(toggled(effectiveWinners, id))}
+          onShareWin={() => {
+            setWinnerIds(entry.winnerCandidates.map(p => p.id));
+          }}
         />
       ) : null}
 
