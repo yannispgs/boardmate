@@ -6,9 +6,10 @@ import { InfoTip } from "@/components/InfoTip";
 import { StatTile } from "@/components/StatTile";
 import type { PopulatedGame } from "@/lib/domain";
 import type { PartyFigureKey } from "@/lib/game/party-figures";
+import type { PartyNaming } from "@/lib/game/party-labels";
+import { PLAIN_NAMING, partyLabel, partyValue } from "@/lib/game/party-labels";
+import { turnPhase } from "@/lib/game/phase-stats";
 import { usePartyMeasures } from "@/lib/hooks/use-party-measures";
-
-import { partyLabel, partyValue } from "./party-measure";
 
 /**
  * A word on the figures a reader can mix up. The panel is nearly all durations,
@@ -16,68 +17,99 @@ import { partyLabel, partyValue } from "./party-measure";
  * one, the table's lap against a player's go — and one of them is a count of
  * what the others measure. So each tip says what it is *and* what it is not.
  */
-const HINTS: Partial<Record<PartyFigureKey, ReactNode>> = {
-  playTime: (
-    <>
+function hintsFor(
+  naming: PartyNaming,
+): Partial<Record<PartyFigureKey, ReactNode>> {
+  // On a game played in phases, the turn log only covers one of them — so the
+  // two averages it feeds price that phase and say which, while the party's own
+  // durations say that they cover the lot.
+  const phase = naming.turnPhaseLabel;
+  const onlyPhase =
+    phase === null ? null : (
       <p>
-        Temps réellement joué, <strong>pauses déduites</strong>.
+        Ne concerne que la phase <strong>{phase}</strong>&nbsp;: les autres se
+        jouent en même temps par toute la table, sans tour de personne.
       </p>
+    );
+  const everyPhase =
+    phase === null ? null : (
       <p>
-        La barre situe ce chiffre parmi les parties précédentes&nbsp;: vide, la
-        table n&apos;a jamais fait plus bas&nbsp;; pleine, jamais plus haut. Les
-        petits traits sont ces parties, sur la même échelle.
+        <strong>Toutes les phases comprises</strong>, pas seulement «&nbsp;
+        {phase}&nbsp;» — c&apos;est la soirée entière.
       </p>
-    </>
-  ),
-  totalTime: (
-    <>
-      <p>
-        Temps passé autour de la table, <strong>pauses comprises</strong> — «
-        Temps de jeu » plus « Temps en pause ».
-      </p>
-      <p>
-        Il n&apos;apparaît que si la table s&apos;est arrêtée au moins une
-        fois&nbsp;: sans pause, il répéterait le temps de jeu.
-      </p>
-    </>
-  ),
-  rounds: (
-    <>
-      <p>
-        Nombre de <strong>tours de table</strong> joués (un tour = chaque joueur
-        a joué une fois).
-      </p>
-      <p>C&apos;est un compte, pas une durée.</p>
-    </>
-  ),
-  avgRound: (
-    <>
-      <p>
-        <strong>Durée moyenne d&apos;un tour de table</strong>, tous les joueurs
-        réunis.
-      </p>
-      <p>« Tour moyen », juste à côté, est celui d&apos;un seul joueur.</p>
-    </>
-  ),
-  avgTurn: (
-    <>
-      <p>
-        <strong>Durée moyenne du tour d&apos;un joueur</strong> — le temps de
-        table divisé par le nombre de tours joués.
-      </p>
-      <p>
-        C&apos;est la mesure que chaque joueur retrouve dans l&apos;onglet « Les
-        joueurs ».
-      </p>
-    </>
-  ),
-  overtime: (
-    <>
-      Temps total joué <strong>au-delà du chrono du tour</strong> (le minuteur
-      compte à rebours, puis compte le dépassement une fois à zéro).
-    </>
-  ),
-};
+    );
+
+  return {
+    playTime: (
+      <>
+        <p>
+          Temps réellement joué, <strong>pauses déduites</strong>.
+        </p>
+        {everyPhase}
+        <p>
+          La barre situe ce chiffre parmi les parties précédentes&nbsp;: vide,
+          la table n&apos;a jamais fait plus bas&nbsp;; pleine, jamais plus
+          haut. Les petits traits sont ces parties, sur la même échelle.
+        </p>
+      </>
+    ),
+    totalTime: (
+      <>
+        <p>
+          Temps passé autour de la table, <strong>pauses comprises</strong> — «
+          Temps de jeu » plus « Temps en pause ».
+        </p>
+        {everyPhase}
+        <p>
+          Il n&apos;apparaît que si la table s&apos;est arrêtée au moins une
+          fois&nbsp;: sans pause, il répéterait le temps de jeu.
+        </p>
+      </>
+    ),
+    rounds: (
+      <>
+        <p>
+          Nombre de <strong>{`${naming.roundLabel.toLowerCase()}s`}</strong> que
+          la partie a duré
+          {naming.roundLabel === PLAIN_NAMING.roundLabel
+            ? " (un tour = chaque joueur a joué une fois)"
+            : ""}
+          .
+        </p>
+        <p>C&apos;est un compte, pas une durée.</p>
+      </>
+    ),
+    avgRound: (
+      <>
+        <p>
+          <strong>Durée moyenne d&apos;un tour de table</strong>, tous les
+          joueurs réunis.
+        </p>
+        {onlyPhase}
+        <p>« Tour moyen », juste à côté, est celui d&apos;un seul joueur.</p>
+      </>
+    ),
+    avgTurn: (
+      <>
+        <p>
+          <strong>Durée moyenne du tour d&apos;un joueur</strong> — le temps de
+          table divisé par le nombre de tours joués.
+        </p>
+        {onlyPhase}
+        <p>
+          C&apos;est la mesure que chaque joueur retrouve dans l&apos;onglet «
+          Les joueurs ».
+        </p>
+      </>
+    ),
+    overtime: (
+      <>
+        Temps total joué <strong>au-delà du chrono du tour</strong> (le minuteur
+        compte à rebours, puis compte le dépassement une fois à zéro).
+      </>
+    ),
+  };
+}
 
 /** A figure this panel shows that no history can place — no bar, just a tile. */
 export interface PlainTile {
@@ -115,6 +147,14 @@ export function PartyStatTiles({
   extra?: readonly PlainTile[];
 }>) {
   const measures = usePartyMeasures(game, simultaneous);
+  // The game lends the panel its own words: a box turning in generations does
+  // not count « tours », and one played in phases takes its turns in only one
+  // of them — which the two turn averages then have to say.
+  const naming: PartyNaming = {
+    roundLabel: game.boardgame.stages?.label ?? PLAIN_NAMING.roundLabel,
+    turnPhaseLabel: turnPhase(game.boardgame.phases)?.label ?? null,
+  };
+  const hints = hintsFor(naming);
   // Which parties the bars are counted on changes with the game, and the bars
   // themselves cannot say so — carrying no text is the point of them. The tip
   // on the headline figure is where the reader can go and find out.
@@ -126,15 +166,15 @@ export function PartyStatTiles({
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
       {measures.flatMap(m => {
-        const label = partyLabel(m.key);
+        const label = partyLabel(m.key, naming);
         const hint =
           m.key === "playTime" ? (
             <>
-              {HINTS.playTime}
+              {hints.playTime}
               <p>{basket}</p>
             </>
           ) : (
-            HINTS[m.key]
+            hints[m.key]
           );
         const tile = (
           <StatTile

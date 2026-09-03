@@ -7,6 +7,7 @@ import {
   scoreTable,
   seedBoardgame,
   seedParty,
+  seedPhases,
   seedPlayers,
   seedTurns,
   TABLE_SENSITIVE_SCORING,
@@ -39,9 +40,13 @@ interface SeededTable {
   /**
    * A finished party on that game, from a row of scores — highest takes it, and
    * fewer figures than players seats a smaller table. Registered for cleanup on
-   * the way out, so a scenario never carries its own list.
+   * the way out, so a scenario never carries its own list. `stage` says how far
+   * a game played in stages got, which the recap counts.
    */
-  party: (scores: readonly number[]) => Promise<string>;
+  party: (
+    scores: readonly number[],
+    options?: Readonly<{ round?: number; stage?: number }>,
+  ) => Promise<string>;
 }
 
 /**
@@ -73,8 +78,13 @@ async function onSeededGame(
       admin,
       players,
       ids,
-      party: async scores => {
-        const id = await seedParty(admin, bgId as string, table(scores));
+      party: async (scores, options) => {
+        const id = await seedParty(
+          admin,
+          bgId as string,
+          table(scores),
+          options,
+        );
 
         seeded.push(id);
 
@@ -300,6 +310,119 @@ test("adds the pause-included time to a party that stopped", async ({
 
       // The two added up — the time the table was actually sat down.
       await expect(tile(panel, "Temps total")).toContainText("1:30");
+    },
+  );
+});
+
+/** Terraforming Mars's shape: generations, played in three phases. */
+const STAGED_GAME = {
+  minPlayers: 2,
+  maxPlayers: 4,
+  roundLimit: null,
+  scoring: TABLE_SENSITIVE_SCORING,
+  stages: { label: "Génération", advance: "pass" },
+  phases: [
+    {
+      key: "discovery",
+      label: "Découverte",
+      mode: "simultaneous",
+      clock: "stopwatch",
+    },
+    {
+      key: "projects",
+      label: "Projets",
+      mode: "sequential",
+      clock: "turnTimer",
+    },
+    {
+      key: "production",
+      label: "Production",
+      mode: "simultaneous",
+      clock: "stopwatch",
+    },
+  ],
+} as const;
+
+/** One generation of that game, timed phase by phase. */
+function generation(stage: number, discoveryS: number) {
+  return [
+    { stage, phaseKey: "discovery", durationS: discoveryS },
+    // The envelope of the turns below, never added to what they already say.
+    { stage, phaseKey: "projects", durationS: 60 },
+    { stage, phaseKey: "production", durationS: 15 },
+  ];
+}
+
+/**
+ * The recap of a game played in generations and in phases: it counts what the
+ * table counts, its played time is the whole evening rather than the third of it
+ * the turn log sees, and the two turn averages say which phase they price.
+ */
+test("reads a party in the words of a game played in phases", async ({
+  page,
+}) => {
+  await onSeededGame(
+    "Générations",
+    STAGED_GAME,
+    async ({ admin, players, ids, party }) => {
+      // The one party before: a single generation, longer on the discovery.
+      const past = await party([40, 10, 20], { round: 1, stage: 1 });
+
+      await seedTurns(admin, past, lap(ids, players, 1, 20));
+      await seedPhases(admin, past, generation(1, 60));
+
+      // Tonight: two generations, 20 s a turn — 120 s of turns, and 105 s of the
+      // phases the log never saw (30 + 45 of discovery, 15 + 15 of production).
+      const tonight = await party([50, 30, 10], { round: 2, stage: 2 });
+
+      await seedTurns(admin, tonight, [
+        ...lap(ids, players, 1, 20),
+        ...lap(ids, players, 2, 20),
+      ]);
+      await seedPhases(admin, tonight, [
+        ...generation(1, 30),
+        ...generation(2, 45),
+      ]);
+
+      await page.goto(`/games/${tonight}/play`);
+
+      const panel = page.getByTestId("party-panel");
+
+      // The count is the table's own word, and « Tours » is nowhere on the recap.
+      await expect(tile(panel, "Générations")).toContainText("2");
+      await expect(panel.getByText("Tours", { exact: true })).toHaveCount(0);
+
+      // 120 s of turns plus 105 s of discovery and production: the evening, not
+      // the phase the turns were taken in.
+      await expect(tile(panel, "Temps de jeu")).toContainText("3:45");
+
+      // The two averages, on the other hand, come off the turn log alone — so
+      // they name the phase they price rather than pass for the whole generation.
+      await expect(tile(panel, "Tour de table — Projets")).toContainText(
+        "1:00",
+      );
+      await expect(tile(panel, "Tour moyen — Projets")).toContainText("0:20");
+
+      // And the tile says so in words too.
+      await tile(panel, "Tour moyen — Projets")
+        .getByRole("button", { name: "Tour moyen — Projets" })
+        .click();
+
+      await expect(page.getByTestId("info-bubble")).toContainText(
+        "Ne concerne que la phase Projets",
+      );
+
+      // Down in « Temps par phase », each phase carries its own bar: 75 s of
+      // discovery against the 60 s of the only party before — the longest the
+      // table has ever spent finding out what it was going to play.
+      const legend = page
+        .getByTestId("stat-group")
+        .filter({ hasText: "Temps par phase" })
+        .locator("li")
+        .filter({ hasText: "Découverte" });
+
+      await expect(legend).toContainText("1:15");
+      await expect.poll(fillRatio(legend)).toBe(1);
     },
   );
 });

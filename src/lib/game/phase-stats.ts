@@ -23,6 +23,8 @@ import type {
   PhaseTime,
   PlayerId,
 } from "@/lib/domain";
+import type { Gauge } from "./party-gauge";
+import { gauge } from "./party-gauge";
 
 /** One phase's slice of one stage. */
 export interface PhaseSlice {
@@ -204,6 +206,48 @@ export function phaseTotals(
   }));
 }
 
+/** One phase of tonight, placed among the same phase of the parties before it. */
+export interface PhaseMeasure extends PhaseTotal {
+  /** Where its total falls among the past parties, or `null` when unplaceable. */
+  gauge: Gauge | null;
+}
+
+/**
+ * Each phase of tonight with the bar that says whether the table lingered there
+ * or got through it faster than usual.
+ *
+ * The three phase durations live here rather than as tiles of their own at the
+ * top of the recap (owner, 2026-09-02): the legend already names every phase and
+ * prints its duration, so a tile per phase would have been the same figure a
+ * second time, and a grid that grows with the boardgame.
+ *
+ * 🔑 A past party is only counted **on the phases it recorded**, exactly as
+ * {@link averageStageBreakdowns} counts its stages. A party played before this
+ * game was given its phases carries no row for them; folding it in as a zero
+ * would put tonight above a party that never had an opinion, and every bar on a
+ * newly-timed game would read as a record.
+ */
+export function phaseMeasures(
+  times: PhaseTime[],
+  history: readonly PhaseTime[][],
+  phases: PhaseSpec[] | null,
+): PhaseMeasure[] {
+  return phaseTotals(times, phases).map(total => {
+    const past = history
+      .map(party => {
+        return party.filter(t => t.phaseKey === total.key);
+      })
+      .filter(rows => {
+        return rows.length > 0;
+      })
+      .map(rows => {
+        return rows.reduce((sum, t) => sum + t.durationS, 0);
+      });
+
+    return { ...total, gauge: gauge(past, total.totalS) };
+  });
+}
+
 /**
  * The phase turns are taken in, or `null` when the game declares none.
  *
@@ -212,6 +256,32 @@ export function phaseTotals(
  */
 export function turnPhase(phases: PhaseSpec[] | null): PhaseSpec | null {
   return phases?.find(phase => phase.clock === "turnTimer") ?? null;
+}
+
+/**
+ * The seconds a party spent in every phase **but** the one its turns belong to.
+ *
+ * This is what the turn log cannot see, and therefore what has to be added back
+ * for « Temps de jeu » to mean the evening rather than a third of it. The turn
+ * phase's own rows are left out on purpose: that phase banks the turns' seconds
+ * *and* their pauses, so adding it to a log-derived total would count the same
+ * minutes twice.
+ *
+ * Zero for the games that declare no phase, which is all but two of them.
+ */
+export function offTurnSeconds(
+  times: readonly PhaseTime[],
+  phases: PhaseSpec[] | null,
+): number {
+  if (phases === null) {
+    return 0;
+  }
+
+  const turnKey = turnPhase(phases)?.key;
+
+  return times
+    .filter(t => t.phaseKey !== turnKey)
+    .reduce((sum, t) => sum + t.durationS, 0);
 }
 
 /** One player's rhythm inside the phase their turns belong to. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { FigureTurn, PartyFigureKey } from "./party-figures";
+import type { FigureTurn, PartyFigureKey, PartyLog } from "./party-figures";
 import { partyFigures, partyMeasures } from "./party-figures";
 
 /** A turn log of `count` turns spread over `rounds` laps, each `durationS` long. */
@@ -25,6 +25,11 @@ function log(
   }
 
   return turns;
+}
+
+/** A party as the measures read it: a log, plus what happened outside its turns. */
+function party(turns: FigureTurn[], offTurnS = 0): PartyLog {
+  return { turns, offTurnS };
 }
 
 function keysOf(measures: ReadonlyArray<{ key: PartyFigureKey }>) {
@@ -60,6 +65,24 @@ describe("partyFigures", () => {
     expect(figures.totalTime).toBe(68);
   });
 
+  // Terraforming Mars: the log only covers « Projets », the table also drafts
+  // and produces, and the evening is the lot.
+  it("adds the phases the turn log never saw to the party's own time", () => {
+    const figures = partyFigures(log(4, 3, 30), 240);
+
+    expect(figures.playTime).toBe(600);
+    expect(figures.turnTime).toBe(360);
+  });
+
+  // Dividing a whole evening by its turns would price a player's go with the
+  // production phase folded into it.
+  it("keeps measuring the averages on the turns alone", () => {
+    const figures = partyFigures(log(4, 3, 30), 240);
+
+    expect(figures.avgRound).toBe(90);
+    expect(figures.avgTurn).toBe(30);
+  });
+
   it("answers zeroes rather than dividing by nothing on an empty log", () => {
     const figures = partyFigures([]);
 
@@ -71,13 +94,13 @@ describe("partyFigures", () => {
 
 describe("partyMeasures", () => {
   const base = {
-    history: [log(4, 3, 20), log(4, 3, 40)],
+    history: [party(log(4, 3, 20)), party(log(4, 3, 40))],
     roundLimit: null,
     simultaneous: false,
   };
 
   it("reads a party on its time, its laps and both its averages", () => {
-    const measures = partyMeasures({ ...base, tonight: log(4, 3, 30) });
+    const measures = partyMeasures({ ...base, tonight: party(log(4, 3, 30)) });
 
     expect(keysOf(measures)).toEqual([
       "playTime",
@@ -88,7 +111,7 @@ describe("partyMeasures", () => {
   });
 
   it("places each figure among the same figure of the past parties", () => {
-    const measures = partyMeasures({ ...base, tonight: log(4, 3, 30) });
+    const measures = partyMeasures({ ...base, tonight: party(log(4, 3, 30)) });
     const playTime = measures[0];
 
     expect(playTime.value).toBe(360);
@@ -99,7 +122,7 @@ describe("partyMeasures", () => {
   it("drops the lap count on a game that runs to a fixed number of laps", () => {
     const measures = partyMeasures({
       ...base,
-      tonight: log(20, 3, 30),
+      tonight: party(log(20, 3, 30)),
       roundLimit: 20,
     });
 
@@ -111,7 +134,7 @@ describe("partyMeasures", () => {
   it("drops it on a party whose log stops short of that limit", () => {
     const measures = partyMeasures({
       ...base,
-      tonight: log(11, 3, 30),
+      tonight: party(log(11, 3, 30)),
       roundLimit: 12,
     });
 
@@ -121,7 +144,7 @@ describe("partyMeasures", () => {
   it("drops the mean player turn when the table plays each lap at once", () => {
     const measures = partyMeasures({
       ...base,
-      tonight: log(4, 3, 30),
+      tonight: party(log(4, 3, 30)),
       simultaneous: true,
     });
 
@@ -130,7 +153,7 @@ describe("partyMeasures", () => {
   });
 
   it("says nothing about pauses and overruns a party never had", () => {
-    const measures = partyMeasures({ ...base, tonight: log(4, 3, 30) });
+    const measures = partyMeasures({ ...base, tonight: party(log(4, 3, 30)) });
 
     expect(keysOf(measures)).not.toContain("pauseTime");
     expect(keysOf(measures)).not.toContain("overtime");
@@ -139,7 +162,7 @@ describe("partyMeasures", () => {
   it("adds them the moment the table paused or ran over", () => {
     const measures = partyMeasures({
       ...base,
-      tonight: log(4, 3, 30, { pauseDurationS: 6, overtimeS: 2 }),
+      tonight: party(log(4, 3, 30, { pauseDurationS: 6, overtimeS: 2 })),
     });
 
     expect(keysOf(measures)).toContain("pauseTime");
@@ -149,7 +172,7 @@ describe("partyMeasures", () => {
   // Without a pause the two durations are the same number, and two tiles saying
   // it would have the reader hunt for a difference that cannot be there.
   it("holds back the pause-included time until the table stopped once", () => {
-    const measures = partyMeasures({ ...base, tonight: log(4, 3, 30) });
+    const measures = partyMeasures({ ...base, tonight: party(log(4, 3, 30)) });
 
     expect(keysOf(measures)).not.toContain("totalTime");
   });
@@ -157,7 +180,7 @@ describe("partyMeasures", () => {
   it("shows it next to the played time as soon as it stopped", () => {
     const measures = partyMeasures({
       ...base,
-      tonight: log(4, 3, 30, { pauseDurationS: 5 }),
+      tonight: party(log(4, 3, 30, { pauseDurationS: 5 })),
     });
     const total = measures.find(m => {
       return m.key === "totalTime";
@@ -167,10 +190,24 @@ describe("partyMeasures", () => {
     expect(total?.value).toBe(420);
   });
 
+  // Both sides carry their off-turn seconds, so a phased game is compared as
+  // whole evenings rather than as the third of them the log covers.
+  it("counts the off-turn phases on tonight and on the past alike", () => {
+    const measures = partyMeasures({
+      ...base,
+      tonight: party(log(4, 3, 30), 120),
+      history: [party(log(4, 3, 20), 60), party(log(4, 3, 40), 180)],
+    });
+    const playTime = measures[0];
+
+    expect(playTime.value).toBe(480);
+    expect(playTime.gauge?.fill).toBe(0.5);
+  });
+
   it("draws no bar at all on a first party of this game", () => {
     const measures = partyMeasures({
       ...base,
-      tonight: log(4, 3, 30),
+      tonight: party(log(4, 3, 30)),
       history: [],
     });
 
