@@ -74,6 +74,8 @@ export interface EndFlowState {
     record: TieBreakRecord | null,
   ) => Promise<void>;
   leaveReveal: () => Promise<void>;
+  /** Leaves the score sheet the reveal handed over to, for the recap. */
+  leaveSheet: () => Promise<void>;
 }
 
 /**
@@ -142,6 +144,16 @@ export function useEndFlow(
     }
 
     return done ? "done" : "failed";
+  }
+
+  /**
+   * Hands the screen over to the finished party's own recap. The party is
+   * already in the books by the time anything calls this, so there is nothing
+   * to write: reloading it is enough for the play screen to give way.
+   */
+  async function toRecap() {
+    setPhase("play");
+    await play.reload();
   }
 
   /**
@@ -317,9 +329,16 @@ export function useEndFlow(
         return;
       }
 
-      setPhase("play");
-      await play.reload();
+      await toRecap();
     },
+
+    /**
+     * Leaves the score sheet. It used to be the end of the road — the only way
+     * out was the games list — so a game scored on a sheet never reached the
+     * screen every other game ends on. It hands over to it instead, and the
+     * sheet stays a tap away from there.
+     */
+    leaveSheet: toRecap,
   };
 }
 

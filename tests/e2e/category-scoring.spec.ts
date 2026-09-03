@@ -110,7 +110,16 @@ test("scores a category game and reveals the final ranking", async ({
     await expect(page.getByText("Bonus classement")).toBeVisible();
     await expect(page.getByText("28", { exact: true })).toBeVisible();
 
-    await page.getByRole("button", { name: "Retour aux parties" }).click();
+    // The sheet no longer dead-ends on the games list: it hands over to the
+    // screen every other game ends on, where the evening's figures live.
+    await page.getByRole("button", { name: "Continuer", exact: true }).click();
+
+    await expect(page.getByText("Partie terminée !")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Voir les statistiques ↓" }),
+    ).toBeVisible();
+
+    await page.getByRole("link", { name: "Retour aux parties" }).click();
     await expect(page).toHaveURL(/\/games$/);
   } finally {
     if (gameId) {

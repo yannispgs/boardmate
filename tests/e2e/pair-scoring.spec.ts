@@ -122,7 +122,13 @@ test("scores a pair game on the piles shared between neighbours", async ({
     await expect(page.getByText("6 × 7", { exact: true })).toBeVisible();
     await expect(page.getByText("42", { exact: true })).toBeVisible();
 
-    await page.getByRole("button", { name: "Retour aux parties" }).click();
+    // A game scored on piles leaves its sheet the same way as any other: onto
+    // the finished party's screen, and the games list only after that.
+    await page.getByRole("button", { name: "Continuer", exact: true }).click();
+
+    await expect(page.getByText("Partie terminée !")).toBeVisible();
+
+    await page.getByRole("link", { name: "Retour aux parties" }).click();
     await expect(page).toHaveURL(/\/games$/);
   } finally {
     if (gameId) {

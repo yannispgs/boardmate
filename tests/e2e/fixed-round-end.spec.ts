@@ -87,7 +87,11 @@ test("ends automatically after the last round, then scores", async ({
     await page.getByRole("button", { name: "Afficher" }).click();
     await page.getByRole("button", { name: "Suivant" }).click();
     await page.getByRole("button", { name: "Voir les scores" }).click();
-    await page.getByRole("button", { name: "Retour aux parties" }).click();
+    await page.getByRole("button", { name: "Continuer", exact: true }).click();
+
+    await expect(page.getByText("Partie terminée !")).toBeVisible();
+
+    await page.getByRole("link", { name: "Retour aux parties" }).click();
     await expect(page).toHaveURL(/\/games$/);
   } finally {
     if (gameId) {
