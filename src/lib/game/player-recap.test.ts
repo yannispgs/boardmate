@@ -260,54 +260,44 @@ describe("playerRecaps", () => {
     expect(score?.direction).toBe("lowest");
   });
 
-  it("ignores the parties of another boardgame, and tonight's own", () => {
+  /**
+   * The three shapes of a past evening that lends tonight's reader no figure —
+   * one played on another game, one he was not at, one whose sheet was left
+   * blank for him — each sat next to the single evening that does count. Only
+   * the last of the three is still an evening he attended: what is missing
+   * there is the number, not the player.
+   *
+   * They share their whole scaffolding, so they are written once: tonight is
+   * handed its own history on purpose, since dropping it is the fourth thing
+   * being asserted here.
+   */
+  it.each([
+    {
+      label: "ignores the parties of another boardgame",
+      parties: 1,
+      past: party("p1", [[ann, 40]], { boardgameId: other }),
+    },
+    {
+      label: "drops an evening the player was not at",
+      parties: 1,
+      past: party("p1", [[bob, 40, true]]),
+    },
+    {
+      label: "keeps an evening whose sheet was left unfilled for him",
+      parties: 2,
+      past: party("p1", [[ann, null]]),
+    },
+  ])("$label, and never counts tonight itself", ({ parties, past }) => {
     const tonight = party("t", [[ann, 50, true]]);
     const recaps = playerRecaps({
       tonight,
-      history: [
-        tonight,
-        party("p1", [[ann, 40]], { boardgameId: other }),
-        party("p2", [[ann, 20]]),
-      ],
+      history: [tonight, past, party("p2", [[ann, 20]])],
       names,
       setup: scored,
       scope: "all",
     });
 
-    expect(recaps[0].parties).toBe(1);
-    expect(measures(recaps, ann).get("score")?.past).toEqual([20]);
-  });
-
-  it("drops an evening the player was not at, and does not count it", () => {
-    const tonight = party("t", [[ann, 50, true]]);
-    const recaps = playerRecaps({
-      tonight,
-      history: [
-        tonight,
-        party("p1", [[bob, 40, true]]),
-        party("p2", [[ann, 20]]),
-      ],
-      names,
-      setup: scored,
-      scope: "all",
-    });
-
-    expect(recaps[0].parties).toBe(1);
-    expect(measures(recaps, ann).get("score")?.past).toEqual([20]);
-  });
-
-  it("drops a past evening whose sheet was left unfilled for him", () => {
-    const tonight = party("t", [[ann, 50, true]]);
-    const recaps = playerRecaps({
-      tonight,
-      history: [tonight, party("p1", [[ann, null]]), party("p2", [[ann, 20]])],
-      names,
-      setup: scored,
-      scope: "all",
-    });
-
-    // He sat at both, so both count — only the figure is missing.
-    expect(recaps[0].parties).toBe(2);
+    expect(recaps[0].parties).toBe(parties);
     expect(measures(recaps, ann).get("score")?.past).toEqual([20]);
   });
 
