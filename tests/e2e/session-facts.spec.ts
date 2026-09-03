@@ -130,6 +130,12 @@ test("tells the evening's story once it has one, and not before", async ({
       page.getByRole("button", { name: "Entrer les scores" }),
     ).toBeVisible();
     await expect(facts).toHaveCount(0);
+
+    // It says why, rather than leaving a hole: a section that shows up on the
+    // fourth party and on no other reads as a bug on the first three.
+    await expect(
+      page.getByText("apparaissent à partir de 4 parties"),
+    ).toBeVisible();
   } finally {
     for (const id of seeded) {
       await admin.from("games").delete().eq("id", id);

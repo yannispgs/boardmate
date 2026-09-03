@@ -26,8 +26,14 @@ import { formatNames } from "./tie-break";
 /**
  * Finished parties an evening needs before it has a story. Below it the facts
  * would say more about the sample than about the players.
+ *
+ * Four rather than five: a run of three is the shortest thing worth calling a
+ * run ({@link MIN_STREAK}), so the fifth party was asking a sitting to prove
+ * again what the fourth had already made sayable. The threshold is written on
+ * the screen now, which is the other half of lowering it — a rule nobody can
+ * see turns a missing section into a section that looks broken.
  */
-export const MIN_PARTIES = 5;
+export const MIN_PARTIES = 4;
 
 /** Parties in a row losing (or winning) before the run is worth a mention. */
 const MIN_STREAK = 3;

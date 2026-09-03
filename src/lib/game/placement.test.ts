@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { PlayerId } from "@/lib/domain";
-import { placements, relativePosition } from "./placement";
+import { finishPlaces, placements, relativePosition } from "./placement";
 
 const ann = "ann" as PlayerId;
 const bob = "bob" as PlayerId;
@@ -47,6 +47,76 @@ describe("placements", () => {
 
   it("ranks an empty table without complaining", () => {
     expect(placements([], "highest")?.size).toBe(0);
+  });
+});
+
+/** The same table, with the crown the party recorded. */
+function crowned(...seats: Array<[PlayerId, number | null, boolean?]>) {
+  return seats.map(([playerId, score, isWinner]) => ({
+    playerId,
+    score,
+    isWinner: isWinner === true,
+  }));
+}
+
+describe("finishPlaces", () => {
+  it("separates a tie the game's own rule settled", () => {
+    // Splito's shape: two players level on points, one of them crowned. The
+    // podium has to say what the score sheet says.
+    const places = finishPlaces(
+      crowned([ann, 10], [bob, 10, true], [cat, 4]),
+      "highest",
+    );
+
+    expect(places?.get(bob)).toBe(1);
+    expect(places?.get(ann)).toBe(2);
+    expect(places?.get(cat)).toBe(3);
+  });
+
+  it("leaves a victory the table genuinely shared at two firsts", () => {
+    // Nothing was settled here: both are recorded winners, so both are first
+    // and the next one is third.
+    const places = finishPlaces(
+      crowned([ann, 10, true], [bob, 10, true], [cat, 4]),
+      "highest",
+    );
+
+    expect(places?.get(ann)).toBe(1);
+    expect(places?.get(bob)).toBe(1);
+    expect(places?.get(cat)).toBe(3);
+  });
+
+  it("falls back to the totals when nobody was crowned", () => {
+    const places = finishPlaces(crowned([ann, 8], [bob, 12]), "highest");
+
+    expect(places?.get(bob)).toBe(1);
+    expect(places?.get(ann)).toBe(2);
+  });
+
+  it("turns the scale over on a game the smallest total wins", () => {
+    const places = finishPlaces(
+      crowned([ann, 8], [bob, 12, true], [cat, 10]),
+      "lowest",
+    );
+
+    expect(places?.get(bob)).toBe(1);
+    expect(places?.get(ann)).toBe(2);
+    expect(places?.get(cat)).toBe(3);
+  });
+
+  it("refuses to place a party somebody was never scored in", () => {
+    expect(finishPlaces(crowned([ann, 10], [bob, null]), "highest")).toBeNull();
+  });
+
+  // The two are deliberately kept apart while the statistics screens still
+  // count on the totals alone. Not because the totals are the better reading —
+  // every tie-break the app carries is a rulebook criterion — but because those
+  // figures are older than this function and moving them is its own change.
+  it("is the one ranking that reads the crown — placements ignores it", () => {
+    const table = crowned([ann, 10], [bob, 10, true]);
+
+    expect(placements(table, "highest")?.get(ann)).toBe(1);
+    expect(finishPlaces(table, "highest")?.get(ann)).toBe(2);
   });
 });
 

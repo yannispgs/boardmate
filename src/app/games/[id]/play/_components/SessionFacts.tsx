@@ -25,8 +25,15 @@ export function SessionFacts({
 }>) {
   const played = games.filter(party => party.status === "ended").length;
 
+  // Said rather than left blank. A section that appears on the fourth party of
+  // an evening and on no other looks like a bug on the first three, and the
+  // count turns the rule into a distance: one more party to go.
   if (played < MIN_PARTIES) {
-    return null;
+    return (
+      <p className="text-center text-sm text-zinc-400 dark:text-zinc-500">
+        {`Les faits de la soirée apparaissent à partir de ${MIN_PARTIES} parties jouées d'affilée (${played} pour l'instant).`}
+      </p>
+    );
   }
 
   return <SessionFactsPanel game={game} games={games} />;

@@ -265,6 +265,37 @@ export async function seedTurns(
 }
 
 /**
+ * The barème of a game whose scale really moves with the table: a plain total,
+ * highest takes it, read separately at each size. Several scenarios need a game
+ * like that and none of them needs a different one — records, recaps and table
+ * pills all hang off `playerCountSensitive`.
+ */
+export const TABLE_SENSITIVE_SCORING = {
+  timing: "final",
+  entry: "total",
+  winCondition: { type: "highest" },
+  playerCountSensitive: true,
+} as const;
+
+/**
+ * Turns a row of figures into a seatful of players, highest taking the win —
+ * the shape `seedParty` asks for. Fewer figures than players seats a smaller
+ * table, which is how a duel is slipped into a three-player game's history.
+ */
+export function scoreTable(
+  players: readonly string[],
+  idOf: (name: string) => string,
+) {
+  return (scores: readonly number[]) => {
+    return players.slice(0, scores.length).map((name, seat) => ({
+      playerId: idOf(name),
+      score: scores[seat],
+      isWinner: scores[seat] === Math.max(...scores),
+    }));
+  };
+}
+
+/**
  * A throwaway boardgame, for a scenario that needs a barème of its own rather
  * than a real game's. Seeding one is what keeps a test from breaking the day a
  * real game's scoring is changed — which has happened.
@@ -277,6 +308,15 @@ export async function seedBoardgame(
     maxPlayers?: number;
     roundLimit?: number | null;
     scoring?: Readonly<Record<string, unknown>>;
+    /**
+     * Whether the app runs a clock on the turns. ⚠️ The column defaults to
+     * `true`, so a game seeded without saying otherwise DOES get the « La
+     * partie » panel on the finished screen — pass `false` for a scenario that
+     * must not have one (Papayoo's kind).
+     */
+    isTimed?: boolean;
+    /** `"simultaneous"` for a game whose table plays each lap at once (Splito). */
+    turnMode?: "sequential" | "simultaneous";
   }>,
 ): Promise<string> {
   const { data, error } = await admin
@@ -285,6 +325,8 @@ export async function seedBoardgame(
       name: fields.name,
       min_players: fields.minPlayers ?? 1,
       max_players: fields.maxPlayers ?? 4,
+      ...(fields.isTimed === undefined ? {} : { is_timed: fields.isTimed }),
+      ...(fields.turnMode === undefined ? {} : { turn_mode: fields.turnMode }),
       ...(fields.roundLimit === undefined
         ? {}
         : { round_limit: fields.roundLimit }),

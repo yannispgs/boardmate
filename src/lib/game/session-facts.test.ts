@@ -62,7 +62,6 @@ describe("sessionFacts", () => {
       party([[ANNE, 10]], [ANNE]),
       party([[ANNE, 10]], [ANNE]),
       party([[ANNE, 10]], [ANNE]),
-      party([[ANNE, 10]], [ANNE]),
     ];
 
     expect(
@@ -71,9 +70,9 @@ describe("sessionFacts", () => {
   });
 
   it("counts only the finished parties towards the minimum", () => {
-    // Five parties, but the fifth is still on the table: four is not an evening.
+    // Four parties, but the fourth is still on the table: three is not an evening.
     const parties = [
-      ...evening(party([[ANNE, 10]], [ANNE])).slice(0, 4),
+      ...evening(party([[ANNE, 10]], [ANNE])).slice(0, 3),
       { ended: false, players: [] },
     ];
 

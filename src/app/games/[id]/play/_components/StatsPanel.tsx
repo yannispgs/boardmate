@@ -106,8 +106,11 @@ export function StatsPanel({
                     accent
                   />
                   <StatTile label="Tours" value={String(stats.rounds)} />
+                  {/* The lap, not a player's go — the recap next door now
+                      keeps « Tour moyen » for the latter, and the two panels
+                      cannot call two different measures by the same name. */}
                   <StatTile
-                    label="Tour moyen"
+                    label="Tour de table"
                     value={formatDuration(stats.avgRoundS)}
                   />
                 </div>
