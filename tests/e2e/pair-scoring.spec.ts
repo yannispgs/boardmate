@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-import { adminClient, seedPlayers } from "./utils/supabase";
+import { backToGames, leaveScoreSheet } from "./utils/end-of-game";
+import { adminClient, dropSeeded, seedPlayers } from "./utils/supabase";
 
 /**
  * Pair scoring end to end (full-suite only — untagged): play the seeded Splito,
@@ -124,19 +125,13 @@ test("scores a pair game on the piles shared between neighbours", async ({
 
     // A game scored on piles leaves its sheet the same way as any other: onto
     // the finished party's screen, and the games list only after that.
-    await page.getByRole("button", { name: "Continuer", exact: true }).click();
-
-    await expect(page.getByText("Partie terminée !")).toBeVisible();
-
-    await page.getByRole("link", { name: "Retour aux parties" }).click();
-    await expect(page).toHaveURL(/\/games$/);
+    await leaveScoreSheet(page);
+    await backToGames(page);
   } finally {
-    if (gameId) {
-      await admin.from("games").delete().eq("id", gameId);
-    }
-    if (boardgameId) {
-      await admin.from("boardgames").delete().eq("id", boardgameId);
-    }
-    await admin.from("players").delete().in("name", players);
+    await dropSeeded(admin, {
+      games: [gameId],
+      boardgames: [boardgameId],
+      playerNames: players,
+    });
   }
 });

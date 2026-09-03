@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-import { adminClient, seedPlayers } from "./utils/supabase";
+import { backToGames, leaveScoreSheet } from "./utils/end-of-game";
+import { adminClient, dropSeeded, seedPlayers } from "./utils/supabase";
 
 /**
  * Category scoring end to end (full-suite only — untagged): play the seeded
@@ -111,23 +112,20 @@ test("scores a category game and reveals the final ranking", async ({
     await expect(page.getByText("28", { exact: true })).toBeVisible();
 
     // The sheet no longer dead-ends on the games list: it hands over to the
-    // screen every other game ends on, where the evening's figures live.
-    await page.getByRole("button", { name: "Continuer", exact: true }).click();
+    // screen every other game ends on, and the evening's figures are one tap
+    // from there.
+    await leaveScoreSheet(page);
 
-    await expect(page.getByText("Partie terminée !")).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Voir les statistiques ↓" }),
     ).toBeVisible();
 
-    await page.getByRole("link", { name: "Retour aux parties" }).click();
-    await expect(page).toHaveURL(/\/games$/);
+    await backToGames(page);
   } finally {
-    if (gameId) {
-      await admin.from("games").delete().eq("id", gameId);
-    }
-    if (boardgameId) {
-      await admin.from("boardgames").delete().eq("id", boardgameId);
-    }
-    await admin.from("players").delete().in("name", players);
+    await dropSeeded(admin, {
+      games: [gameId],
+      boardgames: [boardgameId],
+      playerNames: players,
+    });
   }
 });
