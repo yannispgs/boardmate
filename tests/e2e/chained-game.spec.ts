@@ -1,16 +1,26 @@
 import { expect, test } from "@playwright/test";
 
-import { adminClient, seedPlayers } from "./utils/supabase";
+import {
+  adminClient,
+  dropSeeded,
+  playerIds,
+  seedParty,
+  seedPlayers,
+} from "./utils/supabase";
 
 /**
  * An evening of short parties (Papayoo, full-suite only — untagged). A deal
- * lasts a quarter of an hour and the night is a dozen of them, so the score
- * form deals the next one itself: the table types its totals, presses
- * « Enchaîner une nouvelle partie », and lands on a fresh party with the same
- * players in the same seats — without walking back through « Parties » and the
- * creation funnel.
+ * lasts a quarter of an hour and the night is a dozen of them, so the finished
+ * party offers the next one: the table types its totals, hands the deal in,
+ * presses « Enchaîner une nouvelle partie » on the end screen, and lands on a
+ * fresh party with the same players in the same seats — without walking back
+ * through « Parties » and the creation funnel.
+ *
+ * The offer comes from the boardgame (`is_chainable`), not from the way the
+ * game happens to be scored, so any game can be played deal after deal from the
+ * editor alone.
  */
-test("deals the next party from the score form, same table, same seats", async ({
+test("deals the next party from the end screen, same table, same seats", async ({
   page,
 }) => {
   const admin = adminClient();
@@ -44,19 +54,28 @@ test("deals the next party from the score form, same table, same seats", async (
     await page.getByLabel(`Score de ${players[1]}`).fill("150");
     await page.getByLabel(`Score de ${players[2]}`).fill("0");
 
+    // The form has one button again: handing the deal in is all it does, and
+    // where the evening goes next is asked on the screen that follows.
+    await page.getByRole("button", { name: "Terminer", exact: true }).click();
+
+    await expect(page.getByText("Partie terminée !")).toBeVisible();
+
     // Dealing again is what an evening does nearly every time and packing up is
-    // the exception, so « Enchaîner » leads and « Terminer la session » follows.
+    // the exception, so « Enchaîner » is the filled button and leaving is the
+    // outlined one below it.
     await expect(
-      page.locator("button", {
-        hasText: /^(Enchaîner une nouvelle partie|Terminer la session)$/,
-      }),
-    ).toHaveText(["Enchaîner une nouvelle partie", "Terminer la session"]);
+      page.getByRole("button", { name: "Enchaîner une nouvelle partie" }),
+    ).toBeVisible();
+
+    await expect(
+      page.getByRole("link", { name: "Retour aux parties" }),
+    ).toBeVisible();
 
     // Dealing again navigates, and `router.push` fetches the next party before
     // the screen changes. Held open here on purpose: that wait is the window the
     // table presses again in, thinking nothing happened — and a second press
-    // used to end the same deal twice and deal a *second* next one, a phantom
-    // deal numbered in the evening and never played.
+    // would deal a *second* next party, a phantom deal numbered in the evening
+    // and never played.
     await page.route("**/games/**", async route => {
       if (route.request().headers().rsc !== undefined) {
         await new Promise(resolve => setTimeout(resolve, 3000));
@@ -234,5 +253,65 @@ test("deals the next party from the score form, same table, same seats", async (
       await admin.from("games").delete().eq("id", gameId);
     }
     await admin.from("players").delete().in("name", players);
+  }
+});
+
+/**
+ * The other side of the offer (full-suite only — untagged): the end screen is
+ * also where a party reopened from the history lands, months after the table
+ * got up. Dealing from there would have filed a brand new party under that old
+ * evening — « 3ᵉ partie de la soirée » a month later — so the offer is tied to
+ * the clock, not to the screen. Same chainable Papayoo, same screen, one hour
+ * being the whole difference.
+ */
+test("stops offering the next deal once the table has got up", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const players = await seedPlayers(3);
+  let gameId: string | null = null;
+
+  try {
+    const { data: papayoo } = await admin
+      .from("boardgames")
+      .select("id, is_chainable")
+      .eq("name", "Papayoo")
+      .single();
+
+    // The game itself still says parties may be chained — what follows is about
+    // the party's age alone, not about the setting being off.
+    expect(papayoo?.is_chainable).toBe(true);
+
+    const idOf = await playerIds(players);
+    const lastMonth = new Date(
+      Date.now() - 30 * 24 * 60 * 60 * 1000,
+    ).toISOString();
+
+    gameId = await seedParty(
+      admin,
+      papayoo?.id as string,
+      players.map((name, seat) => ({
+        playerId: idOf(name),
+        score: 100 * (seat + 1),
+        isWinner: seat === 0,
+      })),
+      { endedAt: lastMonth },
+    );
+
+    await page.goto(`/games/${gameId}/play`);
+
+    await expect(page.getByText("Partie terminée !")).toBeVisible();
+
+    // The way out is the games list, and it is the only button: nothing here
+    // can start an evening that ended a month ago.
+    await expect(
+      page.getByRole("button", { name: "Enchaîner une nouvelle partie" }),
+    ).toHaveCount(0);
+
+    await expect(
+      page.getByRole("link", { name: "Retour aux parties" }),
+    ).toBeVisible();
+  } finally {
+    await dropSeeded(admin, { games: [gameId], playerNames: players });
   }
 });

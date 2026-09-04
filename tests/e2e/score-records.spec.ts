@@ -343,7 +343,7 @@ test("reads a record against tables of the same size only", async ({
     await page.getByLabel(`Score de ${players[0]}`).fill("20");
     await page.getByLabel(`Score de ${players[1]}`).fill("110");
     await page.getByLabel(`Score de ${players[2]}`).fill("120");
-    await page.getByRole("button", { name: "Terminer la session" }).click();
+    await page.getByRole("button", { name: "Terminer", exact: true }).click();
 
     // Totals typed by the table skip the reveal, so the marks are read on the
     // score kept with the party.
@@ -438,7 +438,7 @@ test("crowns nothing at Papayoo, where a nought is a lucky deal", async ({
     await page.getByLabel(`Score de ${players[0]}`).fill("0");
     await page.getByLabel(`Score de ${players[1]}`).fill("110");
     await page.getByLabel(`Score de ${players[2]}`).fill("140");
-    await page.getByRole("button", { name: "Terminer la session" }).click();
+    await page.getByRole("button", { name: "Terminer", exact: true }).click();
 
     await expect(page.getByText("Partie terminée")).toBeVisible();
     await page.getByRole("button", { name: "Voir le score final" }).click();
