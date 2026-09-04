@@ -186,12 +186,6 @@ test("settles a tie over the score form when the table typed the totals", async 
     await page.getByLabel(`Score de ${players[1]}`).fill("10");
     await page.getByLabel(`Score de ${players[2]}`).fill("4");
 
-    // A party of this game is a whole evening, not one deal: it is timed, so
-    // the form does not offer to deal the next one.
-    await expect(
-      page.getByRole("button", { name: "Enchaîner une nouvelle partie" }),
-    ).toHaveCount(0);
-
     // Level leaders are left uncrowned — the form proposes a lone leader only.
     await expect(page.getByText("🏆")).toHaveCount(0);
     await page.getByRole("button", { name: "Terminer", exact: true }).click();

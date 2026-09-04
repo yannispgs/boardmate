@@ -16,6 +16,7 @@ import { usePlayerRecaps } from "@/lib/hooks/use-player-recaps";
 import { useRecordsOfGame } from "@/lib/hooks/use-score-records";
 import { useSpeedRecord } from "@/lib/hooks/use-speed-record";
 
+import { ChainPartyButton } from "./ChainPartyButton";
 import { EndRecapTabs } from "./EndRecapTabs";
 import { EndScorePanel } from "./EndScorePanel";
 import { GameStats } from "./GameStats";
@@ -130,6 +131,11 @@ export function EndedGame({
   const comparable = !loading && hasComparablePast(recaps);
   const stats = hasPlayStats(game.boardgame) || comparable;
 
+  // Some games are played one short party after another: the next one is dealt
+  // from here rather than back through the creation funnel. A setting of the
+  // game, so any of them can be played that way without touching the code.
+  const chainable = game.boardgame.chainable;
+
   const seeStats = () => {
     statsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -189,9 +195,18 @@ export function EndedGame({
             </button>
           ) : null}
 
+          {/* 🔑 On a table dealing party after party, dealing the next one is
+              what happens nearly every time and packing up is the exception —
+              so it is the filled button, and leaving is the outlined one. */}
+          {chainable ? <ChainPartyButton game={game} /> : null}
+
           <Link
             href="/games"
-            className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
+            className={
+              chainable
+                ? "rounded-lg border border-indigo-500 px-4 py-2 font-medium text-indigo-600 transition hover:bg-indigo-500/10 dark:text-indigo-400"
+                : "rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
+            }
           >
             Retour aux parties
           </Link>

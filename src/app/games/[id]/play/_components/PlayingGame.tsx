@@ -1,10 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ErrorText } from "@/components/ErrorText";
 import type { PhaseSpec, PlayerId, PopulatedGame } from "@/lib/domain";
-import { chainedGame } from "@/lib/game/chained-game";
 import { composeGoals } from "@/lib/game/extensions";
 import { gameProgress, playProgress } from "@/lib/game/game-progress";
 import {
@@ -66,22 +64,10 @@ export function PlayingGame({
   game,
   play,
 }: Readonly<{ game: PopulatedGame; play: PlayGame }>) {
-  const router = useRouter();
   const repo = getGameRepository();
   const timer = useTurnTimer();
 
-  /**
-   * Deals the same party again — same players, same seats, same config — and
-   * lands on it, so an evening of short parties never goes back through the
-   * « Parties » menu. Only ever reached from the games that offer it.
-   */
-  async function chain() {
-    const next = await repo.create(chainedGame(game));
-
-    router.push(`/games/${next.id}/play`);
-  }
-
-  const flow = useEndFlow(game, play, chain);
+  const flow = useEndFlow(game, play);
   const live = useLiveScores(game, play);
   const dice = useDiceLog(game, play);
   const milestones = useMilestones(game);
@@ -363,8 +349,9 @@ export function PlayingGame({
       )}
 
       {/* Where a timed game says which lap it is on, an evening says which deal
-          it is on. The two never show together: only a game the app puts no
-          clock on can be dealt again from the score sheet. */}
+          it is on — and now that any game can be dealt again, the two can be
+          read one under the other. Silent on a party played on its own, which
+          is most of them. */}
       <PartyRank games={sitting} gameId={game.id} />
 
       {/* « Tour 1 » would sit there for the whole game on a table that never

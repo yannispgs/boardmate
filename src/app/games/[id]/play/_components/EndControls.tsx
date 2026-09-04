@@ -139,10 +139,6 @@ export function EndControls({
         players={players}
         scoring={finalScoring}
         onEnd={flow.finishTypedTotals}
-        // Chaining is for the games a party of which is one short deal — the
-        // ones the app puts no clock on. Anything longer is worth walking back
-        // through the funnel for, if only to change the seats.
-        chainable={!game.boardgame.timed}
         disabled={disabled}
         open={flow.entryOpen}
         onOpenChange={flow.setEntryOpen}
@@ -300,14 +296,14 @@ function CountPointsButton({
  * outright (house rules). Ends once every score is in, and — for a game whose
  * points are one pile shared out (Papayoo) — once they add up to it.
  *
- * A game played one short party at a time also offers to deal the next one from
- * here, so a table playing deal after deal never goes back through the funnel.
+ * Dealing the next party is offered afterwards, on the finished party's own
+ * screen: it used to be a second button here, which only the games scored this
+ * way could ever have.
  */
 function ScoreEntry({
   players,
   scoring,
   onEnd,
-  chainable,
   disabled,
   open,
   onOpenChange,
@@ -317,10 +313,7 @@ function ScoreEntry({
   onEnd: (
     scores: Array<{ playerId: PlayerId; score: number }>,
     override: PlayerId | null,
-    chain: boolean,
   ) => void;
-  /** Whether this game offers to deal the next party from here. */
-  chainable: boolean;
   disabled: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -369,12 +362,11 @@ function ScoreEntry({
   const highlighted = override ?? leader;
   const blocked = disabled || !allEntered || refused !== null;
 
-  /** Records the party, and — when chaining — deals the next one right after. */
-  function finish(chain: boolean) {
+  /** Hands the party in, on the scores as the form finally reads them. */
+  function finish() {
     onEnd(
       entries.map(e => ({ playerId: e.playerId, score: e.score ?? 0 })),
       override,
-      chain,
     );
   }
 
@@ -423,32 +415,13 @@ function ScoreEntry({
       {refused === null ? null : (
         <p className="text-xs text-rose-600 dark:text-rose-400">{refused}</p>
       )}
-      {/* 🔑 On a table dealing party after party, dealing the next one is what
-          happens nearly every time and packing up is the exception — so it is
-          the filled button, and stopping is the outlined one. Its name says
-          « la session » too: both buttons end the deal on the table, what they
-          differ on is whether the evening goes on. */}
-      {chainable ? (
-        <button
-          type="button"
-          disabled={blocked}
-          onClick={() => finish(true)}
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
-        >
-          Enchaîner une nouvelle partie
-        </button>
-      ) : null}
       <button
         type="button"
         disabled={blocked}
-        onClick={() => finish(false)}
-        className={
-          chainable
-            ? "rounded-lg border border-indigo-500 px-4 py-2 text-sm font-medium text-indigo-600 transition hover:bg-indigo-500/10 disabled:opacity-60 dark:text-indigo-400"
-            : "rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
-        }
+        onClick={finish}
+        className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
       >
-        {chainable ? "Terminer la session" : "Terminer"}
+        Terminer
       </button>
       <CancelLink onClick={() => onOpenChange(false)} />
     </div>

@@ -4,13 +4,17 @@ import { adminClient, seedPlayers } from "./utils/supabase";
 
 /**
  * An evening of short parties (Papayoo, full-suite only — untagged). A deal
- * lasts a quarter of an hour and the night is a dozen of them, so the score
- * form deals the next one itself: the table types its totals, presses
- * « Enchaîner une nouvelle partie », and lands on a fresh party with the same
- * players in the same seats — without walking back through « Parties » and the
- * creation funnel.
+ * lasts a quarter of an hour and the night is a dozen of them, so the finished
+ * party offers the next one: the table types its totals, hands the deal in,
+ * presses « Enchaîner une nouvelle partie » on the end screen, and lands on a
+ * fresh party with the same players in the same seats — without walking back
+ * through « Parties » and the creation funnel.
+ *
+ * The offer comes from the boardgame (`is_chainable`), not from the way the
+ * game happens to be scored, so any game can be played deal after deal from the
+ * editor alone.
  */
-test("deals the next party from the score form, same table, same seats", async ({
+test("deals the next party from the end screen, same table, same seats", async ({
   page,
 }) => {
   const admin = adminClient();
@@ -44,19 +48,28 @@ test("deals the next party from the score form, same table, same seats", async (
     await page.getByLabel(`Score de ${players[1]}`).fill("150");
     await page.getByLabel(`Score de ${players[2]}`).fill("0");
 
+    // The form has one button again: handing the deal in is all it does, and
+    // where the evening goes next is asked on the screen that follows.
+    await page.getByRole("button", { name: "Terminer", exact: true }).click();
+
+    await expect(page.getByText("Partie terminée !")).toBeVisible();
+
     // Dealing again is what an evening does nearly every time and packing up is
-    // the exception, so « Enchaîner » leads and « Terminer la session » follows.
+    // the exception, so « Enchaîner » is the filled button and leaving is the
+    // outlined one below it.
     await expect(
-      page.locator("button", {
-        hasText: /^(Enchaîner une nouvelle partie|Terminer la session)$/,
-      }),
-    ).toHaveText(["Enchaîner une nouvelle partie", "Terminer la session"]);
+      page.getByRole("button", { name: "Enchaîner une nouvelle partie" }),
+    ).toBeVisible();
+
+    await expect(
+      page.getByRole("link", { name: "Retour aux parties" }),
+    ).toBeVisible();
 
     // Dealing again navigates, and `router.push` fetches the next party before
     // the screen changes. Held open here on purpose: that wait is the window the
     // table presses again in, thinking nothing happened — and a second press
-    // used to end the same deal twice and deal a *second* next one, a phantom
-    // deal numbered in the evening and never played.
+    // would deal a *second* next party, a phantom deal numbered in the evening
+    // and never played.
     await page.route("**/games/**", async route => {
       if (route.request().headers().rsc !== undefined) {
         await new Promise(resolve => setTimeout(resolve, 3000));

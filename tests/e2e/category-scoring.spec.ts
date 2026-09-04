@@ -120,6 +120,12 @@ test("scores a category game and reveals the final ranking", async ({
       page.getByRole("button", { name: "Voir les statistiques ↓" }),
     ).toBeVisible();
 
+    // A party of this game is a whole evening, not one deal: its boardgame says
+    // nothing about chaining, so the way out is the games list and nothing else.
+    await expect(
+      page.getByRole("button", { name: "Enchaîner une nouvelle partie" }),
+    ).toHaveCount(0);
+
     await backToGames(page);
   } finally {
     await dropSeeded(admin, {

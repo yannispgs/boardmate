@@ -9,8 +9,8 @@ import { adminClient, seedPlayers } from "./utils/supabase";
  * other's, and the last one through would win silently.
  *
  * A party ends once. The second count is refused on the way in — nothing of it
- * is written, no next party is dealt — and the screen that was one count behind
- * catches up instead of insisting.
+ * is written — and the screen that was one count behind catches up instead of
+ * insisting.
  */
 test("refuses a second count of a party and shows the table why", async ({
   page,
@@ -69,17 +69,14 @@ test("refuses a second count of a party and shows the table why", async ({
       .eq("game_id", gameId)
       .in("player_id", counted.slice(1));
 
-    // Pressing on a party that is already in the books deals nothing: the
-    // chaining happens after the recording, and the recording never lands.
-    await page
-      .getByRole("button", { name: "Enchaîner une nouvelle partie" })
-      .click();
+    // Handing in a party that is already in the books writes nothing.
+    await page.getByRole("button", { name: "Terminer", exact: true }).click();
 
     await expect(
       page.getByText("Cette partie vient d'être terminée."),
     ).toBeVisible();
 
-    // The screen stayed put — no next party was opened to navigate to…
+    // The screen stayed put, on the party it was counting…
     await expect(page).toHaveURL(new RegExp(`/games/${gameId}/play$`));
 
     // …and it caught up with what the table had already decided, rather than
