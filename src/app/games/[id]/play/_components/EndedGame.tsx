@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import { Drawer } from "@/components/Drawer";
 import { ExtensionBadgeList } from "@/components/games/ExtensionBadgeList";
 import type { PopulatedGame } from "@/lib/domain";
+import { justEnded } from "@/lib/game/chained-game";
 import { playedExtensions } from "@/lib/game/extensions";
 import type { RecapScope } from "@/lib/game/player-recap";
 import { hasComparablePast } from "@/lib/game/player-recap";
@@ -133,8 +134,11 @@ export function EndedGame({
 
   // Some games are played one short party after another: the next one is dealt
   // from here rather than back through the creation funnel. A setting of the
-  // game, so any of them can be played that way without touching the code.
-  const chainable = game.boardgame.chainable;
+  // game, so any of them can be played that way without touching the code —
+  // and only while the table is still sat at the party it just finished, since
+  // this same screen is what a party reopened from the history lands on.
+  const chainable =
+    game.boardgame.chainable && justEnded(game.endedAt, Date.now());
 
   const seeStats = () => {
     statsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });

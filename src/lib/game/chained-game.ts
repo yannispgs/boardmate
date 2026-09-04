@@ -67,6 +67,40 @@ export function chainedGame(game: ChainableGame): NewGame {
 }
 
 /**
+ * How long after a party closes the table still counts as sat at it. Well past
+ * the longest gap between two deals of one evening, well short of coming back
+ * to a party the next day.
+ */
+const STILL_AT_THE_TABLE_MS = 60 * 60 * 1000;
+
+/**
+ * Whether the party that closed is still the one the table is playing.
+ *
+ * The offer to deal again lives on the finished party's own screen, and that
+ * screen never goes away: reopening a Papayoo from last month lands on it just
+ * the same, and dealing from there would have joined the new party to that old
+ * evening — « 3ᵉ partie de la soirée » a month later. So the offer hangs on the
+ * clock rather than on the screen.
+ *
+ * Read either side of the hour on purpose: a party is closed by the browser's
+ * own clock and read back by that same clock, so a value a moment in the future
+ * means the two readings straddled a tick, not that the party is yet to happen.
+ * A party recorded away from the app carries the day it was played instead, and
+ * falls outside the window on its own.
+ */
+export function justEnded(endedAt: string | null, now: number): boolean {
+  if (endedAt === null) {
+    return false;
+  }
+
+  const closed = Date.parse(endedAt);
+
+  return (
+    Number.isFinite(closed) && Math.abs(now - closed) < STILL_AT_THE_TABLE_MS
+  );
+}
+
+/**
  * The scenario each extension was set up with, kept as it was. An extension
  * with no scenario to pick contributes nothing, rather than a null the creation
  * would have to filter out again.

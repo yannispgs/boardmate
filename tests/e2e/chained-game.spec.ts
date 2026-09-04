@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-import { adminClient, seedPlayers } from "./utils/supabase";
+import {
+  adminClient,
+  dropSeeded,
+  playerIds,
+  seedParty,
+  seedPlayers,
+} from "./utils/supabase";
 
 /**
  * An evening of short parties (Papayoo, full-suite only — untagged). A deal
@@ -247,5 +253,65 @@ test("deals the next party from the end screen, same table, same seats", async (
       await admin.from("games").delete().eq("id", gameId);
     }
     await admin.from("players").delete().in("name", players);
+  }
+});
+
+/**
+ * The other side of the offer (full-suite only — untagged): the end screen is
+ * also where a party reopened from the history lands, months after the table
+ * got up. Dealing from there would have filed a brand new party under that old
+ * evening — « 3ᵉ partie de la soirée » a month later — so the offer is tied to
+ * the clock, not to the screen. Same chainable Papayoo, same screen, one hour
+ * being the whole difference.
+ */
+test("stops offering the next deal once the table has got up", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const players = await seedPlayers(3);
+  let gameId: string | null = null;
+
+  try {
+    const { data: papayoo } = await admin
+      .from("boardgames")
+      .select("id, is_chainable")
+      .eq("name", "Papayoo")
+      .single();
+
+    // The game itself still says parties may be chained — what follows is about
+    // the party's age alone, not about the setting being off.
+    expect(papayoo?.is_chainable).toBe(true);
+
+    const idOf = await playerIds(players);
+    const lastMonth = new Date(
+      Date.now() - 30 * 24 * 60 * 60 * 1000,
+    ).toISOString();
+
+    gameId = await seedParty(
+      admin,
+      papayoo?.id as string,
+      players.map((name, seat) => ({
+        playerId: idOf(name),
+        score: 100 * (seat + 1),
+        isWinner: seat === 0,
+      })),
+      { endedAt: lastMonth },
+    );
+
+    await page.goto(`/games/${gameId}/play`);
+
+    await expect(page.getByText("Partie terminée !")).toBeVisible();
+
+    // The way out is the games list, and it is the only button: nothing here
+    // can start an evening that ended a month ago.
+    await expect(
+      page.getByRole("button", { name: "Enchaîner une nouvelle partie" }),
+    ).toHaveCount(0);
+
+    await expect(
+      page.getByRole("link", { name: "Retour aux parties" }),
+    ).toBeVisible();
+  } finally {
+    await dropSeeded(admin, { games: [gameId], playerNames: players });
   }
 });
