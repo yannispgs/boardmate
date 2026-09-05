@@ -17,15 +17,17 @@ const TICK = 2;
  * scale gives away. A party with nothing to compare against gets no bar at all —
  * see {@link ../../lib/game/party-gauge.gauge}.
  *
- * ⚠️ The track is **square-cornered**, and that is not a style choice. However
- * the scale falls, at least one tick sits against an end; a corner radius on a
- * track that clips its contents bites the outer corners off exactly that one,
- * which is the place the bar can least afford to lose ink. Straight ends also
- * give the fill a clean edge to be read against the ticks it stops short of.
+ * ⚠️ The 2 px radius costs ink and is kept anyway (owner, 2026-09-05). However
+ * the scale falls, at least one tick sits against an end, and a track that clips
+ * its contents rounds that tick's outer corners off — about a ninth of a 2 px
+ * mark. Measured rather than guessed, and judged small enough to trade for a bar
+ * that doesn't look cheap. What it is **not** allowed to grow into: a cap of
+ * half the height, which eats an end tick outright.
  *
  * ⚠️ A tick is 2 px of ink that has to read over the painted fill as well as
  * over the bare track, and half the ticks that matter are the ones the fill has
- * run past. Anything lighter than this went invisible on indigo (owner, 2026-09-05).
+ * run past. Anything lighter than this went invisible on indigo, and it is also
+ * what pays for the corners above (owner, 2026-09-05).
  */
 export function GaugeBar({ gauge }: Readonly<{ gauge: Gauge }>) {
   // Two parties that landed on the same figure land on the same offset, and one
@@ -34,7 +36,7 @@ export function GaugeBar({ gauge }: Readonly<{ gauge: Gauge }>) {
   const ticks = [...new Set(gauge.marks)];
 
   return (
-    <div className="relative mt-1 h-2 w-full overflow-hidden bg-black/10 dark:bg-white/10">
+    <div className="relative mt-1 h-2 w-full overflow-hidden rounded-sm bg-black/10 dark:bg-white/10">
       <div
         data-testid="gauge-fill"
         className="h-full bg-indigo-500 dark:bg-indigo-400"
