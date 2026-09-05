@@ -12,15 +12,20 @@ const TICK = 2;
  * written there has to be thought of times 0.59 — a trap that cost that bar its
  * legibility once already. Here a tick is 2 px because it is 2 px.
  *
- * Square-ended rather than rounded, which a bar this short would normally be:
- * a 4 px cap on an 8 px bar eats the ticks at both ends, and those two are
- * exactly the parties that set the scale. Straight ends also give the fill a
- * clean edge to be read against the ticks it stops short of.
- *
  * Empty means this evening sat below everything the table had done on this game,
- * full means above it: the scale is set by the past alone, so both ends are
- * records rather than the two values any scale gives away. A party with nothing
- * to compare against gets no bar at all — see {@link ../../lib/game/party-gauge.gauge}.
+ * full means above it — both ends are records rather than the two values any
+ * scale gives away. A party with nothing to compare against gets no bar at all —
+ * see {@link ../../lib/game/party-gauge.gauge}.
+ *
+ * ⚠️ The track is **square-cornered**, and that is not a style choice. However
+ * the scale falls, at least one tick sits against an end; a corner radius on a
+ * track that clips its contents bites the outer corners off exactly that one,
+ * which is the place the bar can least afford to lose ink. Straight ends also
+ * give the fill a clean edge to be read against the ticks it stops short of.
+ *
+ * ⚠️ A tick is 2 px of ink that has to read over the painted fill as well as
+ * over the bare track, and half the ticks that matter are the ones the fill has
+ * run past. Anything lighter than this went invisible on indigo (owner, 2026-09-05).
  */
 export function GaugeBar({ gauge }: Readonly<{ gauge: Gauge }>) {
   // Two parties that landed on the same figure land on the same offset, and one
@@ -29,7 +34,7 @@ export function GaugeBar({ gauge }: Readonly<{ gauge: Gauge }>) {
   const ticks = [...new Set(gauge.marks)];
 
   return (
-    <div className="relative mt-1 h-2 w-full overflow-hidden rounded-sm bg-black/10 dark:bg-white/10">
+    <div className="relative mt-1 h-2 w-full overflow-hidden bg-black/10 dark:bg-white/10">
       <div
         data-testid="gauge-fill"
         className="h-full bg-indigo-500 dark:bg-indigo-400"
@@ -40,12 +45,13 @@ export function GaugeBar({ gauge }: Readonly<{ gauge: Gauge }>) {
           count anywhere: what the reader is after is whether the fill stops
           short of a crowd, which is a shape and not a number.
 
-          Inset by its own width so the two that set the scale — there is always
-          one at each end — are drawn inside the bar instead of half outside it. */}
+          Inset by its own width: the scale is stretched to hold this party, so
+          one of its two ends is always a past party, and that tick would be
+          drawn half outside the bar. */}
       {ticks.map(t => (
         <span
           key={t}
-          className="absolute inset-y-0 bg-black/40 dark:bg-white/50"
+          className="absolute inset-y-0 bg-black/70 dark:bg-white/90"
           style={{ left: `calc(${t * 100}% - ${t * TICK}px)`, width: TICK }}
         />
       ))}
