@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import type {
   FieldSpec,
   GameStage,
-  PlayerId,
   RoundGoal,
   ScoreSheetItem,
 } from "@/lib/domain";
@@ -30,41 +29,7 @@ import {
   stagePosition,
   stageScores,
 } from "./stage";
-
-const WINGSPAN = [8, 7, 6, 5];
-
-const A = "a" as PlayerId;
-const B = "b" as PlayerId;
-
-const CATALOGUE: RoundGoal[] = [
-  {
-    key: "eggsInHabitat",
-    label: "Œufs dans {habitat}",
-    params: [
-      {
-        key: "habitat",
-        label: "Écosystème",
-        options: [
-          { value: "forest", label: "Forêt" },
-          { value: "sea", label: "Mer" },
-        ],
-      },
-    ],
-  },
-  { key: "totalBirds", label: "Oiseaux au total", params: [] },
-  { key: "cheapBirds", label: "Oiseaux à faible coût", params: [] },
-  {
-    key: "noGoal",
-    label: "Pas d'objectif",
-    params: [],
-    scores: false,
-    extraTurn: 1,
-  },
-];
-
-function pick(goalKey: string, goalParams: Record<string, string> = {}) {
-  return { goalKey, goalParams };
-}
+import { A, B, CATALOGUE, pick, WINGSPAN } from "./wingspan-fixtures";
 
 describe("stageCalendar", () => {
   it("keeps the base schedule when every tile scores", () => {

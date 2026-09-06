@@ -1,4 +1,4 @@
-import type { Locator, Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 /**
  * The « EN PAUSE » badge of the clock the table is actually looking at.
@@ -26,4 +26,47 @@ export function pausedBadge(page: Page): Locator {
  */
 export async function takeStage(page: Page): Promise<void> {
   await page.getByRole("status").click();
+}
+
+/** One trip through a time-correction sheet, from opening it to applying it. */
+export interface TimeCorrection {
+  /** The button that opens the sheet, whose wording the sheet reuses as title. */
+  sheet: string;
+  /** The text box inside it. */
+  field: string;
+  /** What the table types in. */
+  typed: string;
+  /** The ± button it then taps, in the sheet's own words. */
+  step: string;
+  /** What the box has to read once that button has moved the typed time. */
+  expected: string;
+}
+
+/**
+ * Corrects one of the play screen's two clocks — the per-player countdown or
+ * the table stopwatch — through the sheet that edits it.
+ *
+ * There is one sheet, opened on either clock, so both journeys walk the same
+ * five steps and differ only in wording and figures: type a time, watch the
+ * sheet echo it, nudge it by a step, watch the box follow, apply. What each
+ * caller then checks is its own — the corrected countdown lands on a ring, the
+ * corrected stopwatch on a disc and, later, in `game_phases`.
+ */
+export async function correctTime(
+  page: Page,
+  { sheet, field, typed, step, expected }: TimeCorrection,
+): Promise<void> {
+  await page.getByRole("button", { name: sheet }).click();
+
+  const box = page.getByRole("textbox", { name: field });
+
+  await box.fill(typed);
+
+  await expect(page.getByRole("dialog", { name: sheet })).toContainText(typed);
+
+  await page.getByRole("button", { name: step }).click();
+
+  await expect(box).toHaveValue(expected);
+
+  await page.getByRole("button", { name: "Appliquer" }).click();
 }
