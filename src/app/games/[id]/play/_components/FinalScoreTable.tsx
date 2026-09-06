@@ -9,12 +9,13 @@ import { categoryIconOf } from "@/lib/game/category-icons";
 import type { ScoreRecord } from "@/lib/game/score-records";
 import { isSubsection, type Ranked, scoreCategories } from "@/lib/game/scoring";
 import { RecordBadgeList } from "./RecordBadgeList";
+import { SheetDoneButton } from "./SheetDoneButton";
 
 /**
  * The filled scoresheet after the reveal: every category per player, grouped as
  * on the box's paper sheet, with the totals and final rank. When `onDone` is
- * given a "Retour aux parties" button leaves for the games list; omit it to
- * embed the bare table (e.g. inside the finished-game score panel).
+ * given a button closes the sheet; omit it to embed the bare table (e.g. inside
+ * the finished-game score panel).
  */
 export function FinalScoreTable({
   sheet,
@@ -151,15 +152,7 @@ export function FinalScoreTable({
         </table>
       </div>
 
-      {onDone ? (
-        <button
-          type="button"
-          onClick={onDone}
-          className="rounded-lg bg-indigo-600 px-6 py-3 font-semibold text-white transition hover:bg-indigo-500"
-        >
-          Retour aux parties
-        </button>
-      ) : null}
+      <SheetDoneButton onDone={onDone} />
     </section>
   );
 }
