@@ -1,8 +1,10 @@
 import type { BoardgameId, GameId, PlayerId, ScoringSpec } from "@/lib/domain";
+import { MONOPOLY_INDEX } from "./colors";
 import { finishPlaces, relativePosition } from "./placement";
 import type { ScoreDirection } from "./scoring";
 import { winnerDirection } from "./scoring";
 import { tracksSpeedRecord } from "./speed-records";
+import { timeShareIndex } from "./turn-time";
 
 /**
  * What a player's evening looked like **against his own past evenings on the
@@ -62,6 +64,24 @@ export interface RecapMeasure {
    * Null exactly when `direction` is null — an unordered measure has no best.
    */
   rank: number | null;
+  /**
+   * A fixed figure this measure is read against, drawn on the bar — or null for
+   * the measures that have none.
+   *
+   * Only a normalised one can have it: 100 means « sa part » on every party of
+   * every table size, which is precisely what normalising bought. A score or an
+   * average turn has no such figure — 82 points is neutral on one game and
+   * excellent on the next.
+   */
+  anchor: MeasureAnchor | null;
+}
+
+/** A figure a measure is read against, and where being past it stops mattering. */
+export interface MeasureAnchor {
+  /** The neutral figure — the tint starts here and is invisible at it. */
+  value: number;
+  /** Where the tint reaches full strength, and past which it stays there. */
+  ceiling: number;
 }
 
 /** Everything the card and its detail need about one player's evening. */
@@ -109,7 +129,16 @@ function turnsOf(party: RecapParty, playerId: PlayerId): number {
   return count;
 }
 
-/** His share of the table's time, in percent, or null when nothing was timed. */
+/**
+ * His share of the table's time as an index normalised by table size, or null
+ * when nothing was timed — see {@link timeShareIndex}.
+ *
+ * The normalisation is what makes the measure comparable at all here, because
+ * nothing else narrows the history to one table size: under the « toutes les
+ * parties » scope, {@link historyFor} keeps every party of the boardgame
+ * whatever its head count, and a raw percentage placed among raw percentages
+ * would rank the size of the tables he sat at.
+ */
 function timeShare(party: RecapParty, playerId: PlayerId): number | null {
   let total = 0;
 
@@ -117,11 +146,7 @@ function timeShare(party: RecapParty, playerId: PlayerId): number | null {
     total += turn.durationS;
   }
 
-  if (total === 0) {
-    return null;
-  }
-
-  return (timeOf(party, playerId) / total) * 100;
+  return timeShareIndex(timeOf(party, playerId), total, party.players.length);
 }
 
 /** His average turn in seconds, or null when he took no turn. */
@@ -202,6 +227,20 @@ function rankAmong(
   return better + 1;
 }
 
+/**
+ * The fixed figure each measure is read against, for the ones that have one,
+ * with the point past which being over it stops getting any worse.
+ *
+ * The ceiling is {@link MONOPOLY_INDEX} rather than a figure picked for this
+ * screen: it is already the line the live bar reddens to and the one the
+ * « monopolise le temps » banner trips on, and one quantity may only have one
+ * threshold or the app calls the same evening greedy on one screen and merely
+ * long on the next.
+ */
+const ANCHORS: Partial<Record<MeasureKey, MeasureAnchor>> = {
+  timeShare: { value: 100, ceiling: MONOPOLY_INDEX },
+};
+
 /** Builds one measure, or null when tonight produced no figure for it. */
 function measureOf(
   key: MeasureKey,
@@ -221,6 +260,7 @@ function measureOf(
     past: kept,
     direction,
     rank: direction === null ? null : rankAmong(value, kept, direction),
+    anchor: ANCHORS[key] ?? null,
   };
 }
 

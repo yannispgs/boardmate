@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { countdownColor, timeShareColor, timeShareRedness } from "./colors";
+import {
+  countdownColor,
+  timeIndexColor,
+  timeIndexRedness,
+  timeShareColor,
+  timeShareRedness,
+} from "./colors";
 
 describe("countdownColor", () => {
   it("is green in the first half, then steps through the warning colours", () => {
@@ -17,7 +23,20 @@ describe("countdownColor", () => {
   });
 });
 
+describe("timeIndexRedness", () => {
+  it("is 0 at the fair share and 1 from the monopoly line on", () => {
+    expect(timeIndexRedness(100)).toBe(0);
+    expect(timeIndexRedness(80)).toBe(0); // under his due → clamped
+    expect(timeIndexRedness(160)).toBe(1);
+    expect(timeIndexRedness(400)).toBe(1); // twice as greedy is still greedy
+
+    expect(timeIndexRedness(130)).toBeCloseTo(0.5);
+  });
+});
+
 describe("timeShareRedness", () => {
+  // The same ramp read off a raw percentage: `pct × n` is the index, so a
+  // three-handed table's fair 33.3 % and its 53.3 % threshold are 100 and 160.
   it("is 0 at or below the fair share and 1 at the monopoly threshold", () => {
     // 3 players → fair 33.3%, threshold 53.3%.
     expect(timeShareRedness(33.33, 3)).toBeCloseTo(0);
@@ -43,5 +62,27 @@ describe("timeShareColor", () => {
     expect(timeShareColor(20, 3, true)).toBe("rgb(251, 191, 36)");
     // A monopolising winner still goes red.
     expect(timeShareColor(70, 3, true)).toBe("rgb(239, 68, 68)");
+  });
+});
+
+describe("timeIndexColor", () => {
+  it("hits its three landmarks: green at 60, white at 100, red at 160", () => {
+    expect(timeIndexColor(60)).toBe("rgb(34, 197, 94)"); // green-500
+    expect(timeIndexColor(100)).toBe("rgb(255, 255, 255)"); // the fair share
+    expect(timeIndexColor(160)).toBe("rgb(239, 68, 68)"); // red-500
+  });
+
+  it("ramps linearly on each side of the fair share", () => {
+    // Halfway from 60 to 100 → halfway from green to white.
+    expect(timeIndexColor(80)).toBe("rgb(145, 226, 175)");
+    // Halfway from 100 to 160 → halfway from white to red.
+    expect(timeIndexColor(130)).toBe("rgb(247, 162, 162)");
+  });
+
+  it("pins both ends, so an outlier never repaints the ordinary range", () => {
+    expect(timeIndexColor(40)).toBe(timeIndexColor(60));
+    expect(timeIndexColor(0)).toBe("rgb(34, 197, 94)");
+
+    expect(timeIndexColor(300)).toBe(timeIndexColor(160));
   });
 });

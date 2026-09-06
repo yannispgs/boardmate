@@ -11,6 +11,7 @@ import {
   measureLabel,
   measureStanding,
   measureValue,
+  measureValueColor,
 } from "./recap-measure";
 
 /**
@@ -33,8 +34,13 @@ function partiesLine(parties: number): string {
 /**
  * The colour a standing is said in: the top fifth of his own parties reads as a
  * good evening, the bottom fifth as a bad one, everything between as a figure.
- * Only the sentence is painted — the figure itself keeps the text colour, since
- * « 54 pts » is neither good nor bad until it is placed.
+ *
+ * This paints the **sentence**, not the figure: « 54 pts » is neither good nor
+ * bad until it is placed, and the placing is what the sentence does. The one
+ * figure that carries its own colour is the time index, which is read against
+ * the fair share instead of against his history — see
+ * {@link measureValueColor}, and note that it is the measure this sentence is
+ * never written for.
  */
 const TONE: Record<Tone, string> = {
   good: "text-emerald-600 dark:text-emerald-400",
@@ -109,9 +115,15 @@ const PLAIN_TINT = "bg-black/[0.03] dark:bg-white/[0.04]";
  * other become a single smudge — the one thing the bar exists to show.
  */
 function Measure({ measure }: Readonly<{ measure: RecapMeasure }>) {
-  const bar = spread(measure.past, measure.value, measure.direction);
+  const bar = spread(
+    measure.past,
+    measure.value,
+    measure.direction,
+    measure.anchor ?? undefined,
+  );
   const standing = measureStanding(measure);
   const hint = measureHint(measure.key);
+  const valueColor = measureValueColor(measure.key, measure.value);
 
   return (
     <div className="flex flex-col gap-0.5">
@@ -126,7 +138,10 @@ function Measure({ measure }: Readonly<{ measure: RecapMeasure }>) {
         </span>
 
         <span className="shrink-0 tabular-nums">
-          <span className="font-semibold">
+          <span
+            className="font-semibold"
+            style={{ color: valueColor ?? undefined }}
+          >
             {measureValue(measure.key, measure.value)}
           </span>
           {standing === null ? null : (
