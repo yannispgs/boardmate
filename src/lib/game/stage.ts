@@ -21,6 +21,7 @@ import type {
   ScoreSheetItem,
   StageAdvance,
   StageScore,
+  StageSpec,
 } from "@/lib/domain";
 
 import { openingSeat } from "./generation";
@@ -179,6 +180,24 @@ export function isGoalAvailable(
 /** How many laps of the table the whole game lasts, calendar in hand. */
 export function scheduledRoundLimit(stages: readonly GameStage[]): number {
   return stages.reduce((total, stage) => total + stage.turns, 0);
+}
+
+/**
+ * Whether a game announces its own stage changes on the play screen.
+ *
+ * It is worth announcing where the stage turns over while everybody is looking
+ * at their cards rather than at the phone: Terraforming Mars, where one player
+ * steps out at a time, Wingspan, which runs off a calendar laid out at launch.
+ * A manche the table closes **by hand** (Odin, Papayoo) is already announced
+ * twice — somebody said it out loud, and its own recap modal follows — so a
+ * third announcement would only be a screen to get rid of.
+ *
+ * It matters beyond the announcement: the games that announce are the ones
+ * whose clock waits for the table to acknowledge the change, so the same rule
+ * decides who is charged for the seconds in between.
+ */
+export function announcesStage(stages: StageSpec | null): boolean {
+  return stages !== null && stages.advance !== "manual";
 }
 
 /** Where a lap of the table falls in the calendar. */

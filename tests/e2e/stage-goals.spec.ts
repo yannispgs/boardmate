@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 
+import { takeStage } from "./utils/play-screen";
 import { stagePoints } from "./utils/stage-prompt";
 import { adminClient, seedPlayers } from "./utils/supabase";
 
@@ -42,8 +43,11 @@ test("scores each manche's goal and carries the total to the sheet", async ({
     await stagePoints(first, names[1]).fill("2");
     await first.getByRole("button", { name: "Manche suivante" }).click();
 
-    // The table moved on: the next manche is up, with its own tile.
+    // The table moved on: the next manche is up, with its own tile, announced
+    // across the screen — and the announcement is taken before anything else
+    // can be reached, since it is what starts the new manche's clock.
     await expect(page.getByText("Manche 2 · Tour 1")).toBeVisible();
+    await takeStage(page);
 
     // The last manche has no « suivante » to move on to, so its goal is noted
     // on its own, next to the invitation to end the game.

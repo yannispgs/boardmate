@@ -8,6 +8,7 @@ import type {
 } from "@/lib/domain";
 
 import {
+  announcesStage,
   isCalendarReady,
   isGoalAvailable,
   isLastTurnOfStage,
@@ -610,5 +611,31 @@ describe("playCalendar", () => {
       turnsPerStage: [],
       roundLimit: null,
     });
+  });
+});
+
+describe("announcesStage", () => {
+  // The rule is about who gets charged for the seconds after a stage turns
+  // over, not only about a card: a game that announces holds its clock until
+  // the table says it has seen the change.
+  it("announces a stage the game turns over by itself", () => {
+    expect(announcesStage({ label: "Génération", advance: "pass" })).toBe(true);
+
+    expect(
+      announcesStage({
+        label: "Manche",
+        advance: "schedule",
+        schedule: [8, 7, 6, 5],
+      }),
+    ).toBe(true);
+  });
+
+  it("says nothing when the table closes the stage itself", () => {
+    // Odin and Papayoo: somebody said it out loud, and a recap modal follows.
+    expect(announcesStage({ label: "Manche", advance: "manual" })).toBe(false);
+  });
+
+  it("says nothing for a game with no stages at all", () => {
+    expect(announcesStage(null)).toBe(false);
   });
 });

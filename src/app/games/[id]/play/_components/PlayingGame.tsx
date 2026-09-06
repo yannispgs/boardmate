@@ -9,7 +9,11 @@ import { composeGoals } from "@/lib/game/extensions";
 import { gameProgress, playProgress } from "@/lib/game/game-progress";
 import { advancePhase, currentPhase, playedDraft } from "@/lib/game/phase";
 import { scoreDirectionOf } from "@/lib/game/scoring";
-import { isLastTurnOfStage, playCalendar } from "@/lib/game/stage";
+import {
+  announcesStage,
+  isLastTurnOfStage,
+  playCalendar,
+} from "@/lib/game/stage";
 import { isFinalTurn, turnsPerRound } from "@/lib/game/turn";
 import { turnDurationForRound } from "@/lib/game/turn-schedule";
 import { useOverlaysOpen } from "@/lib/hooks/use-overlays-open";
@@ -45,6 +49,7 @@ import type { PlayGame } from "./use-play-game";
 import { usePlaySounds } from "./use-play-sounds";
 import { useSessionGames } from "./use-session-games";
 import { useStageGoals } from "./use-stage-goals";
+import { useStageHold } from "./use-stage-hold";
 
 /**
  * A game in progress. Takes the loaded game, so nothing below has to wonder
@@ -144,6 +149,18 @@ export function PlayingGame({
   const veil = useDimVeil(
     timed && !entryOpen && !overlayOpen && !timer.running,
   );
+
+  // A stage that turns over on its own does it *to* the table, not because
+  // somebody asked — so the clock waits to be told the change has been seen.
+  // Frozen and not paused on purpose: a pause would be tallied on the first
+  // player's turn as one the table never took, which is the same arbitrary
+  // charge under another name.
+  const announces = announcesStage(stages) && timed;
+  const stageHold = useStageHold(game.stage, announces);
+  const { setFrozen } = timer;
+  useEffect(() => {
+    setFrozen(stageHold.holding);
+  }, [stageHold.holding, setFrozen]);
 
   const scoring = game.boardgame.scoring;
   const direction = scoreDirectionOf(scoring);
@@ -283,7 +300,13 @@ export function PlayingGame({
 
   return (
     <div className="flex flex-col items-center gap-8">
-      <StageCard stage={game.stage} label={stageLabel} stages={stages} />
+      {stageHold.holding ? (
+        <StageCard
+          stage={game.stage}
+          label={stageLabel}
+          onDismiss={stageHold.release}
+        />
+      ) : null}
 
       <TimeHogBanner
         players={game.players}

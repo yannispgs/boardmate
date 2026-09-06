@@ -1,4 +1,4 @@
-import { expect, type Locator, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import {
   adminClient,
@@ -43,6 +43,19 @@ async function fadeOn(target: Locator): Promise<string> {
   });
 }
 
+/**
+ * Long enough for the clock to have moved on, twice over: it ticks twice a
+ * second and shows whole seconds. Also longer than the two seconds the
+ * generation card used to spend on screen before removing itself — so a card
+ * still there after this wait is a card that is genuinely waiting to be taken.
+ */
+const LONG_ENOUGH_MS = 2_500;
+
+/** What the clock the table is actually looking at reads right now. */
+function clockText(page: Page): Promise<string> {
+  return page.locator(".clock-layer:visible").innerText();
+}
+
 /** Drops the game and its players, whatever the test did in between. */
 async function cleanUp(gameId: string, names: string[]): Promise<void> {
   const admin = adminClient();
@@ -63,7 +76,7 @@ async function cleanUp(gameId: string, names: string[]): Promise<void> {
 test.describe("with the animations running", () => {
   test.use({ contextOptions: { reducedMotion: "no-preference" } });
 
-  test("announces the new generation, then gets out of the way", async ({
+  test("holds the new generation, and the clock, until it is taken", async ({
     page,
   }) => {
     const names = await seedPlayers(PLAYER_COUNT);
@@ -94,17 +107,35 @@ test.describe("with the animations running", () => {
 
       await page.getByRole("button", { name: "Phase terminée →" }).click();
 
-      // The card takes the screen and says where the table has landed. The
-      // board stays underneath: it is an announcement, not a step to dismiss.
+      // The card takes the screen and says where the table has landed.
       const card = page.getByRole("status");
 
       await expect(card).toHaveText("Génération 2");
-      await expect(
-        page.getByRole("button", { name: "Phase terminée →" }),
-      ).toBeVisible();
 
-      // …and it leaves on its own, without anybody touching it.
+      expect(await animationOn(page.locator(".stage-card"))).toBe("stage-card");
+
+      // The two clocks have finished crossing, so the one being read is the one
+      // the new generation runs on — and it is what must not move.
+      await expect(page.locator(".clock-layer:visible")).toHaveCount(1);
+
+      const held = await clockText(page);
+
+      await page.waitForTimeout(LONG_ENOUGH_MS);
+
+      // It does not leave on its own, and nobody is being charged for the wait:
+      // the clock is frozen until the table says it has seen the change.
+      await expect(card).toHaveText("Génération 2");
+
+      expect(await clockText(page)).toBe(held);
+
+      // The tap that dismisses it is the tap that starts the generation.
+      await card.click();
+
       await expect(card).toHaveCount(0);
+
+      await page.waitForTimeout(LONG_ENOUGH_MS);
+
+      expect(await clockText(page)).not.toBe(held);
     } finally {
       await cleanUp(gameId, names);
     }
@@ -143,11 +174,12 @@ test.describe("with the animations running", () => {
 /**
  * The same moment with the movement turned off at the operating system — the
  * setting the whole rest of the suite runs under. What must survive it is the
- * **information**: the generation card is held on screen by a timer, not by its
- * own fade, so it still arrives, still waits and still goes. Only the fading
- * stops.
+ * **step**: the generation card is held on screen by the hook, not by its own
+ * fade, so it still arrives and still waits to be tapped. Only the fading stops
+ * — and the ring under the number keeps draining, because it is a gauge of a
+ * countdown that is running whether or not it is drawn.
  */
-test("still announces the new generation with the movement turned off", async ({
+test("still holds the new generation with the movement turned off", async ({
   page,
 }) => {
   const names = await seedPlayers(PLAYER_COUNT);
@@ -167,6 +199,16 @@ test("still announces the new generation with the movement turned off", async ({
     const card = page.getByRole("status");
 
     await expect(card).toHaveText("Génération 2");
+
+    expect(await animationOn(page.locator(".stage-card"))).toBe("none");
+    expect(await animationOn(page.locator(".stage-ring"))).toBe("stage-ring");
+
+    await page.waitForTimeout(LONG_ENOUGH_MS);
+
+    await expect(card).toHaveText("Génération 2");
+
+    await card.click();
+
     await expect(card).toHaveCount(0);
   } finally {
     await cleanUp(gameId, names);

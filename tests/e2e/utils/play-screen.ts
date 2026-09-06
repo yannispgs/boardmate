@@ -12,3 +12,18 @@ import type { Locator, Page } from "@playwright/test";
 export function pausedBadge(page: Page): Locator {
   return page.locator(".clock-layer:visible").getByText("EN PAUSE");
 }
+
+/**
+ * Takes the stage the game has just moved on to, the way a table does: by
+ * tapping the announcement that covers the screen.
+ *
+ * It is a step and not a banner — the new stage's clock does not start until
+ * somebody acknowledges it, so nothing is charged to the first player for a
+ * card he had not read. Which means it eats the next tap: any journey that
+ * crosses a manche or a generation has to take it before it can reach a button
+ * again. `transitions.spec.ts` is where the behaviour itself is tested; here it
+ * is only got out of the way.
+ */
+export async function takeStage(page: Page): Promise<void> {
+  await page.getByRole("status").click();
+}
