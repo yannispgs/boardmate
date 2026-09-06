@@ -7,19 +7,12 @@ import type { PhaseSpec, PlayerId, PopulatedGame } from "@/lib/domain";
 import { chainedGame } from "@/lib/game/chained-game";
 import { composeGoals } from "@/lib/game/extensions";
 import { gameProgress, playProgress } from "@/lib/game/game-progress";
-import {
-  advancePhase,
-  currentPhase,
-  draftDirection,
-  needsPhaseButton,
-  nextPhase,
-} from "@/lib/game/phase";
+import { advancePhase, currentPhase, playedDraft } from "@/lib/game/phase";
 import { scoreDirectionOf } from "@/lib/game/scoring";
 import {
+  announcesStage,
   isLastTurnOfStage,
   playCalendar,
-  stageGoalLabel,
-  stageScores,
 } from "@/lib/game/stage";
 import { isFinalTurn, turnsPerRound } from "@/lib/game/turn";
 import { turnDurationForRound } from "@/lib/game/turn-schedule";
@@ -38,15 +31,15 @@ import { MilestonePanel } from "./MilestonePanel";
 import { namedPlayers } from "./named-players";
 import { PartyRank } from "./PartyRank";
 import { PhaseBar } from "./PhaseBar";
-import { PhaseControls } from "./PhaseControls";
 import { PlayBlock } from "./PlayBlock";
+import { PlayControls } from "./PlayControls";
 import { PlayStats } from "./PlayStats";
 import { SeatOrderPanel } from "./SeatOrderPanel";
 import { SessionFacts } from "./SessionFacts";
 import { SessionStats } from "./SessionStats";
-import { StageBoard } from "./StageBoard";
+import { StageCard } from "./StageCard";
 import { TimeHogBanner } from "./TimeHogBanner";
-import { TurnControls } from "./TurnControls";
+import { useChangeBeat } from "./use-change-beat";
 import { useDiceLog } from "./use-dice-log";
 import { useDimVeil } from "./use-dim-veil";
 import { useEndFlow } from "./use-end-flow";
@@ -56,12 +49,16 @@ import type { PlayGame } from "./use-play-game";
 import { usePlaySounds } from "./use-play-sounds";
 import { useSessionGames } from "./use-session-games";
 import { useStageGoals } from "./use-stage-goals";
+import { useStageHold } from "./use-stage-hold";
 
 /**
  * A game in progress. Takes the loaded game, so nothing below has to wonder
  * whether there is one: it drives the turn (who is up, the countdown, the dice)
  * and hands over to the end-of-game flow when the table stops playing.
  */
+/** How long the two clocks take to cross — the `clock-layer` transition. */
+const PHASE_FADE_MS = 500;
+
 export function PlayingGame({
   game,
   play,
@@ -153,6 +150,19 @@ export function PlayingGame({
     timed && !entryOpen && !overlayOpen && !timer.running,
   );
 
+  // A stage that turns over on its own does it *to* the table, not because
+  // somebody asked — so the clock waits to be told the change has been seen.
+  // Frozen and not paused on purpose: a pause would be tallied on the first
+  // player's turn as one the table never took, which is the same arbitrary
+  // charge under another name.
+  const announces = announcesStage(stages) && timed;
+  const stageHoldMs = game.stageHoldS * 1000;
+  const stageHold = useStageHold(game.stage, announces, stageHoldMs);
+  const { setFrozen } = timer;
+  useEffect(() => {
+    setFrozen(stageHold.holding);
+  }, [stageHold.holding, setFrozen]);
+
   const scoring = game.boardgame.scoring;
   const direction = scoreDirectionOf(scoring);
   const stageLabel = gameProgress(game, stages).label;
@@ -189,8 +199,11 @@ export function PlayingGame({
   const phases = game.boardgame.phases;
   const phase = currentPhase(phases, game.phase);
   const phaseOut = advancePhase(phases, game.phase);
-  const draft =
-    phase?.draft && game.drafting ? draftDirection(phase, game.stage) : null;
+  // « Phase terminée → » is dead while the write is in flight, but the two
+  // clocks only start crossing once the reload has answered: without this, a
+  // second tap during the cross-fade would close a phase nobody saw open.
+  const phaseSwapping = useChangeBeat(game.phase, PHASE_FADE_MS);
+  const draft = playedDraft(phase, game.drafting, game.stage);
 
   function pickBlocked(id: PlayerId | null) {
     setBlockedById(id);
@@ -273,69 +286,6 @@ export function PlayingGame({
     });
   }
 
-  /**
-   * What the table acts on: the turn controls, or — for a game with no turns to
-   * speak of — the manche board. Both give way to the end-of-game score form.
-   */
-  function controls() {
-    if (entryOpen) {
-      return null;
-    }
-
-    // A phase everybody plays at once has no turn to advance, so the table
-    // closes the phase itself instead.
-    if (phase !== null && needsPhaseButton(phase)) {
-      return (
-        <PhaseControls
-          nextLabel={
-            nextPhase(phases, game.phase)?.label ??
-            `${stageLabel} ${game.stage + 1}`
-          }
-          disabled={play.busy}
-          onEndPhase={() => void endPhase(phase)}
-        />
-      );
-    }
-
-    // Untimed and not counted in manches either (Papayoo): nothing happens
-    // between sitting down and writing the score, so the screen offers nothing
-    // but the end-of-game form below.
-    if (!timed && !byHand) {
-      return null;
-    }
-
-    if (byHand) {
-      return (
-        <StageBoard
-          game={game}
-          goals={goals}
-          stageLabel={stageLabel}
-          direction={direction}
-          disabled={play.busy || goals.busy}
-          onNextStage={nextStage}
-          onEnd={scores => flow.finishTotals(scores, null)}
-        />
-      );
-    }
-
-    return (
-      <TurnControls
-        atFinalTurn={atFinalTurn}
-        atStageEnd={atStageEnd}
-        goalScores={stageScores(game.stages[game.stage - 1], catalogue)}
-        stage={game.stage}
-        stageLabel={stageLabel}
-        goalLabel={stageGoalLabel(game.stages[game.stage - 1], catalogue)}
-        players={namedPlayers(game)}
-        entered={goals.entered(game.stage)}
-        disabled={play.busy || goals.busy}
-        onNext={handleNext}
-        onPass={generations ? pass : null}
-        onScoreGoal={points => goals.save(game.stage, points)}
-      />
-    );
-  }
-
   // Counting the points takes over the whole screen, up to the recap.
   if (flow.outcome !== null && flow.phase !== "play") {
     return (
@@ -351,6 +301,15 @@ export function PlayingGame({
 
   return (
     <div className="flex flex-col items-center gap-8">
+      {stageHold.holding ? (
+        <StageCard
+          stage={game.stage}
+          label={stageLabel}
+          holdMs={stageHoldMs}
+          onDismiss={stageHold.release}
+        />
+      ) : null}
+
       <TimeHogBanner
         players={game.players}
         turns={game.turns}
@@ -359,9 +318,7 @@ export function PlayingGame({
 
       <LastLapBanner shown={live.lastLap} />
 
-      {phases === null ? null : (
-        <PhaseBar phases={phases} current={game.phase} draft={draft} />
-      )}
+      <PhaseBar phases={phases} current={game.phase} draft={draft} />
 
       {/* Where a timed game says which lap it is on, an evening says which deal
           it is on. The two never show together: only a game the app puts no
@@ -396,7 +353,28 @@ export function PlayingGame({
       <ErrorText message={play.error} />
       <ErrorText message={goals.error} />
 
-      {controls()}
+      <PlayControls
+        game={game}
+        goals={goals}
+        phases={phases}
+        phase={phase}
+        phaseSwapping={phaseSwapping}
+        stageLabel={stageLabel}
+        direction={direction}
+        catalogue={catalogue}
+        atFinalTurn={atFinalTurn}
+        atStageEnd={atStageEnd}
+        entryOpen={entryOpen}
+        timed={timed}
+        byHand={byHand}
+        generations={generations}
+        busy={play.busy}
+        onNext={handleNext}
+        onPass={pass}
+        onEndPhase={closing => void endPhase(closing)}
+        onNextStage={nextStage}
+        onEnd={scores => flow.finishTotals(scores, null)}
+      />
 
       {/* High up on purpose: on a table dealing party after party, « où on en
           est » is the whole reason to look at the phone between two deals. */}
@@ -409,14 +387,12 @@ export function PlayingGame({
 
       <FaqPanel boardgame={game.boardgame} extensions={game.extensions} />
 
-      {milestoneSpec === null ? null : (
-        <MilestonePanel
-          spec={milestoneSpec}
-          gameName={game.boardgame.name}
-          seats={namedPlayers(game)}
-          log={milestones}
-        />
-      )}
+      <MilestonePanel
+        spec={milestoneSpec}
+        gameName={game.boardgame.name}
+        seats={namedPlayers(game)}
+        log={milestones}
+      />
 
       <SeatOrderPanel
         gameId={game.id}
@@ -451,9 +427,7 @@ export function PlayingGame({
 
       {/* Last, so the veil covers everything above it — including the tie-break
           that may be open when the table stops the clock to argue. */}
-      {veil.dimmed ? (
-        <DimVeil elapsedS={timer.elapsedS} onLift={veil.lift} />
-      ) : null}
+      <DimVeil veil={veil} elapsedS={timer.elapsedS} />
     </div>
   );
 }

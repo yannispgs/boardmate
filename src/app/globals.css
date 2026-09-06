@@ -200,3 +200,155 @@ body {
 .animate-dim-in {
   animation: dim-in 600ms ease-out both;
 }
+
+/*
+ * ── Fades ──────────────────────────────────────────────────────────────────
+ *
+ * What gets animated is decided by FREQUENCY, not by how nice it looks: 300 ms
+ * on a turn, played a hundred times an evening, is thirty seconds of a table
+ * waiting on its phone. So the rare and the meaningful move, and the frequent
+ * does not — the turn ribbon already slides and nothing was added to it.
+ *
+ * All of these fade and none of them transforms. `TurnFlow` carries the scar:
+ * a GPU-composited layer repaints an SVG **black** on WebKit/iOS. Half the
+ * screens below hold an SVG (the clock discs, the wheel, the icons), so a
+ * `scale` or a `translate` here would be betting on which ones don't.
+ */
+
+/*
+ * A phase gives way to the next, and the two clocks CROSS: both layers are on
+ * screen the whole time and only their opacity moves. A plain transition and not
+ * an animation, on purpose — there is nothing to replay, only a value that goes
+ * from one to the other, and the browser interpolates it without ever mounting
+ * or unmounting anything.
+ *
+ * That permanence is the point. The countdown carries a duration editor the
+ * stopwatch does not, so the two are not the same height: mounting one at a time
+ * made the row resize mid-fade and the whole page slid. Kept mounted, the row is
+ * always as tall as the taller of them.
+ *
+ * Half a second, which is long for this app. Shorter read as a flicker rather
+ * than a hand-over: the eye has to notice the old clock going before it can
+ * understand the new one arriving.
+ *
+ * `visibility` rides along because a layer at zero opacity is still a target: it
+ * takes taps and it takes focus, and both clocks carry a pause button. Hidden
+ * that way it keeps the room it occupies — which is the whole reason it stays
+ * mounted — while being inert. It is a discrete property, so the swap lands at
+ * the end of the fade going out and at the start coming in: a clock on its way
+ * out stays usable for exactly as long as it is still on screen.
+ */
+@utility clock-layer {
+  transition:
+    opacity 500ms ease-in-out,
+    visibility 500ms ease-in-out;
+}
+
+/* A modal arrives instead of appearing. Both halves fade on the same beat, so
+ * the card never floats over an undimmed page for a frame. */
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@utility overlay-in {
+  animation: overlay-in 260ms ease-out both;
+}
+
+/*
+ * The generation card: « GÉNÉRATION 4 » laid over the play screen, which stays
+ * readable underneath. It answers the one complaint a quiet counter cannot —
+ * « on est passés en G4 sans que personne le voie ».
+ *
+ * There is no card and no frame: the dark is a radial gradient, solid behind the
+ * words and thinning out in every direction until it is gone before the edges.
+ * A bordered box would be a thing to dismiss; a shadow that gathers around a
+ * number is weather. It also means the corners of the board — the ribbon, the
+ * buttons — are never covered at all, only the middle is.
+ *
+ * It arrives over 500 ms and then simply stays. It used to fade back out on a
+ * timer, and that is precisely what it must not do any more: the card is now the
+ * step that starts the new stage's clock, so it leaves when it is tapped (or
+ * when the ring below runs out), never on its own schedule. Arriving fast made
+ * it feel like an error dialog; arriving slowly is what makes a table look up.
+ */
+@keyframes stage-card {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@utility stage-card {
+  animation: stage-card 500ms ease-out both;
+}
+
+/*
+ * The ring under the number: what is left of the wait before the clock gives up
+ * and starts the turn by itself. It empties clockwise from the top — the circle
+ * is turned a quarter back for that — over exactly the ceiling the hook holds,
+ * which is handed in as the animation's duration rather than written twice.
+ *
+ * Deliberately absent from the reduced-motion block below, unlike every other
+ * animation in this file. Those are decoration over a change that has already
+ * happened, and dropping them costs nothing. This one is a gauge: freezing it
+ * would leave a full ring on screen while the countdown it depicts kept running,
+ * which is not less movement, it is a lie.
+ */
+@keyframes stage-ring {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: var(--stage-ring-length);
+  }
+}
+
+@utility stage-ring {
+  animation: stage-ring linear both;
+}
+
+/* The final standings come out one place at a time, worst first. Each place
+ * fades in as it is called; the ones already out do not move again, so the
+ * board fills up rather than reshuffling itself at every step. */
+@keyframes place-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@utility place-in {
+  animation: place-in 400ms ease-out both;
+}
+
+/*
+ * Reduced motion is an OS setting he may well have on, not a compliance box:
+ * every fade above is decoration over a change that has already happened, so
+ * dropping it costs nothing. The generation card is the exception worth
+ * spelling out — it is held on screen by the hook, not by its animation, so it
+ * still appears and still waits to be tapped. Only the fading stops.
+ *
+ * Its ring is the other way round and is left out on purpose: see `stage-ring`.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .overlay-in,
+  .stage-card,
+  .place-in {
+    animation: none;
+  }
+
+  /* The clocks swap on the spot: the hidden layer is still there, still holding
+     the row's height, it simply stops fading between the two. */
+  .clock-layer {
+    transition: none;
+  }
+}

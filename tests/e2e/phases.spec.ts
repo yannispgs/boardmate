@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 
+import { correctTime, pausedBadge } from "./utils/play-screen";
 import {
   adminClient,
   boardgameId,
@@ -126,29 +127,20 @@ test("corrects the phase stopwatch, and banks the corrected time", async ({
     // Hold the stopwatch still for the rest of the test, so the figures below
     // are the correction's and not the clock's own drift.
     await page.getByRole("button", { name: "Mettre en pause" }).click();
-    await expect(page.getByText("EN PAUSE")).toBeVisible();
-
-    await page
-      .getByRole("button", { name: "Corriger le temps écoulé" })
-      .click();
-
-    const sheet = page.getByRole("dialog", {
-      name: "Corriger le temps écoulé",
-    });
-    await page.getByRole("textbox", { name: "Temps écoulé" }).fill("2:00");
-    await expect(sheet).toContainText("2:00");
+    await expect(pausedBadge(page)).toBeVisible();
 
     // A step moves the typed time, upwards on a stopwatch.
-    await page.getByRole("button", { name: "Ajouter 30 s" }).click();
-    await expect(
-      page.getByRole("textbox", { name: "Temps écoulé" }),
-    ).toHaveValue("2:30");
-
-    await page.getByRole("button", { name: "Appliquer" }).click();
+    await correctTime(page, {
+      sheet: "Corriger le temps écoulé",
+      field: "Temps écoulé",
+      typed: "2:00",
+      step: "Ajouter 30 s",
+      expected: "2:30",
+    });
 
     // The disc reads the corrected time, and the phase is still on hold.
     await expect(page.getByText("2:30")).toBeVisible();
-    await expect(page.getByText("EN PAUSE")).toBeVisible();
+    await expect(pausedBadge(page)).toBeVisible();
 
     await page.getByRole("button", { name: "Phase terminée →" }).click();
     await expect(page.getByText("Ensuite : Projets")).toHaveCount(0);

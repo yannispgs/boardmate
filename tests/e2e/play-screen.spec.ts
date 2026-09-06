@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { funnelToPlay } from "./utils/funnel";
+import { correctTime, pausedBadge } from "./utils/play-screen";
 import {
   adminClient,
   CATAN_ID,
@@ -23,7 +24,7 @@ test("pauses and resumes the turn timer", async ({ page }) => {
     gameId = await funnelToPlay(page, players);
 
     await page.getByRole("button", { name: "Mettre en pause" }).click();
-    await expect(page.getByText("EN PAUSE")).toBeVisible();
+    await expect(pausedBadge(page)).toBeVisible();
 
     await page.getByRole("button", { name: "Reprendre" }).click();
     await expect(
@@ -77,29 +78,20 @@ test("corrects the current turn's remaining time", async ({ page }) => {
       .click();
     await page.getByLabel("Durée du tour en secondes").fill("300");
     await page.getByRole("button", { name: "OK", exact: true }).click();
-    await expect(page.getByText("EN PAUSE")).toBeVisible();
-
-    await page
-      .getByRole("button", { name: "Corriger le temps restant" })
-      .click();
-
-    const sheet = page.getByRole("dialog", {
-      name: "Corriger le temps restant",
-    });
-    await page.getByRole("textbox", { name: "Temps restant" }).fill("1:30");
-    await expect(sheet).toContainText("1:30");
+    await expect(pausedBadge(page)).toBeVisible();
 
     // A step moves the typed time, not the time played.
-    await page.getByRole("button", { name: "Retirer 30 s" }).click();
-    await expect(
-      page.getByRole("textbox", { name: "Temps restant" }),
-    ).toHaveValue("1:00");
-
-    await page.getByRole("button", { name: "Appliquer" }).click();
+    await correctTime(page, {
+      sheet: "Corriger le temps restant",
+      field: "Temps restant",
+      typed: "1:30",
+      step: "Retirer 30 s",
+      expected: "1:00",
+    });
 
     // The ring reads the corrected time, and the turn is still on hold.
     await expect(page.getByText("1:00")).toBeVisible();
-    await expect(page.getByText("EN PAUSE")).toBeVisible();
+    await expect(pausedBadge(page)).toBeVisible();
   } finally {
     const admin = adminClient();
     if (gameId) {

@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import type { PlayerId, RoundGoal } from "@/lib/domain";
-
 import {
   finishedGoals,
   mergeCells,
@@ -12,41 +10,7 @@ import {
   unscoredStageKeys,
 } from "./finished-goals";
 import { stageCalendar } from "./stage";
-
-const WINGSPAN = [8, 7, 6, 5];
-
-const A = "a" as PlayerId;
-const B = "b" as PlayerId;
-
-const CATALOGUE: RoundGoal[] = [
-  {
-    key: "eggsInHabitat",
-    label: "Œufs dans {habitat}",
-    params: [
-      {
-        key: "habitat",
-        label: "Écosystème",
-        options: [
-          { value: "forest", label: "Forêt" },
-          { value: "sea", label: "Mer" },
-        ],
-      },
-    ],
-  },
-  { key: "totalBirds", label: "Oiseaux au total", params: [] },
-  { key: "cheapBirds", label: "Oiseaux à faible coût", params: [] },
-  {
-    key: "noGoal",
-    label: "Pas d'objectif",
-    params: [],
-    scores: false,
-    extraTurn: 1,
-  },
-];
-
-function pick(goalKey: string, goalParams: Record<string, string> = {}) {
-  return { goalKey, goalParams };
-}
+import { A, B, CATALOGUE, pick, WINGSPAN } from "./wingspan-fixtures";
 
 /** The four tiles of a complete Wingspan calendar, none of them free. */
 const FULL_PICKS = [

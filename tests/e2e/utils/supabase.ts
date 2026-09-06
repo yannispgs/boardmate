@@ -194,6 +194,8 @@ export async function seedParty(
     round?: number;
     turn?: number;
     stage?: number;
+    /** Which phase of the stage the table is in — an index into the game's. */
+    phase?: number;
     configValues?: Readonly<Record<string, unknown>>;
   }> = {},
 ): Promise<string> {
@@ -211,6 +213,7 @@ export async function seedParty(
         ? {}
         : { session_id: options.sessionId }),
       ...(options.stage === undefined ? {} : { stage: options.stage }),
+      ...(options.phase === undefined ? {} : { phase: options.phase }),
       ...(options.configValues === undefined
         ? {}
         : { config_values: options.configValues }),

@@ -101,6 +101,27 @@ export function draftDirection(
 }
 
 /**
+ * Which way the cards actually go on the table right now — the direction to put
+ * on screen, or null when there is nothing to say.
+ *
+ * Three things have to hold before the table is told anything: the game is in a
+ * phase at all, it is being played with the drafted draw, and the phase in
+ * question is the drafted one. {@link draftDirection} already answers the last,
+ * so this only adds the two the screen would otherwise have had to remember.
+ */
+export function playedDraft(
+  phase: PhaseSpec | null,
+  drafting: boolean,
+  stage: number,
+): DraftDirection | null {
+  if (phase === null || !drafting) {
+    return null;
+  }
+
+  return draftDirection(phase, stage);
+}
+
+/**
  * Whether this game is being played with the drafted draw.
  *
  * The draft is a variant, so the answer comes from the game's own configuration

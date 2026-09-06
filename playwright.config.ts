@@ -37,6 +37,13 @@ export default defineConfig({
     trace: "on-first-retry",
     actionTimeout: 15_000,
     navigationTimeout: 30_000,
+    // The suite plays under reduced motion, for two reasons and neither of them
+    // is accessibility. A fade in flight makes Playwright click where a button
+    // was rather than where it is, so animating the app would have made every
+    // journey a coin toss. And it is a real setting a real phone may have on,
+    // so this is the path that ships to somebody — worth being the default one
+    // under test. The one journey about the fades themselves turns it back on.
+    contextOptions: { reducedMotion: "reduce" },
   },
 
   projects: [
