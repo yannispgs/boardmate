@@ -1,5 +1,45 @@
 # Changelog
 
+## [1.6.0](https://github.com/yannispgs/boardmate/compare/v1.5.0...v1.6.0) (2026-09-06)
+
+
+### Features
+
+* ask who won when a finished game ends level ([7020ce5](https://github.com/yannispgs/boardmate/commit/7020ce50c762c9a0e88c1b1a9caeb427f2871932))
+* cross the two clocks, and announce a stage without a card ([197fafc](https://github.com/yannispgs/boardmate/commit/197fafcca4e82a5b3a084ed26698939377f0cc30))
+* fade the moments that are rare, announce the change of generation ([a57b6e4](https://github.com/yannispgs/boardmate/commit/a57b6e48463db8521464c295bbcfb72962cc2204))
+* fondus sur les moments rares, carton de changement de génération ([9466d2d](https://github.com/yannispgs/boardmate/commit/9466d2d30d935318210d810b58b9d4d4f4fc85b3))
+* lire une partie dans les mots du jeu auquel on a joué ([342fcb6](https://github.com/yannispgs/boardmate/commit/342fcb61f8616b167b13d0baaa37afd61fba7bfc))
+* make the stage-change wait a per-game setting, a minute by default ([e7087d9](https://github.com/yannispgs/boardmate/commit/e7087d944355d2f8be9538e968bb1846a06b8f72))
+* name the two ends of a player's history, and rank before ten parties ([672e6c7](https://github.com/yannispgs/boardmate/commit/672e6c7b1a092f8abf1f247cc3c7f10118e776a7))
+* order the player recap by finish and paint each standing ([e3fa0c0](https://github.com/yannispgs/boardmate/commit/e3fa0c07f882f7ca0db3e69db8f980cb0efd9254))
+* place the party's figures among the parties before it ([0768d85](https://github.com/yannispgs/boardmate/commit/0768d853ff94321afad2bb9e5de31129470b90b8))
+* read a party in the words of the game it was played on ([4f2b0cf](https://github.com/yannispgs/boardmate/commit/4f2b0cf7551f1b0ada55457ceb4583f54eb0dd3d))
+* read each player's evening on a bar instead of a card ([9390788](https://github.com/yannispgs/boardmate/commit/939078895c1c5cc7fd298df79ffbcdb16accaebe))
+* say « avant celle-ci » and a percentile rather than a quarter ([eeecfb5](https://github.com/yannispgs/boardmate/commit/eeecfb55bb9d159e30d5c3b7ce408e2beaaf35b3))
+* sections « la partie » et « les joueurs » en fin de partie ([861180e](https://github.com/yannispgs/boardmate/commit/861180ee255018633de225d04e370934cb659e7b))
+* split the end-of-game screen into « la partie » and « les joueurs » ([76d2042](https://github.com/yannispgs/boardmate/commit/76d2042122324199adadce135cdf68bbac5c248e))
+* switch the recap scope with a two-named toggle ([851700c](https://github.com/yannispgs/boardmate/commit/851700c62c3cf259ec64c42b90bd761f7f437dd7))
+* tell how long a party lasted when the table stopped ([5967f7a](https://github.com/yannispgs/boardmate/commit/5967f7a1f5fa8886e03a7619b5d36ad4c31fc6ec))
+* wash each podium block in its metal, name included ([e5d9976](https://github.com/yannispgs/boardmate/commit/e5d9976905662f7ab59ade9f2e70fc4a7837e91f))
+* widen the party bars' basket and say when facts appear ([9926e31](https://github.com/yannispgs/boardmate/commit/9926e3192a8f95fb2dc70533ec2af6ab9d1b11ca))
+
+
+### Bug Fixes
+
+* announce the generation with &lt;output&gt; rather than a status role ([82f9b3d](https://github.com/yannispgs/boardmate/commit/82f9b3d4cb31d2c879d4ee5ea9dcfa2a6aeb3440))
+* crown the tie-break winner alone, and clear the party panel ([394bd3b](https://github.com/yannispgs/boardmate/commit/394bd3b09235bb3c555592959853f0df26260ff3))
+* **data:** write Smallworld down where the other games are written down ([e3a2860](https://github.com/yannispgs/boardmate/commit/e3a2860df386a6b145baf2882f6f6242a3f78ea2))
+* hide the lap count on every game with a fixed lap limit ([821ca88](https://github.com/yannispgs/boardmate/commit/821ca88aa63d959abc766da945855e6ea9a8d7cc))
+* keep both clocks mounted so the phase swap stops moving the page ([a9ba18d](https://github.com/yannispgs/boardmate/commit/a9ba18d4223a8a46bd74a8c8fda78bfa077e7a30))
+* keep the player rows clear of the score handle ([d9e10b9](https://github.com/yannispgs/boardmate/commit/d9e10b9c4d430922ee733b06df78a267cab0e8ac))
+* make the spread bar's dots and cursor findable on the dark screen ([e8fffe7](https://github.com/yannispgs/boardmate/commit/e8fffe71a0ef9eb00b8d41d32b3ec6990ad26d0d))
+* point every recap bar the same way, good end on the right ([aa1a98e](https://github.com/yannispgs/boardmate/commit/aa1a98e2cb62725dfb7146399264c927d0d58cc5))
+* read a shared victory instead of offering it as a third choice ([080d1bd](https://github.com/yannispgs/boardmate/commit/080d1bd009738786a2c9f302242b7c2b9f7cbaf7))
+* Smallworld déclaré dans les migrations, avec son gabarit de config ([ba0483c](https://github.com/yannispgs/boardmate/commit/ba0483cd2ef3815579a3ef501aa2b19901b2090a))
+* start the new stage's clock only once the table has taken it ([84681e0](https://github.com/yannispgs/boardmate/commit/84681e0bcb34698a790d4452c1db7d2092862075))
+* **stats:** let the party on screen set the gauge scale ([b1e245d](https://github.com/yannispgs/boardmate/commit/b1e245d787c919d2860afcb64697fdb808541949))
+
 ## [1.5.0](https://github.com/yannispgs/boardmate/compare/v1.4.0...v1.5.0) (2026-08-30)
 
 
