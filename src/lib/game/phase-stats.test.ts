@@ -8,6 +8,8 @@ import type {
 } from "@/lib/domain";
 import {
   averageStageBreakdowns,
+  offTurnSeconds,
+  phaseMeasures,
   phaseTotals,
   stageBreakdowns,
   turnPhase,
@@ -190,6 +192,71 @@ describe("turnPhase", () => {
   it("finds none on a game with no phases, or none that runs the timer", () => {
     expect(turnPhase(null)).toBeNull();
     expect(turnPhase(PHASES.filter(p => p.clock === "stopwatch"))).toBeNull();
+  });
+});
+
+describe("offTurnSeconds", () => {
+  // 60 + 100 of discovery, 20 of production — the 320 s of « Projets » are the
+  // turn log's own, and are already counted there.
+  it("adds up every phase but the one the turns are taken in", () => {
+    expect(offTurnSeconds(TIMES, PHASES)).toBe(180);
+  });
+
+  it("finds nothing to add on a game that declares no phase", () => {
+    expect(offTurnSeconds(TIMES, null)).toBe(0);
+  });
+
+  // Nothing carries the turn timer, so no row is anybody's turn and all of them
+  // are time the log never saw.
+  it("keeps every row when no phase runs the turn timer", () => {
+    const stopwatches = PHASES.filter(p => p.clock === "stopwatch");
+
+    expect(offTurnSeconds(TIMES, stopwatches)).toBe(500);
+  });
+});
+
+describe("phaseMeasures", () => {
+  /** The same three phases, played through in one generation. */
+  function party(discoveryS: number, productionS: number): PhaseTime[] {
+    return [
+      { stage: 1, phaseKey: "discovery", durationS: discoveryS },
+      { stage: 1, phaseKey: "projects", durationS: 100 },
+      { stage: 1, phaseKey: "production", durationS: productionS },
+    ];
+  }
+
+  it("places each phase among the same phase of the parties before it", () => {
+    const [discovery] = phaseMeasures(
+      party(60, 30),
+      [party(40, 50), party(80, 10)],
+      PHASES,
+    );
+
+    expect(discovery?.totalS).toBe(60);
+    expect(discovery?.gauge?.fill).toBe(0.5);
+  });
+
+  // A party played before the game was given its phases has no row for them;
+  // counting it as a zero would make every phase of tonight a record.
+  it("ignores the parties that never recorded the phase", () => {
+    const older: PhaseTime[] = [];
+    const [discovery] = phaseMeasures(
+      party(60, 30),
+      [party(40, 50), older, party(80, 10)],
+      PHASES,
+    );
+
+    expect(discovery?.gauge?.marks).toEqual([0, 1]);
+  });
+
+  it("draws no bar on a first party of the game", () => {
+    const measures = phaseMeasures(party(60, 30), [], PHASES);
+
+    expect(measures.map(m => m.gauge)).toEqual([null, null, null]);
+  });
+
+  it("measures nothing at all on a game that declares no phase", () => {
+    expect(phaseMeasures(party(60, 30), [], null)).toEqual([]);
   });
 });
 

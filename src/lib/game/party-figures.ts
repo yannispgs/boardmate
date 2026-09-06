@@ -23,16 +23,55 @@ export interface FigureTurn {
 /** The figures a party can be read on. */
 export type PartyFigureKey =
   | "playTime"
+  | "totalTime"
   | "rounds"
   | "avgRound"
   | "avgTurn"
   | "pauseTime"
   | "overtime";
 
+/**
+ * A party as the two things it is measured from: its turn log, and the seconds
+ * it spent **outside** the phase those turns belong to.
+ *
+ * On almost every game the second number is zero and a party is its log. On a
+ * game played in phases (Terraforming Mars) the log only covers « Projets » —
+ * the table also drafts and produces, and those minutes are banked per phase
+ * rather than per turn. Reading the evening off the log alone made « Temps de
+ * jeu » a third of the truth.
+ */
+export interface PartyLog {
+  turns: readonly FigureTurn[];
+  /**
+   * Seconds of the phases the turn log never sees. Comes from the phase rows,
+   * with the turn phase's own row deliberately left out: that row banks the
+   * turns' seconds *and* their pauses, so counting it here would count the
+   * evening twice.
+   */
+  offTurnS: number;
+}
+
 /** Every figure of one party, whether or not it ends up on screen. */
 export interface PartyFigures {
-  /** Seconds actually played, pauses excluded. */
+  /**
+   * Seconds the party lasted, pauses excluded — **every phase of it**, not only
+   * the one played in turns.
+   */
   playTime: number;
+  /**
+   * Seconds the party occupied the table, **pauses included** — how long the
+   * evening lasted rather than how long it was played.
+   */
+  totalTime: number;
+  /**
+   * Seconds spent in the phase the turns belong to, which is the only span the
+   * log can divide. Equal to `playTime` on a game that declares no phase.
+   *
+   * ⚠️ Every per-turn average is measured on **this**, never on `playTime`:
+   * dividing a whole Terraforming Mars evening by its turns would price a
+   * player's go with the production phase folded into it.
+   */
+  turnTime: number;
   /** Laps of the table reached. */
   rounds: number;
   turnCount: number;
@@ -49,32 +88,44 @@ export interface PartyFigures {
 }
 
 /**
- * A party reduced to its figures. Takes a bare turn log so tonight and a party
- * pulled from the history — which are two different shapes everywhere else —
- * can be measured by the same code, and therefore compared at all.
+ * A party reduced to its figures. Takes a bare log so tonight and a party pulled
+ * from the history — which are two different shapes everywhere else — can be
+ * measured by the same code, and therefore compared at all.
  *
  * ⚠️ The pause **count** is deliberately absent: the recorded history carries
  * the paused seconds but not how many pauses made them up, so a party of the
  * past could not answer. The seconds say the same thing in the unit that
  * matters.
  */
-export function partyFigures(turns: readonly FigureTurn[]): PartyFigures {
-  const playTime = turns.reduce((sum, t) => {
+export function partyFigures(
+  turns: readonly FigureTurn[],
+  offTurnS = 0,
+): PartyFigures {
+  const turnTime = turns.reduce((sum, t) => {
     return sum + t.durationS;
   }, 0);
   const rounds = turns.reduce((max, t) => {
     return Math.max(max, t.round);
   }, 0);
+  const pauseTime = turns.reduce((sum, t) => {
+    return sum + t.pauseDurationS;
+  }, 0);
+  const playTime = turnTime + offTurnS;
 
   return {
     playTime,
+    // Summed off the log and the phase rows rather than read as
+    // « ended_at - started_at »: that wall answers a different question. A party
+    // is opened when the box comes out and closed whenever someone thinks of it,
+    // so dev holds parties of ten seconds' play stamped three weeks apart. Play
+    // plus pause is the time the table was actually sat down.
+    totalTime: playTime + pauseTime,
+    turnTime,
     rounds,
     turnCount: turns.length,
-    avgRound: rounds > 0 ? playTime / rounds : 0,
-    avgTurn: turns.length > 0 ? playTime / turns.length : 0,
-    pauseTime: turns.reduce((sum, t) => {
-      return sum + t.pauseDurationS;
-    }, 0),
+    avgRound: rounds > 0 ? turnTime / rounds : 0,
+    avgTurn: turns.length > 0 ? turnTime / turns.length : 0,
+    pauseTime,
     overtime: turns.reduce((sum, t) => {
       return sum + t.overtimeS;
     }, 0),
@@ -90,13 +141,13 @@ export interface PartyMeasure {
 }
 
 export interface PartyMeasuresInput {
-  tonight: readonly FigureTurn[];
+  tonight: PartyLog;
   /**
    * The parties tonight is read against — already narrowed to the same game at
    * the same table size, and with tonight left out. A party is not a reference
    * for itself.
    */
-  history: ReadonlyArray<readonly FigureTurn[]>;
+  history: readonly PartyLog[];
   /**
    * The rulebook's fixed number of laps, when the game has one — Cascadia's 20,
    * Smallworld's 9. Its presence alone drops a count that only repeats the
@@ -130,7 +181,11 @@ export interface PartyMeasuresInput {
  *
  * A pause total and an overtime total that are zero are dropped too — the party
  * never paused and never ran over, and a tile saying « 0 » twice is two tiles
- * spent on nothing.
+ * spent on nothing. The **pause-included time** rides on the same condition,
+ * for a stronger reason than tidiness: a party that never stopped played for
+ * exactly as long as it lasted, so showing both would print the same duration
+ * twice under two names and invite the reader to look for a difference there
+ * isn't one.
  */
 export function partyMeasures({
   tonight,
@@ -138,10 +193,16 @@ export function partyMeasures({
   roundLimit,
   simultaneous,
 }: PartyMeasuresInput): PartyMeasure[] {
-  const figures = partyFigures(tonight);
-  const past = history.map(partyFigures);
+  const figures = partyFigures(tonight.turns, tonight.offTurnS);
+  const past = history.map(p => {
+    return partyFigures(p.turns, p.offTurnS);
+  });
 
   const keys: PartyFigureKey[] = ["playTime"];
+
+  if (figures.pauseTime > 0) {
+    keys.push("totalTime");
+  }
 
   if (roundLimit === null) {
     keys.push("rounds");

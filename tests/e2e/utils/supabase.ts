@@ -237,7 +237,8 @@ export async function seedParty(
  * The turns of a party already in the books — what makes it a party someone
  * *played* rather than one keyed in after the fact, and what every reading of
  * time divides. A `playerId` of `null` is a turn the whole table took at once
- * (a simultaneous game), owned by nobody.
+ * (a simultaneous game), owned by nobody. `pauseDurationS` is the time the turn
+ * spent stopped, which the played seconds deliberately leave out.
  */
 export async function seedTurns(
   admin: SupabaseClient,
@@ -247,6 +248,7 @@ export async function seedTurns(
     round: number;
     turnNo: number;
     durationS: number;
+    pauseDurationS?: number;
   }>,
 ): Promise<void> {
   const { error } = await admin.from("game_turns").insert(
@@ -256,11 +258,39 @@ export async function seedTurns(
       round: t.round,
       turn_no: t.turnNo,
       duration_s: t.durationS,
+      pause_duration_s: t.pauseDurationS ?? 0,
     })),
   );
 
   if (error) {
     throw new Error(`Failed to seed the turns: ${error.message}`);
+  }
+}
+
+/**
+ * How long the table spent in each phase of each stage.
+ *
+ * ⚠️ Table seconds, never a player's: a simultaneous phase belongs to everybody
+ * at once. The row of the phase the turns are taken in is an **envelope** — it
+ * holds the turns' own seconds plus what happened between them — so it is never
+ * added to a figure already read off the turn log.
+ */
+export async function seedPhases(
+  admin: SupabaseClient,
+  gameId: string,
+  rows: ReadonlyArray<{ stage: number; phaseKey: string; durationS: number }>,
+): Promise<void> {
+  const { error } = await admin.from("game_phases").insert(
+    rows.map(r => ({
+      game_id: gameId,
+      stage: r.stage,
+      phase_key: r.phaseKey,
+      duration_s: r.durationS,
+    })),
+  );
+
+  if (error) {
+    throw new Error(`Failed to seed the phases: ${error.message}`);
   }
 }
 
@@ -317,6 +347,18 @@ export async function seedBoardgame(
     isTimed?: boolean;
     /** `"simultaneous"` for a game whose table plays each lap at once (Splito). */
     turnMode?: "sequential" | "simultaneous";
+    /**
+     * What the game calls one unit of progress and how it moves on — Mars's
+     * `{ label: "Génération", advance: "pass" }`. Its presence is what makes the
+     * recap count generations instead of tours.
+     */
+    stages?: Readonly<Record<string, unknown>>;
+    /**
+     * The moments a stage is played in, in order. The one carrying
+     * `clock: "turnTimer"` is where the turns are taken; the others are timed
+     * for the table as a whole and belong to nobody.
+     */
+    phases?: ReadonlyArray<Readonly<Record<string, unknown>>>;
   }>,
 ): Promise<string> {
   const { data, error } = await admin
@@ -327,6 +369,8 @@ export async function seedBoardgame(
       max_players: fields.maxPlayers ?? 4,
       ...(fields.isTimed === undefined ? {} : { is_timed: fields.isTimed }),
       ...(fields.turnMode === undefined ? {} : { turn_mode: fields.turnMode }),
+      ...(fields.stages === undefined ? {} : { stages: fields.stages }),
+      ...(fields.phases === undefined ? {} : { phases: fields.phases }),
       ...(fields.roundLimit === undefined
         ? {}
         : { round_limit: fields.roundLimit }),
