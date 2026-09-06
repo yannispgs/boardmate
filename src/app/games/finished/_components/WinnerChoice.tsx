@@ -11,6 +11,13 @@ import type { Player, PlayerId, TieBreakRule } from "@/lib/domain";
  * it does. It **names** the game's own tie-break rule so the table can apply it
  * over the box, then takes back the answer alone: the value it was settled on
  * is the first thing forgotten weeks later, the winner the last.
+ *
+ * A shared victory is **read**, never chosen: it is what having designated
+ * everybody means, so it shows up in gold once the last name is lit rather than
+ * sitting there as one more thing to tap. Offering it as a button made two
+ * controls fight over the same state — a table that lit its second co-leader
+ * saw the answer jump to a third option and both names go dark, and the next
+ * tap then looked like it was picking the other player.
  */
 export function WinnerChoice({
   candidates,
@@ -18,7 +25,6 @@ export function WinnerChoice({
   tied,
   rules,
   onToggle,
-  onShare,
 }: Readonly<{
   candidates: Player[];
   winners: PlayerId[];
@@ -27,7 +33,6 @@ export function WinnerChoice({
   /** The game's secondary rules, in the order its rulebook runs them. */
   rules: TieBreakRule[];
   onToggle: (id: PlayerId) => void;
-  onShare: () => void;
 }>) {
   const shared = winners.length > 1 && winners.length === candidates.length;
 
@@ -59,7 +64,7 @@ export function WinnerChoice({
       ) : null}
 
       {candidates.map(p => {
-        const isWinner = !shared && winners.includes(p.id);
+        const isWinner = winners.includes(p.id);
 
         return (
           <button
@@ -78,18 +83,10 @@ export function WinnerChoice({
         );
       })}
 
-      {candidates.length > 1 ? (
-        <button
-          type="button"
-          onClick={onShare}
-          className={`rounded-lg border px-4 py-2.5 text-sm font-medium transition ${
-            shared
-              ? "border-indigo-500 bg-indigo-600 text-white"
-              : "border-black/15 bg-white hover:bg-black/5 dark:border-white/15 dark:bg-zinc-900 dark:hover:bg-white/5"
-          }`}
-        >
-          Victoire partagée
-        </button>
+      {shared ? (
+        <p className="rounded-lg border border-amber-500/40 bg-amber-500/15 px-4 py-2.5 text-center text-sm font-semibold text-amber-700 dark:text-amber-300">
+          Victoire partagée 🤝
+        </p>
       ) : null}
     </div>
   );

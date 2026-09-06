@@ -286,9 +286,6 @@ export function FinishedGameForm() {
             setPiles(p => ({ ...p, [key]: value }));
           }}
           onWinner={id => setWinnerIds(toggled(effectiveWinners, id))}
-          onShareWin={() => {
-            setWinnerIds(entry.winnerCandidates.map(p => p.id));
-          }}
         />
       ) : null}
 

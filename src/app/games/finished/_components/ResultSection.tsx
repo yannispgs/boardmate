@@ -46,7 +46,6 @@ export function ResultSection({
   onCell,
   onPile,
   onWinner,
-  onShareWin,
 }: Readonly<{
   className: string;
   /** The local day the game ended, as the date input holds it. */
@@ -78,7 +77,6 @@ export function ResultSection({
   onCell: (id: PlayerId, key: string, text: string) => void;
   onPile: (key: string, value: number) => void;
   onWinner: (id: PlayerId) => void;
-  onShareWin: () => void;
 }>) {
   return (
     <section className={className}>
@@ -133,7 +131,6 @@ export function ResultSection({
           tied={choice.tied}
           rules={choice.rules}
           onToggle={onWinner}
-          onShare={onShareWin}
         />
       ) : null}
     </section>

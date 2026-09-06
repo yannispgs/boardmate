@@ -162,8 +162,20 @@ test("records a tie left unbroken as a shared victory (two winners)", async ({
     await page.getByRole("spinbutton", { name: names[0] }).fill("10");
     await page.getByRole("spinbutton", { name: names[1] }).fill("10");
 
-    // Sharing it is a choice of its own, not what happens when nobody answers.
-    await page.getByRole("button", { name: "Victoire partagée" }).click();
+    // Sharing it is designating everybody, not what happens when nobody
+    // answers — and both names stay lit while it is being said.
+    for (const name of names) {
+      await page.getByRole("button", { name, exact: true }).click();
+    }
+
+    await expect(page.getByText("Victoire partagée 🤝")).toBeVisible();
+
+    for (const name of names) {
+      await expect(
+        page.getByRole("button", { name, exact: true }),
+      ).toContainText("🏆");
+    }
+
     await page.getByRole("button", { name: "Enregistrer la partie" }).click();
     await expect(page).toHaveURL(/\/games$/);
 
