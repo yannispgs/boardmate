@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { hasPlayStats, tracksPlayerTime, tracksPlayerTurns } from "./turn-time";
+import {
+  hasPlayStats,
+  timeShareIndex,
+  tracksPlayerTime,
+  tracksPlayerTurns,
+} from "./turn-time";
 
 describe("tracksPlayerTurns", () => {
   it("hands the turn round the table on a timed, sequential game", () => {
@@ -74,5 +79,32 @@ describe("hasPlayStats", () => {
   it("has nothing to summarise on an untimed game with no manches", () => {
     // Papayoo: no turn, no manche, nothing but the scores already on the sheet.
     expect(hasPlayStats({ timed: false, stages: null })).toBe(false);
+  });
+});
+
+describe("timeShareIndex", () => {
+  it("calls an even split exactly his due, whatever the table size", () => {
+    expect(timeShareIndex(50, 200, 4)).toBe(100);
+    expect(timeShareIndex(25, 200, 8)).toBe(100);
+  });
+
+  // The point of the whole thing: the same third of the table's time is his
+  // fair share at three players and two thirds again his due at two.
+  it("reads one raw share differently at two table sizes", () => {
+    expect(timeShareIndex(100, 300, 3)).toBeCloseTo(100, 10);
+    expect(timeShareIndex(100, 300, 2)).toBeCloseTo(66.67, 2);
+  });
+
+  it("goes above his due when he took more than his seat's worth", () => {
+    expect(timeShareIndex(150, 300, 3)).toBe(150);
+  });
+
+  it("has nothing to say when nothing was timed", () => {
+    expect(timeShareIndex(0, 0, 4)).toBeNull();
+    expect(timeShareIndex(0, -1, 4)).toBeNull();
+  });
+
+  it("has nothing to say without a table to share", () => {
+    expect(timeShareIndex(50, 200, 0)).toBeNull();
   });
 });

@@ -54,6 +54,32 @@ export function SpreadBar({
       role="img"
       aria-label={label}
     >
+      {/* Everything past the reference figure, as ground rather than as a mark.
+          The line already speaks two languages in 8 px of height — round grey
+          dot for a past party, indigo bar for this one — and a third mark on it
+          would be read as one of those. A band cannot be: it is not an object.
+
+          It is also the only form that survives the drawing scale. Tinting the
+          track on either side of the reference was the first idea and it fails
+          on arithmetic: the track is 2 units thick, which is 1.2 px on the
+          glass, and a shade of grey 1.2 px tall is not there. The band takes the
+          full height instead.
+
+          Drawn first, so the dots and the cursor sit on top of it.
+
+          Running to the right end is what makes it « above »: true while the
+          scale ascends, which the one measure that anchors — a share of the
+          table's time — always does, having no good end to run backwards for. */}
+      {bar.anchor === null ? null : (
+        <rect
+          x={x(bar.anchor)}
+          y={0}
+          width={WIDTH - PAD - x(bar.anchor)}
+          height={HEIGHT}
+          className="fill-black/[0.07] dark:fill-white/[0.09]"
+        />
+      )}
+
       <line
         x1={PAD}
         y1={mid}

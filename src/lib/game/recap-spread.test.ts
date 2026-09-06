@@ -11,6 +11,7 @@ describe("spread", () => {
       right: 60,
       marks: [0, 1],
       cursor: 0.5,
+      anchor: null,
     });
   });
 
@@ -34,6 +35,7 @@ describe("spread", () => {
       right: 40,
       marks: [1, 0],
       cursor: 0.5,
+      anchor: null,
     });
   });
 
@@ -57,6 +59,56 @@ describe("spread", () => {
     expect(spread([], 50, "highest")).toBeNull();
   });
 
+  it("places the reference figure on the same scale as the parties", () => {
+    const bar = spread([40, 60], 50, null, 45);
+
+    expect(bar?.anchor).toBe(0.25);
+  });
+
+  // The whole reason the reference is clamped instead of scaled to. Both of
+  // these are real histories: two parties at 52 and 56, and two at 111 and 127.
+  // Widening the scale to hold 100 would squeeze the first pair into the
+  // leftmost twelfth of the track, and comparing his parties to each other is
+  // what the bar is for.
+  it("pins a reference nothing reached to the end it is past", () => {
+    const under = spread([52], 56, null, 100);
+    const over = spread([111], 127, null, 100);
+
+    expect(under?.anchor).toBe(1);
+    expect(under?.left).toBe(52);
+    expect(under?.right).toBe(56);
+
+    expect(over?.anchor).toBe(0);
+    expect(over?.left).toBe(111);
+    expect(over?.right).toBe(127);
+  });
+
+  it("pins it to the other end when the bar runs backwards", () => {
+    // On a descending scale the small figure is the right-hand end, so a
+    // reference below everything is the one that lands on the right.
+    const under = spread([52], 56, "lowest", 100);
+    const over = spread([111], 127, "lowest", 100);
+
+    expect(under?.anchor).toBe(0);
+    expect(over?.anchor).toBe(1);
+  });
+
+  it("puts a reference every party landed on under the stack", () => {
+    const bar = spread([100, 100], 100, null, 100);
+
+    expect(bar?.anchor).toBe(0.5);
+  });
+
+  it("still picks a side for a reference no party reached, with no width", () => {
+    const under = spread([52, 52], 52, null, 100);
+    const over = spread([127, 127], 127, null, 100);
+    const backwards = spread([52, 52], 52, "lowest", 100);
+
+    expect(under?.anchor).toBe(1);
+    expect(over?.anchor).toBe(0);
+    expect(backwards?.anchor).toBe(0);
+  });
+
   it("stacks a run of identical figures in the middle", () => {
     // Nothing ever moved, so there is no width to divide by — and the picture
     // of one mark under the cursor is the truthful one.
@@ -67,6 +119,7 @@ describe("spread", () => {
       right: 50,
       marks: [0.5, 0.5],
       cursor: 0.5,
+      anchor: null,
     });
   });
 });

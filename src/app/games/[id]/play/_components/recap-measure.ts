@@ -24,7 +24,7 @@ export function measureValue(key: MeasureKey, value: number): string {
     case "placement":
       return String(Math.round(value));
     case "timeShare":
-      return `${Math.round(value)} %`;
+      return String(Math.round(value));
     case "avgTurn":
       return formatDuration(Math.round(value));
     default:
@@ -33,9 +33,15 @@ export function measureValue(key: MeasureKey, value: number): string {
 }
 
 /**
- * A word on what the figure is, for the reader who has never seen it — the two
- * that need one. « Position » is an index, not a score, and it runs **down**;
- * « Rapidité » is only ever read on a victory.
+ * A word on what the figure is, for the reader who has never seen it — the
+ * three that need one. « Position » is an index, not a score, and it runs
+ * **down**; « Rapidité » is only ever read on a victory; « Part du temps » is an
+ * index too, and the one measure whose bar carries a shaded zone.
+ *
+ * The wording of the last one is deliberately the same as the Statistiques
+ * page's {@link ../../../../stats/_components/TimeIndexInfo.TimeIndexInfo}: it
+ * is the same figure under the same name, and two explanations of one index is
+ * how they start drifting apart.
  */
 export function measureHint(key: MeasureKey): string | null {
   if (key === "placement") {
@@ -44,6 +50,10 @@ export function measureHint(key: MeasureKey): string | null {
 
   if (key === "speed") {
     return "Tours joués pour atteindre l'objectif, sur tes victoires au même objectif.";
+  }
+
+  if (key === "timeShare") {
+    return "Indice normalisé par nombre de joueurs : 100 = la part attendue (une répartition égale du temps de la table). En dessous = plus rapide, au-dessus = plus lent. La zone grisée de la barre est celle au-dessus de 100.";
   }
 
   return null;

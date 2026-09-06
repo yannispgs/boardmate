@@ -109,7 +109,12 @@ const PLAIN_TINT = "bg-black/[0.03] dark:bg-white/[0.04]";
  * other become a single smudge — the one thing the bar exists to show.
  */
 function Measure({ measure }: Readonly<{ measure: RecapMeasure }>) {
-  const bar = spread(measure.past, measure.value, measure.direction);
+  const bar = spread(
+    measure.past,
+    measure.value,
+    measure.direction,
+    measure.anchor ?? undefined,
+  );
   const standing = measureStanding(measure);
   const hint = measureHint(measure.key);
 

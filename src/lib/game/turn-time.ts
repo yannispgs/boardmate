@@ -48,6 +48,37 @@ export function tracksPlayerTime(
 }
 
 /**
+ * A player's share of one party's active time, **normalised by table size**:
+ * 100 = exactly his fair share (the table's time split evenly), below = he took
+ * less than his due, above = more. Null when nothing was timed.
+ *
+ * The normalisation is the whole point, and it is why this lives here rather
+ * than in either of its two callers. A raw percentage cannot be read across
+ * table sizes: 33 % is the fair share of a three-handed game and two thirds
+ * again the due of a five-handed one, so placing one party's percentage among a
+ * player's past percentages ranks the size of the table he sat at as much as
+ * how long he thought. On a real history — three parties, two at three players
+ * and one at four — the raw figures ordered 27 % / 34 % / 43 % while the
+ * indexes ordered 82 / 129 / 137: the party the percentages called middling was
+ * in fact his greediest.
+ *
+ * 100 rather than 1 because the app already says 100 everywhere else it shows
+ * this figure (the Statistiques page, in three places) — one quantity under one
+ * name deserves one notation.
+ */
+export function timeShareIndex(
+  ownActiveS: number,
+  partyActiveS: number,
+  playerCount: number,
+): number | null {
+  if (partyActiveS <= 0 || playerCount < 1) {
+    return null;
+  }
+
+  return (ownActiveS / partyActiveS) * playerCount * 100;
+}
+
+/**
  * Whether a finished party has anything to summarise. An untimed game counted
  * in no manches either (Papayoo) records neither a turn nor a manche: the
  * end-of-game panel would be a wall of zeros, and the only figures the evening

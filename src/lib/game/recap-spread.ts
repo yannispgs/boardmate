@@ -16,6 +16,18 @@ export interface Spread {
   marks: number[];
   /** This party, on the same scale: where the cursor goes. */
   cursor: number;
+  /**
+   * A fixed figure the measure is read against — « sa part » on a time index —
+   * at its place along the same scale, or null when the measure has none.
+   *
+   * **Clamped, never scaled to.** It is the one figure that can fall outside the
+   * player's own range, and letting it stretch the scale would ruin the bar's
+   * actual job: on a real history of two parties at 52 and 56, widening to hold
+   * 100 crushes both into the leftmost 8 % of the track, and comparing his
+   * parties to each other is what the bar is for. Pinned to the end instead, it
+   * still says the true thing — everything he played is on one side of it.
+   */
+  anchor: number | null;
 }
 
 /**
@@ -40,6 +52,7 @@ export function spread(
   past: readonly number[],
   value: number,
   direction: ScoreDirection | null,
+  anchor?: number,
 ): Spread | null {
   if (past.length === 0) {
     return null;
@@ -61,11 +74,28 @@ export function spread(
     return descending ? 1 - t : t;
   };
 
+  // Only the anchor needs this: every other figure is one of the values the
+  // scale was built from, so it lands inside by construction.
+  const clamped = (v: number) => {
+    if (width === 0) {
+      if (v === min) {
+        return 0.5;
+      }
+
+      // On a descending scale the small figure is the right-hand end, so which
+      // side « below everything » lands on depends on which way the bar runs.
+      return v < min === descending ? 1 : 0;
+    }
+
+    return Math.min(1, Math.max(0, at(v)));
+  };
+
   return {
     left: descending ? max : min,
     right: descending ? min : max,
     marks: past.map(at),
     cursor: at(value),
+    anchor: anchor === undefined ? null : clamped(anchor),
   };
 }
 

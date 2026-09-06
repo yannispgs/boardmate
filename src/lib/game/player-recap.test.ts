@@ -435,8 +435,65 @@ describe("playerRecaps, on a timed game", () => {
     });
     const read = measures(recaps, ann);
 
-    expect(read.get("timeShare")?.value).toBe(60);
+    // 120 of the table's 200 seconds is 60 % of it, and 60 % of a two-handed
+    // table is 120 % of his due — the figure the screen shows.
+    expect(read.get("timeShare")?.value).toBe(120);
     expect(read.get("avgTurn")?.value).toBe(60);
+  });
+
+  // The measure this normalisation exists for: the same 40 % of the table read
+  // at three players and at four. Left raw, the two evenings would be filed as
+  // the same figure although one is a fifth over his due and the other three
+  // fifths over it, and the bar would rank the size of the table he sat at.
+  it("reads a share against the table it was taken at, not as a raw percent", () => {
+    const seats = (n: number): Array<[PlayerId, number | null, boolean?]> => {
+      return Array.from({ length: n }, (_, i) => {
+        return i === 0 ? [ann, 50, true] : [`p${i}` as PlayerId, 30];
+      });
+    };
+    const turns: Array<[PlayerId, number]> = [
+      [ann, 40],
+      [bob, 60],
+    ];
+    const atThree = withTurns("t", seats(3), turns);
+    const atFour = withTurns("p1", seats(4), turns);
+    const read = measures(
+      playerRecaps({
+        tonight: atThree,
+        history: [atThree, atFour],
+        names,
+        setup: timed,
+        scope: "all",
+      }),
+      ann,
+    );
+
+    // Close rather than exact: the index is a product of two divisions, so
+    // 40 % of a three-handed table lands a floating-point hair off 120. The
+    // screen rounds it and the bar has no equality to make of it — this measure
+    // carries no direction, so nothing ever ranks two of these figures.
+    expect(read.get("timeShare")?.value).toBeCloseTo(120, 10);
+    expect(read.get("timeShare")?.past[0]).toBeCloseTo(160, 10);
+  });
+
+  // What the bar draws the shaded zone from. Only a normalised measure can
+  // carry one: 100 is « sa part » on every table, where 82 points is neutral on
+  // one game and excellent on the next.
+  it("hangs the share on 100 and nothing else on anything", () => {
+    const tonight = withTurns("t", [[ann, 50, true]], [[ann, 30]]);
+    const read = measures(
+      playerRecaps({
+        tonight,
+        history: [tonight],
+        names,
+        setup: timed,
+        scope: "all",
+      }),
+      ann,
+    );
+
+    expect(read.get("timeShare")?.anchor).toBe(100);
+    expect(read.get("avgTurn")?.anchor).toBeNull();
   });
 
   it("calls neither end of a time measure the good one", () => {
