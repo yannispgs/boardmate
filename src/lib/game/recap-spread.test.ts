@@ -60,9 +60,31 @@ describe("spread", () => {
   });
 
   it("places the reference figure on the same scale as the parties", () => {
-    const bar = spread([40, 60], 50, null, 45);
+    const bar = spread([40, 60], 50, null, { value: 45, ceiling: 55 });
 
-    expect(bar?.anchor).toBe(0.25);
+    expect(bar?.anchor?.at).toBe(0.25);
+  });
+
+  // The ramp is placed off the measure's own scale, not across the band: the
+  // ceiling keeps its true place even when — as here, and on most real
+  // histories — it falls well off the end of the bar.
+  it("keeps the ramp on the scale, ceiling included, however far out it lands", () => {
+    const bar = spread([75, 120], 114, null, { value: 100, ceiling: 160 });
+
+    expect(bar?.anchor?.at).toBeCloseTo(0.5556, 4);
+    expect(bar?.anchor?.ramp?.from).toBeCloseTo(0.5556, 4);
+    expect(bar?.anchor?.ramp?.to).toBeCloseTo(1.8889, 4);
+  });
+
+  it("lets the ramp start off the bar too, when everything is past the reference", () => {
+    const bar = spread([120, 150], 126, null, { value: 100, ceiling: 160 });
+
+    // Pinned to the left end to be drawn, but the ramp keeps 100 where it
+    // really is — a fifth of a bar-width before the bar starts — so 120 is
+    // already a third of the way to full strength.
+    expect(bar?.anchor?.at).toBe(0);
+    expect(bar?.anchor?.ramp?.from).toBeCloseTo(-0.6667, 4);
+    expect(bar?.anchor?.ramp?.to).toBeCloseTo(1.3333, 4);
   });
 
   // The whole reason the reference is clamped instead of scaled to. Both of
@@ -71,14 +93,14 @@ describe("spread", () => {
   // leftmost twelfth of the track, and comparing his parties to each other is
   // what the bar is for.
   it("pins a reference nothing reached to the end it is past", () => {
-    const under = spread([52], 56, null, 100);
-    const over = spread([111], 127, null, 100);
+    const under = spread([52], 56, null, { value: 100, ceiling: 160 });
+    const over = spread([111], 127, null, { value: 100, ceiling: 160 });
 
-    expect(under?.anchor).toBe(1);
+    expect(under?.anchor?.at).toBe(1);
     expect(under?.left).toBe(52);
     expect(under?.right).toBe(56);
 
-    expect(over?.anchor).toBe(0);
+    expect(over?.anchor?.at).toBe(0);
     expect(over?.left).toBe(111);
     expect(over?.right).toBe(127);
   });
@@ -86,27 +108,34 @@ describe("spread", () => {
   it("pins it to the other end when the bar runs backwards", () => {
     // On a descending scale the small figure is the right-hand end, so a
     // reference below everything is the one that lands on the right.
-    const under = spread([52], 56, "lowest", 100);
-    const over = spread([111], 127, "lowest", 100);
+    const under = spread([52], 56, "lowest", { value: 100, ceiling: 160 });
+    const over = spread([111], 127, "lowest", { value: 100, ceiling: 160 });
 
-    expect(under?.anchor).toBe(0);
-    expect(over?.anchor).toBe(1);
+    expect(under?.anchor?.at).toBe(0);
+    expect(over?.anchor?.at).toBe(1);
   });
 
   it("puts a reference every party landed on under the stack", () => {
-    const bar = spread([100, 100], 100, null, 100);
+    const bar = spread([100, 100], 100, null, { value: 100, ceiling: 160 });
 
-    expect(bar?.anchor).toBe(0.5);
+    expect(bar?.anchor?.at).toBe(0.5);
+
+    // Nothing ever moved, so there is no distance for a ramp to run over and
+    // the band is left flat rather than given a made-up width to redden across.
+    expect(bar?.anchor?.ramp).toBeNull();
   });
 
   it("still picks a side for a reference no party reached, with no width", () => {
-    const under = spread([52, 52], 52, null, 100);
-    const over = spread([127, 127], 127, null, 100);
-    const backwards = spread([52, 52], 52, "lowest", 100);
+    const anchor = { value: 100, ceiling: 160 };
+    const under = spread([52, 52], 52, null, anchor);
+    const over = spread([127, 127], 127, null, anchor);
+    const backwards = spread([52, 52], 52, "lowest", anchor);
 
-    expect(under?.anchor).toBe(1);
-    expect(over?.anchor).toBe(0);
-    expect(backwards?.anchor).toBe(0);
+    expect(under?.anchor?.at).toBe(1);
+    expect(over?.anchor?.at).toBe(0);
+    expect(backwards?.anchor?.at).toBe(0);
+
+    expect(under?.anchor?.ramp).toBeNull();
   });
 
   it("stacks a run of identical figures in the middle", () => {

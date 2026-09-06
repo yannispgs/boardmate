@@ -1,4 +1,5 @@
 import type { BoardgameId, GameId, PlayerId, ScoringSpec } from "@/lib/domain";
+import { MONOPOLY_INDEX } from "./colors";
 import { finishPlaces, relativePosition } from "./placement";
 import type { ScoreDirection } from "./scoring";
 import { winnerDirection } from "./scoring";
@@ -72,7 +73,15 @@ export interface RecapMeasure {
    * average turn has no such figure — 82 points is neutral on one game and
    * excellent on the next.
    */
-  anchor: number | null;
+  anchor: MeasureAnchor | null;
+}
+
+/** A figure a measure is read against, and where being past it stops mattering. */
+export interface MeasureAnchor {
+  /** The neutral figure — the tint starts here and is invisible at it. */
+  value: number;
+  /** Where the tint reaches full strength, and past which it stays there. */
+  ceiling: number;
 }
 
 /** Everything the card and its detail need about one player's evening. */
@@ -218,9 +227,18 @@ function rankAmong(
   return better + 1;
 }
 
-/** The fixed figure each measure is read against, for the ones that have one. */
-const ANCHORS: Partial<Record<MeasureKey, number>> = {
-  timeShare: 100,
+/**
+ * The fixed figure each measure is read against, for the ones that have one,
+ * with the point past which being over it stops getting any worse.
+ *
+ * The ceiling is {@link MONOPOLY_INDEX} rather than a figure picked for this
+ * screen: it is already the line the live bar reddens to and the one the
+ * « monopolise le temps » banner trips on, and one quantity may only have one
+ * threshold or the app calls the same evening greedy on one screen and merely
+ * long on the next.
+ */
+const ANCHORS: Partial<Record<MeasureKey, MeasureAnchor>> = {
+  timeShare: { value: 100, ceiling: MONOPOLY_INDEX },
 };
 
 /** Builds one measure, or null when tonight produced no figure for it. */

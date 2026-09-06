@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { countdownColor, timeShareColor, timeShareRedness } from "./colors";
+import {
+  countdownColor,
+  timeIndexRedness,
+  timeShareColor,
+  timeShareRedness,
+} from "./colors";
 
 describe("countdownColor", () => {
   it("is green in the first half, then steps through the warning colours", () => {
@@ -17,7 +22,20 @@ describe("countdownColor", () => {
   });
 });
 
+describe("timeIndexRedness", () => {
+  it("is 0 at the fair share and 1 from the monopoly line on", () => {
+    expect(timeIndexRedness(100)).toBe(0);
+    expect(timeIndexRedness(80)).toBe(0); // under his due → clamped
+    expect(timeIndexRedness(160)).toBe(1);
+    expect(timeIndexRedness(400)).toBe(1); // twice as greedy is still greedy
+
+    expect(timeIndexRedness(130)).toBeCloseTo(0.5);
+  });
+});
+
 describe("timeShareRedness", () => {
+  // The same ramp read off a raw percentage: `pct × n` is the index, so a
+  // three-handed table's fair 33.3 % and its 53.3 % threshold are 100 and 160.
   it("is 0 at or below the fair share and 1 at the monopoly threshold", () => {
     // 3 players → fair 33.3%, threshold 53.3%.
     expect(timeShareRedness(33.33, 3)).toBeCloseTo(0);

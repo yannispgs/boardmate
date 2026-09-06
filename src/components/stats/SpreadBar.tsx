@@ -1,3 +1,7 @@
+"use client";
+
+import { useId } from "react";
+
 import type { Spread } from "@/lib/game/recap-spread";
 
 /**
@@ -45,6 +49,13 @@ export function SpreadBar({
     return PAD + t * inner;
   };
 
+  // Several of these bars share a page, and an SVG gradient is reached by id —
+  // one fixed id would have every bar painted with the first one's ramp. React
+  // hands out a unique one per instance; its colons are stripped because the id
+  // goes back out inside a `url(#…)`, where they are not valid.
+  const ramp = `${useId().replace(/[^a-zA-Z0-9]/g, "")}-ramp`;
+  const mask = `${ramp}-mask`;
+
   return (
     <svg
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
@@ -72,12 +83,65 @@ export function SpreadBar({
           table's time — always does, having no good end to run backwards for. */}
       {bar.anchor === null ? null : (
         <rect
-          x={x(bar.anchor)}
+          x={x(bar.anchor.at)}
           y={0}
-          width={WIDTH - PAD - x(bar.anchor)}
+          width={WIDTH - PAD - x(bar.anchor.at)}
           height={HEIGHT}
           className="fill-black/[0.07] dark:fill-white/[0.09]"
         />
+      )}
+
+      {/* And the same band reddening across it: neutral where the reference is
+          met exactly, deepening with every point past it, flat from the ceiling
+          on — being twice as greedy as the greediest is still just greedy.
+
+          Two rects rather than one gradient from grey to red, because only the
+          red is a judgement. The band below says « this side is past your
+          share » and has to stay legible at the reference itself, where there
+          is nothing to reproach; this one carries the reproach alone, and fades
+          to nothing rather than to a colour.
+
+          The ramp is placed in **viewBox units off the measure's own scale**,
+          not across this rect: `spreadMethod="pad"` then does the two ends for
+          free — plain before the reference, saturated after the ceiling — even
+          when both fall outside the bar, which on most histories they do.
+
+          A luminance mask rather than gradient stops in the fill, so the colour
+          stays a Tailwind class that can answer to the light reading. Black
+          hides, white shows. */}
+      {bar.anchor === null || bar.anchor.ramp === null ? null : (
+        <>
+          <defs>
+            <linearGradient
+              id={ramp}
+              gradientUnits="userSpaceOnUse"
+              x1={x(bar.anchor.ramp.from)}
+              x2={x(bar.anchor.ramp.to)}
+            >
+              <stop offset="0" stopColor="black" />
+              <stop offset="1" stopColor="white" />
+            </linearGradient>
+
+            <mask id={mask} maskUnits="userSpaceOnUse">
+              <rect
+                x={0}
+                y={0}
+                width={WIDTH}
+                height={HEIGHT}
+                fill={`url(#${ramp})`}
+              />
+            </mask>
+          </defs>
+
+          <rect
+            x={x(bar.anchor.at)}
+            y={0}
+            width={WIDTH - PAD - x(bar.anchor.at)}
+            height={HEIGHT}
+            mask={`url(#${mask})`}
+            className="fill-red-500/25 dark:fill-red-400/30"
+          />
+        </>
       )}
 
       <line

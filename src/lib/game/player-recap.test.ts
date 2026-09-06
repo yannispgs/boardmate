@@ -492,7 +492,9 @@ describe("playerRecaps, on a timed game", () => {
       ann,
     );
 
-    expect(read.get("timeShare")?.anchor).toBe(100);
+    // The ceiling is the app's monopoly line, not a figure invented for this
+    // screen — the live bar and the « monopolise le temps » banner use it too.
+    expect(read.get("timeShare")?.anchor).toEqual({ value: 100, ceiling: 160 });
     expect(read.get("avgTurn")?.anchor).toBeNull();
   });
 

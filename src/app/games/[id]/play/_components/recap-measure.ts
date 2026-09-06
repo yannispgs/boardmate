@@ -53,7 +53,7 @@ export function measureHint(key: MeasureKey): string | null {
   }
 
   if (key === "timeShare") {
-    return "Indice normalisé par nombre de joueurs : 100 = la part attendue (une répartition égale du temps de la table). En dessous = plus rapide, au-dessus = plus lent. La zone grisée de la barre est celle au-dessus de 100.";
+    return "Indice normalisé par nombre de joueurs : 100 = la part attendue (une répartition égale du temps de la table). En dessous = plus rapide, au-dessus = plus lent. La zone teintée de la barre commence à 100 et rougit jusqu'à 160, le seuil à partir duquel le jeu considère que tu monopolises la table.";
   }
 
   return null;

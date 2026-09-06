@@ -17,17 +17,41 @@ export interface Spread {
   /** This party, on the same scale: where the cursor goes. */
   cursor: number;
   /**
-   * A fixed figure the measure is read against — « sa part » on a time index —
-   * at its place along the same scale, or null when the measure has none.
+   * Where the band past the measure's reference figure starts and how it
+   * reddens, or null when the measure has no reference at all.
+   */
+  anchor: SpreadAnchor | null;
+}
+
+/** A measure's reference figure, and the band past it, placed on the bar. */
+export interface SpreadAnchor {
+  /**
+   * The reference's place along the scale, 0 = left, 1 = right — where the band
+   * begins.
    *
    * **Clamped, never scaled to.** It is the one figure that can fall outside the
    * player's own range, and letting it stretch the scale would ruin the bar's
    * actual job: on a real history of two parties at 52 and 56, widening to hold
-   * 100 crushes both into the leftmost 8 % of the track, and comparing his
+   * 100 crushes both into the leftmost twelfth of the track, and comparing his
    * parties to each other is what the bar is for. Pinned to the end instead, it
    * still says the true thing — everything he played is on one side of it.
    */
-  anchor: number | null;
+  at: number;
+  /**
+   * The two places the tint ramps between — the reference, and the ceiling past
+   * which it stays at full strength — **unclamped on purpose**. Either can fall
+   * off the bar, and both have to keep their true place.
+   *
+   * That is the whole reason this is a pair of positions and not a strength per
+   * end. A tint stretched over whatever width the band happens to have would
+   * reach full strength at 130 on one player's history and at 400 on another's,
+   * which is a colour that says « the right of your own range » — something the
+   * geometry already says, and not what a ceiling is for.
+   *
+   * Null when every party landed on the same figure: no width, so no distance
+   * for a ramp to run over.
+   */
+  ramp: { from: number; to: number } | null;
 }
 
 /**
@@ -52,7 +76,7 @@ export function spread(
   past: readonly number[],
   value: number,
   direction: ScoreDirection | null,
-  anchor?: number,
+  anchor?: Readonly<{ value: number; ceiling: number }>,
 ): Spread | null {
   if (past.length === 0) {
     return null;
@@ -90,12 +114,23 @@ export function spread(
     return Math.min(1, Math.max(0, at(v)));
   };
 
+  // The ramp is placed by `at`, which is unclamped: the ceiling in particular
+  // sits off the bar on most histories, and moving it to the end would be the
+  // one thing that makes the tint mean a different figure on every player's
+  // line.
+  const placed = (a: Readonly<{ value: number; ceiling: number }>) => {
+    return {
+      at: clamped(a.value),
+      ramp: width === 0 ? null : { from: at(a.value), to: at(a.ceiling) },
+    };
+  };
+
   return {
     left: descending ? max : min,
     right: descending ? min : max,
     marks: past.map(at),
     cursor: at(value),
-    anchor: anchor === undefined ? null : clamped(anchor),
+    anchor: anchor === undefined ? null : placed(anchor),
   };
 }
 

@@ -29,9 +29,36 @@ const SHARE_AMBER: [number, number, number] = [251, 191, 36]; // amber-400
 const SHARE_RED: [number, number, number] = [239, 68, 68]; // red-500
 
 /**
- * How "over their fair share" a player is, 0 → 1. 0 at or below an even split of
- * the table's active time; 1 once they reach the monopoly threshold (1.6× the
- * fair share — the same line that trips the "monopolise le temps" banner).
+ * The time index at which a player is said to be monopolising the table — 1.6×
+ * his fair share, the same line that trips the « monopolise le temps » banner.
+ *
+ * Exported because two screens now paint against it: the live bar below, and
+ * the shaded band on the end-of-game recap. One threshold, or the app would
+ * call the same evening greedy in one place and merely long in the other
+ * (owner, 2026-09-06).
+ */
+export const MONOPOLY_INDEX = 160;
+
+/** Where the fair share sits on the index — the point nothing is red at. */
+const FAIR_INDEX = 100;
+
+/**
+ * How "over his fair share" a time index is, 0 → 1: 0 at or below 100, 1 from
+ * {@link MONOPOLY_INDEX} on.
+ */
+export function timeIndexRedness(index: number): number {
+  const t = (index - FAIR_INDEX) / (MONOPOLY_INDEX - FAIR_INDEX);
+
+  return Math.max(0, Math.min(1, t));
+}
+
+/**
+ * The same ramp read off a raw percentage of the table's time — what the live
+ * screen has, since it never divides by the table size itself.
+ *
+ * The two are one formula: an even split of an `n`-handed table is `100 / n`
+ * percent, so `pct × n` **is** the index, and the fair share and the threshold
+ * scale with it. Written once here rather than derived twice.
  */
 export function timeShareRedness(
   sharePct: number,
@@ -41,10 +68,7 @@ export function timeShareRedness(
     return 0;
   }
 
-  const fair = 100 / playerCount;
-  const threshold = fair * 1.6;
-
-  return Math.max(0, Math.min(1, (sharePct - fair) / (threshold - fair)));
+  return timeIndexRedness(sharePct * playerCount);
 }
 
 /**
