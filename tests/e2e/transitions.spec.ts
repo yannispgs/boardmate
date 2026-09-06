@@ -44,16 +44,48 @@ async function fadeOn(target: Locator): Promise<string> {
 }
 
 /**
- * Long enough for the clock to have moved on, twice over: it ticks twice a
- * second and shows whole seconds. Also longer than the two seconds the
- * generation card used to spend on screen before removing itself — so a card
- * still there after this wait is a card that is genuinely waiting to be taken.
+ * A tenth of the ring under the number — three seconds of the thirty the app
+ * waits before starting the stage by itself.
+ *
+ * Long enough for the clock to have moved on several times over (it ticks twice
+ * a second and shows whole seconds), and longer than the two seconds the
+ * generation card used to spend on screen back when it removed itself: a card
+ * still there after this is a card genuinely waiting to be taken.
  */
-const LONG_ENOUGH_MS = 2_500;
+const DRAINED = 0.1;
 
 /** What the clock the table is actually looking at reads right now. */
 function clockText(page: Page): Promise<string> {
   return page.locator(".clock-layer:visible").innerText();
+}
+
+/**
+ * Waits until the ring under the stage number has drained by `fraction` of its
+ * circumference.
+ *
+ * The wait is synchronised on the screen's own countdown rather than on a fixed
+ * pause — and that is not a formality: what has to be proved next is that
+ * *nothing* moved, which has no condition of its own to wait for. The ring is
+ * the one thing on this card that does move, so it is what says how long the
+ * table has been left waiting. It also gets the ring itself under test, which a
+ * sleep would not.
+ */
+async function ringDrained(page: Page, fraction: number): Promise<void> {
+  await expect
+    .poll(
+      () => {
+        return page.locator(".stage-ring").evaluate(node => {
+          const style = getComputedStyle(node);
+
+          return (
+            Number.parseFloat(style.strokeDashoffset) /
+            Number.parseFloat(style.strokeDasharray)
+          );
+        });
+      },
+      { timeout: 15_000 },
+    )
+    .toBeGreaterThan(fraction);
 }
 
 /** Drops the game and its players, whatever the test did in between. */
@@ -120,7 +152,7 @@ test.describe("with the animations running", () => {
 
       const held = await clockText(page);
 
-      await page.waitForTimeout(LONG_ENOUGH_MS);
+      await ringDrained(page, DRAINED);
 
       // It does not leave on its own, and nobody is being charged for the wait:
       // the clock is frozen until the table says it has seen the change.
@@ -132,10 +164,7 @@ test.describe("with the animations running", () => {
       await card.click();
 
       await expect(card).toHaveCount(0);
-
-      await page.waitForTimeout(LONG_ENOUGH_MS);
-
-      expect(await clockText(page)).not.toBe(held);
+      await expect.poll(() => clockText(page)).not.toBe(held);
     } finally {
       await cleanUp(gameId, names);
     }
@@ -203,7 +232,7 @@ test("still holds the new generation with the movement turned off", async ({
     expect(await animationOn(page.locator(".stage-card"))).toBe("none");
     expect(await animationOn(page.locator(".stage-ring"))).toBe("stage-ring");
 
-    await page.waitForTimeout(LONG_ENOUGH_MS);
+    await ringDrained(page, DRAINED);
 
     await expect(card).toHaveText("Génération 2");
 
