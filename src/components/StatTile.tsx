@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 
+import type { Gauge } from "@/lib/game/party-gauge";
 import type { DeltaDirection, StatDelta } from "@/lib/game/stat-delta";
+import { GaugeBar } from "./stats/GaugeBar";
 
 /** How a gap to the reference is drawn: arrow + tint, above / below / level. */
 const DELTA: Record<DeltaDirection, { arrow: string; className: string }> = {
@@ -13,8 +15,12 @@ const DELTA: Record<DeltaDirection, { arrow: string; className: string }> = {
  * A labelled value in a stats summary grid: a large value with a small caption
  * beneath, optionally tinted to stand out (e.g. a headline figure). Shared by
  * the end-of-game panel, the live panel, and the global stats page. Pass `info`
- * (an {@link InfoTip}) to append a tappable explanation next to the label, and
- * `delta` to read the value against a reference (`deltaLabel` names it).
+ * (an {@link InfoTip}) to append a tappable explanation next to the label,
+ * `delta` to read the value against a reference (`deltaLabel` names it), and
+ * `gauge` to show where the value falls among past parties.
+ *
+ * `delta` and `gauge` answer the same question in two registers — a signed gap
+ * in words, a level in ink — so a tile is given one or the other, never both.
  */
 export function StatTile({
   label,
@@ -23,6 +29,7 @@ export function StatTile({
   info,
   delta,
   deltaLabel = "moy.",
+  gauge,
 }: Readonly<{
   label: string;
   value: string;
@@ -32,6 +39,8 @@ export function StatTile({
   delta?: StatDelta | null;
   /** What the gap is measured against, spelled out under the value. */
   deltaLabel?: string;
+  /** Where the value sits among the past parties, or null when it can't be placed. */
+  gauge?: Gauge | null;
 }>) {
   return (
     <div
@@ -59,6 +68,7 @@ export function StatTile({
           {DELTA[delta.direction].arrow} {delta.text} / {deltaLabel}
         </span>
       ) : null}
+      {gauge ? <GaugeBar gauge={gauge} /> : null}
     </div>
   );
 }

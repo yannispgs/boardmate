@@ -7,14 +7,19 @@ import { Drawer } from "@/components/Drawer";
 import { ExtensionBadgeList } from "@/components/games/ExtensionBadgeList";
 import type { PopulatedGame } from "@/lib/domain";
 import { playedExtensions } from "@/lib/game/extensions";
+import type { RecapScope } from "@/lib/game/player-recap";
+import { hasComparablePast } from "@/lib/game/player-recap";
 import { worldRecordOf } from "@/lib/game/score-records";
 import { formatNames } from "@/lib/game/tie-break";
 import { hasPlayStats } from "@/lib/game/turn-time";
+import { usePlayerRecaps } from "@/lib/hooks/use-player-recaps";
 import { useRecordsOfGame } from "@/lib/hooks/use-score-records";
 import { useSpeedRecord } from "@/lib/hooks/use-speed-record";
 
+import { EndRecapTabs } from "./EndRecapTabs";
 import { EndScorePanel } from "./EndScorePanel";
 import { GameStats } from "./GameStats";
+import { PlayerRecapSection } from "./PlayerRecapSection";
 import { ScoreRecordBanner } from "./ScoreRecordBanner";
 import { SessionFacts } from "./SessionFacts";
 import { SpeedRecordBanner } from "./SpeedRecordBanner";
@@ -77,11 +82,12 @@ function Outcome({
 }
 
 /**
- * The finished-game screen: a winner banner filling the view, then the
- * statistics panel below. A button scrolls the stats into view so the reward
- * (who won) stays front and centre while the numbers are one tap away. A
- * right-edge tab slides in the final score (with the per-category detail for
- * category games), keeping the stats at the bottom and the score on the side.
+ * The finished-game screen: a winner banner filling the view, then the two
+ * readings of the evening below ({@link EndRecapTabs}). A button scrolls them
+ * into view so the reward (who won) stays front and centre while the numbers
+ * are one tap away. A right-edge handle slides in the final score (with the
+ * per-category detail for category games), keeping the recap at the bottom and
+ * the score on the side.
  */
 export function EndedGame({
   game,
@@ -116,9 +122,13 @@ export function EndedGame({
   // The score slide-over only makes sense once someone actually has a score.
   const hasScore = game.players.some(p => p.score !== null);
 
-  // A party that recorded neither turn nor manche (Papayoo) has no panel below,
-  // so the link down to it would scroll to nothing.
-  const stats = hasPlayStats(game.boardgame);
+  // A party that recorded neither turn nor manche (Papayoo) has no panel below
+  // — but its players still have a history, so the link down is worth showing
+  // as soon as either of the two sections has something to say.
+  const [scope, setScope] = useState<RecapScope>("all");
+  const { recaps, byTable, loading } = usePlayerRecaps(game, scope);
+  const comparable = !loading && hasComparablePast(recaps);
+  const stats = hasPlayStats(game.boardgame) || comparable;
 
   const seeStats = () => {
     statsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -188,8 +198,46 @@ export function EndedGame({
         </div>
       </div>
 
+      {/* Two readings of the same evening, behind two tabs: what the table did,
+          then what each player did against his own past. Siblings, never one
+          inside the other — a game that records neither turn nor manche has no
+          party panel and still has a history to show. */}
       <div ref={statsRef} className="scroll-mt-6">
-        <GameStats game={game} />
+        <EndRecapTabs
+          party={
+            hasPlayStats(game.boardgame) ? (
+              // Same gutter, for the same reason as the rows below — the handle
+              // covers whatever is halfway down the screen, and this panel is
+              // charts and tiles that all run to the right edge. Applied here
+              // rather than inside the panel: what is pinned to the screen is a
+              // fact this component knows and the statistics do not, and the
+              // one wrapper covers the three variants the panel dispatches to.
+              <div
+                data-testid="party-panel"
+                className={hasScore ? "pe-10" : ""}
+              >
+                <GameStats game={game} />
+              </div>
+            ) : null
+          }
+          players={
+            comparable ? (
+              <PlayerRecapSection
+                recaps={recaps}
+                byTable={byTable}
+                scope={scope}
+                onScope={setScope}
+                // The score handle below is pinned to the right edge and stays
+                // there while this block scrolls, so whichever line happens to
+                // be halfway down the screen is drawn under it — and the end of
+                // a player's line is exactly where the figure and « sa
+                // meilleure » live. The rows stop short of it rather than run
+                // beneath.
+                rightGutter={hasScore}
+              />
+            ) : null
+          }
+        />
       </div>
 
       {hasScore ? (

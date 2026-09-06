@@ -8,6 +8,7 @@
  */
 
 import type { GamePlayer, GameTurn, PlayerId } from "@/lib/domain";
+import { partyFigures } from "./party-figures";
 
 export interface PlayerTimeStats {
   playerId: PlayerId;
@@ -80,7 +81,15 @@ interface StatsInput {
 
 /** Computes the full statistics payload for a finished game. */
 export function computeGameStats({ players, turns }: StatsInput): GameStats {
-  const activeTotalS = turns.reduce((sum, t) => sum + t.durationS, 0);
+  // The table-level figures are the same ones the end-of-game tiles read a
+  // party on, and they are measured there — from a bare turn log, so a party
+  // pulled from the history can be measured the same way. Only the per-player
+  // breakdown below is this file's own.
+  const figures = partyFigures(turns);
+  // The log's own seconds, never the party's: every share below divides one
+  // player's turns by the table's turns, and on a game played in phases the
+  // party is longer than its turns by everything the table did at once.
+  const activeTotalS = figures.turnTime;
 
   const playerStats: PlayerTimeStats[] = players.map(p => {
     const own = turns.filter(t => t.playerId === p.playerId);
@@ -159,16 +168,16 @@ export function computeGameStats({ players, turns }: StatsInput): GameStats {
       }
     : null;
 
-  const rounds = turns.reduce((max, t) => Math.max(max, t.round), 0);
-
   return {
     activeTotalS,
-    rounds,
-    turnCount: turns.length,
-    avgRoundS: rounds > 0 ? activeTotalS / rounds : 0,
-    totalPauseS: turns.reduce((sum, t) => sum + t.pauseDurationS, 0),
+    rounds: figures.rounds,
+    turnCount: figures.turnCount,
+    avgRoundS: figures.avgRound,
+    totalPauseS: figures.pauseTime,
+    // The one table figure `partyFigures` does not carry: the recorded history
+    // keeps the paused seconds without saying how many pauses made them up.
     totalPauseCount: turns.reduce((sum, t) => sum + t.pauseCount, 0),
-    totalOvertimeS: turns.reduce((sum, t) => sum + t.overtimeS, 0),
+    totalOvertimeS: figures.overtime,
     longestTurn,
     mostPaused,
     mostOvertime,

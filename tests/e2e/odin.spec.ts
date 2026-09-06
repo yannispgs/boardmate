@@ -178,7 +178,9 @@ test("counts Odin manche by manche and stops the game at the bar", async ({
     // dressed up as a figure.
     await page.goto(`/games/${gameId}/play`);
 
-    await expect(page.getByText("Statistiques de la partie")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "La partie", exact: true }),
+    ).toBeVisible();
     await expect(page.getByText("Temps de jeu")).toHaveCount(0);
     await expect(page.getByText("Manches", { exact: true })).toBeVisible();
     await expect(

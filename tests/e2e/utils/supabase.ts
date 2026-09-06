@@ -240,7 +240,8 @@ export async function seedParty(
  * The turns of a party already in the books — what makes it a party someone
  * *played* rather than one keyed in after the fact, and what every reading of
  * time divides. A `playerId` of `null` is a turn the whole table took at once
- * (a simultaneous game), owned by nobody.
+ * (a simultaneous game), owned by nobody. `pauseDurationS` is the time the turn
+ * spent stopped, which the played seconds deliberately leave out.
  */
 export async function seedTurns(
   admin: SupabaseClient,
@@ -250,6 +251,7 @@ export async function seedTurns(
     round: number;
     turnNo: number;
     durationS: number;
+    pauseDurationS?: number;
   }>,
 ): Promise<void> {
   const { error } = await admin.from("game_turns").insert(
@@ -259,12 +261,71 @@ export async function seedTurns(
       round: t.round,
       turn_no: t.turnNo,
       duration_s: t.durationS,
+      pause_duration_s: t.pauseDurationS ?? 0,
     })),
   );
 
   if (error) {
     throw new Error(`Failed to seed the turns: ${error.message}`);
   }
+}
+
+/**
+ * How long the table spent in each phase of each stage.
+ *
+ * ⚠️ Table seconds, never a player's: a simultaneous phase belongs to everybody
+ * at once. The row of the phase the turns are taken in is an **envelope** — it
+ * holds the turns' own seconds plus what happened between them — so it is never
+ * added to a figure already read off the turn log.
+ */
+export async function seedPhases(
+  admin: SupabaseClient,
+  gameId: string,
+  rows: ReadonlyArray<{ stage: number; phaseKey: string; durationS: number }>,
+): Promise<void> {
+  const { error } = await admin.from("game_phases").insert(
+    rows.map(r => ({
+      game_id: gameId,
+      stage: r.stage,
+      phase_key: r.phaseKey,
+      duration_s: r.durationS,
+    })),
+  );
+
+  if (error) {
+    throw new Error(`Failed to seed the phases: ${error.message}`);
+  }
+}
+
+/**
+ * The barème of a game whose scale really moves with the table: a plain total,
+ * highest takes it, read separately at each size. Several scenarios need a game
+ * like that and none of them needs a different one — records, recaps and table
+ * pills all hang off `playerCountSensitive`.
+ */
+export const TABLE_SENSITIVE_SCORING = {
+  timing: "final",
+  entry: "total",
+  winCondition: { type: "highest" },
+  playerCountSensitive: true,
+} as const;
+
+/**
+ * Turns a row of figures into a seatful of players, highest taking the win —
+ * the shape `seedParty` asks for. Fewer figures than players seats a smaller
+ * table, which is how a duel is slipped into a three-player game's history.
+ */
+export function scoreTable(
+  players: readonly string[],
+  idOf: (name: string) => string,
+) {
+  return (scores: readonly number[]) => {
+    return players.slice(0, scores.length).map((name, seat) => ({
+      playerId: idOf(name),
+      score: scores[seat],
+      isWinner: scores[seat] === Math.max(...scores),
+    }));
+  };
 }
 
 /**
@@ -280,6 +341,27 @@ export async function seedBoardgame(
     maxPlayers?: number;
     roundLimit?: number | null;
     scoring?: Readonly<Record<string, unknown>>;
+    /**
+     * Whether the app runs a clock on the turns. ⚠️ The column defaults to
+     * `true`, so a game seeded without saying otherwise DOES get the « La
+     * partie » panel on the finished screen — pass `false` for a scenario that
+     * must not have one (Papayoo's kind).
+     */
+    isTimed?: boolean;
+    /** `"simultaneous"` for a game whose table plays each lap at once (Splito). */
+    turnMode?: "sequential" | "simultaneous";
+    /**
+     * What the game calls one unit of progress and how it moves on — Mars's
+     * `{ label: "Génération", advance: "pass" }`. Its presence is what makes the
+     * recap count generations instead of tours.
+     */
+    stages?: Readonly<Record<string, unknown>>;
+    /**
+     * The moments a stage is played in, in order. The one carrying
+     * `clock: "turnTimer"` is where the turns are taken; the others are timed
+     * for the table as a whole and belong to nobody.
+     */
+    phases?: ReadonlyArray<Readonly<Record<string, unknown>>>;
   }>,
 ): Promise<string> {
   const { data, error } = await admin
@@ -288,6 +370,10 @@ export async function seedBoardgame(
       name: fields.name,
       min_players: fields.minPlayers ?? 1,
       max_players: fields.maxPlayers ?? 4,
+      ...(fields.isTimed === undefined ? {} : { is_timed: fields.isTimed }),
+      ...(fields.turnMode === undefined ? {} : { turn_mode: fields.turnMode }),
+      ...(fields.stages === undefined ? {} : { stages: fields.stages }),
+      ...(fields.phases === undefined ? {} : { phases: fields.phases }),
       ...(fields.roundLimit === undefined
         ? {}
         : { round_limit: fields.roundLimit }),
