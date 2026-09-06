@@ -14,6 +14,8 @@
  */
 
 import type {
+  ConfigValues,
+  FieldSpec,
   GameStage,
   PlayerId,
   RoundGoal,
@@ -24,6 +26,7 @@ import type {
   StageSpec,
 } from "@/lib/domain";
 
+import { resolveNumber } from "./config-value";
 import { openingSeat } from "./generation";
 import { formatGoalLabel, isGoalComplete } from "./round-goals";
 import { derivedKeys } from "./scoring";
@@ -198,6 +201,44 @@ export function scheduledRoundLimit(stages: readonly GameStage[]): number {
  */
 export function announcesStage(stages: StageSpec | null): boolean {
   return stages !== null && stages.advance !== "manual";
+}
+
+/** Config-field key carrying how long a stage change waits to be taken. */
+export const STAGE_HOLD_KEY = "stageHoldS";
+
+/**
+ * How long a game waits, by default, for the table to take the new stage.
+ *
+ * A minute. It is the ceiling and not the expectation: the card goes as soon as
+ * somebody touches it, and this is only how long the app is willing to hold the
+ * clock before deciding nobody is going to. Used for a game configured before
+ * the field existed, so every party keeps behaving the same way.
+ */
+export const DEFAULT_STAGE_HOLD_S = 60;
+
+/**
+ * The stage-change wait, in seconds, from the game's effective config values,
+ * falling back to the config template's default and finally to a minute.
+ *
+ * There is no way to ask for zero, and that is deliberate: both ends of the
+ * range are a bug the app already had. No wait at all charges the first player
+ * for the seconds before the table looked up — the thing this whole mechanism
+ * exists to stop — and no ceiling at all records him a turn of nothing when
+ * nobody taps. The floor is enforced here rather than trusted to the template,
+ * which anybody can edit.
+ */
+export function stageHoldSeconds(
+  configValues: ConfigValues | null | undefined,
+  templateFields: FieldSpec[],
+): number {
+  const seconds = resolveNumber(
+    STAGE_HOLD_KEY,
+    configValues,
+    templateFields,
+    DEFAULT_STAGE_HOLD_S,
+  );
+
+  return Math.min(300, Math.max(10, Math.round(seconds)));
 }
 
 /** Where a lap of the table falls in the calendar. */

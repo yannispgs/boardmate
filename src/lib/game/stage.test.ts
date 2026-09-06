@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type {
+  FieldSpec,
   GameStage,
   PlayerId,
   RoundGoal,
@@ -9,6 +10,7 @@ import type {
 
 import {
   announcesStage,
+  DEFAULT_STAGE_HOLD_S,
   isCalendarReady,
   isGoalAvailable,
   isLastTurnOfStage,
@@ -24,6 +26,7 @@ import {
   stageGoalLabel,
   stageGoalPrefill,
   stageGoalTotals,
+  stageHoldSeconds,
   stagePosition,
   stageScores,
 } from "./stage";
@@ -637,5 +640,35 @@ describe("announcesStage", () => {
 
   it("says nothing for a game with no stages at all", () => {
     expect(announcesStage(null)).toBe(false);
+  });
+});
+
+describe("stageHoldSeconds", () => {
+  const template: FieldSpec[] = [
+    { key: "stageHoldS", label: "Attente (s)", type: "integer", default: 45 },
+  ];
+
+  it("takes what this table settled on for this game", () => {
+    expect(stageHoldSeconds({ stageHoldS: 90 }, template)).toBe(90);
+  });
+
+  it("falls back to the game's own default, then to a minute", () => {
+    expect(stageHoldSeconds(null, template)).toBe(45);
+    expect(stageHoldSeconds(null, [])).toBe(DEFAULT_STAGE_HOLD_S);
+  });
+
+  it("refuses a wait short enough to charge the first player again", () => {
+    // Zero is not on offer: it is the bug the hold exists to stop, and the
+    // template is editable by hand, so the floor is enforced here.
+    expect(stageHoldSeconds({ stageHoldS: 0 }, template)).toBe(10);
+    expect(stageHoldSeconds({ stageHoldS: -30 }, template)).toBe(10);
+  });
+
+  it("refuses a wait long enough to record a turn of nothing", () => {
+    expect(stageHoldSeconds({ stageHoldS: 3600 }, template)).toBe(300);
+  });
+
+  it("rounds a value somebody managed to make fractional", () => {
+    expect(stageHoldSeconds({ stageHoldS: 42.6 }, template)).toBe(43);
   });
 });

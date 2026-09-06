@@ -156,7 +156,8 @@ export function PlayingGame({
   // player's turn as one the table never took, which is the same arbitrary
   // charge under another name.
   const announces = announcesStage(stages) && timed;
-  const stageHold = useStageHold(game.stage, announces);
+  const stageHoldMs = game.stageHoldS * 1000;
+  const stageHold = useStageHold(game.stage, announces, stageHoldMs);
   const { setFrozen } = timer;
   useEffect(() => {
     setFrozen(stageHold.holding);
@@ -304,6 +305,7 @@ export function PlayingGame({
         <StageCard
           stage={game.stage}
           label={stageLabel}
+          holdMs={stageHoldMs}
           onDismiss={stageHold.release}
         />
       ) : null}

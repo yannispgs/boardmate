@@ -37,7 +37,7 @@ import {
 } from "@/lib/game/extensions";
 import { activeSeat, generationOver } from "@/lib/game/generation";
 import { draftingOn } from "@/lib/game/phase";
-import { scheduledPosition } from "@/lib/game/stage";
+import { scheduledPosition, stageHoldSeconds } from "@/lib/game/stage";
 import { advanceTurn as nextTurnState } from "@/lib/game/turn";
 import { turnScheduleFrom } from "@/lib/game/turn-schedule";
 import type { PlayedWith } from "@/lib/game/win-target";
@@ -992,6 +992,10 @@ export function createGameRepository(
         extensions,
       );
       const turnSchedule = turnScheduleFrom(effectiveValues, templateFields);
+      // How long this table gets to notice a stage change before the clock
+      // starts without it — settled here, where the template defaults are
+      // still in reach, like the schedule above.
+      const stageHoldS = stageHoldSeconds(effectiveValues, templateFields);
       // The draft is a variant: only the game's own configuration knows whether
       // this table is playing it, and only here are the template's defaults
       // still in reach.
@@ -1062,6 +1066,7 @@ export function createGameRepository(
         winThreshold,
         turnSchedule,
         drafting,
+        stageHoldS,
         extensions,
         scoreEvents,
         diceRolls,

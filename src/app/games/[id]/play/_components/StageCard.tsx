@@ -2,8 +2,6 @@
 
 import type { CSSProperties } from "react";
 
-import { STAGE_HOLD_MS } from "./use-stage-hold";
-
 /** Geometry of the countdown ring — a circle drawn in its own 32-unit box. */
 const RADIUS = 14;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
@@ -37,12 +35,15 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 export function StageCard({
   stage,
   label,
+  holdMs,
   onDismiss,
 }: Readonly<{
   /** The generation now being played. */
   stage: number;
   /** What this game calls one — « Génération », « Manche ». */
   label: string;
+  /** How long the ring has to drain — this game's configured wait. */
+  holdMs: number;
   /** Hands the stage to the table: the clock starts on this. */
   onDismiss: () => void;
 }>) {
@@ -70,7 +71,9 @@ export function StageCard({
           — that would trade billing the first player for a few seconds against
           billing him for none at all — so the ring drains, and the turn starts
           by itself once it is empty. Showing it is what keeps the ceiling from
-          being a surprise: the table can see the screen is about to hand over. */}
+          being a surprise: the table can see the screen is about to hand over.
+          How long it takes is the game's own setting, so a table that plays
+          Mars slowly is not hurried by one that plays Wingspan fast. */}
       <svg
         viewBox="0 0 32 32"
         className="mt-8 h-8 w-8 -rotate-90"
@@ -96,7 +99,7 @@ export function StageCard({
           className="stage-ring stroke-white/80"
           style={
             {
-              animationDuration: `${STAGE_HOLD_MS}ms`,
+              animationDuration: `${holdMs}ms`,
               // One source of truth for the circumference: the keyframe empties
               // the stroke by exactly the length the dash array laid down.
               "--stage-ring-length": `${CIRCUMFERENCE}`,

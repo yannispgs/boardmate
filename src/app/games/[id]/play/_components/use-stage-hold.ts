@@ -2,18 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-/**
- * How long the clock will wait to be told the table has seen the change, before
- * giving up and starting on its own.
- *
- * There has to be a ceiling. Waiting for the tap forever is the mirror of the
- * bug being fixed: nobody taps, the clock never starts, and the first player of
- * the stage records a turn of nothing. Thirty seconds is long enough for a
- * table looking at its cards to look up, and short enough that the error it can
- * still leave behind is bounded by half a minute instead of a whole turn.
- */
-export const STAGE_HOLD_MS = 30_000;
-
 export interface StageHold {
   /** True while the table has not acknowledged the new stage yet. */
   holding: boolean;
@@ -23,7 +11,7 @@ export interface StageHold {
 
 /**
  * Holds the play screen on the stage that has just begun, until the table says
- * it has seen it or {@link STAGE_HOLD_MS} runs out.
+ * it has seen it or the ceiling runs out.
  *
  * This is not decoration. A stage turning over is the one change on this screen
  * that happens **to** the table rather than because somebody asked for it: a
@@ -38,10 +26,26 @@ export interface StageHold {
  *
  * The first render is never a change: a game reopened at generation 4 must not
  * hold anything — the table has been playing it for an hour.
+ *
+ * `holdMs` is the ceiling, not the expectation: the hold ends on the tap. There
+ * has to be one, because waiting forever is the mirror of the bug being fixed —
+ * nobody taps, the clock never starts, and the first player of the stage records
+ * a turn of nothing. It comes from the game's configuration (see
+ * `stageHoldSeconds`), floored and capped there rather than trusted.
  */
-export function useStageHold(stage: number, enabled: boolean): StageHold {
+export function useStageHold(
+  stage: number,
+  enabled: boolean,
+  holdMs: number,
+): StageHold {
   const previous = useRef(stage);
   const [holding, setHolding] = useState(false);
+  // Read when a stage turns over, never depended on: a settings change that
+  // landed mid-hold would otherwise re-run the effect, whose first guard sends
+  // it straight back out — cancelling the ceiling it had just armed and holding
+  // the clock for ever.
+  const settings = useRef({ enabled, holdMs });
+  settings.current = { enabled, holdMs };
 
   useEffect(() => {
     if (previous.current === stage) {
@@ -50,7 +54,7 @@ export function useStageHold(stage: number, enabled: boolean): StageHold {
 
     previous.current = stage;
 
-    if (!enabled) {
+    if (!settings.current.enabled) {
       return;
     }
 
@@ -58,12 +62,12 @@ export function useStageHold(stage: number, enabled: boolean): StageHold {
 
     const ceiling = setTimeout(() => {
       setHolding(false);
-    }, STAGE_HOLD_MS);
+    }, settings.current.holdMs);
 
     return () => {
       clearTimeout(ceiling);
     };
-  }, [stage, enabled]);
+  }, [stage]);
 
   const release = useCallback(() => {
     setHolding(false);

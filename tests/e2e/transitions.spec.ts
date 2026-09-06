@@ -44,15 +44,15 @@ async function fadeOn(target: Locator): Promise<string> {
 }
 
 /**
- * A tenth of the ring under the number — three seconds of the thirty the app
- * waits before starting the stage by itself.
+ * A twentieth of the ring under the number — three seconds of the minute this
+ * game is configured to wait before starting the stage by itself.
  *
  * Long enough for the clock to have moved on several times over (it ticks twice
  * a second and shows whole seconds), and longer than the two seconds the
  * generation card used to spend on screen back when it removed itself: a card
  * still there after this is a card genuinely waiting to be taken.
  */
-const DRAINED = 0.1;
+const DRAINED = 0.05;
 
 /** What the clock the table is actually looking at reads right now. */
 function clockText(page: Page): Promise<string> {
