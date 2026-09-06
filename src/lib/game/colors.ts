@@ -71,6 +71,18 @@ export function timeShareRedness(
   return timeIndexRedness(sharePct * playerCount);
 }
 
+/** Two colours mixed `t` of the way across, `t` outside 0–1 pinned to its end. */
+function blend(
+  from: readonly [number, number, number],
+  to: readonly [number, number, number],
+  t: number,
+): string {
+  const k = Math.max(0, Math.min(1, t));
+  const [r, g, b] = from.map((c, i) => Math.round(c + (to[i] - c) * k));
+
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
 /**
  * The time-distribution bar colour: the base (amber for the winner, else indigo)
  * blended toward red as the player monopolises the table's time — fully red once
@@ -81,9 +93,48 @@ export function timeShareColor(
   playerCount: number,
   isWinner: boolean,
 ): string {
-  const base = isWinner ? SHARE_AMBER : SHARE_INDIGO;
-  const t = timeShareRedness(sharePct, playerCount);
-  const [r, g, b] = base.map((c, i) => Math.round(c + (SHARE_RED[i] - c) * t));
+  return blend(
+    isWinner ? SHARE_AMBER : SHARE_INDIGO,
+    SHARE_RED,
+    timeShareRedness(sharePct, playerCount),
+  );
+}
 
-  return `rgb(${r}, ${g}, ${b})`;
+/** The index a player is read as having played briskly at — the green end. */
+const BRISK_INDEX = 60;
+
+const INDEX_GREEN: [number, number, number] = [34, 197, 94]; // green-500
+const INDEX_WHITE: [number, number, number] = [255, 255, 255];
+
+/**
+ * The colour the time index is written in: a strong green at
+ * {@link BRISK_INDEX}, white at the fair share, and red from
+ * {@link MONOPOLY_INDEX} on, ramping linearly between the three (owner,
+ * 2026-09-06).
+ *
+ * Two ramps meeting at white rather than one green-to-red sweep, because the
+ * figure has a **meaning** at 100 and not merely a middle: it is the share the
+ * table would give everybody. White is what says « nothing to report » on a
+ * screen that is always dark — the figure simply reads as the text around it,
+ * and only leans on a colour once it has left the fair share in one direction
+ * or the other.
+ *
+ * Red arrives exactly at the line the bar's shaded band reaches full strength
+ * on, and that is the point of putting them in one file: the same evening must
+ * not be called greedy by the band and merely long by the figure.
+ *
+ * Both ends are pinned, so 40 is the same green as 60 and 300 the same red as
+ * 160. Past those the figure has said all it can say, and stretching the ramp
+ * to hold an outlier would repaint every ordinary evening to make room for it.
+ */
+export function timeIndexColor(index: number): string {
+  if (index < FAIR_INDEX) {
+    return blend(
+      INDEX_GREEN,
+      INDEX_WHITE,
+      (index - BRISK_INDEX) / (FAIR_INDEX - BRISK_INDEX),
+    );
+  }
+
+  return blend(INDEX_WHITE, SHARE_RED, timeIndexRedness(index));
 }

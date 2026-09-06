@@ -1,3 +1,4 @@
+import { timeIndexColor } from "@/lib/game/colors";
 import { formatDuration } from "@/lib/game/format-time";
 import type { MeasureKey, RecapMeasure } from "@/lib/game/player-recap";
 import type { Standing, Tone } from "@/lib/game/recap-spread";
@@ -33,6 +34,27 @@ export function measureValue(key: MeasureKey, value: number): string {
 }
 
 /**
+ * The colour a figure is written in, or null when it is written in the text
+ * colour like everything else.
+ *
+ * Only the time index has one, and only because it is the one measure here that
+ * means something on its own: 100 is the share the table would give everybody,
+ * whoever is playing and whatever the game. Every other figure on this card —
+ * a score, a turn length — is a number until it is placed against the player's
+ * own history, which is the sentence beside it and the bar below it.
+ *
+ * That is also why colouring it is not the « never placed » rule being broken:
+ * the index is still never ranked against his other parties, it is read against
+ * the fair share.
+ */
+export function measureValueColor(
+  key: MeasureKey,
+  value: number,
+): string | null {
+  return key === "timeShare" ? timeIndexColor(value) : null;
+}
+
+/**
  * A word on what the figure is, for the reader who has never seen it — the
  * three that need one. « Position » is an index, not a score, and it runs
  * **down**; « Rapidité » is only ever read on a victory; « Part du temps » is an
@@ -53,7 +75,7 @@ export function measureHint(key: MeasureKey): string | null {
   }
 
   if (key === "timeShare") {
-    return "Indice normalisé par nombre de joueurs : 100 = la part attendue (une répartition égale du temps de la table). En dessous = plus rapide, au-dessus = plus lent. La zone teintée de la barre commence à 100 et rougit jusqu'à 160, le seuil à partir duquel le jeu considère que tu monopolises la table.";
+    return "Indice normalisé par nombre de joueurs : 100 = la part attendue (une répartition égale du temps de la table). En dessous = plus rapide, au-dessus = plus lent. Le chiffre se colore avec l'indice : vert à 60 et en dessous, blanc à 100, rouge à 160 et au-delà. La zone teintée de la barre commence à 100 et rougit jusqu'à ce même 160, le seuil à partir duquel le jeu considère que tu monopolises la table.";
   }
 
   return null;

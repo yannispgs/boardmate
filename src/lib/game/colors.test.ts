@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   countdownColor,
+  timeIndexColor,
   timeIndexRedness,
   timeShareColor,
   timeShareRedness,
@@ -61,5 +62,27 @@ describe("timeShareColor", () => {
     expect(timeShareColor(20, 3, true)).toBe("rgb(251, 191, 36)");
     // A monopolising winner still goes red.
     expect(timeShareColor(70, 3, true)).toBe("rgb(239, 68, 68)");
+  });
+});
+
+describe("timeIndexColor", () => {
+  it("hits its three landmarks: green at 60, white at 100, red at 160", () => {
+    expect(timeIndexColor(60)).toBe("rgb(34, 197, 94)"); // green-500
+    expect(timeIndexColor(100)).toBe("rgb(255, 255, 255)"); // the fair share
+    expect(timeIndexColor(160)).toBe("rgb(239, 68, 68)"); // red-500
+  });
+
+  it("ramps linearly on each side of the fair share", () => {
+    // Halfway from 60 to 100 → halfway from green to white.
+    expect(timeIndexColor(80)).toBe("rgb(145, 226, 175)");
+    // Halfway from 100 to 160 → halfway from white to red.
+    expect(timeIndexColor(130)).toBe("rgb(247, 162, 162)");
+  });
+
+  it("pins both ends, so an outlier never repaints the ordinary range", () => {
+    expect(timeIndexColor(40)).toBe(timeIndexColor(60));
+    expect(timeIndexColor(0)).toBe("rgb(34, 197, 94)");
+
+    expect(timeIndexColor(300)).toBe(timeIndexColor(160));
   });
 });
