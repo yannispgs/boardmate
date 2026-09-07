@@ -101,8 +101,34 @@ test("deals the next party from the end screen, same table, same seats", async (
     const chain = page.getByRole("button", {
       name: "Enchaîner une nouvelle partie",
     });
+    const confirm = page.getByRole("button", {
+      name: "Enchaîner",
+      exact: true,
+    });
 
     await chain.click();
+
+    // Pressing shows what the next party will be dealt with before dealing it:
+    // chaining never passes the funnel, so this is the only place that setup is
+    // ever read. The seats and the evening are the two things the table cannot
+    // check by looking at the screen it is on.
+    const recap = page.getByRole("dialog");
+
+    await expect(recap).toBeVisible();
+
+    await expect(recap.getByText("Papayoo")).toBeVisible();
+    // Named in seat order, which is the order they will sit down again in.
+    // Unnumbered: a game that can be chained is an untimed one, and an untimed
+    // one hands no turn round to number.
+    await expect(recap.getByText(players.join(", "))).toBeVisible();
+    await expect(
+      recap.getByText("La même, la partie s'y ajoute"),
+    ).toBeVisible();
+
+    // Nothing is dealt while the recap is up — it is a question, not a notice.
+    expect(await dealt()).toBe(1);
+
+    await confirm.click();
 
     // Waited on the next deal existing, not on a delay: from there the first
     // press is entirely over — recorded, dealt — and all that is left is the
@@ -111,6 +137,7 @@ test("deals the next party from the end screen, same table, same seats", async (
     await expect.poll(dealt).toBe(2);
 
     await chain.click();
+    await confirm.click();
     await page.unroute("**/games/**");
 
     // The screen moves to another party, not back to the list.

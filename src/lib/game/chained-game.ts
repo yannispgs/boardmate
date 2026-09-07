@@ -8,8 +8,10 @@
  * directly.
  *
  * The next party is the same one again: same players in the same seats, same
- * config, same extensions. Nothing is asked, because nothing changed — the
- * table did not get up.
+ * config, same extensions. Nothing is asked, because nothing changed — the table
+ * did not get up. It is still **shown** before it is dealt: chaining is the one
+ * way into a party that never passes the funnel, so the recap on the
+ * confirmation is the only place that setup is ever read.
  *
  * Pure: no vendor types, unit-tested.
  */
