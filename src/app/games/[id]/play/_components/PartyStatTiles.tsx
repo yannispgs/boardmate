@@ -147,6 +147,32 @@ export function PartyStatTiles({
   extra?: readonly PlainTile[];
 }>) {
   const measures = usePartyMeasures(game, simultaneous);
+
+  // Nothing was timed, so there is no grid to draw — see
+  // {@link ../../../../../lib/game/party-figures.wasTimed}. The sentence takes
+  // its place rather than the panel simply vanishing: a table that has just
+  // typed in an evening is looking for it, and an absence would read as the
+  // screen having failed to load.
+  //
+  // Said as a fact about the log, never about how the party was entered. The
+  // app knows it recorded no turn; it does not know the table played away from
+  // it — a party abandoned on its first turn lands here too, and telling that
+  // one it was « saisie après coup » would be a guess printed as a statement.
+  if (measures.length === 0) {
+    return (
+      <div className="flex flex-col gap-1 rounded-xl border border-black/10 p-3 text-sm dark:border-white/10">
+        <span className="text-zinc-500 dark:text-zinc-400">
+          Aucun tour n&apos;a été chronométré sur cette partie&nbsp;: il
+          n&apos;y a rien à mesurer.
+        </span>
+        <span className="text-xs text-zinc-400 dark:text-zinc-500">
+          C&apos;est le cas des parties jouées loin de l&apos;app et saisies
+          ensuite&nbsp;: leurs scores sont enregistrés, pas leur temps.
+        </span>
+      </div>
+    );
+  }
+
   // The game lends the panel its own words: a box turning in generations does
   // not count « tours », and one played in phases takes its turns in only one
   // of them — which the two turn averages then have to say.

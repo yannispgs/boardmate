@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { FigureTurn, PartyFigureKey, PartyLog } from "./party-figures";
-import { partyFigures, partyMeasures } from "./party-figures";
+import { partyFigures, partyMeasures, wasTimed } from "./party-figures";
 
 /** A turn log of `count` turns spread over `rounds` laps, each `durationS` long. */
 function log(
@@ -212,5 +212,30 @@ describe("partyMeasures", () => {
     });
 
     expect(measures.every(m => m.gauge === null)).toBe(true);
+  });
+
+  // A party typed in after the evening has no log to divide. Every figure would
+  // come back 0:00, which reads as a party played in no time at all.
+  it("reads nothing at all off a party that was never timed", () => {
+    const measures = partyMeasures({ ...base, tonight: party([]) });
+
+    expect(measures).toEqual([]);
+  });
+
+  // The minutes a generation spent away from the turns are a trail of their own.
+  it("still reads one timed by its off-turn phases alone", () => {
+    const measures = partyMeasures({ ...base, tonight: party([], 300) });
+
+    expect(keysOf(measures)).toContain("playTime");
+    expect(measures[0].value).toBe(300);
+  });
+});
+
+describe("wasTimed", () => {
+  it("answers on either trail, and only says no when both are empty", () => {
+    expect(wasTimed(party(log(1, 2, 30)))).toBe(true);
+    expect(wasTimed(party([], 90))).toBe(true);
+
+    expect(wasTimed(party([]))).toBe(false);
   });
 });

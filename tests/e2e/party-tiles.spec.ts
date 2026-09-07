@@ -470,3 +470,65 @@ test("drops the mean player turn when the table plays at once", async ({
     },
   );
 });
+
+/**
+ * A party the table played away from the app and typed in afterwards. It has no
+ * turn log, so there is nothing to divide — and the panel has to say that rather
+ * than divide by nothing and print the zeros it gets back.
+ *
+ * The second half is the reason the owner reported this at all: such a party
+ * used to sit in the basket every *other* evening was measured against, where a
+ * figure of zero pinned the low end of every bar. His own install is mostly
+ * these — 36 parties out of 48 — so the bars were being drawn against a floor
+ * no table had ever played.
+ */
+test("says a party was never timed instead of measuring it at zero", async ({
+  page,
+}) => {
+  await onSeededGame(
+    "Sans tour",
+    {
+      minPlayers: 2,
+      maxPlayers: 4,
+      roundLimit: null,
+      scoring: TABLE_SENSITIVE_SCORING,
+    },
+    async ({ admin, players, ids, party }) => {
+      // Two evenings the table really played: 60 s and 180 s over the table.
+      const short = await party([40, 10, 20]);
+      const long = await party([60, 30, 5]);
+
+      await seedTurns(admin, short, lap(ids, players, 1, 20));
+      await seedTurns(admin, long, lap(ids, players, 1, 60));
+
+      // And one keyed in after the fact — scores, and not a single turn.
+      const typed = await party([70, 20, 15]);
+
+      await page.goto(`/games/${typed}/play`);
+
+      const panel = page.getByTestId("party-panel");
+
+      await expect(panel).toContainText("Aucun tour n'a été chronométré");
+      await expect(
+        panel.getByText("Temps de jeu", { exact: true }),
+      ).toHaveCount(0);
+
+      // Tonight, at 120 s, sits halfway between the two parties that were
+      // actually timed. With the keyed-in one still in the basket the floor
+      // would be its zero, and the same evening would read two thirds full.
+      const tonight = await party([50, 30, 10]);
+
+      await seedTurns(admin, tonight, lap(ids, players, 1, 40));
+
+      await page.goto(`/games/${tonight}/play`);
+
+      const timedPanel = page.getByTestId("party-panel");
+
+      await expect(tile(timedPanel, "Temps de jeu")).toContainText("2:00");
+
+      await expect
+        .poll(fillRatio(tile(timedPanel, "Temps de jeu")))
+        .toBeCloseTo(0.5, 1);
+    },
+  );
+});
