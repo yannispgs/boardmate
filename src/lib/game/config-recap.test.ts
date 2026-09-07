@@ -68,6 +68,15 @@ describe("configRecap", () => {
     const lines = configRecap(FIELDS, { variant: "retired" });
 
     expect(lines[0].value).toBe("retired");
+
+    expect(configRecap(FIELDS, { variant: 3 })[0].value).toBe("3");
+  });
+
+  // Falling back has a floor: a value with no reading of its own would print as
+  // « [object Object] », which says less against an attribute than saying
+  // nothing at all.
+  it("drops a retired option that reads as nothing", () => {
+    expect(configRecap(FIELDS, { variant: { value: "retired" } })).toEqual([]);
   });
 
   it("drops a value stored under the wrong type rather than printing it", () => {

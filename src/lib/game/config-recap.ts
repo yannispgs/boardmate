@@ -80,10 +80,18 @@ function printable(field: FieldSpec, value: unknown): string | null {
       return option.value === value;
     });
 
+    if (chosen !== undefined) {
+      return chosen.label;
+    }
+
     // An option that left the template after a party was played on it: the
     // stored value is still what that party used, so it prints as itself rather
-    // than vanishing from a recap that claims to be complete.
-    return chosen?.label ?? String(value);
+    // than vanishing from a recap that claims to be complete. Only where it
+    // reads as something, though — a stored object has no reading, and printing
+    // « [object Object] » against an attribute is worse than not printing it.
+    return typeof value === "string" || typeof value === "number"
+      ? String(value)
+      : null;
   }
 
   if (field.type === "integer" || field.type === "number") {
