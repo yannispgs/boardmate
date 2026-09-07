@@ -5,6 +5,7 @@ import { scorePiles } from "@/lib/game/pair-scoring";
 import type { ScoreRecord } from "@/lib/game/score-records";
 import type { Ranked } from "@/lib/game/scoring";
 import { RecordBadgeList } from "./RecordBadgeList";
+import { SheetDoneButton } from "./SheetDoneButton";
 
 /**
  * The filled scoresheet of a pair-scored game (Splito) after the reveal: one
@@ -13,8 +14,8 @@ import { RecordBadgeList } from "./RecordBadgeList";
  * totals, because that is what the sheet and the argument at the table are
  * about — a pile counts for two people.
  *
- * When `onDone` is given a "Retour aux parties" button leaves for the games
- * list; omit it to embed the bare table.
+ * When `onDone` is given a button closes the sheet; omit it to embed the bare
+ * table.
  */
 export function PairScoreTable({
   seats,
@@ -83,15 +84,7 @@ export function PairScoreTable({
         </table>
       </div>
 
-      {onDone ? (
-        <button
-          type="button"
-          onClick={onDone}
-          className="rounded-lg bg-indigo-600 px-6 py-3 font-semibold text-white transition hover:bg-indigo-500"
-        >
-          Retour aux parties
-        </button>
-      ) : null}
+      <SheetDoneButton onDone={onDone} />
     </section>
   );
 }

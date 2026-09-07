@@ -294,7 +294,6 @@ export function PlayingGame({
         flow={flow}
         outcome={flow.outcome}
         disabled={play.busy}
-        onDone={() => router.push("/games")}
       />
     );
   }

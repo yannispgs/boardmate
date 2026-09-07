@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-import { adminClient, seedPlayers } from "./utils/supabase";
+import { backToGames, leaveScoreSheet } from "./utils/end-of-game";
+import { adminClient, dropSeeded, seedPlayers } from "./utils/supabase";
 
 /**
  * Fixed-length end condition (full-suite only — untagged): a game with a round
@@ -87,15 +88,13 @@ test("ends automatically after the last round, then scores", async ({
     await page.getByRole("button", { name: "Afficher" }).click();
     await page.getByRole("button", { name: "Suivant" }).click();
     await page.getByRole("button", { name: "Voir les scores" }).click();
-    await page.getByRole("button", { name: "Retour aux parties" }).click();
-    await expect(page).toHaveURL(/\/games$/);
+    await leaveScoreSheet(page);
+    await backToGames(page);
   } finally {
-    if (gameId) {
-      await admin.from("games").delete().eq("id", gameId);
-    }
-    if (boardgameId) {
-      await admin.from("boardgames").delete().eq("id", boardgameId);
-    }
-    await admin.from("players").delete().in("name", players);
+    await dropSeeded(admin, {
+      games: [gameId],
+      boardgames: [boardgameId],
+      playerNames: players,
+    });
   }
 });

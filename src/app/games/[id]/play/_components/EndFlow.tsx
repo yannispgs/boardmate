@@ -14,20 +14,19 @@ import type { EndFlowState } from "./use-end-flow";
 /**
  * What takes over the screen once the points are counted: the standings
  * climbing from the last place to the first, then — for the games scored on a
- * sheet — the sheet itself, laid out as it was filled in.
+ * sheet — the sheet itself, laid out as it was filled in. Both hand over to the
+ * finished party's own screen, so every game ends on the same one.
  */
 export function EndFlow({
   game,
   flow,
   outcome,
   disabled,
-  onDone,
 }: Readonly<{
   game: PopulatedGame;
   flow: EndFlowState;
   outcome: EndOutcome;
   disabled: boolean;
-  onDone: () => void;
 }>) {
   const players = namedPlayers(game);
   // The records this party takes, read once here: the reveal announces them and
@@ -54,7 +53,7 @@ export function EndFlow({
         piles={outcome.piles}
         ranking={outcome.ranking}
         records={records}
-        onDone={onDone}
+        onDone={flow.leaveSheet}
       />
     );
   }
@@ -66,7 +65,7 @@ export function EndFlow({
       values={outcome.values ?? {}}
       ranking={outcome.ranking}
       records={records}
-      onDone={onDone}
+      onDone={flow.leaveSheet}
     />
   );
 }
