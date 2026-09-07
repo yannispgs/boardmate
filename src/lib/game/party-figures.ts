@@ -132,6 +132,32 @@ export function partyFigures(
   };
 }
 
+/**
+ * Whether a party left any trace of the time it took: a turn was played, or a
+ * phase the turn log never sees banked seconds of its own.
+ *
+ * Everything above measures a party by dividing its log. A party with no log
+ * does not measure as a **fast** evening — it does not measure at all, and every
+ * figure comes back 0. Nothing on the screen tells that 0 apart from a real one:
+ * « Temps de jeu 0:00 » is the app claiming to have watched a party it never
+ * saw.
+ *
+ * A party keyed in through « Ajouter une partie terminée » is exactly that. The
+ * table played it away from the app and typed in the scores afterwards, so there
+ * is no log to divide — and it is most of the history: 36 of the 48 parties on
+ * the owner's own install (2026-09-06).
+ *
+ * The `offTurnS` half matters for the game played in phases: a Terraforming Mars
+ * whose « Projets » phase was closed without anybody taking a turn still spent
+ * real minutes drafting, and it has something to say.
+ *
+ * See {@link ./comparable-parties.comparableParties}, which asks the same
+ * question of the parties before.
+ */
+export function wasTimed(log: PartyLog): boolean {
+  return log.turns.length > 0 || log.offTurnS > 0;
+}
+
 /** One figure of tonight, and the bar that places it among the parties before. */
 export interface PartyMeasure {
   key: PartyFigureKey;
@@ -143,9 +169,10 @@ export interface PartyMeasure {
 export interface PartyMeasuresInput {
   tonight: PartyLog;
   /**
-   * The parties tonight is read against — already narrowed to the same game at
-   * the same table size, and with tonight left out. A party is not a reference
-   * for itself.
+   * The parties tonight is read against — already narrowed by
+   * {@link ./comparable-parties.comparableParties}: the same game at the same
+   * table size, tonight left out (a party is not a reference for itself), and
+   * the untimed ones dropped.
    */
   history: readonly PartyLog[];
   /**
@@ -186,6 +213,10 @@ export interface PartyMeasuresInput {
  * exactly as long as it lasted, so showing both would print the same duration
  * twice under two names and invite the reader to look for a difference there
  * isn't one.
+ *
+ * And an **untimed** party returns no figure at all rather than a grid of
+ * zeros — see {@link wasTimed}. Empty is the honest answer, and the caller says
+ * so in words instead of drawing tiles.
  */
 export function partyMeasures({
   tonight,
@@ -193,6 +224,10 @@ export function partyMeasures({
   roundLimit,
   simultaneous,
 }: PartyMeasuresInput): PartyMeasure[] {
+  if (!wasTimed(tonight)) {
+    return [];
+  }
+
   const figures = partyFigures(tonight.turns, tonight.offTurnS);
   const past = history.map(p => {
     return partyFigures(p.turns, p.offTurnS);

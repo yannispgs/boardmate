@@ -12,11 +12,24 @@ import { comparableParties } from "./comparable-parties";
 const MARS = "bg-mars" as BoardgameId;
 const CATAN = "bg-catan" as BoardgameId;
 
-/** A finished party reduced to what the basket rule looks at. */
+/** One turn — enough for a party to count as having been timed at all. */
+const A_TURN = {
+  playerId: "p-0" as PlayerId,
+  round: 1,
+  durationS: 60,
+  pauseDurationS: 0,
+  overtimeS: 0,
+};
+
+/**
+ * A finished party reduced to what the basket rule looks at — timed by default,
+ * since a party that left no trail is now the exception the rule is about.
+ */
 function record(
   gameId: string,
   boardgameId: BoardgameId,
   seats: number,
+  trail: Partial<Pick<GameStatsRecord, "turns" | "phaseTimes">> = {},
 ): GameStatsRecord {
   return {
     gameId: gameId as GameId,
@@ -33,8 +46,9 @@ function record(
         score: null,
       };
     }),
-    turns: [],
+    turns: [A_TURN],
     diceRolls: [],
+    ...trail,
   };
 }
 
@@ -68,5 +82,32 @@ describe("comparableParties", () => {
     });
 
     expect(basket.map(r => r.gameId)).toEqual(["g-1"]);
+  });
+
+  // A party keyed in after the fact measures as zero on every figure, and a
+  // zero in the basket pins the low end of every bar drawn against it.
+  it("drops a party that left no trail of the time it took", () => {
+    const basket = comparableParties(
+      [record("g-1", MARS, 3), record("g-typed", MARS, 3, { turns: [] })],
+      TONIGHT,
+    );
+
+    expect(basket.map(r => r.gameId)).toEqual(["g-1"]);
+  });
+
+  // A generation closed without anybody taking a turn still spent real minutes
+  // drafting, and the phase rows hold them.
+  it("keeps a party timed by its phases alone", () => {
+    const basket = comparableParties(
+      [
+        record("g-phases", MARS, 3, {
+          turns: [],
+          phaseTimes: [{ stage: 1, phaseKey: "draft", durationS: 90 }],
+        }),
+      ],
+      TONIGHT,
+    );
+
+    expect(basket.map(r => r.gameId)).toEqual(["g-phases"]);
   });
 });
