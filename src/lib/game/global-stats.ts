@@ -6,6 +6,7 @@
  */
 import type { BoardgameId, GameStatsRecord, PlayerId } from "@/lib/domain";
 import { localDay, matchesGameFilter } from "./game-filters";
+import { timeShareIndex } from "./turn-time";
 
 export interface GlobalStatsFilters {
   /** Keep only games of these boardgames (empty = all). */
@@ -143,19 +144,6 @@ function newPlayerAcc(name: string): PlayerAcc {
   };
 }
 
-/** A player's fair-share time index for one game, or null without time data. */
-function gameTimeIndex(
-  ownActiveS: number,
-  gameActiveS: number,
-  playerCount: number,
-): number | null {
-  if (gameActiveS <= 0) {
-    return null;
-  }
-
-  return (ownActiveS / gameActiveS) * playerCount * 100;
-}
-
 type StatsPlayer = GameStatsRecord["players"][number];
 
 /** Folds one player's share of one game into their per-boardgame breakdown. */
@@ -202,7 +190,7 @@ function accumulatePlayer(
 ): void {
   const own = game.turns.filter(t => t.playerId === p.playerId);
   const ownActive = own.reduce((s, t) => s + t.durationS, 0);
-  const idx = gameTimeIndex(ownActive, gameActiveS, game.players.length);
+  const idx = timeShareIndex(ownActive, gameActiveS, game.players.length);
   const cur = acc.get(p.playerId) ?? newPlayerAcc(p.name);
 
   cur.games += 1;
