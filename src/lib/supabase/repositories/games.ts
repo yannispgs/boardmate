@@ -1145,6 +1145,18 @@ export function createGameRepository(
           turn: 1,
           status: "ended",
           ended_at: input.endedAt,
+          // Stamped on the evening it was played, not on the evening it was
+          // typed in. Left to the column's `now()` default, a party recalled
+          // from last spring opened in September and closed in March — a
+          // negative duration, and a card filed under today: « Parties » prints
+          // and filters on `started_at`, so the whole history piled onto the
+          // day the table caught up on its data entry.
+          //
+          // Equal to the end rather than guessed backwards from it. The table
+          // played it away from the app; how long it took is the one thing
+          // nobody wrote down, and a plausible-looking span would be an
+          // invention that every average would then take at face value.
+          started_at: input.endedAt,
           // A shared victory entered after the fact has no rule trail, but the
           // score recap still needs to know the game ended on an ex æquo.
           tie_break: (input.winnerIds.length > 1
