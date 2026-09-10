@@ -37,7 +37,7 @@ import {
 } from "@/lib/game/extensions";
 import { activeSeat, generationOver } from "@/lib/game/generation";
 import { draftingOn } from "@/lib/game/phase";
-import { scheduledPosition } from "@/lib/game/stage";
+import { scheduledPosition, stageHoldSeconds } from "@/lib/game/stage";
 import { advanceTurn as nextTurnState } from "@/lib/game/turn";
 import { turnScheduleFrom } from "@/lib/game/turn-schedule";
 import type { PlayedWith } from "@/lib/game/win-target";
@@ -992,6 +992,10 @@ export function createGameRepository(
         extensions,
       );
       const turnSchedule = turnScheduleFrom(effectiveValues, templateFields);
+      // How long this table gets to notice a stage change before the clock
+      // starts without it — settled here, where the template defaults are
+      // still in reach, like the schedule above.
+      const stageHoldS = stageHoldSeconds(effectiveValues, templateFields);
       // The draft is a variant: only the game's own configuration knows whether
       // this table is playing it, and only here are the template's defaults
       // still in reach.
@@ -1062,6 +1066,7 @@ export function createGameRepository(
         winThreshold,
         turnSchedule,
         drafting,
+        stageHoldS,
         extensions,
         scoreEvents,
         diceRolls,
@@ -1140,6 +1145,18 @@ export function createGameRepository(
           turn: 1,
           status: "ended",
           ended_at: input.endedAt,
+          // Stamped on the evening it was played, not on the evening it was
+          // typed in. Left to the column's `now()` default, a party recalled
+          // from last spring opened in September and closed in March — a
+          // negative duration, and a card filed under today: « Parties » prints
+          // and filters on `started_at`, so the whole history piled onto the
+          // day the table caught up on its data entry.
+          //
+          // Equal to the end rather than guessed backwards from it. The table
+          // played it away from the app; how long it took is the one thing
+          // nobody wrote down, and a plausible-looking span would be an
+          // invention that every average would then take at face value.
+          started_at: input.endedAt,
           // A shared victory entered after the fact has no rule trail, but the
           // score recap still needs to know the game ended on an ex æquo.
           tie_break: (input.winnerIds.length > 1

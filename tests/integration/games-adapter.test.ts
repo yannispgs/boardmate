@@ -1459,6 +1459,11 @@ describe("games adapter — recording a finished game", () => {
     expect(game.status).toBe("ended");
     expect(new Date(game.endedAt ?? "").toISOString()).toBe(endedAt);
 
+    // Filed under the evening it was played, not the evening it was typed in:
+    // « Parties » prints and filters on the start, so the column's own `now()`
+    // would have put a February game on today's list.
+    expect(new Date(game.startedAt).toISOString()).toBe(endedAt);
+
     // Never listed among ongoing games; shows under ended, and counts in stats.
     expect((await repo().list()).some(g => g.id === game.id)).toBe(false);
     expect(

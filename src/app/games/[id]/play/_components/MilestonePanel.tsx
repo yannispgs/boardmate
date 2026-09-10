@@ -23,6 +23,10 @@ import type { MilestoneLog } from "./use-milestones";
  * Its button hangs at the same height as the live-stats one opposite, not at
  * the top: the top-left corner already belongs to « ← Parties », and a button
  * there would sit on the way back out.
+ *
+ * A game that hands out no milestones has no panel, and that is settled here
+ * rather than on the screen holding it: the panel *is* the milestones, so
+ * whether there is one to draw is the panel's own question.
  */
 export function MilestonePanel({
   spec,
@@ -30,13 +34,18 @@ export function MilestonePanel({
   seats,
   log,
 }: Readonly<{
-  spec: MilestoneSpec;
+  /** The milestones this game hands out, or null for a game with none. */
+  spec: MilestoneSpec | null;
   /** Named under the title, the same way every other panel says where it is. */
   gameName: string;
   seats: ReadonlyArray<{ id: PlayerId; name: string }>;
   log: MilestoneLog;
 }>) {
   const [open, setOpen] = useState(false);
+
+  if (spec === null) {
+    return null;
+  }
 
   const rows = milestoneRows(spec, log.claims);
   const left = milestonesLeft(spec, log.claims);

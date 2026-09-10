@@ -35,11 +35,17 @@ const MIDDLE = 0.5;
  * The bar behind one figure, or `null` when there is nothing to place it
  * against — a first party on this game, and nothing else.
  *
- * The scale is set by the **past** parties alone, never by tonight. That is what
- * makes the two ends readable as records: tonight below everything clamps the
- * fill to 0 and tonight above everything clamps it to 1, so an empty bar and a
- * full one each mean something, instead of being the two values every scale
- * hands out for free.
+ * Tonight sets the scale as much as the parties before it (owner, 2026-09-05).
+ * The ends still read as records — tonight below everything *becomes* the
+ * lowest and lands on 0, above everything *becomes* the highest and lands on 1,
+ * so the fill is the same figure either way. What changes is the marks. Built
+ * on the past alone, the scale ran min-to-max over it, which pinned the two
+ * parties that set it to the very ends of the bar — on a two-party history,
+ * that was **both** of them, every time, whatever they measured, and a bar's
+ * worth of marks said nothing at all. Stretching the scale to hold tonight
+ * pulls them inside the moment tonight is a record, and the distance between
+ * the fill and the crowd becomes the reading: marks bunched far behind a full
+ * bar is « de loin le plus long », a mark just under it is « d'un cheveu ».
  *
  * ⚠️ A history can have **no width**: one party before this one, or several that
  * all landed on the same figure. There is no scale to stretch then — but there
@@ -54,19 +60,24 @@ export function gauge(past: readonly number[], value: number): Gauge | null {
     return null;
   }
 
-  const min = Math.min(...past);
-  const max = Math.max(...past);
-  const width = max - min;
+  const lowest = Math.min(...past);
+  const highest = Math.max(...past);
 
-  if (width === 0) {
+  if (highest === lowest) {
     return {
-      fill: value === min ? MIDDLE : Number(value > min),
+      fill: value === lowest ? MIDDLE : Number(value > lowest),
       marks: [MIDDLE],
     };
   }
 
+  // Widened to hold tonight, so nothing is ever clamped: a party outside the
+  // history moves the end rather than piling onto it.
+  const min = Math.min(lowest, value);
+  const max = Math.max(highest, value);
+  const width = max - min;
+
   const at = (v: number) => {
-    return Math.min(1, Math.max(0, (v - min) / width));
+    return (v - min) / width;
   };
 
   return { fill: at(value), marks: past.map(at) };

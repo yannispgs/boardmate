@@ -2,6 +2,7 @@
 
 import type { Player, PlayerId, RoundGoal, ScoringSpec } from "@/lib/domain";
 import type { FinishedGoals, StageGoalRaw } from "@/lib/game/finished-goals";
+import type { FinishedWinners } from "@/lib/game/finished-winner";
 import type { StagePick } from "@/lib/game/stage";
 import type { CategoryRaw } from "../../_components/CategoryScoreGrid";
 import type { EntryMode, FinishedEntry } from "./finished-entry";
@@ -35,7 +36,7 @@ export function ResultSection({
   catRaw,
   piles,
   winners,
-  needsWinnerChoice,
+  choice,
   disabled,
   onEndedAt,
   onPicks,
@@ -65,7 +66,8 @@ export function ResultSection({
   catRaw: CategoryRaw;
   piles: Record<string, number>;
   winners: PlayerId[];
-  needsWinnerChoice: boolean;
+  /** What is left to settle about the winner, and what to say while asking. */
+  choice: FinishedWinners;
   disabled: boolean;
   onEndedAt: (day: string) => void;
   onPicks: (picks: StagePick[]) => void;
@@ -122,11 +124,12 @@ export function ResultSection({
         />
       ) : null}
 
-      {needsWinnerChoice ? (
+      {choice.asked ? (
         <WinnerChoice
           candidates={entry.winnerCandidates}
           winners={winners}
-          scored={scoring !== null}
+          tied={choice.tied}
+          rules={choice.rules}
           onToggle={onWinner}
         />
       ) : null}

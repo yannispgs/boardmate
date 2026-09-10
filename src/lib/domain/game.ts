@@ -254,6 +254,13 @@ export interface PopulatedGame extends Game {
    * Mars and L'Île des Chats.
    */
   drafting: boolean;
+  /**
+   * How many seconds the play screen waits, on a stage change, for the table to
+   * say it has seen it — after which the new stage's clock starts on its own.
+   * Resolved from this game's configuration (value, else the config template's
+   * default, else a minute). Inert for a boardgame that announces no stage.
+   */
+  stageHoldS: number;
   /** Active extensions on this game (empty when none), with their scenario. */
   extensions: Array<Extension & { scenarioId: ExtensionScenarioId | null }>;
   players: Array<GamePlayer & { player: Player }>;

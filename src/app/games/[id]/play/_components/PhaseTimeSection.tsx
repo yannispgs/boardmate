@@ -1,9 +1,12 @@
+"use client";
+
 import { PhaseShareBar } from "@/components/phases/PhaseShareBar";
 import { PhaseStageChart } from "@/components/phases/PhaseStageChart";
 import { PhaseTotalsLegend } from "@/components/phases/PhaseTotalsLegend";
 import { StatGroup, StatView } from "@/components/stats/StatGroup";
 import type { PopulatedGame } from "@/lib/domain";
-import { phaseTotals, stageBreakdowns } from "@/lib/game/phase-stats";
+import { stageBreakdowns } from "@/lib/game/phase-stats";
+import { usePhaseMeasures } from "@/lib/hooks/use-phase-measures";
 
 /**
  * « Temps par phase » in the end-of-game recap: how each generation was spent,
@@ -21,6 +24,9 @@ export function PhaseTimeSection({
   game,
   stageLabel,
 }: Readonly<{ game: PopulatedGame; stageLabel: string }>) {
+  // Before the early return, as any hook must be: a game with no phase renders
+  // nothing here, and the hook then measures an empty list into an empty one.
+  const totals = usePhaseMeasures(game);
   const phases = game.boardgame.phases;
   const stages = stageBreakdowns(game.phaseTimes, phases);
 
@@ -28,7 +34,6 @@ export function PhaseTimeSection({
     return null;
   }
 
-  const totals = phaseTotals(game.phaseTimes, phases);
   const stageWord = stageLabel.toLowerCase();
 
   return (
@@ -60,10 +65,18 @@ export function PhaseTimeSection({
       <StatView
         title="Sur toute la partie"
         info={
-          <p>
-            Les mêmes secondes, additionnées sur toutes les {stageWord}s : la
-            part que chaque phase a prise de la soirée, et sa durée en clair.
-          </p>
+          <>
+            <p>
+              Les mêmes secondes, additionnées sur toutes les {stageWord}s : la
+              part que chaque phase a prise de la soirée, et sa durée en clair.
+            </p>
+            <p>
+              Sous chaque phase, une barre la situe parmi les parties
+              précédentes&nbsp;: vide, la table n&apos;a jamais fait plus
+              court&nbsp;; pleine, jamais plus long. Chaque phase a sa propre
+              échelle — elles se comparent à elles-mêmes, pas entre elles.
+            </p>
+          </>
         }
       >
         <PhaseShareBar totals={totals} phases={phases} />

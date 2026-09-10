@@ -86,7 +86,10 @@ export function computeGameStats({ players, turns }: StatsInput): GameStats {
   // pulled from the history can be measured the same way. Only the per-player
   // breakdown below is this file's own.
   const figures = partyFigures(turns);
-  const activeTotalS = figures.playTime;
+  // The log's own seconds, never the party's: every share below divides one
+  // player's turns by the table's turns, and on a game played in phases the
+  // party is longer than its turns by everything the table did at once.
+  const activeTotalS = figures.turnTime;
 
   const playerStats: PlayerTimeStats[] = players.map(p => {
     const own = turns.filter(t => t.playerId === p.playerId);

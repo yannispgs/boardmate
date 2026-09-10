@@ -29,6 +29,37 @@ describe("gauge", () => {
     expect(bar?.fill).toBe(0);
   });
 
+  // The marks are what including tonight in the scale is for. Set by the past
+  // alone, it ran end to end over it, so the two parties that fixed it sat on
+  // 0 and 1 — and on a history of two, that was both of them, every time,
+  // whatever they measured. A bar's worth of marks then said nothing.
+  it("pulls the past inside the bar when this party is the longest yet", () => {
+    const bar = gauge([4, 3], 6);
+
+    expect(bar?.fill).toBe(1);
+    expect(bar?.marks).toEqual([1 / 3, 0]);
+  });
+
+  it("pulls it in the other way when this party is the shortest yet", () => {
+    const bar = gauge([6, 4], 3);
+
+    expect(bar?.fill).toBe(0);
+    expect(bar?.marks).toEqual([1, 1 / 3]);
+  });
+
+  // Two records used to read alike — both simply full. What tells them apart is
+  // the gap the fill leaves between itself and the crowd behind it.
+  it("shows how far ahead a record is, not only that it is one", () => {
+    const byAHair = gauge([21, 22], 23);
+    const byAMile = gauge([21, 22], 33);
+
+    expect(byAHair?.fill).toBe(1);
+    expect(byAMile?.fill).toBe(1);
+
+    expect(Math.max(...(byAHair?.marks ?? []))).toBeCloseTo(0.5);
+    expect(Math.max(...(byAMile?.marks ?? []))).toBeCloseTo(0.083);
+  });
+
   // What the marks exist for: the fill alone would read as a fine evening.
   it("marks the crowd the past parties make, wherever the fill lands", () => {
     const bar = gauge([10, 95, 96, 97, 100], 90);
