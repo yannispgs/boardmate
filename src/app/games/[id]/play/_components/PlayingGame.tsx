@@ -362,6 +362,33 @@ export function PlayingGame({
         onEnd={scores => flow.finishTotals(scores, null)}
       />
 
+      <LiveScoreSection
+        game={game}
+        live={live}
+        flow={flow}
+        disabled={play.busy}
+      />
+
+      {/* Above everything the table only *reads*, and next to the controls it
+          belongs with: counting the points is an action, and on an evening of
+          several deals the blocks below grow deal after deal — leaving the one
+          button that ends the party at the bottom of a page that gets longer
+          every time it is used. */}
+      {canEnd ? (
+        <EndControls
+          game={game}
+          flow={flow}
+          milestoneClaims={milestones.claims}
+          stageScores={goals.scores}
+          disabled={play.busy}
+        />
+      ) : null}
+
+      {/* Totals typed by the table go straight into the books, with no reveal
+          to open the tie-break from: it opens over the form instead — so it
+          stays right under the form it opens over. */}
+      <GameTieBreak game={game} flow={flow} disabled={play.busy} />
+
       {/* High up on purpose: on a table dealing party after party, « où on en
           est » is the whole reason to look at the phone between two deals. */}
       <SessionStats games={sitting} direction={direction} />
@@ -389,27 +416,6 @@ export function PlayingGame({
       />
 
       <PlayStats game={game} rolls={dice.rolls} />
-
-      <LiveScoreSection
-        game={game}
-        live={live}
-        flow={flow}
-        disabled={play.busy}
-      />
-
-      {canEnd ? (
-        <EndControls
-          game={game}
-          flow={flow}
-          milestoneClaims={milestones.claims}
-          stageScores={goals.scores}
-          disabled={play.busy}
-        />
-      ) : null}
-
-      {/* Totals typed by the table go straight into the books, with no reveal
-          to open the tie-break from: it opens over the form instead. */}
-      <GameTieBreak game={game} flow={flow} disabled={play.busy} />
 
       {/* Last, so the veil covers everything above it — including the tie-break
           that may be open when the table stops the clock to argue. */}
