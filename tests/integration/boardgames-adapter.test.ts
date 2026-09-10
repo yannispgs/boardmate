@@ -81,6 +81,9 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
     expect(bg.kind).toBe("competitive"); // DB default
     expect(bg.turnMode).toBe("sequential"); // DB default
     expect(bg.timed).toBe(true); // DB default — almost every game is timed
+    // DB default — a party is worth walking back through the funnel for unless
+    // the game says otherwise.
+    expect(bg.chainable).toBe(false);
     expect(bg.tags).toEqual([]); // DB default
     expect(bg.isActive).toBe(true); // DB default
     expect(bg.trackSeatStats).toBe(false); // DB default
@@ -103,6 +106,7 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
       tags: ["stratégie", "4x"],
       turnMode: "simultaneous",
       timed: false,
+      chainable: true,
       trackSeatStats: true,
       boardGenerator: "catan",
     });
@@ -117,6 +121,9 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
     // A game the editor said not to time keeps its clock off — the column used
     // to be writable by migrations only, so nothing carried this through.
     expect(fetched?.timed).toBe(false);
+    // And a game the editor said deals one party after another keeps offering
+    // the next one, without a migration to grant it.
+    expect(fetched?.chainable).toBe(true);
     expect(fetched?.trackSeatStats).toBe(true);
     expect(fetched?.boardGenerator).toBe("catan");
 

@@ -1,10 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ErrorText } from "@/components/ErrorText";
 import type { PhaseSpec, PlayerId, PopulatedGame } from "@/lib/domain";
-import { chainedGame } from "@/lib/game/chained-game";
 import { composeGoals } from "@/lib/game/extensions";
 import { gameProgress, playProgress } from "@/lib/game/game-progress";
 import { advancePhase, currentPhase, playedDraft } from "@/lib/game/phase";
@@ -63,22 +61,10 @@ export function PlayingGame({
   game,
   play,
 }: Readonly<{ game: PopulatedGame; play: PlayGame }>) {
-  const router = useRouter();
   const repo = getGameRepository();
   const timer = useTurnTimer();
 
-  /**
-   * Deals the same party again — same players, same seats, same config — and
-   * lands on it, so an evening of short parties never goes back through the
-   * « Parties » menu. Only ever reached from the games that offer it.
-   */
-  async function chain() {
-    const next = await repo.create(chainedGame(game));
-
-    router.push(`/games/${next.id}/play`);
-  }
-
-  const flow = useEndFlow(game, play, chain);
+  const flow = useEndFlow(game, play);
   const live = useLiveScores(game, play);
   const dice = useDiceLog(game, play);
   const milestones = useMilestones(game);
@@ -320,8 +306,9 @@ export function PlayingGame({
       <PhaseBar phases={phases} current={game.phase} draft={draft} />
 
       {/* Where a timed game says which lap it is on, an evening says which deal
-          it is on. The two never show together: only a game the app puts no
-          clock on can be dealt again from the score sheet. */}
+          it is on — and now that any game can be dealt again, the two can be
+          read one under the other. Silent on a party played on its own, which
+          is most of them. */}
       <PartyRank games={sitting} gameId={game.id} />
 
       {/* « Tour 1 » would sit there for the whole game on a table that never
@@ -375,6 +362,33 @@ export function PlayingGame({
         onEnd={scores => flow.finishTotals(scores, null)}
       />
 
+      <LiveScoreSection
+        game={game}
+        live={live}
+        flow={flow}
+        disabled={play.busy}
+      />
+
+      {/* Above everything the table only *reads*, and next to the controls it
+          belongs with: counting the points is an action, and on an evening of
+          several deals the blocks below grow deal after deal — leaving the one
+          button that ends the party at the bottom of a page that gets longer
+          every time it is used. */}
+      {canEnd ? (
+        <EndControls
+          game={game}
+          flow={flow}
+          milestoneClaims={milestones.claims}
+          stageScores={goals.scores}
+          disabled={play.busy}
+        />
+      ) : null}
+
+      {/* Totals typed by the table go straight into the books, with no reveal
+          to open the tie-break from: it opens over the form instead — so it
+          stays right under the form it opens over. */}
+      <GameTieBreak game={game} flow={flow} disabled={play.busy} />
+
       {/* High up on purpose: on a table dealing party after party, « où on en
           est » is the whole reason to look at the phone between two deals. */}
       <SessionStats games={sitting} direction={direction} />
@@ -402,27 +416,6 @@ export function PlayingGame({
       />
 
       <PlayStats game={game} rolls={dice.rolls} />
-
-      <LiveScoreSection
-        game={game}
-        live={live}
-        flow={flow}
-        disabled={play.busy}
-      />
-
-      {canEnd ? (
-        <EndControls
-          game={game}
-          flow={flow}
-          milestoneClaims={milestones.claims}
-          stageScores={goals.scores}
-          disabled={play.busy}
-        />
-      ) : null}
-
-      {/* Totals typed by the table go straight into the books, with no reveal
-          to open the tie-break from: it opens over the form instead. */}
-      <GameTieBreak game={game} flow={flow} disabled={play.busy} />
 
       {/* Last, so the veil covers everything above it — including the tie-break
           that may be open when the table stops the clock to argue. */}

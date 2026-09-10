@@ -1,5 +1,6 @@
 "use client";
 
+import { SummaryList, SummaryRow } from "@/components/SummaryList";
 import type { Config, Player } from "@/lib/domain";
 
 /**
@@ -34,22 +35,13 @@ export function RecapSummary({
 
   return (
     <>
-      <dl className="flex flex-col gap-2 rounded-xl border border-black/10 bg-black/[0.02] p-4 text-sm dark:border-white/10 dark:bg-white/[0.02]">
-        <div className="flex justify-between gap-3">
-          <dt className="text-zinc-500 dark:text-zinc-400">Jeu</dt>
-          <dd className="font-medium">{boardgameName}</dd>
-        </div>
-        <div className="flex justify-between gap-3">
-          <dt className="text-zinc-500 dark:text-zinc-400">Configuration</dt>
-          <dd className="font-medium">
-            {config ? config.name : "Configuration par défaut"}
-          </dd>
-        </div>
-        <div className="flex justify-between gap-3">
-          <dt className="text-zinc-500 dark:text-zinc-400">Joueurs</dt>
-          <dd className="text-right font-medium">{seated}</dd>
-        </div>
-      </dl>
+      <SummaryList>
+        <SummaryRow label="Jeu">{boardgameName}</SummaryRow>
+        <SummaryRow label="Configuration">
+          {config ? config.name : "Configuration par défaut"}
+        </SummaryRow>
+        <SummaryRow label="Joueurs">{seated}</SummaryRow>
+      </SummaryList>
 
       {ordered && players.length >= 2 ? (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-black/10 bg-black/[0.02] p-4 text-sm dark:border-white/10 dark:bg-white/[0.02]">

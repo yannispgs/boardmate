@@ -45,6 +45,8 @@ interface FormState {
   turnMode: TurnMode;
   // Whether the app runs a clock on the turns (off for Papayoo, Odin).
   timed: boolean;
+  // Whether a finished party offers to deal the next one (on for Papayoo).
+  chainable: boolean;
   kind: BoardgameKind;
   // Break the stats down by turn order (first / middle / last to play).
   trackSeatStats: boolean;
@@ -83,6 +85,7 @@ const EMPTY: FormState = {
   tags: "",
   turnMode: "sequential",
   timed: true,
+  chainable: false,
   kind: "competitive",
   trackSeatStats: false,
   turnCountVaries: false,
@@ -114,6 +117,7 @@ function fromBoardgame(b: Boardgame): FormState {
     tags: b.tags.join(", "),
     turnMode: b.turnMode,
     timed: b.timed,
+    chainable: b.chainable,
     kind: b.kind,
     trackSeatStats: b.trackSeatStats,
     turnCountVaries: b.turnCountVaries,
@@ -238,6 +242,7 @@ function toInput(
       .filter(Boolean),
     turnMode: form.turnMode,
     timed: form.timed,
+    chainable: form.chainable,
     kind: form.kind,
     // Switching a game to "everybody at once" must also clear a seat-order
     // tracking left on from before, or the stats would keep a table nothing
@@ -738,6 +743,34 @@ export function BoardgameForm({
           <p>
             Les statistiques par tour disparaissent alors du jeu, au lieu de
             s&apos;afficher à zéro.
+          </p>
+        </InfoTip>
+      </label>
+
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={form.chainable}
+          onChange={e => setForm({ ...form, chainable: e.target.checked })}
+        />
+        Enchaîner les parties
+        <InfoTip label="Enchaînement des parties">
+          <p>
+            Coché&nbsp;: l&apos;écran de fin de partie propose «&nbsp;Enchaîner
+            une nouvelle partie&nbsp;», qui rouvre la même partie —&nbsp;mêmes
+            joueurs, mêmes places, même configuration&nbsp;— sans repasser par
+            le tunnel de création. Les parties enchaînées comptent pour la même
+            soirée.
+          </p>
+          <p>
+            Décoché (défaut)&nbsp;: la fin de partie ramène aux parties. Pour
+            tout jeu qui dure assez longtemps pour valoir le détour par le
+            tunnel, ne serait-ce que pour changer les places.
+          </p>
+          <p>
+            À cocher pour les jeux dont une partie est une donne&nbsp;: à
+            Papayoo, refaire le tunnel entre deux donnes prend plus longtemps
+            que la donne elle-même.
           </p>
         </InfoTip>
       </label>

@@ -61,13 +61,11 @@ export interface EndFlowState {
   /**
    * Ends a game on totals the **table** typed. It read them off the sheet before
    * the app did, so climbing the standings place by place would reveal nothing:
-   * the game is recorded straight away. When `chain` is set, an identical new
-   * party opens instead of the recap.
+   * the game is recorded straight away.
    */
   finishTypedTotals: (
     scores: Array<{ playerId: PlayerId; score: number }>,
     override: PlayerId | null,
-    chain: boolean,
   ) => Promise<void>;
   settleTie: (
     winnerIds: PlayerId[],
@@ -83,26 +81,17 @@ export interface EndFlowState {
  * whichever sheet the game uses, revealing the standings, settling a tie, and
  * recording the finished game.
  */
-export function useEndFlow(
-  game: PopulatedGame,
-  play: PlayGame,
-  /** Opens the next party, once this one is recorded — see `chainedGame`. */
-  onChain: () => Promise<void>,
-): EndFlowState {
+export function useEndFlow(game: PopulatedGame, play: PlayGame): EndFlowState {
   const repo = getGameRepository();
   const [phase, setPhase] = useState<EndPhase>("play");
   const [outcome, setOutcome] = useState<EndOutcome | null>(null);
   const [entryOpen, setEntryOpen] = useState(false);
   const [tieOpen, setTieOpen] = useState(false);
-  // Set aside while the tie-break asks its questions: the table pressed
-  // « Enchaîner », and still means to once the leaders are separated.
-  const [chaining, setChaining] = useState(false);
   // Recording the party is terminal, but the screen it is asked from does not
-  // leave the moment it lands: dealing the next party navigates, reading the
-  // recap reloads, and until either arrives the button is still under the
-  // table's thumb. A second press then recorded the same party again and dealt
-  // a **second** next one — a phantom deal, numbered in the evening and never
-  // played. `busy` cannot catch it: the first press is long over.
+  // leave the moment it lands: the recap only appears once the reloaded game
+  // says the party is over, and until then the button is still under the
+  // table's thumb. A second press recorded the same party again. `busy` cannot
+  // catch it: the first press is long over.
   const recorded = useRef(false);
 
   /**
@@ -213,24 +202,10 @@ export function useEndFlow(
     });
   }
 
-  /**
-   * Records a game the table itself added up, and goes where the table asked:
-   * the next party when it pressed « Enchaîner », the recap otherwise.
-   */
-  async function endTyped(
-    ended: EndOutcome,
-    tieBreak: TieBreakRecord | null,
-    chain: boolean,
-  ) {
+  /** Records a game the table itself added up, and hands over to the recap. */
+  async function endTyped(ended: EndOutcome, tieBreak: TieBreakRecord | null) {
     await recordOnce(async () => {
       await repo.end(game.id, ended.winners, ended.scores, tieBreak);
-
-      if (chain) {
-        await onChain();
-
-        return;
-      }
-
       await play.reload();
     });
   }
@@ -277,7 +252,7 @@ export function useEndFlow(
         ),
       ),
 
-    finishTypedTotals: async (scores, override, chain) => {
+    finishTypedTotals: async (scores, override) => {
       const ended = totalOutcome(
         scores,
         game.boardgame.scoring?.winCondition ?? null,
@@ -287,14 +262,13 @@ export function useEndFlow(
       // Leaders came out level: nothing can be recorded before the table
       // settles them, and with no reveal the prompt opens over the form.
       if (ended.winners.length === 0) {
-        setChaining(chain);
         setOutcome(ended);
         setTieOpen(true);
 
         return;
       }
 
-      await endTyped(ended, null, chain);
+      await endTyped(ended, null);
     },
 
     /** Records the game once the tie-break has named the winners. */
@@ -309,7 +283,7 @@ export function useEndFlow(
       // screen moves on, exactly as a lone leader would have.
       if (phase === "play") {
         setTieOpen(false);
-        await endTyped(settled, record, chaining);
+        await endTyped(settled, record);
 
         return;
       }

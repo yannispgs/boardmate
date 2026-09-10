@@ -10,7 +10,7 @@ import type {
   ScoringSpec,
 } from "@/lib/domain";
 
-import { type ChainableGame, chainedGame } from "./chained-game";
+import { type ChainableGame, chainedGame, justEnded } from "./chained-game";
 
 const PAPAYOO: ScoringSpec = {
   timing: "final",
@@ -102,5 +102,45 @@ describe("chainedGame", () => {
 
   it("files the next deal under the same evening", () => {
     expect(chainedGame(game()).sessionId).toBe("evening");
+  });
+});
+
+describe("justEnded", () => {
+  const now = Date.parse("2026-09-04T21:00:00.000Z");
+
+  const at = (iso: string) => {
+    return justEnded(iso, now);
+  };
+
+  it.each([
+    ["the moment it closed", "2026-09-04T21:00:00.000Z"],
+    ["a quarter of an hour ago", "2026-09-04T20:45:00.000Z"],
+    ["just inside the hour", "2026-09-04T20:00:01.000Z"],
+  ])("keeps the table sat down %s", (_case, endedAt) => {
+    expect(at(endedAt)).toBe(true);
+  });
+
+  it.each([
+    ["on the hour itself", "2026-09-04T20:00:00.000Z"],
+    ["earlier the same evening", "2026-09-04T18:30:00.000Z"],
+    ["a month ago", "2026-08-04T21:00:00.000Z"],
+  ])("lets the table get up %s", (_case, endedAt) => {
+    expect(at(endedAt)).toBe(false);
+  });
+
+  it("forgives a closing time a moment ahead of the reading clock", () => {
+    expect(at("2026-09-04T21:00:30.000Z")).toBe(true);
+  });
+
+  it("sits a party recorded away from the app outside the window", () => {
+    expect(at("2025-01-03T11:00:00.000Z")).toBe(false);
+  });
+
+  it("offers nothing on a party that never closed", () => {
+    expect(justEnded(null, now)).toBe(false);
+  });
+
+  it("offers nothing on a closing time that is not one", () => {
+    expect(justEnded("hier soir", now)).toBe(false);
   });
 });

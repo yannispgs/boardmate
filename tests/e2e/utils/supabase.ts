@@ -197,6 +197,11 @@ export async function seedParty(
     /** Which phase of the stage the table is in — an index into the game's. */
     phase?: number;
     configValues?: Readonly<Record<string, unknown>>;
+    /**
+     * When the party closed, for a scenario that needs one the table has since
+     * got up from. Defaults to the moment it is seeded — a party still warm.
+     */
+    endedAt?: string;
   }> = {},
 ): Promise<string> {
   const ongoing = options.ongoing === true;
@@ -208,7 +213,7 @@ export async function seedParty(
       round: options.round ?? 1,
       turn: options.turn ?? 1,
       current_player_id: ongoing ? scores[0]?.playerId : null,
-      ended_at: ongoing ? null : new Date().toISOString(),
+      ended_at: ongoing ? null : (options.endedAt ?? new Date().toISOString()),
       ...(options.sessionId === undefined
         ? {}
         : { session_id: options.sessionId }),

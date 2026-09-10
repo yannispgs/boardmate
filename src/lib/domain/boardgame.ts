@@ -347,6 +347,15 @@ export interface Boardgame {
    * than zero.
    */
   timed: boolean;
+  /**
+   * Whether the finished party's screen offers to deal the next one — same
+   * players, same seats, same config, in the same session. True for the games a
+   * party of which is one short deal (Papayoo): walking back through the
+   * new-game funnel between two of them takes longer than the deal itself.
+   * False by default — anything longer is worth going back through the funnel
+   * for, if only to change the seats.
+   */
+  chainable: boolean;
   avgDurationMin: number | null;
   tags: string[];
   /** How the game is scored, or `null` when it isn't. */
@@ -431,6 +440,11 @@ export interface NewBoardgame {
    * which is what almost every game wants — see {@link Boardgame.timed}.
    */
   timed?: boolean;
+  /**
+   * Whether a finished party offers to deal the next one. Defaults to `false` —
+   * see {@link Boardgame.chainable}.
+   */
+  chainable?: boolean;
   avgDurationMin?: number | null;
   tags?: string[];
   /** How the game is scored, or `null` when it isn't. */

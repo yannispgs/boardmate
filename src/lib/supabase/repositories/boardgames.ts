@@ -40,6 +40,10 @@ export function toBoardgame(row: BoardgameRow): Boardgame {
     // Reference data like `stages`: it decides whether the play screen has a
     // clock at all, so the editor never writes it back.
     timed: row.is_timed,
+    // A preference, unlike `timed`: it changes nothing about how the game is
+    // played or recorded, only whether the finished party offers to deal the
+    // next one — so the editor does write it back.
+    chainable: row.is_chainable,
     avgDurationMin: row.avg_duration_min,
     tags: row.tags,
     // Authored per boardgame as data; null when the game isn't scored.
@@ -77,6 +81,7 @@ function toRow(input: NewBoardgame | BoardgameUpdate): BoardgameWrite {
     kind: input.kind,
     turn_mode: input.turnMode,
     is_timed: input.timed,
+    is_chainable: input.chainable,
     avg_duration_min: input.avgDurationMin,
     tags: input.tags,
     scoring: input.scoring as unknown as Json,

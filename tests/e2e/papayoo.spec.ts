@@ -85,7 +85,7 @@ test("scores a Papayoo party to 250 with no clock and no turns", async ({
       page.getByText("Le total doit faire 250 points (actuellement 300)."),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Terminer la session" }),
+      page.getByRole("button", { name: "Terminer", exact: true }),
     ).toBeDisabled();
 
     // Balanced: one player took nothing, which no rule of this game forbids.
@@ -95,7 +95,7 @@ test("scores a Papayoo party to 250 with no clock and no turns", async ({
     await expect(
       page.getByText("Le total doit faire 250 points", { exact: false }),
     ).toHaveCount(0);
-    await page.getByRole("button", { name: "Terminer la session" }).click();
+    await page.getByRole("button", { name: "Terminer", exact: true }).click();
 
     // The table added the piles up itself, so it already knows who won: the
     // standings are written straight into the books, with no reveal to sit
