@@ -70,6 +70,45 @@ async function userWith(keys: string[]) {
   };
 }
 
+/**
+ * A throwaway boardgame carrying two games: one still being played, one already
+ * filed. Returns a `dispose` for the same reason `userWith` does.
+ *
+ * Everything the status split has to say needs the pair — the game itself, the
+ * rows hanging off it, the phase times — so each test would otherwise open on
+ * the same twenty lines of seeding.
+ */
+async function gamesOnBothSidesOfTheSplit(label: string) {
+  const service = serviceClient();
+  const { data: boardgame } = await service
+    .from("boardgames")
+    .insert({ name: `${label}-${Date.now()}` })
+    .select("*")
+    .single();
+  const boardgameId = boardgame?.id as string;
+
+  const { data: created } = await service
+    .from("games")
+    .insert([
+      { boardgame_id: boardgameId, status: "ongoing" },
+      {
+        boardgame_id: boardgameId,
+        status: "ended",
+        ended_at: new Date().toISOString(),
+      },
+    ])
+    .select("*");
+
+  return {
+    live: created?.find(game => game.status === "ongoing")?.id as string,
+    done: created?.find(game => game.status === "ended")?.id as string,
+    async dispose() {
+      await service.from("games").delete().eq("boardgame_id", boardgameId);
+      await service.from("boardgames").delete().eq("id", boardgameId);
+    },
+  };
+}
+
 describe("RBAC — a signed-in account with no role holds nothing", () => {
   it("reads no boardgame, though the catalogue is seeded", async () => {
     const db = authedClient(nobody.accessToken);
@@ -380,27 +419,7 @@ describe("RBAC — keys finer than CRUD", () => {
   });
 
   it("separates the game being played from the game already filed", async () => {
-    const service = serviceClient();
-    const { data: boardgame } = await service
-      .from("boardgames")
-      .insert({ name: `Split-${Date.now()}` })
-      .select("*")
-      .single();
-    const boardgameId = boardgame?.id as string;
-    const { data: created } = await service
-      .from("games")
-      .insert([
-        { boardgame_id: boardgameId, status: "ongoing" },
-        {
-          boardgame_id: boardgameId,
-          status: "ended",
-          ended_at: new Date().toISOString(),
-        },
-      ])
-      .select("*");
-    const live = created?.find(game => game.status === "ongoing")?.id as string;
-    const done = created?.find(game => game.status === "ended")?.id as string;
-
+    const { live, done, dispose } = await gamesOnBothSidesOfTheSplit("Split");
     const player = await userWith(["games.read", "games.updateLive"]);
     const archivist = await userWith(["games.read", "games.updateDone"]);
 
@@ -433,34 +452,12 @@ describe("RBAC — keys finer than CRUD", () => {
         .select("*");
       expect(meddled.data).toEqual([]);
     } finally {
-      await Promise.all([player.dispose(), archivist.dispose()]);
-      await service.from("games").delete().eq("boardgame_id", boardgameId);
-      await service.from("boardgames").delete().eq("id", boardgameId);
+      await Promise.all([player.dispose(), archivist.dispose(), dispose()]);
     }
   });
 
   it("carries the parent's status down to the rows hanging off it", async () => {
-    const service = serviceClient();
-    const { data: boardgame } = await service
-      .from("boardgames")
-      .insert({ name: `Child-${Date.now()}` })
-      .select("*")
-      .single();
-    const boardgameId = boardgame?.id as string;
-    const { data: created } = await service
-      .from("games")
-      .insert([
-        { boardgame_id: boardgameId, status: "ongoing" },
-        {
-          boardgame_id: boardgameId,
-          status: "ended",
-          ended_at: new Date().toISOString(),
-        },
-      ])
-      .select("*");
-    const live = created?.find(game => game.status === "ongoing")?.id as string;
-    const done = created?.find(game => game.status === "ended")?.id as string;
-
+    const { live, done, dispose } = await gamesOnBothSidesOfTheSplit("Child");
     const player = await userWith(["games.read", "games.updateLive"]);
 
     try {
@@ -478,9 +475,7 @@ describe("RBAC — keys finer than CRUD", () => {
         .select("*");
       expect(onDone.error?.code).toBe("42501");
     } finally {
-      await player.dispose();
-      await service.from("games").delete().eq("boardgame_id", boardgameId);
-      await service.from("boardgames").delete().eq("id", boardgameId);
+      await Promise.all([player.dispose(), dispose()]);
     }
   });
 
@@ -489,27 +484,7 @@ describe("RBAC — keys finer than CRUD", () => {
   // sibling tables were gated. It is asserted on its own rather than folded into
   // the test above: the gap was invisible precisely because nothing named it.
   it("gates the phase times like every other row hanging off a game", async () => {
-    const service = serviceClient();
-    const { data: boardgame } = await service
-      .from("boardgames")
-      .insert({ name: `Phase-${Date.now()}` })
-      .select("*")
-      .single();
-    const boardgameId = boardgame?.id as string;
-    const { data: created } = await service
-      .from("games")
-      .insert([
-        { boardgame_id: boardgameId, status: "ongoing" },
-        {
-          boardgame_id: boardgameId,
-          status: "ended",
-          ended_at: new Date().toISOString(),
-        },
-      ])
-      .select("*");
-    const live = created?.find(game => game.status === "ongoing")?.id as string;
-    const done = created?.find(game => game.status === "ended")?.id as string;
-
+    const { live, done, dispose } = await gamesOnBothSidesOfTheSplit("Phase");
     const player = await userWith(["games.read", "games.updateLive"]);
 
     try {
@@ -541,9 +516,7 @@ describe("RBAC — keys finer than CRUD", () => {
       expect(read.error).toBeNull();
       expect(read.data).toEqual([]);
     } finally {
-      await player.dispose();
-      await service.from("games").delete().eq("boardgame_id", boardgameId);
-      await service.from("boardgames").delete().eq("id", boardgameId);
+      await Promise.all([player.dispose(), dispose()]);
     }
   });
 
