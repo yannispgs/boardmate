@@ -484,6 +484,69 @@ describe("RBAC — keys finer than CRUD", () => {
     }
   });
 
+  // `game_phases` was born five days after the permission model and copied the
+  // pre-RBAC template, so it stayed open to any signed-in account while its nine
+  // sibling tables were gated. It is asserted on its own rather than folded into
+  // the test above: the gap was invisible precisely because nothing named it.
+  it("gates the phase times like every other row hanging off a game", async () => {
+    const service = serviceClient();
+    const { data: boardgame } = await service
+      .from("boardgames")
+      .insert({ name: `Phase-${Date.now()}` })
+      .select("*")
+      .single();
+    const boardgameId = boardgame?.id as string;
+    const { data: created } = await service
+      .from("games")
+      .insert([
+        { boardgame_id: boardgameId, status: "ongoing" },
+        {
+          boardgame_id: boardgameId,
+          status: "ended",
+          ended_at: new Date().toISOString(),
+        },
+      ])
+      .select("*");
+    const live = created?.find(game => game.status === "ongoing")?.id as string;
+    const done = created?.find(game => game.status === "ended")?.id as string;
+
+    const player = await userWith(["games.read", "games.updateLive"]);
+
+    try {
+      const phase = { stage: 1, phase_key: "action", duration_s: 42 };
+
+      const byNobody = await authedClient(nobody.accessToken)
+        .from("game_phases")
+        .insert({ game_id: live, ...phase })
+        .select("*");
+      expect(byNobody.error?.code).toBe("42501");
+
+      const onLive = await player.db
+        .from("game_phases")
+        .insert({ game_id: live, ...phase })
+        .select("*");
+      expect(onLive.error).toBeNull();
+
+      const onDone = await player.db
+        .from("game_phases")
+        .insert({ game_id: done, ...phase })
+        .select("*");
+      expect(onDone.error?.code).toBe("42501");
+
+      // Reading is filtered, not refused — the row exists, he just isn't shown it.
+      const read = await authedClient(nobody.accessToken)
+        .from("game_phases")
+        .select("*")
+        .eq("game_id", live);
+      expect(read.error).toBeNull();
+      expect(read.data).toEqual([]);
+    } finally {
+      await player.dispose();
+      await service.from("games").delete().eq("boardgame_id", boardgameId);
+      await service.from("boardgames").delete().eq("id", boardgameId);
+    }
+  });
+
   it("separates a game's fiche from its barème, column by column", async () => {
     const service = serviceClient();
     const { data: boardgame } = await service
