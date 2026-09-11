@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.1](https://github.com/yannispgs/boardmate/compare/v1.6.0...v1.6.1) (2026-09-11)
+
+
+### Bug Fixes
+
+* gate the phase times behind the game permissions ([db78d00](https://github.com/yannispgs/boardmate/commit/db78d00a5a5dfa1590c38daa0df9be06454e97a8))
+* gate the phase times behind the game permissions ([67e50a3](https://github.com/yannispgs/boardmate/commit/67e50a398bebd6bd1e3ac4720bbe58c606b589ea))
+
 ## [1.6.0](https://github.com/yannispgs/boardmate/compare/v1.5.0...v1.6.0) (2026-09-10)
 
 
