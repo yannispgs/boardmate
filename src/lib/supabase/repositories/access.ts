@@ -235,6 +235,51 @@ export function createAccessRepository(
         throw new Error("Retrait du rôle: refusé");
       }
     },
+
+    async startRoleSimulation(roleIds) {
+      // The three simulation calls all go through functions rather than the
+      // table: `permission_simulations` grants nothing to anybody, so the rules
+      // that make a simulation safe live in one place instead of being restated
+      // as policies.
+      const { error } = await supabase.rpc("start_role_simulation", {
+        p_role_ids: roleIds,
+      });
+
+      // Worth surfacing as-is: every refusal here is a sentence written for the
+      // reader (« Un rôle administrateur ne se simule pas »), not a code.
+      if (error) {
+        throw new Error(error.message);
+      }
+    },
+
+    async stopRoleSimulation() {
+      const { error } = await supabase.rpc("stop_role_simulation");
+
+      if (error) {
+        throw new Error(`Sortie de la vue simulée: ${error.message}`);
+      }
+    },
+
+    async currentRoleSimulation() {
+      const { data, error } = await supabase.rpc("current_role_simulation");
+      /* c8 ignore next 3 -- defensive guard: a healthy call doesn't error */
+      if (error) {
+        throw new Error(`Lecture de la vue simulée: ${error.message}`);
+      }
+
+      const row = data.at(0);
+
+      if (row === undefined) {
+        return null;
+      }
+
+      return {
+        roleIds: row.role_ids as RoleId[],
+        roleLabels: row.role_labels,
+        startedAt: row.started_at,
+        expiresAt: row.expires_at,
+      };
+    },
   };
 }
 

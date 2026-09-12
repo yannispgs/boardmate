@@ -23,9 +23,11 @@ const TABLES = [
   "game_turns",
   "game_stage_passes",
   "game_milestones",
+  "game_phases",
   "feedback",
   "faq_entries",
   "auth_rate_limits",
+  "permission_simulations",
 ] as const;
 
 let user: TestUser;

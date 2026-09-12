@@ -45,6 +45,7 @@ import type {
   PopulatedGame,
   Role,
   RoleId,
+  RoleSimulation,
   StageAdvance,
   TieBreakRecord,
   TurnMode,
@@ -441,6 +442,22 @@ export interface AccessRepository {
    * administrator role — that one is undone with a hand on the database.
    */
   unassignRole(userId: UserId, roleId: RoleId): Promise<void>;
+  /**
+   * Starts looking at the application through `roleIds`, and answers when that
+   * lapses. Needs the *real* `roles.read`, so a running simulation is never what
+   * decides whether it may be changed.
+   *
+   * It can only ever narrow: the database intersects the roles asked for with
+   * the ones the account really holds. Administrator roles are refused.
+   */
+  startRoleSimulation(roleIds: RoleId[]): Promise<void>;
+  /**
+   * Goes back to being oneself. Asks for no permission on purpose — the account
+   * that needs this most is the one whose simulation just took its rights away.
+   */
+  stopRoleSimulation(): Promise<void>;
+  /** The view currently in force, or `null` when the account is simply itself. */
+  currentRoleSimulation(): Promise<RoleSimulation | null>;
 }
 
 /** Aggregate of all repositories, resolved by the active adapter. */

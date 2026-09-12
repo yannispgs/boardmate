@@ -11,6 +11,7 @@ import { AccountsPanel } from "./AccountsPanel";
 import { PermissionCardList } from "./PermissionCardList";
 import { RoleCardList } from "./RoleCardList";
 import { RoleEditor } from "./RoleEditor";
+import { RoleSimulationPanel } from "./RoleSimulationPanel";
 
 type Tab = "permissions" | "roles" | "accounts";
 
@@ -160,18 +161,24 @@ export function AccessManager() {
         ) : null}
 
         {tab === "roles" ? (
-          <ListState
-            loading={loading}
-            empty={roles.length === 0}
-            emptyLabel={<>Aucun rôle visible.</>}
-          >
-            <RoleCardList
-              roles={roles}
-              permissions={permissions}
-              onEdit={mayUpdate ? open : undefined}
-              onDelete={mayDelete ? confirmDelete : undefined}
-            />
-          </ListState>
+          <div className="flex flex-col gap-4">
+            {/* Above the list on purpose: it is the answer to the question the
+                grid raises — « et concrètement, il voit quoi ? ». */}
+            {mayReadRoles ? <RoleSimulationPanel roles={roles} /> : null}
+
+            <ListState
+              loading={loading}
+              empty={roles.length === 0}
+              emptyLabel={<>Aucun rôle visible.</>}
+            >
+              <RoleCardList
+                roles={roles}
+                permissions={permissions}
+                onEdit={mayUpdate ? open : undefined}
+                onDelete={mayDelete ? confirmDelete : undefined}
+              />
+            </ListState>
+          </div>
         ) : null}
 
         {tab === "accounts" ? (
