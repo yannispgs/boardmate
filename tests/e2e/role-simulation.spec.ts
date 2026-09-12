@@ -43,8 +43,10 @@ test("narrows the application to a role, then hands the rights back", async ({
     await expect(page.getByText(label)).toBeVisible();
 
     // The narrowing is the database's, so it reaches the very screen that
-    // started it — the role list this simulation may no longer read.
-    await page.getByRole("button", { name: "Rôles" }).click();
+    // started it: the two tabs this simulation may no longer read are gone,
+    // and the sentence explaining why has taken their place.
+    await expect(page.getByRole("button", { name: "Rôles" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Comptes" })).toHaveCount(0);
     await expect(
       page.getByText(/n'a pas la permission « Consulter les rôles »/),
     ).toBeVisible();
