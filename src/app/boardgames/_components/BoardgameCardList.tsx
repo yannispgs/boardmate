@@ -8,7 +8,8 @@ import { BoardgameCard } from "./BoardgameCard";
 /**
  * A titled list of boardgames. Renders a `BoardgameCard` per item; the
  * deactivated section passes `collapsible` to hide its cards behind a
- * disclosure (collapsed by default).
+ * disclosure (collapsed by default). `onToggle` is optional and travels down
+ * as it comes: without it the account may not hide or restore a game.
  */
 export function BoardgameCardList({
   title,
@@ -20,7 +21,7 @@ export function BoardgameCardList({
 }: Readonly<{
   title: string;
   boardgames: Boardgame[];
-  onToggle: (b: Boardgame) => void;
+  onToggle?: (b: Boardgame) => void;
   actionLabel: string;
   dimmed?: boolean;
   collapsible?: boolean;

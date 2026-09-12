@@ -8,6 +8,7 @@ import { StickyActionBar } from "@/components/StickyActionBar";
 import { useConfirm } from "@/components/use-confirm";
 import type { Boardgame } from "@/lib/domain";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
+import { useMyPermissions } from "@/lib/hooks/use-my-permissions";
 import { BoardgameCardList } from "./BoardgameCardList";
 
 export function BoardgamesManager() {
@@ -17,6 +18,9 @@ export function BoardgamesManager() {
   const inactive = boardgames.filter(b => !b.isActive);
 
   const [actionError, setActionError] = useState<string | null>(null);
+  // Hiding a game and bringing it back are two separate rights, so the two
+  // lists do not necessarily carry the same button.
+  const { can } = useMyPermissions();
   const { requestConfirm, confirmDialog } = useConfirm();
 
   async function deactivate(b: Boardgame) {
@@ -67,14 +71,22 @@ export function BoardgamesManager() {
           <BoardgameCardList
             title="Jeux actifs"
             boardgames={active}
-            onToggle={b => handleToggle(b, false)}
+            onToggle={
+              can("boardgames.disable")
+                ? b => handleToggle(b, false)
+                : undefined
+            }
             actionLabel="Désactiver"
           />
           {inactive.length > 0 ? (
             <BoardgameCardList
               title="Désactivés"
               boardgames={inactive}
-              onToggle={b => handleToggle(b, true)}
+              onToggle={
+                can("boardgames.enable")
+                  ? b => handleToggle(b, true)
+                  : undefined
+              }
               actionLabel="Réactiver"
               dimmed
               collapsible
@@ -83,14 +95,16 @@ export function BoardgamesManager() {
         </ListState>
       </div>
 
-      <StickyActionBar>
-        <Link
-          href="/boardgames/new"
-          className="self-start rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
-        >
-          + Ajouter un jeu
-        </Link>
-      </StickyActionBar>
+      {can("boardgames.create") ? (
+        <StickyActionBar>
+          <Link
+            href="/boardgames/new"
+            className="self-start rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
+          >
+            + Ajouter un jeu
+          </Link>
+        </StickyActionBar>
+      ) : null}
 
       {confirmDialog}
     </div>

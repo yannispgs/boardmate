@@ -19,8 +19,8 @@ export function FaqEntryCard({
   canMoveDown,
 }: Readonly<{
   entry: FaqEntry;
-  onEdit: (entry: FaqEntry) => void;
-  onDelete: (entry: FaqEntry) => void;
+  onEdit?: (entry: FaqEntry) => void;
+  onDelete?: (entry: FaqEntry) => void;
   /** Left out while searching: an order only means something inside a section. */
   onMove?: (entry: FaqEntry, direction: "up" | "down") => void;
   canMoveUp: boolean;
@@ -55,23 +55,32 @@ export function FaqEntryCard({
             </>
           )}
 
-          <button
-            type="button"
-            onClick={() => onEdit(entry)}
-            title="Modifier"
-            className={`${iconButtonClass} ml-auto`}
-          >
-            <PencilIcon />
-          </button>
+          {/* The pair is pushed right together rather than the first of the
+              two: whichever one the account may use has to end up on the edge,
+              and either can be missing. */}
+          <div className="ml-auto flex items-center gap-1.5">
+            {onEdit === undefined ? null : (
+              <button
+                type="button"
+                onClick={() => onEdit(entry)}
+                title="Modifier"
+                className={iconButtonClass}
+              >
+                <PencilIcon />
+              </button>
+            )}
 
-          <button
-            type="button"
-            onClick={() => onDelete(entry)}
-            title="Supprimer"
-            className={dangerIconButtonClass}
-          >
-            <TrashIcon />
-          </button>
+            {onDelete === undefined ? null : (
+              <button
+                type="button"
+                onClick={() => onDelete(entry)}
+                title="Supprimer"
+                className={dangerIconButtonClass}
+              >
+                <TrashIcon />
+              </button>
+            )}
+          </div>
         </div>
       }
     />
