@@ -1,6 +1,28 @@
+import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
 import { adminClient } from "./utils/supabase";
+
+/**
+ * Runs `act`, which starts or stops a simulation, and comes back once the full
+ * reload it fires has replaced the document.
+ *
+ * Marking the current document and waiting for the mark to be gone is the
+ * readiness condition, because what the page *shows* cannot tell the two
+ * documents apart: while the reload is committing there is briefly nothing on
+ * screen, which satisfies « the banner is gone » exactly as the reloaded page
+ * does — and the navigation that follows is then aborted by the reload still
+ * landing.
+ */
+async function reloading(page: Page, act: () => Promise<void>) {
+  await page.evaluate(() => {
+    document.documentElement.dataset.beforeReload = "1";
+  });
+
+  await act();
+
+  await expect(page.locator("html:not([data-before-reload])")).toHaveCount(1);
+}
 
 /**
  * The interface offers only what the account may do (full-suite only —
@@ -55,11 +77,11 @@ test("withholds the controls the account has no permission for", async ({
 
     const panel = page.getByTestId("role-simulation");
     await panel.getByRole("button", { name: label }).click();
-    await panel.getByRole("button", { name: "Lancer la vue simulée" }).click();
+    await reloading(page, () =>
+      panel.getByRole("button", { name: "Lancer la vue simulée" }).click(),
+    );
+
     await expect(page.getByText(/Vue simulée/)).toBeVisible();
-    // Starting one reloads the page; navigating away while that reload is
-    // still committing aborts the next request.
-    await page.waitForLoadState("networkidle");
 
     // Players: the row keeps the name and loses both controls, and the bar at
     // the bottom no longer offers to add one.
@@ -92,9 +114,12 @@ test("withholds the controls the account has no permission for", async ({
     await expect(page.getByRole("button", { name: "Envoyer" })).toHaveCount(0);
 
     // Back to being oneself, and the controls come back with the rights.
-    await page.getByRole("button", { name: "Quitter" }).click();
+    await reloading(page, () =>
+      page.getByRole("button", { name: "Quitter" }).click(),
+    );
+
     await expect(page.getByText(/Vue simulée/)).toHaveCount(0);
-    await page.waitForLoadState("networkidle");
+
     await page.goto("/players");
     await expect(
       page.getByRole("button", { name: `Désactiver ${player}` }),
