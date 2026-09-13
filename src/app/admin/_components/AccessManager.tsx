@@ -3,17 +3,15 @@
 import { useState } from "react";
 import { ErrorText } from "@/components/ErrorText";
 import { ListState } from "@/components/ListState";
-import { TabButton, tabBarClass } from "@/components/TabButton";
 import { useConfirm } from "@/components/use-confirm";
 import type { Role } from "@/lib/domain";
 import { useAccess } from "@/lib/hooks/use-access";
+import type { AccessTab } from "./AccessTabs";
+import { AccessTabs } from "./AccessTabs";
 import { AccountsPanel } from "./AccountsPanel";
 import { PermissionCardList } from "./PermissionCardList";
-import { RoleCardList } from "./RoleCardList";
 import { RoleEditor } from "./RoleEditor";
-import { RoleSimulationPanel } from "./RoleSimulationPanel";
-
-type Tab = "permissions" | "roles" | "accounts";
+import { RolesPanel } from "./RolesPanel";
 
 /** The role being written: an existing one, or `"new"` for one being created. */
 type Editing = Role | "new";
@@ -37,7 +35,7 @@ export function AccessManager() {
     assignRole,
     unassignRole,
   } = useAccess();
-  const [tab, setTab] = useState<Tab>("permissions");
+  const [tab, setTab] = useState<AccessTab>("permissions");
   const [editing, setEditing] = useState<Editing | null>(null);
   const [saving, setSaving] = useState(false);
   // Two error slots, because they are read in two places: what the editor did
@@ -58,7 +56,7 @@ export function AccessManager() {
   // The two tabs are not drawn at all, so nothing can be looking at them. This
   // keeps that true rather than trusting it: whatever `tab` holds, without the
   // right the only readable angle is the catalogue.
-  const shown: Tab = mayReadRestrictedTabs ? tab : "permissions";
+  const shown: AccessTab = mayReadRestrictedTabs ? tab : "permissions";
   // The buttons follow the permissions the account actually holds, so a control
   // is never offered for a write the database is about to refuse.
   const mayCreate = mine.includes("roles.create");
@@ -120,26 +118,8 @@ export function AccessManager() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 pb-10">
-      {/* A bar of one tab is not a bar: with the other two withheld there is
-          nothing left to switch between, so it goes away whole. */}
       {mayReadRestrictedTabs ? (
-        <div className={tabBarClass}>
-          <TabButton
-            active={shown === "permissions"}
-            onClick={() => setTab("permissions")}
-          >
-            Permissions
-          </TabButton>
-          <TabButton active={shown === "roles"} onClick={() => setTab("roles")}>
-            Rôles
-          </TabButton>
-          <TabButton
-            active={shown === "accounts"}
-            onClick={() => setTab("accounts")}
-          >
-            Comptes
-          </TabButton>
-        </div>
+        <AccessTabs shown={shown} onSelect={setTab} />
       ) : null}
 
       <ErrorText message={error ?? actionError} />
@@ -178,24 +158,14 @@ export function AccessManager() {
         ) : null}
 
         {shown === "roles" ? (
-          <div className="flex flex-col gap-4">
-            {/* Above the list on purpose: it is the answer to the question the
-                grid raises — « et concrètement, il voit quoi ? ». */}
-            {mayReadRoles ? <RoleSimulationPanel roles={roles} /> : null}
-
-            <ListState
-              loading={loading}
-              empty={roles.length === 0}
-              emptyLabel={<>Aucun rôle visible.</>}
-            >
-              <RoleCardList
-                roles={roles}
-                permissions={permissions}
-                onEdit={mayUpdate ? open : undefined}
-                onDelete={mayDelete ? confirmDelete : undefined}
-              />
-            </ListState>
-          </div>
+          <RolesPanel
+            roles={roles}
+            permissions={permissions}
+            loading={loading}
+            maySimulate={mayReadRoles}
+            onEdit={mayUpdate ? open : undefined}
+            onDelete={mayDelete ? confirmDelete : undefined}
+          />
         ) : null}
 
         {shown === "accounts" ? (
