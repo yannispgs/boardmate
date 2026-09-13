@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.7.0](https://github.com/yannispgs/boardmate/compare/v1.6.1...v1.7.0) (2026-09-13)
+
+
+### Features
+
+* see the application as a role, without becoming somebody else ([4612a6d](https://github.com/yannispgs/boardmate/commit/4612a6d8a8006aeeb04714ca1b1bab71d173f9ad))
+* see the application as a role, without becoming somebody else ([94b699b](https://github.com/yannispgs/boardmate/commit/94b699b74e9c7509ac5b3d04cbc6bca335f12f31))
+* withhold the roles and accounts tabs instead of explaining them away ([e0f76f3](https://github.com/yannispgs/boardmate/commit/e0f76f3c7aaecda9fc0f21b561c4f9b11fd27129))
+
 ## [1.6.1](https://github.com/yannispgs/boardmate/compare/v1.6.0...v1.6.1) (2026-09-11)
 
 
