@@ -1,9 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import type { Account, Permission, Role, RoleId, UserId } from "./index";
+import type {
+  Account,
+  Permission,
+  Role,
+  RoleId,
+  RoleSimulation,
+  UserId,
+} from "./index";
 import {
   accountRoles,
   assignableRoles,
+  formatSecondsLeft,
   groupBySection,
   mayDeleteRole,
   permissionDiff,
@@ -11,6 +19,8 @@ import {
   roleGrants,
   roleKeyFrom,
   roleRemovalBlocker,
+  simulatableRoles,
+  simulationSecondsLeft,
 } from "./rbac";
 
 function permission(
@@ -245,5 +255,84 @@ describe("permissionDiff", () => {
     const diff = permissionDiff(["retired.key"], [], catalogue);
 
     expect(diff.removed).toEqual([]);
+  });
+});
+
+describe("simulatableRoles", () => {
+  it("keeps the ordinary roles", () => {
+    const reader = role({ id: "r1" as RoleId, label: "Joueur" });
+    const editor = role({ id: "r2" as RoleId, label: "Gestionnaire" });
+
+    expect(simulatableRoles([reader, editor])).toEqual([reader, editor]);
+  });
+
+  it("drops an administrator role", () => {
+    // It grants by carrying a flag rather than by listing rights, and a
+    // simulation reads listed rights only — offering it would empty the app.
+    const reader = role({ id: "r1" as RoleId });
+    const admin = role({ id: "r2" as RoleId, isAdmin: true });
+
+    expect(simulatableRoles([reader, admin])).toEqual([reader]);
+  });
+
+  it("answers nothing when every role is an administrator one", () => {
+    expect(simulatableRoles([role({ isAdmin: true })])).toEqual([]);
+  });
+});
+
+describe("simulationSecondsLeft", () => {
+  const now = Date.parse("2026-09-12T10:00:00Z");
+
+  function simulation(expiresAt: string): RoleSimulation {
+    return {
+      roleIds: ["r1" as RoleId],
+      roleLabels: ["Joueur"],
+      startedAt: "2026-09-12T09:55:00Z",
+      expiresAt,
+    };
+  }
+
+  it("counts the whole seconds that remain", () => {
+    expect(simulationSecondsLeft(simulation("2026-09-12T10:05:00Z"), now)).toBe(
+      300,
+    );
+  });
+
+  it("floors a fraction of a second rather than rounding it up", () => {
+    // 12.9 s left must read as 12, never as 13: the countdown may say less
+    // time than there is, never more.
+    expect(
+      simulationSecondsLeft(simulation("2026-09-12T10:00:12.900Z"), now),
+    ).toBe(12);
+  });
+
+  it("reads an expiry that has just passed as zero", () => {
+    expect(simulationSecondsLeft(simulation("2026-09-12T09:59:59Z"), now)).toBe(
+      0,
+    );
+  });
+
+  it("reads the expiry instant itself as zero", () => {
+    expect(simulationSecondsLeft(simulation("2026-09-12T10:00:00Z"), now)).toBe(
+      0,
+    );
+  });
+});
+
+describe("formatSecondsLeft", () => {
+  it("prints minutes and seconds", () => {
+    expect(formatSecondsLeft(754)).toBe("12:34");
+  });
+
+  it("pads the seconds so the line never jumps a character", () => {
+    expect(formatSecondsLeft(65)).toBe("1:05");
+  });
+
+  it("prints a countdown under a minute without a leading minute pad", () => {
+    expect(formatSecondsLeft(9)).toBe("0:09");
+  });
+
+  it("prints zero", () => {
+    expect(formatSecondsLeft(0)).toBe("0:00");
   });
 });

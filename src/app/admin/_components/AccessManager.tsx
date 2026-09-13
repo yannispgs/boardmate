@@ -3,16 +3,15 @@
 import { useState } from "react";
 import { ErrorText } from "@/components/ErrorText";
 import { ListState } from "@/components/ListState";
-import { TabButton, tabBarClass } from "@/components/TabButton";
 import { useConfirm } from "@/components/use-confirm";
 import type { Role } from "@/lib/domain";
 import { useAccess } from "@/lib/hooks/use-access";
+import type { AccessTab } from "./AccessTabs";
+import { AccessTabs } from "./AccessTabs";
 import { AccountsPanel } from "./AccountsPanel";
 import { PermissionCardList } from "./PermissionCardList";
-import { RoleCardList } from "./RoleCardList";
 import { RoleEditor } from "./RoleEditor";
-
-type Tab = "permissions" | "roles" | "accounts";
+import { RolesPanel } from "./RolesPanel";
 
 /** The role being written: an existing one, or `"new"` for one being created. */
 type Editing = Role | "new";
@@ -36,7 +35,7 @@ export function AccessManager() {
     assignRole,
     unassignRole,
   } = useAccess();
-  const [tab, setTab] = useState<Tab>("permissions");
+  const [tab, setTab] = useState<AccessTab>("permissions");
   const [editing, setEditing] = useState<Editing | null>(null);
   const [saving, setSaving] = useState(false);
   // Two error slots, because they are read in two places: what the editor did
@@ -49,6 +48,15 @@ export function AccessManager() {
   // right — RLS filters, it does not shout. Saying so beats an empty screen
   // that looks like a bug.
   const mayReadRoles = mine.includes("roles.read");
+  // Drawn only once the answer is known, and only when it is yes: offering two
+  // tabs that lead to lists RLS returns empty is worse than not offering them.
+  // While the permissions are still loading they stay up, so the ordinary case
+  // — an account that does hold the right — never sees the bar move.
+  const mayReadRestrictedTabs = loading || mayReadRoles;
+  // The two tabs are not drawn at all, so nothing can be looking at them. This
+  // keeps that true rather than trusting it: whatever `tab` holds, without the
+  // right the only readable angle is the catalogue.
+  const shown: AccessTab = mayReadRestrictedTabs ? tab : "permissions";
   // The buttons follow the permissions the account actually holds, so a control
   // is never offered for a write the database is about to refuse.
   const mayCreate = mine.includes("roles.create");
@@ -110,35 +118,25 @@ export function AccessManager() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 pb-10">
-      <div className={tabBarClass}>
-        <TabButton
-          active={tab === "permissions"}
-          onClick={() => setTab("permissions")}
-        >
-          Permissions
-        </TabButton>
-        <TabButton active={tab === "roles"} onClick={() => setTab("roles")}>
-          Rôles
-        </TabButton>
-        <TabButton
-          active={tab === "accounts"}
-          onClick={() => setTab("accounts")}
-        >
-          Comptes
-        </TabButton>
-      </div>
+      {mayReadRestrictedTabs ? (
+        <AccessTabs shown={shown} onSelect={setTab} />
+      ) : null}
 
       <ErrorText message={error ?? actionError} />
 
+      {/* The guard behind the hidden tabs rather than a notice on the way in:
+          the home screen already withholds the tile, so the only way to read
+          this sentence is to have typed the address — or to be looking through
+          a simulated role that took the right away. */}
       {!loading && !mayReadRoles ? (
         <p className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-amber-800 dark:text-amber-200">
           Ton compte n&apos;a pas la permission « Consulter les rôles » : les
-          listes des rôles et des comptes restent vides. Demande à un
+          onglets « Rôles » et « Comptes » ne te sont pas proposés. Demande à un
           administrateur de te l&apos;attribuer.
         </p>
       ) : null}
 
-      {tab === "roles" && mayCreate ? (
+      {shown === "roles" && mayCreate ? (
         <button
           type="button"
           onClick={() => open("new")}
@@ -149,7 +147,7 @@ export function AccessManager() {
       ) : null}
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {tab === "permissions" ? (
+        {shown === "permissions" ? (
           <ListState
             loading={loading}
             empty={permissions.length === 0}
@@ -159,22 +157,18 @@ export function AccessManager() {
           </ListState>
         ) : null}
 
-        {tab === "roles" ? (
-          <ListState
+        {shown === "roles" ? (
+          <RolesPanel
+            roles={roles}
+            permissions={permissions}
             loading={loading}
-            empty={roles.length === 0}
-            emptyLabel={<>Aucun rôle visible.</>}
-          >
-            <RoleCardList
-              roles={roles}
-              permissions={permissions}
-              onEdit={mayUpdate ? open : undefined}
-              onDelete={mayDelete ? confirmDelete : undefined}
-            />
-          </ListState>
+            maySimulate={mayReadRoles}
+            onEdit={mayUpdate ? open : undefined}
+            onDelete={mayDelete ? confirmDelete : undefined}
+          />
         ) : null}
 
-        {tab === "accounts" ? (
+        {shown === "accounts" ? (
           <AccountsPanel
             accounts={accounts}
             roles={roles}

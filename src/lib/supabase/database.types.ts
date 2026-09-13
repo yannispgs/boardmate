@@ -474,6 +474,35 @@ export type Database = {
           },
         ]
       }
+      game_phases: {
+        Row: {
+          duration_s: number
+          game_id: string
+          phase_key: string
+          stage: number
+        }
+        Insert: {
+          duration_s?: number
+          game_id: string
+          phase_key: string
+          stage: number
+        }
+        Update: {
+          duration_s?: number
+          game_id?: string
+          phase_key?: string
+          stage?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_phases_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       game_players: {
         Row: {
           game_id: string
@@ -512,35 +541,6 @@ export type Database = {
             columns: ["player_id"]
             isOneToOne: false
             referencedRelation: "players"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      game_phases: {
-        Row: {
-          duration_s: number
-          game_id: string
-          phase_key: string
-          stage: number
-        }
-        Insert: {
-          duration_s?: number
-          game_id: string
-          phase_key: string
-          stage: number
-        }
-        Update: {
-          duration_s?: number
-          game_id?: string
-          phase_key?: string
-          stage?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "game_phases_game_id_fkey"
-            columns: ["game_id"]
-            isOneToOne: false
-            referencedRelation: "games"
             referencedColumns: ["id"]
           },
         ]
@@ -795,6 +795,27 @@ export type Database = {
           },
         ]
       }
+      permission_simulations: {
+        Row: {
+          expires_at: string
+          role_ids: string[]
+          started_at: string
+          user_id: string
+        }
+        Insert: {
+          expires_at: string
+          role_ids: string[]
+          started_at?: string
+          user_id: string
+        }
+        Update: {
+          expires_at?: string
+          role_ids?: string[]
+          started_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       permissions: {
         Row: {
           action: string
@@ -1005,14 +1026,27 @@ export type Database = {
           retry_after_s: number
         }[]
       }
+      current_role_simulation: {
+        Args: never
+        Returns: {
+          expires_at: string
+          role_ids: string[]
+          role_labels: string[]
+          started_at: string
+        }[]
+      }
       game_is_ongoing: { Args: { p_game_id: string }; Returns: boolean }
       has_permission: { Args: { p_key: string }; Returns: boolean }
+      has_real_permission: { Args: { p_key: string }; Returns: boolean }
       is_admin_role: { Args: { p_role_id: string }; Returns: boolean }
       my_permissions: { Args: never; Returns: string[] }
       set_game_seat_order: {
         Args: { p_game: string; p_players: string[] }
         Returns: undefined
       }
+      simulated_role_ids: { Args: never; Returns: string[] }
+      start_role_simulation: { Args: { p_role_ids: string[] }; Returns: string }
+      stop_role_simulation: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
@@ -1031,12 +1065,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1060,11 +1094,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1085,11 +1119,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1110,11 +1144,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1127,11 +1161,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

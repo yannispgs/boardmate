@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { SimulationBanner } from "@/components/SimulationBanner";
 import { appleStartupImages } from "@/lib/pwa/assets";
 import "./globals.css";
 
@@ -41,7 +42,13 @@ export default function RootLayout({
       lang="fr"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {/* Above everything, on every screen: a narrowed view has to be
+            visible from wherever it is being read, not only from the page
+            that started it. It draws nothing when nothing is simulated. */}
+        <SimulationBanner />
+        {children}
+      </body>
     </html>
   );
 }

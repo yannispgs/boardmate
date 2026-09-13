@@ -230,3 +230,68 @@ export function permissionDiff(
     ),
   };
 }
+
+/**
+ * A view of the application narrowed to a set of roles, while staying signed in
+ * as oneself.
+ *
+ * It is the database that narrows, not the screen: `has_permission()` intersects
+ * the simulated roles with what the account really holds. So this carries no
+ * permissions of its own — it names the roles and says when the view lapses,
+ * and the permission list the rest of the app reads is already the narrowed one.
+ */
+export interface RoleSimulation {
+  roleIds: RoleId[];
+  /**
+   * What those roles are called, carried here rather than looked up. Simulating
+   * « Joueur » takes `roles.read` away, so the banner that has to name the role
+   * is precisely the screen that may no longer read the role list.
+   */
+  roleLabels: string[];
+  startedAt: string;
+  /** ISO instant. Past it, the database ignores the row entirely. */
+  expiresAt: string;
+}
+
+/**
+ * How long a view lasts before the database hands the rights back on its own.
+ * Restated by `start_role_simulation()`, which is where it is actually decided —
+ * this one only writes it on the screen so the offer says what it commits to.
+ */
+export const SIMULATION_MINUTES = 15;
+
+/**
+ * The roles worth previewing: every role that is not an administrator one.
+ *
+ * An administrator role holds everything by carrying a flag rather than by
+ * listing rights, and a simulation deliberately reads only listed rights — so
+ * previewing one would empty the application instead of narrowing it. The
+ * database refuses it too; this keeps the choice off the screen so the refusal
+ * is never met as a failed tap.
+ */
+export function simulatableRoles(roles: readonly Role[]): Role[] {
+  return roles.filter(role => !role.isAdmin);
+}
+
+/**
+ * How long the view still has, in whole seconds, floored at zero.
+ *
+ * `now` is passed in rather than read here so the banner's countdown stays a
+ * pure function of its inputs.
+ */
+export function simulationSecondsLeft(
+  simulation: RoleSimulation,
+  now: number,
+): number {
+  const left = Date.parse(simulation.expiresAt) - now;
+
+  return left <= 0 ? 0 : Math.floor(left / 1000);
+}
+
+/** A countdown as the banner prints it: `m:ss`. */
+export function formatSecondsLeft(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+
+  return `${minutes}:${String(rest).padStart(2, "0")}`;
+}
