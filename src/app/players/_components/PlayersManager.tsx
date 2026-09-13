@@ -10,6 +10,7 @@ import { useConfirm } from "@/components/use-confirm";
 import { useSearch } from "@/components/use-search";
 import type { Player } from "@/lib/domain";
 import { searchByName } from "@/lib/game/player-search";
+import { useMyPermissions } from "@/lib/hooks/use-my-permissions";
 import { usePlayers } from "@/lib/hooks/use-players";
 import { PlayerInUseError } from "@/lib/repositories/errors";
 import { PlayerCardList } from "./PlayerCardList";
@@ -39,6 +40,10 @@ export function PlayersManager() {
   const { players, loading, error, addPlayer, setActive, removePlayer } =
     usePlayers();
   const [actionError, setActionError] = useState<string | null>(null);
+  // Deactivating and reactivating are two separate rights, so the two lists do
+  // not necessarily carry the same button — the seeded « Joueur » role holds
+  // `players.enable` and not `players.disable`.
+  const { can } = useMyPermissions();
   // In-app confirmation (replaces window.confirm, which browsers suppress).
   const { requestConfirm, confirmDialog } = useConfirm();
   const { query, searchToggle, searchField } = useSearch({
@@ -135,18 +140,22 @@ export function PlayersManager() {
           <PlayerCardList
             title="Joueurs actifs"
             players={active}
-            onToggle={p => handleToggle(p, false)}
+            onToggle={
+              can("players.disable") ? p => handleToggle(p, false) : undefined
+            }
             actionLabel="Désactiver"
-            onDelete={handleDelete}
+            onDelete={can("players.delete") ? handleDelete : undefined}
           />
 
           {inactive.length > 0 ? (
             <PlayerCardList
               title="Désactivés"
               players={inactive}
-              onToggle={p => handleToggle(p, true)}
+              onToggle={
+                can("players.enable") ? p => handleToggle(p, true) : undefined
+              }
               actionLabel="Réactiver"
-              onDelete={handleDelete}
+              onDelete={can("players.delete") ? handleDelete : undefined}
               dimmed
               collapsible
             />
@@ -154,7 +163,9 @@ export function PlayersManager() {
         </ListBody>
 
         {/* Add a player: fixed at the bottom, the form expands in place. */}
-        <StickyActionBar>{newPlayerForm}</StickyActionBar>
+        {can("players.create") ? (
+          <StickyActionBar>{newPlayerForm}</StickyActionBar>
+        ) : null}
 
         {confirmDialog}
       </div>

@@ -23,6 +23,7 @@ import {
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useAllExtensions } from "@/lib/hooks/use-extensions";
 import { useFaq } from "@/lib/hooks/use-faq";
+import { useMyPermissions } from "@/lib/hooks/use-my-permissions";
 import { FaqEntryCardList } from "./FaqEntryCardList";
 import { FaqScopePicker } from "./FaqScopePicker";
 
@@ -49,6 +50,9 @@ export function FaqManager({
   // wrong belongs under the form, what a tap on the list did wrong above it.
   const [formError, setFormError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  // Writing a question and curating the ones already there are separate
+  // rights: the seeded « Joueur » role may add one and edit none.
+  const { can } = useMyPermissions();
   const { requestConfirm, confirmDialog } = useConfirm();
   const { query, searchToggle, searchField } = useSearch({
     label: "Rechercher une question",
@@ -178,37 +182,42 @@ export function FaqManager({
               key={scopeKey(group.scope)}
               title={label(group.scope)}
               entries={group.entries}
-              onEdit={startEditing}
-              onDelete={confirmDelete}
-              onMove={searching ? undefined : move}
+              onEdit={can("faq.update") ? startEditing : undefined}
+              onDelete={can("faq.delete") ? confirmDelete : undefined}
+              onMove={searching || !can("faq.update") ? undefined : move}
             />
           ))}
         </ListBody>
 
-        <StickyActionBar>
-          {draft === null ? (
-            <button
-              type="button"
-              onClick={startAdding}
-              className="self-start rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
-            >
-              + Ajouter une question
-            </button>
-          ) : (
-            <FaqEntryForm
-              scopeLabel={label(scope)}
-              question={draft.question}
-              answer={draft.answer}
-              editing={draft.id !== null}
-              error={formError}
-              submitting={submitting}
-              onQuestion={question => setDraft({ ...draft, question })}
-              onAnswer={answer => setDraft({ ...draft, answer })}
-              onSubmit={save}
-              onCancel={() => setDraft(null)}
-            />
-          )}
-        </StickyActionBar>
+        {/* The bar holds the form too, so it stays for whoever is editing —
+            but an account that may neither add nor edit has nothing to put in
+            it. */}
+        {can("faq.create") || draft !== null ? (
+          <StickyActionBar>
+            {draft === null ? (
+              <button
+                type="button"
+                onClick={startAdding}
+                className="self-start rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
+              >
+                + Ajouter une question
+              </button>
+            ) : (
+              <FaqEntryForm
+                scopeLabel={label(scope)}
+                question={draft.question}
+                answer={draft.answer}
+                editing={draft.id !== null}
+                error={formError}
+                submitting={submitting}
+                onQuestion={question => setDraft({ ...draft, question })}
+                onAnswer={answer => setDraft({ ...draft, answer })}
+                onSubmit={save}
+                onCancel={() => setDraft(null)}
+              />
+            )}
+          </StickyActionBar>
+        ) : null}
 
         {confirmDialog}
       </div>

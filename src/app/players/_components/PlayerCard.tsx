@@ -8,6 +8,9 @@ import type { Player } from "@/lib/domain";
  * A single player row: name + deactivate/reactivate toggle + delete. Whether
  * it's an active or deactivated player is just the `dimmed` + `actionLabel`
  * inputs (eye-off to deactivate, eye to reactivate).
+ *
+ * An omitted handler draws no button: the account holds no permission for that
+ * write, and offering it would only earn a refusal from the database.
  */
 export function PlayerCard({
   player,
@@ -17,8 +20,8 @@ export function PlayerCard({
   dimmed = false,
 }: Readonly<{
   player: Player;
-  onToggle: (player: Player) => void;
-  onDelete: (player: Player) => void;
+  onToggle?: (player: Player) => void;
+  onDelete?: (player: Player) => void;
   actionLabel: string;
   dimmed?: boolean;
 }>) {
@@ -29,24 +32,28 @@ export function PlayerCard({
       }`}
     >
       <span className="min-w-0 flex-1 truncate font-medium">{player.name}</span>
-      <button
-        type="button"
-        onClick={() => onToggle(player)}
-        aria-label={`${actionLabel} ${player.name}`}
-        title={actionLabel}
-        className={iconButtonClass}
-      >
-        {dimmed ? <EyeIcon /> : <EyeOffIcon />}
-      </button>
-      <button
-        type="button"
-        onClick={() => onDelete(player)}
-        aria-label={`Supprimer ${player.name}`}
-        title="Supprimer"
-        className={dangerIconButtonClass}
-      >
-        <TrashIcon />
-      </button>
+      {onToggle === undefined ? null : (
+        <button
+          type="button"
+          onClick={() => onToggle(player)}
+          aria-label={`${actionLabel} ${player.name}`}
+          title={actionLabel}
+          className={iconButtonClass}
+        >
+          {dimmed ? <EyeIcon /> : <EyeOffIcon />}
+        </button>
+      )}
+      {onDelete === undefined ? null : (
+        <button
+          type="button"
+          onClick={() => onDelete(player)}
+          aria-label={`Supprimer ${player.name}`}
+          title="Supprimer"
+          className={dangerIconButtonClass}
+        >
+          <TrashIcon />
+        </button>
+      )}
     </li>
   );
 }

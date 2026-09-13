@@ -34,6 +34,9 @@ function formatMeta(b: Boardgame): string {
  * Everything else about a game (its settings, extensions, records, FAQ) lives
  * on the game's own page, which the row opens: six side doors on one row left
  * no width for the name of the game they were about.
+ *
+ * An omitted `onToggle` draws no button: the account holds no permission for
+ * that write, and offering it would only earn a refusal from the database.
  */
 export function BoardgameCard({
   boardgame: b,
@@ -42,7 +45,7 @@ export function BoardgameCard({
   dimmed = false,
 }: Readonly<{
   boardgame: Boardgame;
-  onToggle: (b: Boardgame) => void;
+  onToggle?: (b: Boardgame) => void;
   actionLabel: string;
   dimmed?: boolean;
 }>) {
@@ -81,15 +84,17 @@ export function BoardgameCard({
           </span>
         </div>
       </Link>
-      <button
-        type="button"
-        onClick={() => onToggle(b)}
-        aria-label={`${actionLabel} ${b.name}`}
-        title={actionLabel}
-        className={iconButtonClass}
-      >
-        {dimmed ? <EyeIcon /> : <EyeOffIcon />}
-      </button>
+      {onToggle === undefined ? null : (
+        <button
+          type="button"
+          onClick={() => onToggle(b)}
+          aria-label={`${actionLabel} ${b.name}`}
+          title={actionLabel}
+          className={iconButtonClass}
+        >
+          {dimmed ? <EyeIcon /> : <EyeOffIcon />}
+        </button>
+      )}
     </li>
   );
 }

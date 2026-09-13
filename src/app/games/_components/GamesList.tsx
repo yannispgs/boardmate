@@ -17,6 +17,7 @@ import {
 import { finishedParties, recordHolders } from "@/lib/game/score-records";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useGames } from "@/lib/hooks/use-games";
+import { useMyPermissions } from "@/lib/hooks/use-my-permissions";
 import { GameCardList } from "./GameCardList";
 import { useGameFilter } from "./use-game-filter";
 
@@ -56,6 +57,7 @@ function sealedWarning(sealed: number): string {
 export function GamesList() {
   const { games, endedGames, loading, error, removeGame } = useGames();
   const { boardgames } = useBoardgames();
+  const { can } = useMyPermissions();
   const { requestConfirm, confirmDialog } = useConfirm();
 
   const boardgameFor = (id: BoardgameId) => boardgames.find(b => b.id === id);
@@ -125,7 +127,7 @@ export function GamesList() {
               boardgameFor={boardgameFor}
               records={records}
               partyRanks={ranks}
-              onAbandon={handleAbandon}
+              onAbandon={can("games.delete") ? handleAbandon : undefined}
             />
           ) : null}
 
@@ -147,22 +149,26 @@ export function GamesList() {
           ) : null}
         </ListBody>
 
-        <StickyActionBar>
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href="/games/new"
-              className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
-            >
-              + Nouvelle partie
-            </Link>
-            <Link
-              href="/games/finished"
-              className="rounded-lg border border-black/15 px-3 py-2 text-sm font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
-            >
-              ＋ Ajouter une partie terminée
-            </Link>
-          </div>
-        </StickyActionBar>
+        {/* Both doors open the same right — composing a party — so they leave
+            together. */}
+        {can("games.create") ? (
+          <StickyActionBar>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href="/games/new"
+                className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
+              >
+                + Nouvelle partie
+              </Link>
+              <Link
+                href="/games/finished"
+                className="rounded-lg border border-black/15 px-3 py-2 text-sm font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+              >
+                ＋ Ajouter une partie terminée
+              </Link>
+            </div>
+          </StickyActionBar>
+        ) : null}
 
         {confirmDialog}
       </div>
