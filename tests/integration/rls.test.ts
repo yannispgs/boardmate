@@ -28,6 +28,7 @@ const TABLES = [
   "faq_entries",
   "auth_rate_limits",
   "permission_simulations",
+  "audit_log",
 ] as const;
 
 let user: TestUser;
