@@ -1,9 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { ErrorText } from "@/components/ErrorText";
-import { ChevronRightIcon, HistoryIcon } from "@/components/icons";
 import { ListState } from "@/components/ListState";
 import { useConfirm } from "@/components/use-confirm";
 import type { Role } from "@/lib/domain";
@@ -11,6 +9,7 @@ import { useAccess } from "@/lib/hooks/use-access";
 import type { AccessTab } from "./AccessTabs";
 import { AccessTabs } from "./AccessTabs";
 import { AccountsPanel } from "./AccountsPanel";
+import { AuditHistoryLink } from "./AuditHistoryLink";
 import { PermissionCardList } from "./PermissionCardList";
 import { RoleEditor } from "./RoleEditor";
 import { RolesPanel } from "./RolesPanel";
@@ -121,19 +120,7 @@ export function AccessManager() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 pb-10">
-      {/* A link and not a fourth tab: the history is a screen of its own, with
-          its own filters and its own paging, and four pills of equal width no
-          longer fit across a phone. */}
-      {mayReadAudit ? (
-        <Link
-          href="/admin/history"
-          className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-sm font-medium transition hover:bg-black/5 dark:border-white/10 dark:bg-zinc-900 dark:hover:bg-white/5"
-        >
-          <HistoryIcon />
-          <span className="flex-1">Historique des modifications</span>
-          <ChevronRightIcon />
-        </Link>
-      ) : null}
+      <AuditHistoryLink shown={mayReadAudit} />
 
       {mayReadRestrictedTabs ? (
         <AccessTabs shown={shown} onSelect={setTab} />

@@ -144,7 +144,9 @@ export function auditChanges(entry: AuditEntry): AuditChange[] {
   const columns =
     entry.action === "update"
       ? entry.changedKeys
-      : Object.keys(entry.newValue ?? entry.oldValue ?? {}).sort();
+      : Object.keys(entry.newValue ?? entry.oldValue ?? {}).sort((a, b) =>
+          a.localeCompare(b),
+        );
 
   return columns.map(column => ({
     column,

@@ -20,6 +20,11 @@ const ACTION_CLASSES: Readonly<Record<AuditAction, string>> = {
 
 const badgeClass = "rounded-full px-2 py-0.5 text-xs font-medium";
 
+/** What the disclosure offers, which is how many fields are behind it. */
+function detailLabel(count: number): string {
+  return `Détail · ${count} champ${count > 1 ? "s" : ""}`;
+}
+
 /**
  * One line of the history, opening on what changed.
  *
@@ -82,9 +87,7 @@ export function AuditEntryCard({ entry }: Readonly<{ entry: AuditEntry }>) {
           onClick={() => setOpen(current => !current)}
           className="self-start text-xs font-medium text-indigo-600 transition hover:text-indigo-500 dark:text-indigo-400"
         >
-          {open
-            ? "Masquer le détail"
-            : `Détail · ${changes.length} champ${changes.length > 1 ? "s" : ""}`}
+          {open ? "Masquer le détail" : detailLabel(changes.length)}
         </button>
       )}
 

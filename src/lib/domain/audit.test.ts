@@ -100,6 +100,26 @@ describe("auditChanges", () => {
     ]);
   });
 
+  it("lists a whole row in a stable order rather than the one it was stored in", () => {
+    // The columns come back in whatever order the row was written, which is the
+    // database's business and not a reading order. A new-row line can be long,
+    // so the same row must always read the same way.
+    const changes = auditChanges(
+      entry({
+        action: "insert",
+        oldValue: null,
+        newValue: { status: "ongoing", name: "Odin", is_active: true },
+        changedKeys: [],
+      }),
+    );
+
+    expect(changes.map(change => change.column)).toEqual([
+      "is_active",
+      "name",
+      "status",
+    ]);
+  });
+
   it("reads a delete the other way round", () => {
     const changes = auditChanges(
       entry({
