@@ -22,6 +22,7 @@ import type { ScenarioSpec } from "@/lib/catan/scenario-spec";
 import { freeName, serialiseScenario } from "@/lib/catan/scenario-transfer";
 import type { Extension, ExtensionScenario } from "@/lib/domain";
 import { type ScenarioDraft, useScenarios } from "@/lib/hooks/use-extensions";
+import { useMyPermissions } from "@/lib/hooks/use-my-permissions";
 import { ScenarioInUseError } from "@/lib/repositories/errors";
 import { AuthoredScenarioCardList } from "./AuthoredScenarioCardList";
 import { ScenarioEditor } from "./ScenarioEditor";
@@ -61,6 +62,12 @@ function draftOf(scenario: ExtensionScenario): ScenarioDraft {
  * Both live on the extension's own screen — leaving the editor is going back to
  * the list, so nothing is lost to a navigation and going back still leads where
  * the extension came from.
+ *
+ * Authoring is offered per act: writing a new scenario, rewriting one, and
+ * removing one are three separate permissions, so an account may well be able
+ * to propose a map without being able to touch the ones already there. An
+ * account holding none of them still gets the list and the export — reading a
+ * scenario and carrying it away are what `extensions.read` already allows.
  */
 export function ScenariosManager({
   extension,
@@ -76,6 +83,8 @@ export function ScenariosManager({
   const [notice, setNotice] = useState<string | null>(null);
   const [players, setPlayers] = useState<PlayerFilter>("all");
   const { requestConfirm, confirmDialog } = useConfirm();
+  const { can } = useMyPermissions();
+  const mayAuthor = can("extensions.create");
 
   // A scenario with no map yet seats nobody, so it is never filtered out: it is
   // precisely the one still waiting to be drawn.
@@ -187,9 +196,13 @@ export function ScenariosManager({
 
           <AuthoredScenarioCardList
             scenarios={shown}
-            onEdit={scenario => setEditing(draftOf(scenario))}
+            onEdit={
+              can("extensions.update")
+                ? scenario => setEditing(draftOf(scenario))
+                : undefined
+            }
             onExport={exportScenario}
-            onDelete={confirmDelete}
+            onDelete={can("extensions.delete") ? confirmDelete : undefined}
             empty={
               players === "all"
                 ? "Aucun scénario pour l'instant."
@@ -199,31 +212,35 @@ export function ScenariosManager({
         </>
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() =>
-            setEditing({
-              id: null,
-              name: "",
-              targetScore: null,
-              boardSpec: emptyScenario(),
-            })
-          }
-          className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
-        >
-          + Créer un scénario
-        </button>
-        <button
-          type="button"
-          onClick={() => setImporting(true)}
-          title="Coller un scénario copié ailleurs"
-          className="flex items-center gap-2 rounded-lg border border-black/10 px-4 py-2 font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
-        >
-          <UploadIcon />
-          Importer
-        </button>
-      </div>
+      {/* Importing writes a scenario the app did not have, so it is the same
+          act as creating one and answers to the same permission. */}
+      {mayAuthor ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() =>
+              setEditing({
+                id: null,
+                name: "",
+                targetScore: null,
+                boardSpec: emptyScenario(),
+              })
+            }
+            className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
+          >
+            + Créer un scénario
+          </button>
+          <button
+            type="button"
+            onClick={() => setImporting(true)}
+            title="Coller un scénario copié ailleurs"
+            className="flex items-center gap-2 rounded-lg border border-black/10 px-4 py-2 font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+          >
+            <UploadIcon />
+            Importer
+          </button>
+        </div>
+      ) : null}
 
       {importing ? (
         <ScenarioImportSheet

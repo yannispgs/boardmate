@@ -19,6 +19,10 @@ import type { ExtensionScenario } from "@/lib/domain";
  *
  * A map whose bags do not add up is called out here rather than only inside the
  * editor: the generator draws it all the same, but not as it was meant to be.
+ *
+ * Editing and deleting are left out when the account may not do them. Copying
+ * stays: carrying a scenario away reads it, and whoever sees the card may read
+ * it — the export is offered to everyone the list was drawn for.
  */
 export function AuthoredScenarioCard({
   scenario,
@@ -27,9 +31,9 @@ export function AuthoredScenarioCard({
   onDelete,
 }: Readonly<{
   scenario: ExtensionScenario;
-  onEdit: (scenario: ExtensionScenario) => void;
+  onEdit?: (scenario: ExtensionScenario) => void;
   onExport: (spec: ScenarioSpec) => void;
-  onDelete: (scenario: ExtensionScenario) => void;
+  onDelete?: (scenario: ExtensionScenario) => void;
 }>) {
   const spec = scenario.boardSpec;
   const unfinished = spec !== null && validateScenarioSpec(spec).length > 0;
@@ -68,29 +72,34 @@ export function AuthoredScenarioCard({
           <CopyIcon />
         </button>
       )}
-      <button
-        type="button"
-        onClick={() => onEdit(scenario)}
-        aria-label={`Modifier ${scenario.name}`}
-        title="Modifier"
-        className={iconButtonClass}
-      >
-        <PencilIcon />
-      </button>
-      <button
-        type="button"
-        onClick={() => onDelete(scenario)}
-        disabled={scenario.isOfficial}
-        aria-label={`Supprimer ${scenario.name}`}
-        title={
-          scenario.isOfficial
-            ? "Un scénario officiel ne se supprime pas"
-            : "Supprimer"
-        }
-        className={`${dangerIconButtonClass} disabled:cursor-not-allowed disabled:opacity-30`}
-      >
-        <TrashIcon />
-      </button>
+      {onEdit === undefined ? null : (
+        <button
+          type="button"
+          onClick={() => onEdit(scenario)}
+          aria-label={`Modifier ${scenario.name}`}
+          title="Modifier"
+          className={iconButtonClass}
+        >
+          <PencilIcon />
+        </button>
+      )}
+
+      {onDelete === undefined ? null : (
+        <button
+          type="button"
+          onClick={() => onDelete(scenario)}
+          disabled={scenario.isOfficial}
+          aria-label={`Supprimer ${scenario.name}`}
+          title={
+            scenario.isOfficial
+              ? "Un scénario officiel ne se supprime pas"
+              : "Supprimer"
+          }
+          className={`${dangerIconButtonClass} disabled:cursor-not-allowed disabled:opacity-30`}
+        >
+          <TrashIcon />
+        </button>
+      )}
     </li>
   );
 }
