@@ -20,9 +20,12 @@ import type { ExtensionScenario } from "@/lib/domain";
  * A map whose bags do not add up is called out here rather than only inside the
  * editor: the generator draws it all the same, but not as it was meant to be.
  *
- * Editing and deleting are left out when the account may not do them. Copying
- * stays: carrying a scenario away reads it, and whoever sees the card may read
- * it — the export is offered to everyone the list was drawn for.
+ * Editing, copying and deleting are all left out when the account may not do
+ * them. Copying looks like a read — it writes to the clipboard and not to the
+ * database — but it is read as « duplicate this one » and it has exactly one
+ * destination, the import button right below, which answers to
+ * `scenarios.create`. Offering the first half of a move whose second half is
+ * withheld is the confusion this whole change exists to remove.
  */
 export function AuthoredScenarioCard({
   scenario,
@@ -32,7 +35,7 @@ export function AuthoredScenarioCard({
 }: Readonly<{
   scenario: ExtensionScenario;
   onEdit?: (scenario: ExtensionScenario) => void;
-  onExport: (spec: ScenarioSpec) => void;
+  onExport?: (spec: ScenarioSpec) => void;
   onDelete?: (scenario: ExtensionScenario) => void;
 }>) {
   const spec = scenario.boardSpec;
@@ -61,7 +64,7 @@ export function AuthoredScenarioCard({
       <ScenarioTarget targetScore={scenario.targetScore} />
 
       {/* Nothing to carry away from a scenario whose map is still to draw. */}
-      {spec === null ? null : (
+      {spec === null || onExport === undefined ? null : (
         <button
           type="button"
           onClick={() => onExport(spec)}

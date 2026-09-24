@@ -201,7 +201,7 @@ export function ScenariosManager({
                 ? scenario => setEditing(draftOf(scenario))
                 : undefined
             }
-            onExport={exportScenario}
+            onExport={mayAuthor ? exportScenario : undefined}
             onDelete={can("scenarios.delete") ? confirmDelete : undefined}
             empty={
               players === "all"

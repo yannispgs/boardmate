@@ -15,7 +15,8 @@ export function AuthoredScenarioCardList({
   scenarios: ExtensionScenario[];
   /** Left out when the account may not author scenarios. */
   onEdit?: (scenario: ExtensionScenario) => void;
-  onExport: (spec: ScenarioSpec) => void;
+  /** Left out when the account may not author one — copying leads to importing. */
+  onExport?: (spec: ScenarioSpec) => void;
   /** Left out when the account may not remove one. */
   onDelete?: (scenario: ExtensionScenario) => void;
   /** What to say when there is nothing to list — a filter narrows it. */
