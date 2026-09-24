@@ -84,7 +84,7 @@ export function ScenariosManager({
   const [players, setPlayers] = useState<PlayerFilter>("all");
   const { requestConfirm, confirmDialog } = useConfirm();
   const { can } = useMyPermissions();
-  const mayAuthor = can("extensions.create");
+  const mayAuthor = can("scenarios.create");
 
   // A scenario with no map yet seats nobody, so it is never filtered out: it is
   // precisely the one still waiting to be drawn.
@@ -197,12 +197,12 @@ export function ScenariosManager({
           <AuthoredScenarioCardList
             scenarios={shown}
             onEdit={
-              can("extensions.update")
+              can("scenarios.update")
                 ? scenario => setEditing(draftOf(scenario))
                 : undefined
             }
             onExport={exportScenario}
-            onDelete={can("extensions.delete") ? confirmDelete : undefined}
+            onDelete={can("scenarios.delete") ? confirmDelete : undefined}
             empty={
               players === "all"
                 ? "Aucun scénario pour l'instant."
