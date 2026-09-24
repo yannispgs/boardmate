@@ -5,9 +5,12 @@ import { adminClient } from "./utils/supabase";
 /**
  * Looking at the application as a role (full-suite only — untagged).
  *
- * The point of the journey is that the narrowing is real: the screen that
- * launched the simulation is itself narrowed by it, and the only thing left on
- * it is the banner's way out.
+ * The journey checks two things that are easy to confuse. Starting a
+ * simulation lands on the home screen, because the administration screen it
+ * was started from is exactly the screen most roles may not read — and the
+ * narrowing shows there, as a tile that is gone. That redirection is a
+ * courtesy, not the gate: walking straight back to the administration screen
+ * is allowed, and the screen is narrowed anyway.
  */
 test("narrows the application to a role, then hands the rights back", async ({
   page,
@@ -37,14 +40,28 @@ test("narrows the application to a role, then hands the rights back", async ({
     await panel.getByRole("button", { name: label }).click();
     await panel.getByRole("button", { name: "Lancer la vue simulée" }).click();
 
-    // Starting one reloads the page: every policy now answers differently.
+    // Starting one loads the home screen: every policy now answers
+    // differently, and the screen just left is not one this role may read.
+    await expect(
+      page.getByRole("heading", { name: "Boardmate", level: 1 }),
+    ).toBeVisible();
+
     const banner = page.getByText(/Vue simulée/);
     await expect(banner).toBeVisible();
     await expect(page.getByText(label)).toBeVisible();
 
-    // The narrowing is the database's, so it reaches the very screen that
-    // started it: the two tabs this simulation may no longer read are gone,
-    // and the sentence explaining why has taken their place.
+    // Home is where the narrowing first shows: the tile leading back to the
+    // administration screen is gone.
+    await expect(
+      page.getByRole("link", { name: "Administration" }),
+    ).toHaveCount(0);
+
+    // The narrowing is the database's, not the redirection's, so the screen
+    // that started it is narrowed even when walked back to by hand: the two
+    // tabs this simulation may no longer read are gone, and the sentence
+    // explaining why has taken their place.
+    await page.goto("/admin");
+
     await expect(page.getByRole("button", { name: "Rôles" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Comptes" })).toHaveCount(0);
     await expect(

@@ -4,14 +4,15 @@ import { expect, test } from "@playwright/test";
 import { adminClient } from "./utils/supabase";
 
 /**
- * Runs `act`, which starts or stops a simulation, and comes back once the full
- * reload it fires has replaced the document.
+ * Runs `act`, which starts or stops a simulation, and comes back once the
+ * document load it fires has replaced the page. Starting loads the home screen
+ * and stopping reloads where it stands, so the mark below covers both.
  *
  * Marking the current document and waiting for the mark to be gone is the
  * readiness condition, because what the page *shows* cannot tell the two
- * documents apart: while the reload is committing there is briefly nothing on
- * screen, which satisfies « the banner is gone » exactly as the reloaded page
- * does — and the navigation that follows is then aborted by the reload still
+ * documents apart: while the load is committing there is briefly nothing on
+ * screen, which satisfies « the banner is gone » exactly as the loaded page
+ * does — and the navigation that follows is then aborted by the load still
  * landing.
  */
 async function reloading(page: Page, act: () => Promise<void>) {

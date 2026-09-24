@@ -32,7 +32,7 @@ export function SimulationBanner() {
     try {
       await action();
     } finally {
-      // `start`/`stop` reload the page, so this only ever runs after a refusal
+      // `stop` reloads the page, so this only ever runs after a refusal
       // — and after one, the buttons have to come back.
       setBusy(false);
     }

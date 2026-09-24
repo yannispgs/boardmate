@@ -11,6 +11,7 @@ interface UseRoleSimulation {
   /** Whole seconds before the view lapses; `0` when nothing is simulated. */
   secondsLeft: number;
   loading: boolean;
+  /** Lands on the home screen: the launcher itself may be off-limits now. */
   start: (roleIds: RoleId[]) => Promise<void>;
   /** Pushes the expiry back without repainting: nothing on screen changes. */
   extend: () => Promise<void>;
@@ -21,7 +22,7 @@ interface UseRoleSimulation {
  * The narrowed view the account is currently looking through, and the ways in
  * and out of it.
  *
- * Starting or stopping one reloads the page rather than refreshing state. That
+ * Starting or stopping one loads a document rather than refreshing state. That
  * is deliberate: a simulation changes what *every* policy answers, so half the
  * screens already rendered are now wrong — a permission list fetched a moment
  * ago, a game list RLS would no longer return, a Server Component rendered
@@ -30,9 +31,20 @@ interface UseRoleSimulation {
  * where a blink costs nothing. Extending is the exception: it moves the expiry
  * and nothing else, so it stays where it is.
  *
+ * Starting goes further and lands on the home screen instead of repainting
+ * where it stands. A simulation is always started from the administration
+ * screen, and most roles have no business reading that screen at all: staying
+ * there would open the narrowed view on the one page the simulated role is
+ * least likely to be allowed. Home is the screen every role may read, and it
+ * is also where the narrowing first shows — the tiles it may not open are
+ * gone. Stopping stays put on purpose: the rights come *back*, so whatever is
+ * on screen can only widen, and being returned to where one was reading is
+ * less disorienting than being sent home twice.
+ *
  * The countdown reloads too when it reaches zero: past its expiry the database
  * ignores the row and hands the rights back, so a screen left open would sit
- * there drawn narrow while the account is already itself again.
+ * there drawn narrow while the account is already itself again. It reloads in
+ * place for the same reason stopping does.
  */
 export function useRoleSimulation(): UseRoleSimulation {
   const repo = getAccessRepository();
@@ -99,7 +111,7 @@ export function useRoleSimulation(): UseRoleSimulation {
   const start = useCallback(
     async (roleIds: RoleId[]) => {
       await repo.startRoleSimulation(roleIds);
-      window.location.reload();
+      window.location.assign("/");
     },
     [repo],
   );
