@@ -4,7 +4,6 @@ import { useState } from "react";
 
 import { PlayerCountFilter } from "@/components/catan/PlayerCountFilter";
 import { ErrorText } from "@/components/ErrorText";
-import { UploadIcon } from "@/components/icons";
 import { sectionHeadingClass } from "@/components/ui";
 import { useConfirm } from "@/components/use-confirm";
 import {
@@ -19,14 +18,14 @@ import {
   playerCountsOf,
 } from "@/lib/catan/scenario-listing";
 import type { ScenarioSpec } from "@/lib/catan/scenario-spec";
-import { freeName, serialiseScenario } from "@/lib/catan/scenario-transfer";
+import { serialiseScenario } from "@/lib/catan/scenario-transfer";
 import type { Extension, ExtensionScenario } from "@/lib/domain";
 import { type ScenarioDraft, useScenarios } from "@/lib/hooks/use-extensions";
 import { useMyPermissions } from "@/lib/hooks/use-my-permissions";
 import { ScenarioInUseError } from "@/lib/repositories/errors";
 import { AuthoredScenarioCardList } from "./AuthoredScenarioCardList";
+import { ScenarioAuthoringBar } from "./ScenarioAuthoringBar";
 import { ScenarioEditor } from "./ScenarioEditor";
-import { ScenarioImportSheet } from "./ScenarioImportSheet";
 
 /**
  * The draft the editor opens on for an existing scenario. A scenario seeded
@@ -66,8 +65,8 @@ function draftOf(scenario: ExtensionScenario): ScenarioDraft {
  * Authoring is offered per act: writing a new scenario, rewriting one, and
  * removing one are three separate permissions, so an account may well be able
  * to propose a map without being able to touch the ones already there. An
- * account holding none of them still gets the list and the export — reading a
- * scenario and carrying it away are what `extensions.read` already allows.
+ * account holding none of them still gets the list, which is what
+ * `extensions.read` allows — the list, and nothing that leads out of it.
  */
 export function ScenariosManager({
   extension,
@@ -78,7 +77,6 @@ export function ScenariosManager({
     extension,
   );
   const [editing, setEditing] = useState<ScenarioDraft | null>(null);
-  const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [players, setPlayers] = useState<PlayerFilter>("all");
@@ -109,31 +107,6 @@ export function ScenariosManager({
       flash(`« ${spec.name} » copié : colle-le où tu veux le remettre.`);
     } catch {
       setError("Copie impossible depuis ce navigateur.");
-    }
-  }
-
-  /**
-   * A scenario read back in. It comes in under a free name, so importing the
-   * same map twice makes a variant of it instead of a second one to tell apart.
-   */
-  async function importScenario(spec: ScenarioSpec) {
-    setError(null);
-
-    const name = freeName(
-      spec.name,
-      scenarios.map(s => s.name),
-    );
-
-    try {
-      await save({
-        id: null,
-        name,
-        targetScore: spec.targetScore,
-        boardSpec: { ...spec, name },
-      });
-      flash(`« ${name} » importé.`);
-    } catch {
-      setError("Import impossible. Réessaie.");
     }
   }
 
@@ -212,40 +185,13 @@ export function ScenariosManager({
         </>
       )}
 
-      {/* Importing writes a scenario the app did not have, so it is the same
-          act as creating one and answers to the same permission. */}
       {mayAuthor ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() =>
-              setEditing({
-                id: null,
-                name: "",
-                targetScore: null,
-                boardSpec: emptyScenario(),
-              })
-            }
-            className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500"
-          >
-            + Créer un scénario
-          </button>
-          <button
-            type="button"
-            onClick={() => setImporting(true)}
-            title="Coller un scénario copié ailleurs"
-            className="flex items-center gap-2 rounded-lg border border-black/10 px-4 py-2 font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
-          >
-            <UploadIcon />
-            Importer
-          </button>
-        </div>
-      ) : null}
-
-      {importing ? (
-        <ScenarioImportSheet
-          onImport={importScenario}
-          onClose={() => setImporting(false)}
+        <ScenarioAuthoringBar
+          takenNames={scenarios.map(s => s.name)}
+          onCreate={setEditing}
+          onSave={save}
+          onImported={name => flash(`« ${name} » importé.`)}
+          onError={setError}
         />
       ) : null}
 
