@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 
-import { PlayerCountFilter } from "@/components/catan/PlayerCountFilter";
 import { ErrorText } from "@/components/ErrorText";
 import { sectionHeadingClass } from "@/components/ui";
 import { useConfirm } from "@/components/use-confirm";
@@ -15,7 +14,6 @@ import {
 import {
   drawnSpecsOf,
   type PlayerFilter,
-  playerCountsOf,
   scenariosMatching,
 } from "@/lib/catan/scenario-listing";
 import type { ScenarioSpec } from "@/lib/catan/scenario-spec";
@@ -24,9 +22,9 @@ import type { Extension, ExtensionScenario } from "@/lib/domain";
 import { type ScenarioDraft, useScenarios } from "@/lib/hooks/use-extensions";
 import { useMyPermissions } from "@/lib/hooks/use-my-permissions";
 import { ScenarioInUseError } from "@/lib/repositories/errors";
-import { AuthoredScenarioCardList } from "./AuthoredScenarioCardList";
 import { ScenarioAuthoringBar } from "./ScenarioAuthoringBar";
 import { ScenarioEditor } from "./ScenarioEditor";
+import { ScenarioListPanel } from "./ScenarioListPanel";
 
 /**
  * The draft the editor opens on for an existing scenario. A scenario seeded
@@ -150,35 +148,19 @@ export function ScenariosManager({
         </p>
       )}
 
-      {loading ? (
-        <p className="text-sm text-zinc-500">Chargement…</p>
-      ) : (
-        <>
-          <div className="self-start">
-            <PlayerCountFilter
-              counts={playerCountsOf(specs)}
-              value={players}
-              onChange={setPlayers}
-            />
-          </div>
-
-          <AuthoredScenarioCardList
-            scenarios={shown}
-            onEdit={
-              can("scenarios.update")
-                ? scenario => setEditing(draftOf(scenario))
-                : undefined
-            }
-            onExport={mayAuthor ? exportScenario : undefined}
-            onDelete={can("scenarios.delete") ? confirmDelete : undefined}
-            empty={
-              players === "all"
-                ? "Aucun scénario pour l'instant."
-                : `Aucun scénario jouable à ${players} joueurs.`
-            }
-          />
-        </>
-      )}
+      <ScenarioListPanel
+        scenarios={shown}
+        specs={specs}
+        players={players}
+        onPlayers={setPlayers}
+        loading={loading}
+        mayUpdate={can("scenarios.update")}
+        mayCopy={mayAuthor}
+        mayDelete={can("scenarios.delete")}
+        onEdit={scenario => setEditing(draftOf(scenario))}
+        onExport={exportScenario}
+        onDelete={confirmDelete}
+      />
 
       {mayAuthor ? (
         <ScenarioAuthoringBar
