@@ -13,9 +13,10 @@ import {
   stripFixedSea,
 } from "@/lib/catan/scenario-draft";
 import {
-  matchesPlayers,
+  drawnSpecsOf,
   type PlayerFilter,
   playerCountsOf,
+  scenariosMatching,
 } from "@/lib/catan/scenario-listing";
 import type { ScenarioSpec } from "@/lib/catan/scenario-spec";
 import { serialiseScenario } from "@/lib/catan/scenario-transfer";
@@ -84,14 +85,8 @@ export function ScenariosManager({
   const { can } = useMyPermissions();
   const mayAuthor = can("scenarios.create");
 
-  // A scenario with no map yet seats nobody, so it is never filtered out: it is
-  // precisely the one still waiting to be drawn.
-  const specs = scenarios.flatMap(s =>
-    s.boardSpec === null ? [] : [s.boardSpec],
-  );
-  const shown = scenarios.filter(
-    s => s.boardSpec === null || matchesPlayers(s.boardSpec, players),
-  );
+  const specs = drawnSpecsOf(scenarios);
+  const shown = scenariosMatching(scenarios, players);
 
   /** Says what just happened, then gets out of the way on its own. */
   function flash(message: string) {

@@ -33,6 +33,11 @@ export function drawableOf(scenarios: ExtensionScenario[]): Drawable[] {
   );
 }
 
+/** The maps of a list, which is what the counts it can be filtered on come off. */
+export function drawnSpecsOf(scenarios: ExtensionScenario[]): ScenarioSpec[] {
+  return drawableOf(scenarios).map(drawable => drawable.spec);
+}
+
 /** Every player count a scenario has a map for, ascending and without repeats. */
 export function scenarioPlayers(spec: ScenarioSpec): number[] {
   const counts = new Set(spec.boards.flatMap(board => board.players));
@@ -61,6 +66,21 @@ export function matchesPlayers(
   filter: PlayerFilter,
 ): boolean {
   return filter === "all" || servesPlayers(spec, filter);
+}
+
+/**
+ * The scenarios a filtered list shows. One with no map yet seats nobody, so it
+ * is never filtered out: it is precisely the one still waiting to be drawn, and
+ * hiding it behind a player count is how it stays forgotten.
+ */
+export function scenariosMatching(
+  scenarios: ExtensionScenario[],
+  filter: PlayerFilter,
+): ExtensionScenario[] {
+  return scenarios.filter(
+    scenario =>
+      scenario.boardSpec === null || matchesPlayers(scenario.boardSpec, filter),
+  );
 }
 
 /** The runs of consecutive counts, so 3, 4 and 6 read as `3-4` and `6`. */
