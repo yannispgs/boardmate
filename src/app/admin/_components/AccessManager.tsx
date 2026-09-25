@@ -9,6 +9,7 @@ import { useAccess } from "@/lib/hooks/use-access";
 import type { AccessTab } from "./AccessTabs";
 import { AccessTabs } from "./AccessTabs";
 import { AccountsPanel } from "./AccountsPanel";
+import { AuditHistoryLink } from "./AuditHistoryLink";
 import { PermissionCardList } from "./PermissionCardList";
 import { RoleEditor } from "./RoleEditor";
 import { RolesPanel } from "./RolesPanel";
@@ -65,6 +66,7 @@ export function AccessManager({
   const mayUpdate = mine.includes("roles.update");
   const mayDelete = mine.includes("roles.delete");
   const mayAssign = mine.includes("roles.assign");
+  const mayReadAudit = mine.includes("audit.read");
 
   const edited = editing === "new" ? null : editing;
   const takenKeys = roles
@@ -120,6 +122,8 @@ export function AccessManager({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 pb-10">
+      <AuditHistoryLink shown={mayReadAudit} />
+
       {mayReadRestrictedTabs ? (
         <AccessTabs shown={shown} onSelect={setTab} />
       ) : null}
