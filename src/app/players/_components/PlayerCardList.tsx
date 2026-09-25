@@ -10,7 +10,8 @@ const headingClass =
 /**
  * A titled list of players. Renders a `PlayerCard` per item; the deactivated
  * section passes `collapsible` to hide its cards behind a disclosure (collapsed
- * by default).
+ * by default). Handlers are optional and travel down as they come: a missing
+ * one means the account may not perform that write.
  */
 export function PlayerCardList({
   title,
@@ -23,9 +24,9 @@ export function PlayerCardList({
 }: Readonly<{
   title: string;
   players: Player[];
-  onToggle: (player: Player) => void;
+  onToggle?: (player: Player) => void;
   actionLabel: string;
-  onDelete: (player: Player) => void;
+  onDelete?: (player: Player) => void;
   dimmed?: boolean;
   collapsible?: boolean;
 }>) {

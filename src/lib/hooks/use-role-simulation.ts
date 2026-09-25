@@ -11,17 +11,22 @@ interface UseRoleSimulation {
   /** Whole seconds before the view lapses; `0` when nothing is simulated. */
   secondsLeft: number;
   loading: boolean;
+  /** Lands on the home screen: the launcher itself may be off-limits now. */
   start: (roleIds: RoleId[]) => Promise<void>;
   /** Pushes the expiry back without repainting: nothing on screen changes. */
   extend: () => Promise<void>;
+  /** Returns to the Rôles tab the simulation was started from. */
   stop: () => Promise<void>;
 }
+
+/** Where a simulation is started from, and so where ending one returns. */
+const LAUNCHER = "/admin?onglet=roles";
 
 /**
  * The narrowed view the account is currently looking through, and the ways in
  * and out of it.
  *
- * Starting or stopping one reloads the page rather than refreshing state. That
+ * Starting or stopping one loads a document rather than refreshing state. That
  * is deliberate: a simulation changes what *every* policy answers, so half the
  * screens already rendered are now wrong — a permission list fetched a moment
  * ago, a game list RLS would no longer return, a Server Component rendered
@@ -30,9 +35,22 @@ interface UseRoleSimulation {
  * where a blink costs nothing. Extending is the exception: it moves the expiry
  * and nothing else, so it stays where it is.
  *
- * The countdown reloads too when it reaches zero: past its expiry the database
- * ignores the row and hands the rights back, so a screen left open would sit
- * there drawn narrow while the account is already itself again.
+ * Neither lands where it stands. Starting goes to the home screen: a
+ * simulation is always started from the administration screen, and most roles
+ * have no business reading that screen at all, so staying there would open the
+ * narrowed view on the one page the simulated role is least likely to be
+ * allowed. Home is the screen every role may read, and it is also where the
+ * narrowing first shows — the tiles it may not open are gone.
+ *
+ * Stopping goes back to the Rôles tab it was started from: the round trip
+ * closes where it opened, next to the panel that launches the next one — a
+ * simulation is rarely looked at alone, it is compared with another.
+ *
+ * The countdown stops it too when it reaches zero, and returns to the same
+ * tab: past its expiry the database ignores the row and hands the rights back,
+ * so a screen left open would sit there drawn narrow while the account is
+ * already itself again — and a lapse is an end like « Quitter », not a
+ * different one.
  */
 export function useRoleSimulation(): UseRoleSimulation {
   const repo = getAccessRepository();
@@ -85,7 +103,7 @@ export function useRoleSimulation(): UseRoleSimulation {
       setSecondsLeft(left);
 
       if (left === 0) {
-        window.location.reload();
+        window.location.assign(LAUNCHER);
       }
     }
 
@@ -99,7 +117,7 @@ export function useRoleSimulation(): UseRoleSimulation {
   const start = useCallback(
     async (roleIds: RoleId[]) => {
       await repo.startRoleSimulation(roleIds);
-      window.location.reload();
+      window.location.assign("/");
     },
     [repo],
   );
@@ -115,7 +133,7 @@ export function useRoleSimulation(): UseRoleSimulation {
 
   const stop = useCallback(async () => {
     await repo.stopRoleSimulation();
-    window.location.reload();
+    window.location.assign(LAUNCHER);
   }, [repo]);
 
   return { simulation, secondsLeft, loading, start, extend, stop };

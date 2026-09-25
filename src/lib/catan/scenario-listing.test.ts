@@ -7,11 +7,13 @@ import type {
 } from "@/lib/domain";
 import {
   drawableOf,
+  drawnSpecsOf,
   matchesPlayers,
   playerCountsLabel,
   playerCountsOf,
   scenarioPlayers,
   scenarioSummary,
+  scenariosMatching,
   servesPlayers,
 } from "./scenario-listing";
 import type {
@@ -79,6 +81,43 @@ describe("drawableOf", () => {
 
   it("has nothing to draw while no scenario has been drawn", () => {
     expect(drawableOf([saved("À dessiner", null)])).toEqual([]);
+  });
+});
+
+describe("drawnSpecsOf", () => {
+  it("keeps only the maps, since a scenario without one has no counts to read", () => {
+    const archipel = saved("L'archipel", spec({ players: [3] }));
+    const oceanie = saved("Océanie", spec({ players: [4] }));
+
+    const specs = drawnSpecsOf([archipel, saved("À dessiner", null), oceanie]);
+
+    expect(specs).toEqual([archipel.boardSpec, oceanie.boardSpec]);
+  });
+});
+
+describe("scenariosMatching", () => {
+  const archipel = saved("L'archipel", spec({ players: [3] }));
+  const oceanie = saved("Océanie", spec({ players: [4, 5] }));
+  const undrawn = saved("À dessiner", null);
+
+  it("shows everything when nothing in particular is asked for", () => {
+    const shown = scenariosMatching([archipel, undrawn, oceanie], "all");
+
+    expect(shown).toEqual([archipel, undrawn, oceanie]);
+  });
+
+  it("drops the scenarios no board of which seats that many", () => {
+    const shown = scenariosMatching([archipel, oceanie], 5);
+
+    expect(shown).toEqual([oceanie]);
+  });
+
+  it("keeps a scenario still waiting for its map, whatever the filter", () => {
+    // It seats nobody yet, so any player count would hide it — and it is
+    // precisely the one somebody has to go and draw.
+    const shown = scenariosMatching([archipel, undrawn], 6);
+
+    expect(shown).toEqual([undrawn]);
   });
 });
 

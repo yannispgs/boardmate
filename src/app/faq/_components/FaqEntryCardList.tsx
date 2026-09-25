@@ -18,8 +18,8 @@ export function FaqEntryCardList({
 }: Readonly<{
   title: string;
   entries: FaqEntry[];
-  onEdit: (entry: FaqEntry) => void;
-  onDelete: (entry: FaqEntry) => void;
+  onEdit?: (entry: FaqEntry) => void;
+  onDelete?: (entry: FaqEntry) => void;
   /** Omitted while searching — reordering across sections means nothing. */
   onMove?: (entry: FaqEntry, direction: "up" | "down") => void;
 }>) {
