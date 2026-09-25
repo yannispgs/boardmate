@@ -10,7 +10,8 @@ import { adminClient } from "./utils/supabase";
  * was started from is exactly the screen most roles may not read — and the
  * narrowing shows there, as a tile that is gone. That redirection is a
  * courtesy, not the gate: walking straight back to the administration screen
- * is allowed, and the screen is narrowed anyway.
+ * is allowed, and the screen is narrowed anyway. Ending it closes the round
+ * trip on the Rôles tab it was started from.
  */
 test("narrows the application to a role, then hands the rights back", async ({
   page,
@@ -71,10 +72,12 @@ test("narrows the application to a role, then hands the rights back", async ({
       page.getByRole("button", { name: "Nouveau rôle" }),
     ).toHaveCount(0);
 
+    // Ending it returns to the Rôles tab it was started from — straight onto
+    // the tab, not the catalogue the screen opens on by default.
     await page.getByRole("button", { name: "Quitter" }).click();
 
+    await expect(page).toHaveURL(/\/admin\?onglet=roles$/);
     await expect(page.getByText(/Vue simulée/)).toHaveCount(0);
-    await page.getByRole("button", { name: "Rôles" }).click();
     await expect(
       page.getByRole("button", { name: "Nouveau rôle" }),
     ).toBeVisible();

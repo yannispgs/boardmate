@@ -2,8 +2,9 @@
 
 import { TabButton, tabBarClass } from "@/components/TabButton";
 
-/** The three angles the access model is read from. */
-export type AccessTab = "permissions" | "roles" | "accounts";
+import type { AccessTab } from "./access-tab";
+
+export type { AccessTab } from "./access-tab";
 
 /**
  * The bar that switches between the three angles — or nothing at all.

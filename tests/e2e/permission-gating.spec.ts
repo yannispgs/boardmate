@@ -6,7 +6,7 @@ import { adminClient } from "./utils/supabase";
 /**
  * Runs `act`, which starts or stops a simulation, and comes back once the
  * document load it fires has replaced the page. Starting loads the home screen
- * and stopping reloads where it stands, so the mark below covers both.
+ * and stopping the Rôles tab, so the mark below covers both.
  *
  * Marking the current document and waiting for the mark to be gone is the
  * readiness condition, because what the page *shows* cannot tell the two

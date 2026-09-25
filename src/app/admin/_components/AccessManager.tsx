@@ -21,7 +21,9 @@ type Editing = Role | "new";
  * that bundle it, and the accounts that wear them — and, for whoever holds the
  * rights to it, composing a role and handing it over right there.
  */
-export function AccessManager() {
+export function AccessManager({
+  initialTab,
+}: Readonly<{ initialTab: AccessTab }>) {
   const {
     permissions,
     roles,
@@ -35,7 +37,7 @@ export function AccessManager() {
     assignRole,
     unassignRole,
   } = useAccess();
-  const [tab, setTab] = useState<AccessTab>("permissions");
+  const [tab, setTab] = useState<AccessTab>(initialTab);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [saving, setSaving] = useState(false);
   // Two error slots, because they are read in two places: what the editor did
