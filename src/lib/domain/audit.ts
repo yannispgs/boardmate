@@ -182,8 +182,17 @@ export function formatAuditValue(value: unknown): string {
  * How an entry reads in one line, for the list: the resource, then the name the
  * row went by. A row that had no name falls back to its key — there is always
  * something to point at.
+ *
+ * A simulation reads as a sentence instead — « Simulation de Joueur + Gestionnaire »
+ * — so the line says in the same words as the banner which view was opened.
+ * With no name left (every role it looked through deleted since), it falls
+ * back to the ordinary reading.
  */
 export function auditEntryTitle(entry: AuditEntry): string {
+  if (entry.tableName === "permission_simulations" && entry.recordLabel) {
+    return `Simulation de ${entry.recordLabel}`;
+  }
+
   return `${auditResourceLabel(entry.tableName)} · ${entry.recordLabel ?? entry.recordId}`;
 }
 

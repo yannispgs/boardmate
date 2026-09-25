@@ -191,11 +191,17 @@ begin
         p_row ->> 'role_id'
       );
 
+    -- The roles looked through, not the account: a simulation is only ever
+    -- started for oneself, so the account is the author, and the author is
+    -- already written on the line. Naming it twice would leave the one thing
+    -- worth reading — which view it was — nowhere.
     when 'permission_simulations' then
       v_label := (
-        select u.email::text
-        from auth.users u
-        where u.id = (p_row ->> 'user_id')::uuid
+        select string_agg(r.label, ' + ' order by r.label)
+        from public.roles r
+        where r.id = any (
+          select jsonb_array_elements_text(p_row -> 'role_ids')::uuid
+        )
       );
 
     -- Composed from the row itself and not looked up: on a delete the game is

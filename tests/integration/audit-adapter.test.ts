@@ -122,6 +122,50 @@ describe("audit — what an administrative write leaves behind", () => {
       await serviceClient().from("players").delete().eq("id", playerId);
     }
   });
+
+  it("names a simulation after the roles looked through, not after its author", async () => {
+    const service = serviceClient();
+    const suffix = Date.now().toString(36);
+    const { data: roles } = await service
+      .from("roles")
+      .insert([
+        { key: `sim-b-${suffix}`, label: `Sim B ${suffix}` },
+        { key: `sim-a-${suffix}`, label: `Sim A ${suffix}` },
+      ])
+      .select("id");
+    const roleIds = (roles ?? []).map(role => role.id);
+
+    try {
+      const db = authedClient(admin.accessToken);
+      const started = await db.rpc("start_role_simulation", {
+        p_role_ids: roleIds,
+      });
+
+      expect(started.error).toBeNull();
+
+      await db.rpc("stop_role_simulation");
+
+      const [stop, start] = await linesAbout(
+        "permission_simulations",
+        admin.id,
+      );
+
+      // The author is on the line already; the name says which view it was,
+      // in the same order whichever way the roles were picked.
+      expect(start.action).toBe("insert");
+      expect(start.actor_email).toBe(admin.email);
+      expect(start.record_label).toBe(`Sim A ${suffix} + Sim B ${suffix}`);
+
+      expect(stop.action).toBe("delete");
+      expect(stop.record_label).toBe(start.record_label);
+    } finally {
+      await service
+        .from("permission_simulations")
+        .delete()
+        .eq("user_id", admin.id);
+      await service.from("roles").delete().in("id", roleIds);
+    }
+  });
 });
 
 describe("audit — a game is recorded once it is over, not while it is played", () => {

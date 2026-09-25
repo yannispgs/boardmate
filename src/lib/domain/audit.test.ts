@@ -179,6 +179,26 @@ describe("auditEntryTitle", () => {
   it("falls back to the key when the row had no name", () => {
     expect(auditEntryTitle(entry({ recordLabel: null }))).toBe("Jeu · abc");
   });
+
+  it("reads a simulation as the view it opened", () => {
+    const simulation = entry({
+      tableName: "permission_simulations",
+      recordLabel: "Gestionnaire + Joueur",
+    });
+
+    expect(auditEntryTitle(simulation)).toBe(
+      "Simulation de Gestionnaire + Joueur",
+    );
+  });
+
+  it("falls back to the ordinary reading when a simulation lost its roles", () => {
+    const orphan = entry({
+      tableName: "permission_simulations",
+      recordLabel: null,
+    });
+
+    expect(auditEntryTitle(orphan)).toBe("Simulation de rôle · abc");
+  });
 });
 
 describe("filterAuditEntries", () => {
