@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 
+import { createPlayerThroughUi } from "./utils/players";
 import { adminClient } from "./utils/supabase";
 
 /**
@@ -13,20 +14,9 @@ test("creates, deactivates and reactivates a player", {
   // Keep within the 20-char player-name limit (base36 timestamp stays short).
   const name = `E2E ${Date.now().toString(36)}`;
 
-  await page.goto("/players");
-
-  // Create the player (confirmation modal appears first).
-  await page.getByRole("button", { name: "+ Ajouter un joueur" }).click();
-  await page.getByLabel("Nom du joueur").fill(name);
-  await page.getByRole("button", { name: "Ajouter" }).click();
-
-  const dialog = page.getByRole("dialog");
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole("button", { name: "Créer le joueur" }).click();
-
-  // It lands in the active list with a deactivate (eye-off) control.
-  const deactivate = page.getByRole("button", { name: `Désactiver ${name}` });
-  await expect(deactivate).toBeVisible();
+  // Create the player (confirmation modal appears first); it lands in the
+  // active list with a deactivate (eye-off) control.
+  const deactivate = await createPlayerThroughUi(page, name);
 
   // Never played → deactivation is immediate (no confirmation).
   await deactivate.click();

@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 
+import { createPlayerThroughUi } from "./utils/players";
 import { adminClient } from "./utils/supabase";
 
 /**
@@ -17,18 +18,7 @@ test("names the writes made through the app, and what they changed", async ({
   // Within the 20-char player-name limit.
   const name = `Hist ${Date.now().toString(36)}`;
 
-  await page.goto("/players");
-
-  await page.getByRole("button", { name: "+ Ajouter un joueur" }).click();
-  await page.getByLabel("Nom du joueur").fill(name);
-  await page.getByRole("button", { name: "Ajouter" }).click();
-
-  const dialog = page.getByRole("dialog");
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole("button", { name: "Créer le joueur" }).click();
-
-  const deactivate = page.getByRole("button", { name: `Désactiver ${name}` });
-  await expect(deactivate).toBeVisible();
+  const deactivate = await createPlayerThroughUi(page, name);
 
   // Never played → deactivation is immediate, and it is an update of one column.
   await deactivate.click();
