@@ -34,6 +34,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_log: {
+        Row: {
+          action: string
+          actor_email: string | null
+          actor_id: string | null
+          actor_roles: string[]
+          changed_keys: string[] | null
+          channel: string
+          id: number
+          new_value: Json | null
+          occurred_at: string
+          old_value: Json | null
+          record_id: string
+          record_label: string | null
+          simulated: boolean
+          table_name: string
+          tx_id: number
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_roles?: string[]
+          changed_keys?: string[] | null
+          channel: string
+          id?: number
+          new_value?: Json | null
+          occurred_at?: string
+          old_value?: Json | null
+          record_id: string
+          record_label?: string | null
+          simulated?: boolean
+          table_name: string
+          tx_id: number
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_roles?: string[]
+          changed_keys?: string[] | null
+          channel?: string
+          id?: number
+          new_value?: Json | null
+          occurred_at?: string
+          old_value?: Json | null
+          record_id?: string
+          record_label?: string | null
+          simulated?: boolean
+          table_name?: string
+          tx_id?: number
+        }
+        Relationships: []
+      }
       auth_rate_limits: {
         Row: {
           blocked_until: string | null
@@ -1013,6 +1067,24 @@ export type Database = {
         Args: { p_family: string; p_now: boolean; p_was: boolean }
         Returns: undefined
       }
+      audit_actor_roles: { Args: never; Returns: string[] }
+      audit_changed_keys: {
+        Args: { p_new: Json; p_old: Json }
+        Returns: string[]
+      }
+      audit_game_label: { Args: { p_game_id: string }; Returns: string }
+      audit_label: { Args: { p_row: Json; p_table: string }; Returns: string }
+      audit_write: {
+        Args: {
+          p_action: string
+          p_derived: string[]
+          p_keys: string[]
+          p_new: Json
+          p_old: Json
+          p_table: string
+        }
+        Returns: undefined
+      }
       check_auth_rate_limit: {
         Args: {
           p_base_block_s?: number
@@ -1065,12 +1137,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1094,11 +1166,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1119,11 +1191,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1144,11 +1216,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1161,11 +1233,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never) = never,
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

@@ -7,6 +7,7 @@
  */
 import type {
   Account,
+  AuditEntry,
   Boardgame,
   BoardgameId,
   BoardgameUpdate,
@@ -460,6 +461,19 @@ export interface AccessRepository {
   currentRoleSimulation(): Promise<RoleSimulation | null>;
 }
 
+/**
+ * The modification history. Read-only by construction: the database writes it
+ * by trigger and grants nobody an insert, so there is no `create` to offer and
+ * no `remove` either — an editable history proves nothing.
+ */
+export interface AuditRepository {
+  /**
+   * The newest entries first, capped: the screen pages through them rather
+   * than pulling a table that only ever grows.
+   */
+  list(options?: { limit?: number; before?: number }): Promise<AuditEntry[]>;
+}
+
 /** Aggregate of all repositories, resolved by the active adapter. */
 export interface Repositories {
   access: AccessRepository;
@@ -470,4 +484,5 @@ export interface Repositories {
   feedback: FeedbackRepository;
   extensions: ExtensionRepository;
   faq: FaqRepository;
+  audit: AuditRepository;
 }

@@ -2,6 +2,7 @@ export * from "./types";
 
 import { createClient } from "@/lib/supabase/client";
 import { createAccessRepository } from "@/lib/supabase/repositories/access";
+import { createAuditRepository } from "@/lib/supabase/repositories/audit";
 import { createBoardgameRepository } from "@/lib/supabase/repositories/boardgames";
 import { createConfigRepository } from "@/lib/supabase/repositories/configs";
 import { createExtensionRepository } from "@/lib/supabase/repositories/extensions";
@@ -11,6 +12,7 @@ import { createGameRepository } from "@/lib/supabase/repositories/games";
 import { createPlayerRepository } from "@/lib/supabase/repositories/players";
 import type {
   AccessRepository,
+  AuditRepository,
   BoardgameRepository,
   ConfigRepository,
   ExtensionRepository,
@@ -88,4 +90,12 @@ export function getExtensionRepository(): ExtensionRepository {
   extensionRepository ??= createExtensionRepository(createClient());
 
   return extensionRepository;
+}
+
+let auditRepository: AuditRepository | null = null;
+
+export function getAuditRepository(): AuditRepository {
+  auditRepository ??= createAuditRepository(createClient());
+
+  return auditRepository;
 }
