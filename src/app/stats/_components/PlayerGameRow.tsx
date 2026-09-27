@@ -41,7 +41,7 @@ export function PlayerGameRow({
           {game.boardgameName}
         </span>
         <span className="text-sm font-semibold tabular-nums text-indigo-600 dark:text-indigo-400">
-          {Math.round(game.winRate)}%
+          {Math.round(game.winRate)}% victoire
         </span>
       </div>
 

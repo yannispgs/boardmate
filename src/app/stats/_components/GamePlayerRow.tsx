@@ -57,7 +57,7 @@ export function GamePlayerRow({
         </span>
         <span className="flex-1 font-medium">{player.name}</span>
         <span className="text-sm font-semibold tabular-nums text-indigo-600 dark:text-indigo-400">
-          {Math.round(player.winRate)}%
+          {Math.round(player.winRate)}% victoire
         </span>
       </div>
 

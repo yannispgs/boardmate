@@ -79,6 +79,7 @@ test("orders a game's players by win rate or by position, and shows it on their 
     };
 
     await expect(rows).toHaveCount(3);
+    await expect(rows.first()).toContainText("67% victoire");
     // The runner-up every time sits exactly mid-table: his bar stops on the
     // middle tick, and it is filled from the « dernier » end.
     await expect(fillOf(rows.filter({ hasText: steady }))).toHaveAttribute(
@@ -120,6 +121,7 @@ test("orders a game's players by win rate or by position, and shows it on their 
       page.getByRole("listitem").filter({ hasText: name });
 
     await expect(ownRow(gameName).getByTestId("position-bar")).toBeVisible();
+    await expect(ownRow(gameName)).toContainText("0% victoire");
     await expect(fillOf(ownRow(gameName))).toHaveAttribute(
       "style",
       /width: 50%/,
