@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Locator, test } from "@playwright/test";
 
 import {
   adminClient,
@@ -67,9 +67,11 @@ test("orders a game's players by win rate or by position, and shows it on their 
     await page.getByRole("button", { name: "Jeux", exact: true }).click();
     await page.getByRole("button", { name: gameName, exact: true }).click();
 
+    const fillOf = (row: Locator) =>
+      row.getByTestId("position-bar").locator("div").first();
     const rows = page
       .getByRole("listitem")
-      .filter({ hasText: "Position moyenne · 0 = toujours 1er" });
+      .filter({ has: page.getByTestId("position-bar") });
     const order = async () => {
       const texts = await rows.allTextContents();
 
@@ -77,7 +79,12 @@ test("orders a game's players by win rate or by position, and shows it on their 
     };
 
     await expect(rows).toHaveCount(3);
-    await expect(rows.filter({ hasText: steady })).toContainText("50");
+    // The runner-up every time sits exactly mid-table: his bar stops on the
+    // middle tick, and it is filled from the « dernier » end.
+    await expect(fillOf(rows.filter({ hasText: steady }))).toHaveAttribute(
+      "style",
+      /width: 50%/,
+    );
 
     // By win rate, the default: the runner-up who never wins comes last.
     expect(await order()).toEqual([ace, swinger, steady]);
@@ -112,10 +119,13 @@ test("orders a game's players by win rate or by position, and shows it on their 
     const ownRow = (name: string) =>
       page.getByRole("listitem").filter({ hasText: name });
 
-    await expect(ownRow(gameName)).toContainText("Position moyenne");
-    await expect(ownRow(gameName)).toContainText("50");
+    await expect(ownRow(gameName).getByTestId("position-bar")).toBeVisible();
+    await expect(fillOf(ownRow(gameName))).toHaveAttribute(
+      "style",
+      /width: 50%/,
+    );
     await expect(ownRow(rareName)).toBeVisible();
-    await expect(ownRow(rareName)).not.toContainText("Position moyenne");
+    await expect(ownRow(rareName).getByTestId("position-bar")).toHaveCount(0);
   } finally {
     for (const id of gameIds) {
       await admin.from("games").delete().eq("id", id);
