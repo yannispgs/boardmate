@@ -5,7 +5,11 @@ import { useMemo, useState } from "react";
 import { OptionPicker, type PickerOption } from "@/components/OptionPicker";
 import type { PlayerId } from "@/lib/domain";
 import type { PlayerAggregate } from "@/lib/game/global-stats";
-import { orderPlayers, type PlayerOrder } from "@/lib/game/position-index";
+import {
+  orderPlayers,
+  type PlayerOrder,
+  type PositionIndex,
+} from "@/lib/game/position-index";
 import type { TallyExitStat } from "@/lib/game/tally-averages";
 
 import { GamePlayerRow } from "./GamePlayerRow";
@@ -39,7 +43,7 @@ export function GamePlayerTable({
   scored: boolean;
   timed: boolean;
   exits: TallyExitStat[] | null;
-  positions: ReadonlyMap<PlayerId, number> | null;
+  positions: ReadonlyMap<PlayerId, PositionIndex> | null;
 }>) {
   const [order, setOrder] = useState<PlayerOrder>("winRate");
   const shownOrder = positions === null ? "winRate" : order;
@@ -71,7 +75,7 @@ export function GamePlayerTable({
             position={
               positions === null
                 ? undefined
-                : (positions.get(player.playerId) ?? null)
+                : (positions.get(player.playerId)?.index ?? null)
             }
             tally={
               exits === null

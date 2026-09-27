@@ -1,6 +1,8 @@
 import { formatDuration } from "@/lib/game/format-time";
 import type { PlayerAggregate } from "@/lib/game/global-stats";
 
+import { PositionBar } from "./PositionBar";
+
 function Cell({ label, value }: Readonly<{ label: string; value: string }>) {
   return (
     <div className="flex flex-col">
@@ -13,33 +15,6 @@ function Cell({ label, value }: Readonly<{ label: string; value: string }>) {
 }
 
 const MEDALS = ["🥇", "🥈", "🥉"];
-
-/**
- * Where the player tends to finish, as a second bar under the win rate.
- *
- * The figure keeps the app's scale — 0 = always first, the way « position
- * moyenne » reads on the seat and neighbour statistics — but the bar is drawn
- * full for the best placed, so the two bars read the same way: longer is
- * better. The caption says which end of the figure is the good one.
- */
-function PositionBar({ position }: Readonly<{ position: number | null }>) {
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-baseline justify-between text-[11px] text-zinc-500 dark:text-zinc-400">
-        <span>Position moyenne · 0 = toujours 1er</span>
-        <span className="text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
-          {position === null ? "—" : Math.round(position)}
-        </span>
-      </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
-        <div
-          className="h-full rounded-full bg-emerald-500"
-          style={{ width: `${position === null ? 0 : 100 - position}%` }}
-        />
-      </div>
-    </div>
-  );
-}
 
 /**
  * One player's line within a single game's stats: their record on THIS game
@@ -93,7 +68,9 @@ export function GamePlayerRow({
         />
       </div>
 
-      {position === undefined ? null : <PositionBar position={position} />}
+      {position === undefined ? null : (
+        <PositionBar position={position} size="regular" />
+      )}
 
       <div className="grid grid-cols-3 gap-2">
         <Cell label="Parties" value={String(player.games)} />

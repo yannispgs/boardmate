@@ -11,10 +11,13 @@ import { PlayerGameRow } from "./PlayerGameRow";
 export function PlayerGameRowList({
   games,
   timedGames,
+  positions,
 }: Readonly<{
   games: readonly GameBreakdown[];
   /** Games that attribute the time they record to a single player. */
   timedGames: ReadonlySet<BoardgameId>;
+  /** His position index per game, only on games he is ranked on often enough. */
+  positions: ReadonlyMap<BoardgameId, number>;
 }>) {
   return (
     <ul className="flex flex-col divide-y divide-black/5 dark:divide-white/5">
@@ -23,6 +26,7 @@ export function PlayerGameRowList({
           key={game.boardgameId}
           game={game}
           timed={timedGames.has(game.boardgameId)}
+          position={positions.get(game.boardgameId)}
         />
       ))}
     </ul>

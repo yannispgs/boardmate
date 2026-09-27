@@ -38,7 +38,7 @@ import {
   phaseTotals,
   type StageBreakdown,
 } from "@/lib/game/phase-stats";
-import { positionIndexes } from "@/lib/game/position-index";
+import { type PositionIndex, positionIndexes } from "@/lib/game/position-index";
 import { scoreDirectionOf, winnerDirection } from "@/lib/game/scoring";
 import { computeSeatStats, type SeatStat } from "@/lib/game/seat-stats";
 import { tracksSpeedRecord } from "@/lib/game/speed-records";
@@ -722,7 +722,7 @@ function GameSections({
   /** The phase clocks of a game played in phases; null for every other game. */
   phases: PhaseFigures | null;
   /** Where each player tends to finish; null where the game ranks nobody. */
-  positions: ReadonlyMap<PlayerId, number> | null;
+  positions: ReadonlyMap<PlayerId, PositionIndex> | null;
 }>) {
   const champion = stats.players.reduce<GlobalStats["players"][number] | null>(
     (best, p) => (p.wins > (best?.wins ?? 0) ? p : best),

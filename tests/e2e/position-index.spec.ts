@@ -9,19 +9,23 @@ import {
 } from "./utils/supabase";
 
 /**
- * The position bar on a game's player list, and the choice of ordering the list
- * by it (full-suite only — untagged).
+ * The position bar on a game's player list, the choice of ordering the list by
+ * it, and the same bar on a player's own sheet (full-suite only — untagged).
  *
  * Three parties are seeded so the two orders disagree: the steady runner-up
  * never wins, so the win rate puts him last, while he finishes ahead of the
  * player who alternates between the crown and the bottom.
  */
-test("orders a game's players by win rate or by position", async ({ page }) => {
+test("orders a game's players by win rate or by position, and shows it on their sheet", async ({
+  page,
+}) => {
   const admin = adminClient();
   const names = await seedPlayers(3);
   const [ace, swinger, steady] = names;
   const gameName = `Classement ${Date.now().toString(36)}`;
+  const rareName = `Rare ${Date.now().toString(36)}`;
   const gameIds: string[] = [];
+  const bgIds: string[] = [];
   let bgId: string | null = null;
 
   try {
@@ -34,14 +38,15 @@ test("orders a game's players by win rate or by position", async ({ page }) => {
         winCondition: { type: "highest" },
       },
     });
+    bgIds.push(bgId);
 
     const idOf = await playerIds(names);
 
-    async function seedFinish(order: string[]) {
+    async function seedFinish(order: string[], onGame = bgId as string) {
       gameIds.push(
         await seedParty(
           admin,
-          bgId as string,
+          onGame,
           order.map((name, place) => ({
             playerId: idOf(name),
             score: 30 - place * 10,
@@ -83,13 +88,41 @@ test("orders a game's players by win rate or by position", async ({ page }) => {
     await expect(rows.first()).toContainText(ace);
     await expect(rows.nth(1)).toContainText(steady);
     await expect(rows.nth(2)).toContainText(swinger);
+
+    // On his own sheet, the same bar under each game — but only from the third
+    // ranked party: a second game played twice shows its win rate alone.
+    const rare = await seedBoardgame(admin, {
+      name: rareName,
+      minPlayers: 2,
+      scoring: {
+        timing: "final",
+        entry: "total",
+        winCondition: { type: "highest" },
+      },
+    });
+    bgIds.push(rare);
+
+    await seedFinish([steady, ace, swinger], rare);
+    await seedFinish([steady, ace, swinger], rare);
+
+    await page.goto("/stats");
+    await page.getByRole("button", { name: "Joueurs", exact: true }).click();
+    await page.getByRole("button", { name: steady }).first().click();
+
+    const ownRow = (name: string) =>
+      page.getByRole("listitem").filter({ hasText: name });
+
+    await expect(ownRow(gameName)).toContainText("Position moyenne");
+    await expect(ownRow(gameName)).toContainText("50");
+    await expect(ownRow(rareName)).toBeVisible();
+    await expect(ownRow(rareName)).not.toContainText("Position moyenne");
   } finally {
     for (const id of gameIds) {
       await admin.from("games").delete().eq("id", id);
     }
 
-    if (bgId !== null) {
-      await admin.from("boardgames").delete().eq("id", bgId);
+    if (bgIds.length > 0) {
+      await admin.from("boardgames").delete().in("id", bgIds);
     }
 
     await admin.from("players").delete().in("name", names);
