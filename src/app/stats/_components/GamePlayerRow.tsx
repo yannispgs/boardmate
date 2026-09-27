@@ -15,8 +15,36 @@ function Cell({ label, value }: Readonly<{ label: string; value: string }>) {
 const MEDALS = ["🥇", "🥈", "🥉"];
 
 /**
+ * Where the player tends to finish, as a second bar under the win rate.
+ *
+ * The figure keeps the app's scale — 0 = always first, the way « position
+ * moyenne » reads on the seat and neighbour statistics — but the bar is drawn
+ * full for the best placed, so the two bars read the same way: longer is
+ * better. The caption says which end of the figure is the good one.
+ */
+function PositionBar({ position }: Readonly<{ position: number | null }>) {
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-baseline justify-between text-[11px] text-zinc-500 dark:text-zinc-400">
+        <span>Position moyenne · 0 = toujours 1er</span>
+        <span className="text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+          {position === null ? "—" : Math.round(position)}
+        </span>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
+        <div
+          className="h-full rounded-full bg-emerald-500"
+          style={{ width: `${position === null ? 0 : 100 - position}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
  * One player's line within a single game's stats: their record on THIS game
- * only (win rate, games, wins, mean score), followed by whatever the game
+ * only (win rate and, on a game that ranks its players, where they tend to
+ * finish; games, wins, mean score), followed by whatever the game
  * actually measures about the person — the time figures when it times each
  * player, the manches they sat through and the ones they closed when it counts
  * manches, and nothing at all when it does neither (a simultaneous game plays
@@ -28,9 +56,16 @@ export function GamePlayerRow({
   scored,
   timed,
   tally,
+  position,
 }: Readonly<{
   rank: number;
   player: PlayerAggregate;
+  /**
+   * Their position index (0 = always first), `null` when none of their parties
+   * ranked them, `undefined` on a game that ranks nobody — then there is no
+   * bar at all.
+   */
+  position?: number | null;
   scored: boolean;
   /** Whether this game attributes the time it records to a single player. */
   timed: boolean;
@@ -57,6 +92,8 @@ export function GamePlayerRow({
           style={{ width: `${player.winRate}%` }}
         />
       </div>
+
+      {position === undefined ? null : <PositionBar position={position} />}
 
       <div className="grid grid-cols-3 gap-2">
         <Cell label="Parties" value={String(player.games)} />
