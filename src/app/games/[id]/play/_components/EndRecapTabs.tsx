@@ -34,47 +34,39 @@ export function EndRecapTabs({
     return null;
   }
 
-  if (party === null || players === null) {
-    return (
-      <Lone title={party === null ? PLAYERS_TAB : PARTY_TAB}>
-        {party ?? players}
-      </Lone>
-    );
-  }
+  const both = party !== null && players !== null;
+  const shown = both
+    ? open === "party"
+      ? party
+      : players
+    : (party ?? players);
 
+  // One tree whether there is a bar or a lone heading: only the first child
+  // changes. The players' side arrives after the party's — it waits on the
+  // whole history — and when the two used to sit in different trees, its
+  // arrival unmounted the party panel under the reader's finger: an info
+  // bubble just opened closed again, and the page jumped.
   return (
     <div className="flex flex-col gap-6">
-      <div className={tabBarClass}>
-        <TabButton active={open === "party"} onClick={() => setOpen("party")}>
-          {PARTY_TAB}
-        </TabButton>
-        <TabButton
-          active={open === "players"}
-          onClick={() => setOpen("players")}
-        >
-          {PLAYERS_TAB}
-        </TabButton>
-      </div>
+      {both ? (
+        <div className={tabBarClass}>
+          <TabButton active={open === "party"} onClick={() => setOpen("party")}>
+            {PARTY_TAB}
+          </TabButton>
+          <TabButton
+            active={open === "players"}
+            onClick={() => setOpen("players")}
+          >
+            {PLAYERS_TAB}
+          </TabButton>
+        </div>
+      ) : (
+        <h2 className="text-center text-lg font-semibold">
+          {party === null ? PLAYERS_TAB : PARTY_TAB}
+        </h2>
+      )}
 
-      {open === "party" ? party : players}
-    </div>
-  );
-}
-
-/**
- * The one panel there is, under the name the tab would have carried. Same shape
- * as the bar above so the screen doesn't shift depending on how much the
- * evening had to say.
- */
-function Lone({
-  title,
-  children,
-}: Readonly<{ title: string; children: ReactNode }>) {
-  return (
-    <div className="flex flex-col gap-6">
-      <h2 className="text-center text-lg font-semibold">{title}</h2>
-
-      {children}
+      {shown}
     </div>
   );
 }

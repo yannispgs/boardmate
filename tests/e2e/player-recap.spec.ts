@@ -185,6 +185,87 @@ test("places each player's party among his own past parties", async ({
   }
 });
 
+/** What a tabbed evening leaves in the books, for the cleanup to find. */
+interface Evening {
+  players: string[];
+  games: string[];
+  bgId: string | null;
+}
+
+/**
+ * A timed party with two before it on the same game, so both halves of the
+ * finished-game screen have something to say — the party panel and the
+ * players' careers. Fills `evening` as it goes, so a seed that fails half-way
+ * still leaves the cleanup its ids. Returns tonight's party.
+ */
+async function seedTabbedEvening(
+  admin: ReturnType<typeof adminClient>,
+  evening: Evening,
+): Promise<string> {
+  // Timed this time (the column's default), which is what gives the party a
+  // party panel next to the players' one.
+  evening.bgId = await seedBoardgame(admin, {
+    name: `E2E Onglets ${Date.now().toString(36)}`,
+    minPlayers: 2,
+    maxPlayers: 4,
+    roundLimit: 3,
+    scoring: TABLE_SENSITIVE_SCORING,
+  });
+
+  const ids = await playerIds(evening.players);
+  const table = scoreTable(evening.players, ids);
+
+  // Two parties behind them: enough for this one to be placed among a past.
+  evening.games.push(
+    await seedParty(admin, evening.bgId as string, table([40, 10, 20, 15])),
+  );
+  evening.games.push(
+    await seedParty(admin, evening.bgId as string, table([60, 30, 5, 25])),
+  );
+
+  // The two first seats finish level on 50 and the game's tie-break crowns
+  // the second — Splito's shape. The order the rows come out in is therefore
+  // neither the seating order nor the one the totals alone would give: read on
+  // the points, the first two seats would both be first and both wear gold.
+  const tonight = await seedParty(
+    admin,
+    evening.bgId as string,
+    evening.players.map((name, seat) => ({
+      playerId: ids(name),
+      score: [50, 50, 10, 5][seat],
+      isWinner: seat === 1,
+    })),
+  );
+
+  evening.games.push(tonight);
+
+  // One round actually played, so the party panel holds figures rather than
+  // a row of zeros.
+  await seedTurns(
+    admin,
+    tonight,
+    evening.players.map((name, seat) => ({
+      playerId: ids(name),
+      round: 1,
+      turnNo: seat + 1,
+      durationS: 30 + seat * 10,
+    })),
+  );
+
+  return tonight;
+}
+
+async function dropEvening(
+  admin: ReturnType<typeof adminClient>,
+  evening: Evening,
+): Promise<void> {
+  await dropSeeded(admin, {
+    games: evening.games,
+    boardgames: [evening.bgId],
+    playerNames: evening.players,
+  });
+}
+
 /**
  * The same screen when the party has both things to say. Stacked, the two
  * readings made a page you scrolled twice over; they now sit behind two tabs,
@@ -192,59 +273,15 @@ test("places each player's party among his own past parties", async ({
  */
 test("puts the party and the players behind two tabs", async ({ page }) => {
   const admin = adminClient();
-  const players = await seedPlayers(4);
-  const gameName = `E2E Onglets ${Date.now().toString(36)}`;
-  const seeded: string[] = [];
-  let bgId: string | null = null;
+  const evening: Evening = {
+    players: await seedPlayers(4),
+    games: [],
+    bgId: null,
+  };
+  const { players } = evening;
 
   try {
-    // Timed this time (the column's default), which is what gives the party a
-    // party panel next to the players' one.
-    bgId = await seedBoardgame(admin, {
-      name: gameName,
-      minPlayers: 2,
-      maxPlayers: 4,
-      roundLimit: 3,
-      scoring: TABLE_SENSITIVE_SCORING,
-    });
-
-    const ids = await playerIds(players);
-    const table = scoreTable(players, ids);
-
-    // Two parties behind them: enough for this one to be placed among a past.
-    seeded.push(
-      await seedParty(admin, bgId as string, table([40, 10, 20, 15])),
-    );
-    seeded.push(await seedParty(admin, bgId as string, table([60, 30, 5, 25])));
-
-    // The two first seats finish level on 50 and the game's tie-break crowns
-    // the second — Splito's shape. The order the rows come out in is therefore
-    // neither the seating order nor the one the totals alone would give: read on
-    // the points, the first two seats would both be first and both wear gold.
-    const tonight = await seedParty(
-      admin,
-      bgId as string,
-      players.map((name, seat) => ({
-        playerId: ids(name),
-        score: [50, 50, 10, 5][seat],
-        isWinner: seat === 1,
-      })),
-    );
-
-    seeded.push(tonight);
-
-    // One round actually played, so the party panel holds figures rather than
-    // a row of zeros.
-    await seedTurns(
-      admin,
-      tonight,
-      players.map((name, seat) => ({
-        playerId: ids(name),
-        round: 1,
-        turnNo: seat + 1,
-        durationS: 30 + seat * 10,
-      })),
-    );
+    const tonight = await seedTabbedEvening(admin, evening);
 
     await page.goto(`/games/${tonight}/play`);
 
@@ -348,10 +385,82 @@ test("puts the party and the players behind two tabs", async ({ page }) => {
       handleBox?.x ?? 0,
     );
   } finally {
-    await dropSeeded(admin, {
-      games: seeded,
-      boardgames: [bgId],
-      playerNames: players,
+    await dropEvening(admin, evening);
+  }
+});
+
+/**
+ * The players' side arrives after the party's — it waits on the whole history —
+ * and its arrival used to rebuild the screen: the lone « La partie » heading
+ * became a tab bar in another tree, and the party panel was unmounted under the
+ * reader's finger. An info bubble opened on a tile closed again by itself.
+ *
+ * Held open deterministically here: the SECOND read of the history (the
+ * players', whose effect runs after the tiles' — a parent's after its child's)
+ * is kept on the wire until the bubble is open.
+ */
+test("keeps the party panel in place when the players' side arrives", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const evening: Evening = {
+    players: await seedPlayers(4),
+    games: [],
+    bgId: null,
+  };
+
+  try {
+    const tonight = await seedTabbedEvening(admin, evening);
+
+    let reads = 0;
+    let release: () => void = () => {};
+    const held = new Promise<void>(resolve => {
+      release = resolve;
     });
+
+    await page.route(
+      url =>
+        url.pathname.endsWith("/rest/v1/games") &&
+        url.search.includes("game_phases"),
+      async route => {
+        reads += 1;
+
+        if (reads === 2) {
+          await held;
+        }
+
+        await route.continue();
+      },
+    );
+
+    await page.goto(`/games/${tonight}/play`);
+
+    // The party alone so far, under its heading.
+    await expect(
+      page.getByRole("heading", { name: "La partie", exact: true }),
+    ).toBeVisible();
+
+    const playingTime = page
+      .getByTestId("party-panel")
+      .getByText("Temps de jeu", { exact: true })
+      .locator("..");
+
+    await playingTime.getByRole("button", { name: "Temps de jeu" }).click();
+
+    const bubble = page.getByTestId("info-bubble");
+
+    await expect(bubble).toBeVisible();
+
+    // Now the players' side lands, and the heading turns into the tab bar…
+    release();
+
+    await expect(
+      page.getByRole("button", { name: "Les joueurs", exact: true }),
+    ).toBeVisible();
+
+    // …around a panel that was never rebuilt: the bubble is still open.
+    await expect(bubble).toBeVisible();
+  } finally {
+    await dropEvening(admin, evening);
   }
 });
