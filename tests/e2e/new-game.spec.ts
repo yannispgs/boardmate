@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { funnelToPlay } from "./utils/funnel";
+import { funnelToPlay, funnelToRecap } from "./utils/funnel";
 import {
   adminClient,
   CATAN_MIN_PLAYERS,
@@ -79,16 +79,7 @@ test("tweaks the win target at the recap and it takes effect", async ({
   let gameId: string | null = null;
 
   try {
-    await page.goto("/games/new");
-    await page.getByRole("button", { name: CATAN_NAME, exact: true }).click();
-    await page
-      .getByRole("button", { name: "Sans configuration", exact: true })
-      .click();
-
-    for (const name of players) {
-      await page.getByRole("button", { name, exact: true }).click();
-    }
-    await page.getByRole("button", { name: "Continuer →" }).click();
+    await funnelToRecap(page, players);
 
     // The recap surfaces the score-to-reach; lower it to 5 for this game only.
     const target = page.getByLabel(/Score à atteindre/);
@@ -140,16 +131,7 @@ test("raises the win target when the harbour-master bonus is on", async ({
   let gameId: string | null = null;
 
   try {
-    await page.goto("/games/new");
-    await page.getByRole("button", { name: CATAN_NAME, exact: true }).click();
-    await page
-      .getByRole("button", { name: "Sans configuration", exact: true })
-      .click();
-
-    for (const name of players) {
-      await page.getByRole("button", { name, exact: true }).click();
-    }
-    await page.getByRole("button", { name: "Continuer →" }).click();
+    await funnelToRecap(page, players);
 
     await page.getByLabel(/Score à atteindre/).fill("5");
     await page.getByRole("checkbox", { name: /Maître du port/ }).check();
@@ -192,5 +174,48 @@ test("raises the win target when the harbour-master bonus is on", async ({
       await admin.from("games").delete().eq("id", gameId);
     }
     await admin.from("players").delete().in("name", players);
+  }
+});
+
+/**
+ * The recap is prefilled from the game's defaults, and the extensions that may
+ * change those defaults arrive on their own request. Every answer from them
+ * used to seed the form again — including a plain realtime reload of the same
+ * list — so a target typed before they landed was silently put back to the
+ * default under the table's fingers.
+ *
+ * Held open deterministically: the extensions are kept on the wire until the
+ * target has been typed, then let through.
+ */
+test("keeps a target typed before the extensions arrive", async ({ page }) => {
+  const players = await seedPlayers(CATAN_MIN_PLAYERS);
+  let release: () => void = () => {};
+  const held = new Promise<void>(resolve => {
+    release = resolve;
+  });
+
+  try {
+    await page.route("**/rest/v1/extensions?*", async route => {
+      await held;
+      await route.continue();
+    });
+
+    await funnelToRecap(page, players);
+
+    const target = page.getByLabel(/Score à atteindre/);
+
+    await target.fill("5");
+    await expect(page.getByRole("heading", { name: "Extensions" })).toHaveCount(
+      0,
+    );
+
+    release();
+
+    await expect(
+      page.getByRole("heading", { name: "Extensions" }),
+    ).toBeVisible();
+    await expect(target).toHaveValue("5");
+  } finally {
+    await adminClient().from("players").delete().in("name", players);
   }
 });
