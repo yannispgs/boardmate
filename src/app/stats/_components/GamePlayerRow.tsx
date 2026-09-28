@@ -1,6 +1,8 @@
 import { formatDuration } from "@/lib/game/format-time";
 import type { PlayerAggregate } from "@/lib/game/global-stats";
 
+import { PositionBar } from "./PositionBar";
+
 function Cell({ label, value }: Readonly<{ label: string; value: string }>) {
   return (
     <div className="flex flex-col">
@@ -16,7 +18,8 @@ const MEDALS = ["🥇", "🥈", "🥉"];
 
 /**
  * One player's line within a single game's stats: their record on THIS game
- * only (win rate, games, wins, mean score), followed by whatever the game
+ * only (win rate and, on a game that ranks its players, where they tend to
+ * finish; games, wins, mean score), followed by whatever the game
  * actually measures about the person — the time figures when it times each
  * player, the manches they sat through and the ones they closed when it counts
  * manches, and nothing at all when it does neither (a simultaneous game plays
@@ -28,9 +31,16 @@ export function GamePlayerRow({
   scored,
   timed,
   tally,
+  position,
 }: Readonly<{
   rank: number;
   player: PlayerAggregate;
+  /**
+   * Their position index (0 = always first), `null` when none of their parties
+   * ranked them, `undefined` on a game that ranks nobody — then there is no
+   * bar at all.
+   */
+  position?: number | null;
   scored: boolean;
   /** Whether this game attributes the time it records to a single player. */
   timed: boolean;
@@ -47,7 +57,7 @@ export function GamePlayerRow({
         </span>
         <span className="flex-1 font-medium">{player.name}</span>
         <span className="text-sm font-semibold tabular-nums text-indigo-600 dark:text-indigo-400">
-          {Math.round(player.winRate)}%
+          {Math.round(player.winRate)}% victoire
         </span>
       </div>
 
@@ -57,6 +67,10 @@ export function GamePlayerRow({
           style={{ width: `${player.winRate}%` }}
         />
       </div>
+
+      {position === undefined ? null : (
+        <PositionBar position={position} size="regular" />
+      )}
 
       <div className="grid grid-cols-3 gap-2">
         <Cell label="Parties" value={String(player.games)} />

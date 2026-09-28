@@ -2,6 +2,7 @@ import { StatTile } from "@/components/StatTile";
 import type { Boardgame, GameStatsRecord, PlayerId } from "@/lib/domain";
 import type { PlayerAggregate } from "@/lib/game/global-stats";
 import { turnPhaseStats } from "@/lib/game/phase-stats";
+import { playerPositionsByGame } from "@/lib/game/position-index";
 import { winnerDirection } from "@/lib/game/scoring";
 import { tracksPlayerTime } from "@/lib/game/turn-time";
 import { tracksWorstScores, worstScoreSlices } from "@/lib/game/worst-scores";
@@ -131,6 +132,10 @@ export function PlayerDetail({
     boardgames.filter(tracksPlayerTime).map(b => b.id),
   );
 
+  // Where he tends to finish, game by game — only from his third ranked party
+  // on a game, below which a bar would read one evening as a habit.
+  const positions = playerPositionsByGame(records, boardgames, player.playerId);
+
   // Games won by scoring little (Papayoo, Odin) this player has scored on:
   // their own hall of shame, the same one the « Jeux » tab shows for the whole
   // table. One section for all of them — the game is picked in its menu.
@@ -189,7 +194,11 @@ export function PlayerDetail({
         <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
           Par jeu — du plus joué au moins joué
         </h3>
-        <PlayerGameRowList games={player.byGame} timedGames={timedGames} />
+        <PlayerGameRowList
+          games={player.byGame}
+          timedGames={timedGames}
+          positions={positions}
+        />
       </div>
 
       {turnPhases.length > 0 ? (

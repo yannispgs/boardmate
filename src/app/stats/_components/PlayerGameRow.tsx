@@ -1,5 +1,7 @@
 import type { GameBreakdown } from "@/lib/game/global-stats";
 
+import { PositionBar } from "./PositionBar";
+
 /** The time index as a rounded number, or "—" when there's no time data. */
 function fmtIndex(index: number | null): string {
   return index === null ? "—" : String(Math.round(index));
@@ -17,12 +19,18 @@ function fmtIndex(index: number | null): string {
  * The bar stays. It is the only thing here read at a glance rather than
  * counted, and it is what makes « je suis bon à quoi ? » answerable without
  * reading a single number.
+ *
+ * Under it, once he has been ranked on the game enough times to say so, sits
+ * where he tends to finish — the second bar the game's own player list carries.
  */
 export function PlayerGameRow({
   game,
   timed,
+  position,
 }: Readonly<{
   game: GameBreakdown;
+  /** His position index on this game; absent below the ranked-party floor. */
+  position?: number;
   /** Whether this game attributes the time it records to a single player. */
   timed: boolean;
 }>) {
@@ -33,7 +41,7 @@ export function PlayerGameRow({
           {game.boardgameName}
         </span>
         <span className="text-sm font-semibold tabular-nums text-indigo-600 dark:text-indigo-400">
-          {Math.round(game.winRate)}%
+          {Math.round(game.winRate)}% victoire
         </span>
       </div>
 
@@ -43,6 +51,10 @@ export function PlayerGameRow({
           style={{ width: `${game.winRate}%` }}
         />
       </div>
+
+      {position === undefined ? null : (
+        <PositionBar position={position} size="thin" />
+      )}
 
       <div className="flex flex-wrap gap-x-3 text-xs text-zinc-500 tabular-nums dark:text-zinc-400">
         <span>

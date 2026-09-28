@@ -38,6 +38,7 @@ import {
   phaseTotals,
   type StageBreakdown,
 } from "@/lib/game/phase-stats";
+import { type PositionIndex, positionIndexes } from "@/lib/game/position-index";
 import { scoreDirectionOf, winnerDirection } from "@/lib/game/scoring";
 import { computeSeatStats, type SeatStat } from "@/lib/game/seat-stats";
 import { tracksSpeedRecord } from "@/lib/game/speed-records";
@@ -199,6 +200,18 @@ export function GamesTab({
     () => computeSeatStats(scopedRecords, scoreDirectionOf(scoring)),
     [scopedRecords, scoring],
   );
+  // Where each player tends to finish — only on one game that keeps scores:
+  // « Tous les jeux » mixes games won high and low, and a game with no score
+  // ranks nobody, so both leave the list to its win rate alone.
+  const positions = useMemo(() => {
+    if (scoring === null) {
+      return null;
+    }
+
+    const indexes = positionIndexes(scopedRecords, scoreDirectionOf(scoring));
+
+    return indexes.size > 0 ? indexes : null;
+  }, [scopedRecords, scoring]);
   // Games whose points are shared in piles (Splito): the seat is half the
   // score, so « on perd quand il est à côté de nous » is a rule of the game and
   // not a superstition. Null everywhere else, where a neighbour is just the
@@ -349,6 +362,7 @@ export function GamesTab({
           worst={worst}
           zeroes={zeroes}
           phases={phaseFigures}
+          positions={positions}
         />
       )}
     </div>
@@ -675,6 +689,7 @@ function GameSections({
   worst,
   zeroes,
   phases,
+  positions,
 }: Readonly<{
   stats: GlobalStats;
   scored: boolean;
@@ -706,6 +721,8 @@ function GameSections({
   zeroes: ZeroFinishStat[];
   /** The phase clocks of a game played in phases; null for every other game. */
   phases: PhaseFigures | null;
+  /** Where each player tends to finish; null where the game ranks nobody. */
+  positions: ReadonlyMap<PlayerId, PositionIndex> | null;
 }>) {
   const champion = stats.players.reduce<GlobalStats["players"][number] | null>(
     (best, p) => (p.wins > (best?.wins ?? 0) ? p : best),
@@ -799,6 +816,7 @@ function GameSections({
           scored={scored}
           timed={timed}
           exits={tally?.exits ?? null}
+          positions={positions}
         />
       </Section>
     </>
