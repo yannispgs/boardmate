@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.7.0](https://github.com/yannispgs/boardmate/compare/v1.6.1...v1.7.0) (2026-09-28)
+
+
+### Features
+
+* land on the home screen when a simulated view starts ([b2db82e](https://github.com/yannispgs/boardmate/commit/b2db82e63acb923c3637608518d4bf42507bc4d2))
+* name the ends of the position bar instead of printing an index ([97f53c5](https://github.com/yannispgs/boardmate/commit/97f53c5cb7e23a6424580d2daf303f7b11a9d4a0))
+* offer only the scenario controls the account may use ([99b5a3f](https://github.com/yannispgs/boardmate/commit/99b5a3fb5b55e7cb4f92982282abd2496e3870b4))
+* offer only the write controls the account may use ([dee7aa7](https://github.com/yannispgs/boardmate/commit/dee7aa7c07da4ecec87440fd346ca82256992012))
+* offer only the write controls the account may use ([730cb10](https://github.com/yannispgs/boardmate/commit/730cb10e042485f7a3d9d40211973322e2693861))
+* record every modification in a history the administration can read ([e3bc6b7](https://github.com/yannispgs/boardmate/commit/e3bc6b7b76bffe1c84da1ba28076bc2e3ac84be6))
+* record every modification in a history the administration can read ([5ae0e62](https://github.com/yannispgs/boardmate/commit/5ae0e625082bba7e69bc3be291d10f634b21e862))
+* return to the Rôles tab when a simulated view ends ([9ca665b](https://github.com/yannispgs/boardmate/commit/9ca665b12c2d58e42595e1df3db6ab6bd49669fa))
+* say what the percentage above the first bar counts ([b3449e9](https://github.com/yannispgs/boardmate/commit/b3449e9cec1da512fea78d109d4d615b6e8895c5))
+* see the application as a role, without becoming somebody else ([4612a6d](https://github.com/yannispgs/boardmate/commit/4612a6d8a8006aeeb04714ca1b1bab71d173f9ad))
+* see the application as a role, without becoming somebody else ([94b699b](https://github.com/yannispgs/boardmate/commit/94b699b74e9c7509ac5b3d04cbc6bca335f12f31))
+* show a player's position on each game of their own sheet ([852f1f7](https://github.com/yannispgs/boardmate/commit/852f1f7a3ff46bdde4ff398d2a16a1fc26dd5fbc))
+* show where each player tends to finish on a game's stats ([d0fb12a](https://github.com/yannispgs/boardmate/commit/d0fb12a9447af53dfa40f65a0ecf177ec98e9e66))
+* show where each player tends to finish on a game's stats ([b1925b9](https://github.com/yannispgs/boardmate/commit/b1925b936e4770dcf8c63a4982bc28b0a87a1020))
+* title a simulation after the roles it looked through ([5c63743](https://github.com/yannispgs/boardmate/commit/5c63743816f0b78627ef19b37d0e852ffb2d2084))
+* withhold the roles and accounts tabs instead of explaining them away ([e0f76f3](https://github.com/yannispgs/boardmate/commit/e0f76f3c7aaecda9fc0f21b561c4f9b11fd27129))
+
+
+### Bug Fixes
+
+* withhold the scenario copy from an account that may not author one ([47c9c59](https://github.com/yannispgs/boardmate/commit/47c9c5960b4a599385ff8185d7e46a8d2c7a965a))
+
 ## [1.6.1](https://github.com/yannispgs/boardmate/compare/v1.6.0...v1.6.1) (2026-09-11)
 
 
