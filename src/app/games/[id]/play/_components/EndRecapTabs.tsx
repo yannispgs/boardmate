@@ -35,11 +35,8 @@ export function EndRecapTabs({
   }
 
   const both = party !== null && players !== null;
-  const shown = both
-    ? open === "party"
-      ? party
-      : players
-    : (party ?? players);
+  const tabbed = open === "party" ? party : players;
+  const shown = both ? tabbed : (party ?? players);
 
   // One tree whether there is a bar or a lone heading: only the first child
   // changes. The players' side arrives after the party's — it waits on the
