@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { ConfigField } from "@/components/ConfigField";
 import { HiddenMaterial } from "@/components/catan/HiddenMaterial";
 import { ErrorText } from "@/components/ErrorText";
@@ -123,19 +123,39 @@ export function RecapStep({
   );
   const editableFields = composedFields.filter(f => f.key !== target.field);
 
+  // What the prefill below is made of, and nothing else. The template and the
+  // extensions come back as NEW objects on every realtime change to their
+  // tables — anybody editing any config anywhere — so seeding on their identity
+  // wrote the defaults back over what the table had just typed (a win target of
+  // 5 turned into 10 again under its fingers). Seeded once per real change.
+  const seededFor = useRef<string | null>(null);
+
   // Prefill the form from the selected config over the (composed) template
   // defaults, so every attribute shows a value tweakable for this game only.
-  // Re-seeds when the selected extensions change (their field defaults may
+  // Re-seeds when the active extensions change (their field defaults may
   // differ, e.g. a raised win target).
   useEffect(() => {
-    if (template) {
-      const fields = composeConfigFields(
-        template.fields,
-        extensions.filter(e => selectedExt.includes(e.id)),
-      );
-      setValues({ ...buildDefaults(fields), ...config?.values });
+    if (!template) {
+      return;
     }
-  }, [template, config, extensions, selectedExt]);
+
+    const activeExtensions = extensions.filter(e => selectedExt.includes(e.id));
+    const seed = [
+      boardgame.id,
+      config?.id ?? "",
+      ...activeExtensions.map(e => e.id),
+    ].join("|");
+
+    if (seededFor.current === seed) {
+      return;
+    }
+
+    seededFor.current = seed;
+
+    const fields = composeConfigFields(template.fields, activeExtensions);
+
+    setValues({ ...buildDefaults(fields), ...config?.values });
+  }, [boardgame.id, template, config, extensions, selectedExt]);
 
   function setField(key: string, value: unknown) {
     setValues(prev => ({ ...prev, [key]: value }));
