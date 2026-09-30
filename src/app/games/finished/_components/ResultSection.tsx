@@ -5,10 +5,13 @@ import type { FinishedGoals, StageGoalRaw } from "@/lib/game/finished-goals";
 import type { FinishedWinners } from "@/lib/game/finished-winner";
 import type { StagePick } from "@/lib/game/stage";
 import type { CategoryRaw } from "../../_components/CategoryScoreGrid";
-import type { EntryMode, FinishedEntry } from "./finished-entry";
-import { ScoreEntrySection } from "./ScoreEntrySection";
+import type {
+  EntryMode,
+  FinishedEntry,
+} from "../../_components/finished-entry";
+import { ScoreEntrySection } from "../../_components/ScoreEntrySection";
+import { WinnerChoice } from "../../_components/WinnerChoice";
 import { StageGoalsSection } from "./StageGoalsSection";
-import { WinnerChoice } from "./WinnerChoice";
 
 /**
  * Everything the night ended on: the day it was played, the manches' goals when

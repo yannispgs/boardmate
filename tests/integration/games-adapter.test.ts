@@ -175,7 +175,7 @@ describe("games adapter — creation & population", () => {
     expect(populated?.players.map(p => p.score)).toEqual([2, 2, 2]);
   });
 
-  it("setBreakdown records per-category detail and re-derives the winner", async () => {
+  it("rescore records per-category detail and re-derives the winner", async () => {
     const game = await repo().create({
       boardgameId: CATAN_ID,
       configId,
@@ -186,7 +186,7 @@ describe("games adapter — creation & population", () => {
     // First ended with player 0 as the winner…
     await repo().end(game.id, [playerIds[0]]);
     // …then the category detail is filled, making player 1 the top total.
-    await repo().setBreakdown(
+    await repo().rescore(
       game.id,
       [playerIds[1]],
       [
@@ -204,6 +204,49 @@ describe("games adapter — creation & population", () => {
     expect(byId.get(playerIds[1])?.isWinner).toBe(true);
     expect(byId.get(playerIds[1])?.score).toBe(12);
     expect(byId.get(playerIds[0])?.scoreBreakdown).toEqual({ a: 3, b: 5 });
+  });
+
+  it("rescore corrects totals, clears a detail that no longer adds up, and moves the crown", async () => {
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId,
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    await repo().end(
+      game.id,
+      [playerIds[0]],
+      [
+        { playerId: playerIds[0], score: 10, breakdown: { a: 10 } },
+        { playerId: playerIds[1], score: 9, breakdown: { a: 9 } },
+        { playerId: playerIds[2], score: 3, breakdown: { a: 3 } },
+      ],
+      { tied: [playerIds[0]], steps: [], shared: false },
+    );
+
+    // Typed back as totals: player 1 was really on 11, and the old detail no
+    // longer adds up to anybody's total — so it goes.
+    await repo().rescore(
+      game.id,
+      [playerIds[1]],
+      [
+        { playerId: playerIds[0], score: 10, breakdown: null },
+        { playerId: playerIds[1], score: 11, breakdown: null },
+        { playerId: playerIds[2], score: 3, breakdown: null },
+      ],
+      null,
+    );
+
+    const populated = await repo().getPopulated(game.id);
+    const byId = new Map(populated?.players.map(p => [p.playerId, p]));
+
+    expect(byId.get(playerIds[0])?.isWinner).toBe(false);
+    expect(byId.get(playerIds[1])?.isWinner).toBe(true);
+    expect(byId.get(playerIds[1])?.score).toBe(11);
+
+    expect(byId.get(playerIds[1])?.scoreBreakdown).toBeNull();
+    expect(populated?.tieBreak).toBeNull();
   });
 
   it("snapshots recap-tweaked config values and resolves the threshold from them", async () => {

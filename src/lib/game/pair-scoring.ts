@@ -126,3 +126,24 @@ export function readPairBreakdown(
 
   return { left, right };
 }
+
+/**
+ * The circle's piles, read back from what each seat recorded — the reverse of
+ * {@link scorePiles}, for reopening a counted circle. Pile `i` sits after seat
+ * `i`, so it is that seat's right-hand pile. Breakdowns in seat order.
+ */
+export function pilesFromBreakdowns(
+  breakdowns: ReadonlyArray<Record<string, number> | null>,
+): Record<string, number> {
+  const piles: Record<string, number> = {};
+
+  breakdowns.forEach((breakdown, index) => {
+    const pair = readPairBreakdown(breakdown);
+
+    if (pair !== null) {
+      piles[pileKey(index)] = pair.right;
+    }
+  });
+
+  return piles;
+}
