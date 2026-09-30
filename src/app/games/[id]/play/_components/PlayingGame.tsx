@@ -5,7 +5,12 @@ import { ErrorText } from "@/components/ErrorText";
 import type { PhaseSpec, PlayerId, PopulatedGame } from "@/lib/domain";
 import { composeGoals } from "@/lib/game/extensions";
 import { gameProgress, playProgress } from "@/lib/game/game-progress";
-import { advancePhase, currentPhase, playedDraft } from "@/lib/game/phase";
+import {
+  advancePhase,
+  currentPhase,
+  playedDraft,
+  turnTimerApplies,
+} from "@/lib/game/phase";
 import { scoreDirectionOf } from "@/lib/game/scoring";
 import {
   announcesStage,
@@ -202,7 +207,12 @@ export function PlayingGame({
     // the countdown never keeps ticking during the async persist.
     const elapsedS = timer.elapsedS;
     const pauses = timer.pauseStats();
-    const overtimeS = Math.max(0, elapsedS - durationS);
+    // Overtime only exists against a countdown the table could see run out. A
+    // phase timed by a stopwatch, or by nothing, shows no countdown: its turns
+    // still record how long they took, but « over time » means nothing there.
+    const overtimeS = turnTimerApplies(phase)
+      ? Math.max(0, elapsedS - durationS)
+      : 0;
     const waitedSeconds = waitedFor(blockedById, blockedAtRef.current);
     const blocked = blockedById;
 
