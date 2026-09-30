@@ -120,7 +120,11 @@ jobs:
           domain="pr-${PR_NUMBER}.${PREVIEW_DOMAIN}"
 
           # Cleanup is best-effort: a missing domain (404) is already the desired
-          # state, so it is not an error.
+          # state, so it is not an error. A refused token (401/403) is NOT
+          # best-effort: nothing can be cleaned up with it, the domain stays
+          # attached, and every later PR fails the same way. It used to be a mere
+          # warning on a green run — which hid an invalid token for a day and
+          # left pr-184 and pr-186 behind (2026-09-28).
           code=$(curl -sS -o /tmp/delete.json -w '%{http_code}' -X DELETE \
             "https://api.vercel.com/v9/projects/${VERCEL_PROJECT}/domains/${domain}?teamId=${VERCEL_TEAM}" \
             -H "Authorization: Bearer ${VERCEL_TOKEN}")
@@ -128,6 +132,11 @@ jobs:
           case "$code" in
             200) echo "Removed ${domain}" ;;
             404) echo "${domain} already absent — nothing to do" ;;
+            401|403)
+              echo "::error::Vercel refused the token (${code}) — ${domain} is still attached. Renew the VERCEL_API_TOKEN secret, then delete it by hand or re-run this job."
+              cat /tmp/delete.json
+              exit 1
+              ;;
             *)
               echo "::warning::unexpected ${code} deleting ${domain}"
               cat /tmp/delete.json
