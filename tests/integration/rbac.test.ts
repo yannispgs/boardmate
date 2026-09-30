@@ -565,6 +565,25 @@ describe("RBAC — keys finer than CRUD", () => {
         .eq("id", id)
         .select("*");
       expect(misnamed.error?.code).toBe("42501");
+
+      // The phases' clocks are rules of play, not the fiche: the editor's
+      // « Phases de la manche » drawer writes on the barème's side.
+      const phases = [
+        { key: "p1", label: "Phase", mode: "sequential", clock: "none" },
+      ];
+      const reclockedByEditor = await editor.db
+        .from("boardgames")
+        .update({ phases })
+        .eq("id", id)
+        .select("*");
+      const reclockedByScorer = await scorer.db
+        .from("boardgames")
+        .update({ phases })
+        .eq("id", id)
+        .select("*");
+
+      expect(reclockedByEditor.error?.code).toBe("42501");
+      expect(reclockedByScorer.data?.length).toBe(1);
     } finally {
       await Promise.all([editor.dispose(), scorer.dispose()]);
       await service.from("boardgames").delete().eq("id", id);
