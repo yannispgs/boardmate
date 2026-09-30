@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { BoardgameFormPage } from "../../_components/BoardgameFormPage";
 import { ConfigsManager } from "../_components/ConfigsManager";
 import { DangerZone } from "../_components/DangerZone";
+import { PhaseClocksSection } from "../_components/PhaseClocksSection";
 
 export const metadata: Metadata = {
   title: "Réglages d'un jeu — Boardmate",
@@ -58,6 +59,10 @@ export default async function EditBoardgamePage({
           <BoardgameFormPage boardgameId={id as BoardgameId} />
         </section>
       ) : null}
+
+      {/* The phases' clocks are rules of play: the database files them on the
+          barème's side, so they ask for the barème's permission. */}
+      {mayScore ? <PhaseClocksSection boardgameId={id as BoardgameId} /> : null}
 
       {mayScore ? <ConfigsManager boardgameId={id as BoardgameId} /> : null}
 
