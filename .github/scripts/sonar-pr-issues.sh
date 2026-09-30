@@ -70,7 +70,7 @@ for _ in $(seq "$SETTLE_ATTEMPTS"); do
   next=$(open_issues)
   next_keys=$(jq -r '[.issues[].key] | sort | join(",")' <<<"$next")
 
-  if [ "$next_keys" = "$keys" ]; then
+  if [[ "$next_keys" == "$keys" ]]; then
     break
   fi
 
