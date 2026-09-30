@@ -1523,19 +1523,19 @@ export function createGameRepository(
       }
     },
 
-    async setBreakdown(id: GameId, winnerIds: PlayerId[], scores, tieBreak) {
+    async rescore(id: GameId, winnerIds: PlayerId[], scores, tieBreak) {
       for (const { playerId, score, breakdown } of scores) {
         const { error } = await supabase
           .from("game_players")
           .update({
             score: Math.round(score),
-            score_breakdown: breakdown as Json,
+            score_breakdown: breakdown as Json | null,
           })
           .eq("game_id", id)
           .eq("player_id", playerId);
         /* c8 ignore next 3 -- defensive guard: update errors surface via e2e */
         if (error) {
-          throw new Error(`Enregistrement du détail: ${error.message}`);
+          throw new Error(`Enregistrement des scores: ${error.message}`);
         }
       }
 

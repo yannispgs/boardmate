@@ -87,7 +87,7 @@ export function CategoryBreakdownFill({
     }
 
     try {
-      await getGameRepository().setBreakdown(
+      await getGameRepository().rescore(
         game.id,
         winnerIds,
         ids.map(id => ({
