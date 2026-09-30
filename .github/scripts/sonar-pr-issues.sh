@@ -16,6 +16,8 @@ readonly PROJECT_KEY="yannispgs_boardmate"
 readonly API="https://sonarcloud.io/api"
 readonly POLL_INTERVAL=15
 readonly POLL_ATTEMPTS=40 # 10 minutes
+readonly SETTLE_INTERVAL=15
+readonly SETTLE_ATTEMPTS=8 # 2 minutes
 
 : "${PR_NUMBER:?PR_NUMBER is required}"
 : "${HEAD_SHA:?HEAD_SHA is required}"
@@ -49,9 +51,34 @@ if [ "$analysed_sha" != "$HEAD_SHA" ]; then
   exit 0
 fi
 
-issues=$(
+open_issues() {
   curl -sSf "$API/issues/search?componentKeys=$PROJECT_KEY&pullRequest=$PR_NUMBER&resolved=false&ps=500"
-)
+}
+
+# The analysis shows up before SonarCloud has finished closing the issues it no
+# longer finds: read at once, a fix pushed right after an issue was still
+# reported open (seen on #187, a green re-run later). A fixed delay would only
+# guess how long that takes, so read again until two reads a few seconds apart
+# name the same issues — the set, not the count: one issue closed while another
+# opens leaves the total unchanged.
+issues=$(open_issues)
+keys=$(jq -r '[.issues[].key] | sort | join(",")' <<<"$issues")
+
+for _ in $(seq "$SETTLE_ATTEMPTS"); do
+  sleep "$SETTLE_INTERVAL"
+
+  next=$(open_issues)
+  next_keys=$(jq -r '[.issues[].key] | sort | join(",")' <<<"$next")
+
+  if [[ "$next_keys" == "$keys" ]]; then
+    break
+  fi
+
+  echo "SonarCloud is still settling the issues of $HEAD_SHA…"
+  issues=$next
+  keys=$next_keys
+done
+
 total=$(jq -r '.total' <<<"$issues")
 
 if [ "$total" -eq 0 ]; then
