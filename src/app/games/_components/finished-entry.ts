@@ -14,7 +14,7 @@ import {
   type CategoryRaw,
   gridRemaining,
   gridValues,
-} from "../../_components/CategoryScoreGrid";
+} from "./CategoryScoreGrid";
 
 /** Enter just the final total, or the detail the game is really scored on. */
 export type EntryMode = "total" | "detail";

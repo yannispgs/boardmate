@@ -1,12 +1,9 @@
 "use client";
 
 import type { Player, PlayerId, ScoringSpec } from "@/lib/domain";
-import {
-  type CategoryRaw,
-  CategoryScoreGrid,
-} from "../../_components/CategoryScoreGrid";
-import { PairScoreCircle } from "../../_components/PairScoreCircle";
+import { type CategoryRaw, CategoryScoreGrid } from "./CategoryScoreGrid";
 import type { EntryMode, FinishedEntry } from "./finished-entry";
+import { PairScoreCircle } from "./PairScoreCircle";
 
 /** What the alternative to a plain total is called on this game's own sheet. */
 function detailLabel(pairs: boolean): string {

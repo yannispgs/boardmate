@@ -27,8 +27,11 @@ import { usePlayers } from "@/lib/hooks/use-players";
 import { toggled } from "@/lib/ui/selection";
 import type { CategoryRaw } from "../../_components/CategoryScoreGrid";
 import { ExtensionPicker } from "../../_components/ExtensionPicker";
+import {
+  type EntryMode,
+  finishedEntry,
+} from "../../_components/finished-entry";
 import { BoardgamePicker } from "./BoardgamePicker";
-import { type EntryMode, finishedEntry } from "./finished-entry";
 import { PlayerSeatPicker } from "./PlayerSeatPicker";
 import { ResultSection } from "./ResultSection";
 

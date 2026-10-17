@@ -5,6 +5,7 @@ import {
   pairBreakdown,
   pileKey,
   pilesFor,
+  pilesFromBreakdowns,
   pilesOfSeat,
   pilesRemaining,
   readPairBreakdown,
@@ -117,5 +118,23 @@ describe("pileKey", () => {
   it("names a pile after the seat it opens from", () => {
     expect(pileKey(0)).toBe("pile0");
     expect(pileKey(7)).toBe("pile7");
+  });
+});
+
+describe("pilesFromBreakdowns", () => {
+  it("reads the ring back from the seats, round-tripping scorePiles", () => {
+    const seats = ["a", "b", "c"] as PlayerId[];
+    const piles = { pile0: 2, pile1: 5, pile2: 3 };
+    const scored = scorePiles(seats, piles);
+
+    expect(
+      pilesFromBreakdowns(seats.map(s => pairBreakdown(scored[s]))),
+    ).toEqual(piles);
+  });
+
+  it("skips a seat that kept no pair", () => {
+    expect(pilesFromBreakdowns([{ left: 1, right: 4 }, null])).toEqual({
+      pile0: 4,
+    });
   });
 });

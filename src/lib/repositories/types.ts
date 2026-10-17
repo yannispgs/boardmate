@@ -318,18 +318,20 @@ export interface GameRepository {
    */
   endCoop(id: GameId, won: boolean): Promise<void>;
   /**
-   * Retroactively records the per-category `breakdown` (and the re-derived
-   * total + winner) for an already-ended category game that was logged with
-   * only a total. Every player's `is_winner` is reset, then the recomputed
-   * winner(s) are set — several on a shared victory.
+   * Rewrites the scores of an already-ended game: each player's total and the
+   * detail kept behind it — `null` clears a detail that no longer adds up to a
+   * corrected total. Every player's `is_winner` is reset, then the given
+   * winner(s) are set — several on a shared victory — and the tie-break record
+   * replaced. Used to fill in a category game logged with only a total, and to
+   * correct a finished party's scores.
    */
-  setBreakdown(
+  rescore(
     id: GameId,
     winnerIds: PlayerId[],
     scores: Array<{
       playerId: PlayerId;
       score: number;
-      breakdown: Record<string, number>;
+      breakdown: Record<string, number> | null;
     }>,
     tieBreak?: TieBreakRecord | null,
   ): Promise<void>;

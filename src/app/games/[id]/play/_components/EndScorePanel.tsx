@@ -4,11 +4,14 @@ import { useState } from "react";
 
 import type { PlayerId, PopulatedGame } from "@/lib/domain";
 import { readPairBreakdown } from "@/lib/game/pair-scoring";
+import { scoresCorrectable } from "@/lib/game/score-correction";
 import { finalStandings, scoreDirectionOf } from "@/lib/game/scoring";
+import { useMyPermissions } from "@/lib/hooks/use-my-permissions";
 import { useRecordsOfGame } from "@/lib/hooks/use-score-records";
 import { CategoryBreakdownFill } from "./CategoryBreakdownFill";
 import { FinalScoreTable } from "./FinalScoreTable";
 import { RecordBadgeList } from "./RecordBadgeList";
+import { ScoreCorrection } from "./ScoreCorrection";
 import { TieBreakRecap } from "./TieBreakRecap";
 
 /**
@@ -78,6 +81,8 @@ export function EndScorePanel({
     sheet !== null && game.players.every(p => p.scoreBreakdown === null);
 
   const [showDetail, setShowDetail] = useState(false);
+  const { can } = useMyPermissions();
+  const mayCorrect = can("games.updateDone");
 
   return (
     <div className="flex flex-col gap-5 p-5">
@@ -156,8 +161,14 @@ export function EndScorePanel({
         </div>
       ) : null}
 
-      {canFill ? (
+      {/* Both write to a party already in the books, which the database only
+          lets « Corriger une partie terminée » do: offered to nobody else. */}
+      {mayCorrect && canFill ? (
         <CategoryBreakdownFill game={game} onSaved={onReload} />
+      ) : null}
+
+      {mayCorrect && scoresCorrectable(game.boardgame) ? (
+        <ScoreCorrection game={game} onSaved={onReload} />
       ) : null}
     </div>
   );

@@ -796,6 +796,38 @@ export function createGameRepository(
   const games = () => supabase.from("games");
 
   /**
+   * Writes each player's final total, and the detail behind it (`null` clears
+   * one). The rows are independent — one per player — so they go out together.
+   */
+  async function writeScores(
+    id: GameId,
+    scores: ReadonlyArray<{
+      playerId: PlayerId;
+      score: number;
+      breakdown?: Record<string, number> | null;
+    }>,
+  ): Promise<void> {
+    const results = await Promise.all(
+      scores.map(({ playerId, score, breakdown }) =>
+        supabase
+          .from("game_players")
+          .update({
+            score: Math.round(score),
+            score_breakdown: (breakdown ?? null) as Json,
+          })
+          .eq("game_id", id)
+          .eq("player_id", playerId),
+      ),
+    );
+    const failed = results.find(result => result.error !== null)?.error;
+
+    /* c8 ignore next 3 -- defensive guard: update errors surface via e2e */
+    if (failed) {
+      throw new Error(`Enregistrement des scores: ${failed.message}`);
+    }
+  }
+
+  /**
    * Closes a game, and says how many rows that touched.
    *
    * Counting the points is a table-wide moment and the screen is open on every
@@ -1496,20 +1528,7 @@ export function createGameRepository(
 
       // Persist each player's final score, plus the per-category breakdown for
       // category-scored games (scored games only).
-      for (const { playerId, score, breakdown } of scores ?? []) {
-        const { error: scoreError } = await supabase
-          .from("game_players")
-          .update({
-            score: Math.round(score),
-            score_breakdown: (breakdown ?? null) as Json,
-          })
-          .eq("game_id", id)
-          .eq("player_id", playerId);
-        /* c8 ignore next 3 -- defensive guard: update errors surface via e2e */
-        if (scoreError) {
-          throw new Error(`Enregistrement des scores: ${scoreError.message}`);
-        }
-      }
+      await writeScores(id, scores ?? []);
 
       // Several winners on a shared victory the tie-break rules couldn't split.
       const { error: winnerError } = await supabase
@@ -1523,21 +1542,8 @@ export function createGameRepository(
       }
     },
 
-    async setBreakdown(id: GameId, winnerIds: PlayerId[], scores, tieBreak) {
-      for (const { playerId, score, breakdown } of scores) {
-        const { error } = await supabase
-          .from("game_players")
-          .update({
-            score: Math.round(score),
-            score_breakdown: breakdown as Json,
-          })
-          .eq("game_id", id)
-          .eq("player_id", playerId);
-        /* c8 ignore next 3 -- defensive guard: update errors surface via e2e */
-        if (error) {
-          throw new Error(`Enregistrement du détail: ${error.message}`);
-        }
-      }
+    async rescore(id: GameId, winnerIds: PlayerId[], scores, tieBreak) {
+      await writeScores(id, scores);
 
       // The re-derived totals may change who won → reset every flag, then set.
       const { error: resetError } = await supabase
