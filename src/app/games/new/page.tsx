@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function NewGamePage() {
   return (
-    <main className="mx-auto flex h-dvh w-full max-w-2xl flex-col px-6">
+    <main className="mx-auto flex h-screen-nav w-full max-w-2xl flex-col px-6">
       <header className="flex shrink-0 flex-col gap-1 pt-10 pb-6">
         <Link
           href="/games"

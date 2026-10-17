@@ -35,11 +35,12 @@ test("adds an idea to the feedback box and lists it", async ({ page }) => {
   }
 });
 
-test("the home menu links to Retours and no longer offers the dice tool", async ({
+test("the « Plus » menu links to Retours and no dice tool is offered", async ({
   page,
 }) => {
   await page.goto("/");
+  await page.getByRole("button", { name: "Plus", exact: true }).click();
 
-  await expect(page.getByRole("link", { name: /Retours/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Retours" })).toBeVisible();
   await expect(page.getByText("Lancer de dés")).toHaveCount(0);
 });
