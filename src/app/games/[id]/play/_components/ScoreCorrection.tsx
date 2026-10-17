@@ -3,14 +3,24 @@
 import { useState } from "react";
 
 import { ErrorText } from "@/components/ErrorText";
-import type { PlayerId, PopulatedGame } from "@/lib/domain";
+import type { PlayerId, PopulatedGame, StageScore } from "@/lib/domain";
+import { composeGoals } from "@/lib/game/extensions";
 import { finishedWinners } from "@/lib/game/finished-winner";
 import {
   type CorrectionSeed,
+  changedStages,
   correctedWinners,
   correctionSeed,
+  correctsByStage,
   keptTieBreak,
+  recordedStages,
+  stageDerivedKeys,
+  stageTotals,
+  withStageEntry,
 } from "@/lib/game/score-correction";
+import { mergePrefill, scoreDirectionOf } from "@/lib/game/scoring";
+import { stageGoalLabel, stageGoalPrefill } from "@/lib/game/stage";
+import { stageEntryError, stageStandings } from "@/lib/game/stage-tally";
 import { getGameRepository } from "@/lib/repositories";
 import { toggled } from "@/lib/ui/selection";
 import {
@@ -19,20 +29,26 @@ import {
 } from "../../../_components/finished-entry";
 import { ScoreEntrySection } from "../../../_components/ScoreEntrySection";
 import { WinnerChoice } from "../../../_components/WinnerChoice";
+import { PastStageCardList } from "./PastStageCardList";
+import { StagePointsPrompt } from "./StagePointsPrompt";
+import { StandingCardList } from "./StandingCardList";
+import { goalIntro, pointsIntro } from "./stage-intro";
 
 /**
  * Correcting a finished party's scores, from its final score panel.
  *
  * The entry is the one « Ajouter une partie terminée » uses — the totals, the
  * category grid or the ring of piles — opened on what was recorded rather than
- * on blanks. The winner is read off the corrected sheet; when leaders come out
+ * on blanks. A game that recorded its manches reopens them one by one, with the
+ * prompt the table filled in during play: Odin's total is their sum, Wingspan's
+ * « Objectifs de manche » line too. The winner is read off the corrected sheet; when leaders come out
  * level the table picks among them, with whoever was crowned before still
  * picked if they are still in the lead. Everything that is derived from the
  * scores — records, statistics — follows on its own, and the history keeps the
  * before and after of every line.
  *
  * The caller decides whether this may be offered at all (the permission, and a
- * game whose scores are typed rather than counted as it went).
+ * scored game).
  */
 export function ScoreCorrection({
   game,
@@ -79,8 +95,10 @@ function CorrectionForm({
   onSaved: () => void;
 }>) {
   const scoring = game.boardgame.scoring;
+  const stageSpec = game.boardgame.stages;
   const seats = [...game.players].sort((a, b) => a.seatOrder - b.seatOrder);
   const players = seats.map(s => s.player);
+  const ids = players.map(p => p.id);
 
   const [seed] = useState<CorrectionSeed | null>(() =>
     scoring ? correctionSeed(scoring, seats) : null,
@@ -91,6 +109,10 @@ function CorrectionForm({
   const [totals, setTotals] = useState(seed?.totals ?? {});
   const [catRaw, setCatRaw] = useState(seed?.catRaw ?? {});
   const [piles, setPiles] = useState(seed?.piles ?? {});
+  const [stageScores, setStageScores] = useState<StageScore[]>(
+    game.stageScores,
+  );
+  const [editedStage, setEditedStage] = useState<number | null>(null);
   const [picked, setPicked] = useState<PlayerId[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -99,12 +121,24 @@ function CorrectionForm({
     return null;
   }
 
+  const byStage = correctsByStage(game.boardgame, game.stageScores);
+  const lockedKeys = stageDerivedKeys(scoring, game.stageScores);
+  const sheet = scoring.entry === "categories" ? (scoring.sheet ?? []) : [];
+  const shownRaw =
+    lockedKeys.length === 0
+      ? catRaw
+      : mergePrefill([catRaw, stageGoalPrefill(sheet, ids, stageScores)]);
+  const stageLabel = stageSpec?.label ?? "Manche";
+  const maxPoints = stageSpec?.maxPoints ?? null;
+  const catalogue = composeGoals(game.boardgame.roundGoals, game.extensions);
+  const recorded = recordedStages(stageScores);
+
   const entry = finishedEntry(
     scoring,
     players,
-    entryMode,
-    totals,
-    catRaw,
+    byStage ? "total" : entryMode,
+    byStage ? stageTotals(ids, stageScores) : totals,
+    shownRaw,
     piles,
   );
   const choice = finishedWinners(
@@ -137,7 +171,18 @@ function CorrectionForm({
     const before = Object.fromEntries(seats.map(s => [s.playerId, s.score]));
 
     try {
-      await getGameRepository().rescore(
+      const repository = getGameRepository();
+
+      await Promise.all(
+        changedStages(game.stageScores, stageScores).map(stage =>
+          repository.setStageScores(
+            game.id,
+            stage,
+            stageScores.filter(s => s.stage === stage),
+          ),
+        ),
+      );
+      await repository.rescore(
         game.id,
         winners,
         players.map(p => ({
@@ -170,21 +215,45 @@ function CorrectionForm({
     >
       <h3 className="text-sm font-semibold">Corriger les scores</h3>
 
-      <ScoreEntrySection
-        scoring={scoring}
-        entry={entry}
+      {byStage ? (
+        <StandingCardList
+          standings={stageStandings(
+            ids,
+            stageScores,
+            Number.POSITIVE_INFINITY,
+            scoreDirectionOf(scoring),
+          )}
+          players={players}
+          showPoints={false}
+          target={game.winThreshold}
+        />
+      ) : (
+        <ScoreEntrySection
+          scoring={scoring}
+          entry={entry}
+          players={players}
+          entryMode={entryMode}
+          totals={totals}
+          catRaw={shownRaw}
+          piles={piles}
+          readOnlyKeys={lockedKeys}
+          disabled={busy}
+          onEntryMode={setEntryMode}
+          onTotal={(id, text) => setTotals(t => ({ ...t, [id]: text }))}
+          onCell={(id, key, text) =>
+            setCatRaw(r => ({ ...r, [id]: { ...r[id], [key]: text } }))
+          }
+          onPile={(key, value) => setPiles(p => ({ ...p, [key]: value }))}
+        />
+      )}
+
+      <PastStageCardList
+        closed={recorded}
+        stageLabel={stageLabel}
         players={players}
-        entryMode={entryMode}
-        totals={totals}
-        catRaw={catRaw}
-        piles={piles}
         disabled={busy}
-        onEntryMode={setEntryMode}
-        onTotal={(id, text) => setTotals(t => ({ ...t, [id]: text }))}
-        onCell={(id, key, text) =>
-          setCatRaw(r => ({ ...r, [id]: { ...r[id], [key]: text } }))
-        }
-        onPile={(key, value) => setPiles(p => ({ ...p, [key]: value }))}
+        open
+        onEdit={setEditedStage}
       />
 
       {choice.asked ? (
@@ -216,6 +285,39 @@ function CorrectionForm({
           Annuler
         </button>
       </div>
+
+      {editedStage === null ? null : (
+        <StagePointsPrompt
+          stage={editedStage}
+          stageLabel={stageLabel}
+          intro={
+            byStage
+              ? pointsIntro(maxPoints)
+              : goalIntro(
+                  stageGoalLabel(
+                    game.stages.find(st => st.stage === editedStage),
+                    catalogue,
+                  ),
+                )
+          }
+          players={players}
+          initial={recorded.find(st => st.stage === editedStage)?.points ?? {}}
+          validate={
+            byStage ? entries => stageEntryError(entries, maxPoints) : undefined
+          }
+          max={byStage ? maxPoints : null}
+          disabled={busy}
+          confirmLabel="Valider"
+          onConfirm={points => {
+            setStageScores(scores =>
+              withStageEntry(scores, editedStage, points),
+            );
+            setPicked(null);
+            setEditedStage(null);
+          }}
+          onCancel={() => setEditedStage(null)}
+        />
+      )}
     </section>
   );
 }

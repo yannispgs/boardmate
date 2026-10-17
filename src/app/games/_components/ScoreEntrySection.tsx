@@ -27,6 +27,7 @@ export function ScoreEntrySection({
   totals,
   catRaw,
   piles,
+  readOnlyKeys,
   disabled,
   onEntryMode,
   onTotal,
@@ -40,6 +41,8 @@ export function ScoreEntrySection({
   totals: Record<string, string>;
   catRaw: CategoryRaw;
   piles: Record<string, number>;
+  /** Sheet lines shown but not typed — summed from somewhere else. */
+  readOnlyKeys?: readonly string[];
   disabled: boolean;
   onEntryMode: (mode: EntryMode) => void;
   onTotal: (id: PlayerId, text: string) => void;
@@ -80,6 +83,7 @@ export function ScoreEntrySection({
         totals={totals}
         catRaw={catRaw}
         piles={piles}
+        readOnlyKeys={readOnlyKeys}
         allowNegative={scoring.allowNegative ?? false}
         disabled={disabled}
         onTotal={onTotal}
@@ -97,6 +101,7 @@ function ScoreFields({
   totals,
   catRaw,
   piles,
+  readOnlyKeys,
   allowNegative,
   disabled,
   onTotal,
@@ -108,6 +113,7 @@ function ScoreFields({
   totals: Record<string, string>;
   catRaw: CategoryRaw;
   piles: Record<string, number>;
+  readOnlyKeys?: readonly string[];
   allowNegative: boolean;
   disabled: boolean;
   onTotal: (id: PlayerId, text: string) => void;
@@ -123,6 +129,7 @@ function ScoreFields({
           players={named}
           sheet={entry.sheet}
           raw={catRaw}
+          readOnlyKeys={readOnlyKeys}
           disabled={disabled}
           onCell={onCell}
         />

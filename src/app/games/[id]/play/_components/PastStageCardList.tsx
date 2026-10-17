@@ -16,6 +16,7 @@ export function PastStageCardList({
   stageLabel,
   players,
   disabled,
+  open = false,
   onEdit,
 }: Readonly<{
   closed: ClosedStage[];
@@ -23,6 +24,8 @@ export function PastStageCardList({
   stageLabel: string;
   players: Array<{ id: PlayerId; name: string }>;
   disabled: boolean;
+  /** Unfolded from the start, where correcting a manche is the whole point. */
+  open?: boolean;
   onEdit: (stage: number) => void;
 }>) {
   if (closed.length === 0) {
@@ -30,7 +33,7 @@ export function PastStageCardList({
   }
 
   return (
-    <details className="group flex flex-col gap-2">
+    <details open={open} className="group flex flex-col gap-2">
       <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-zinc-400">
         <ChevronRightIcon className="h-3.5 w-3.5 transition-transform group-open:rotate-90" />
         Corriger une {stageLabel.toLowerCase()}
