@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.8.0](https://github.com/yannispgs/boardmate/compare/v1.7.0...v1.8.0) (2026-10-17)
+
+
+### Features
+
+* choose each phase's clock from the game's settings ([78cee68](https://github.com/yannispgs/boardmate/commit/78cee682eff8ae89c7f9cb9a2ba8d157e09d1d3f))
+* choose each phase's clock from the game's settings ([b87a756](https://github.com/yannispgs/boardmate/commit/b87a7565a35e3a09a351a1efd9f287dfc7b5eeca))
+* correct the scores of a finished party ([60fce13](https://github.com/yannispgs/boardmate/commit/60fce1300206e514d0a1a657f8798bb728507ac6))
+* correct the scores of a finished party ([87174b1](https://github.com/yannispgs/boardmate/commit/87174b18d8ffceda9470cc4ce64af765a891818d))
+
+
+### Bug Fixes
+
+* count overtime only against a countdown the table could see ([dd7307a](https://github.com/yannispgs/boardmate/commit/dd7307ae2dbb44d89a06964269ca240758c6ebb7))
+* keep the party panel in place when the players' recap arrives ([cd1f88c](https://github.com/yannispgs/boardmate/commit/cd1f88ca238ce5343192c08cdb109fc8281652ac))
+* keep the party panel in place when the players' recap arrives ([be446a3](https://github.com/yannispgs/boardmate/commit/be446a3dafab450e140c9777fef31abf91a19bff))
+* stop resetting the new-game recap over what the table typed ([c6aa791](https://github.com/yannispgs/boardmate/commit/c6aa7916688967d05e7ba72c412fff7fd9bb3368))
+
 ## [1.7.0](https://github.com/yannispgs/boardmate/compare/v1.6.1...v1.7.0) (2026-09-28)
 
 
