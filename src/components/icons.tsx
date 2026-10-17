@@ -236,3 +236,126 @@ export function HistoryIcon(props: IconProps) {
     </Icon>
   );
 }
+
+export function HomeIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M3 11 12 4l9 7" />
+      <path d="M5 10v10h14V10" />
+    </Icon>
+  );
+}
+
+export function CardsIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="3" y="6" width="12" height="15" rx="2" />
+      <path d="M8 3h11a2 2 0 0 1 2 2v13" />
+    </Icon>
+  );
+}
+
+export function DiceIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="3.5" y="3.5" width="17" height="17" rx="3" />
+      <path d="M8.5 8.5h.01" />
+      <path d="M12 12h.01" />
+      <path d="M15.5 15.5h.01" />
+    </Icon>
+  );
+}
+
+export function ChartIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 20V10" />
+      <path d="M10 20V4" />
+      <path d="M16 20v-7" />
+      <path d="M22 20H2" />
+    </Icon>
+  );
+}
+
+export function MoreIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M5 12h.01" />
+      <path d="M12 12h.01" />
+      <path d="M19 12h.01" />
+    </Icon>
+  );
+}
+
+export function UsersIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5" />
+      <path d="M16 4.8a3.5 3.5 0 0 1 0 6.4" />
+      <path d="M18.5 14.8c1.6.8 2.6 2.6 3 5.2" />
+    </Icon>
+  );
+}
+
+export function WheelIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 3v18" />
+      <path d="M3 12h18" />
+      <path d="m5.6 5.6 12.8 12.8" />
+      <path d="M18.4 5.6 5.6 18.4" />
+    </Icon>
+  );
+}
+
+export function HexIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 2.5 20.5 7.5v9L12 21.5 3.5 16.5v-9z" />
+      <path d="M12 8.5 15.5 10.5v4L12 16.5 8.5 14.5v-4z" />
+    </Icon>
+  );
+}
+
+export function MessageIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 5h16v11H9l-5 4z" />
+    </Icon>
+  );
+}
+
+export function ShieldIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 3 4.5 6v6c0 4.5 3.2 7.8 7.5 9 4.3-1.2 7.5-4.5 7.5-9V6z" />
+    </Icon>
+  );
+}
+
+export function PlusIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
+    </Icon>
+  );
+}
+
+export function CheckIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 12.5 9.5 18 20 6" />
+    </Icon>
+  );
+}
+
+export function PlayIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M8 5v14l11-7z" fill="currentColor" />
+    </Icon>
+  );
+}

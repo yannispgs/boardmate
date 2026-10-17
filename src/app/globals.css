@@ -15,6 +15,25 @@
 }
 
 /*
+ * The tab bar's height, 0 wherever it is not shown (signed out, a game being
+ * played). The page keeps that much room at its foot, screens sized to the
+ * viewport subtract it, and sticky footers rest on top of the bar rather than
+ * under it.
+ */
+:root {
+  --nav-h: 0px;
+}
+
+body:has([data-bottom-nav]) {
+  --nav-h: calc(3.5rem + 1px + env(safe-area-inset-bottom));
+  padding-bottom: var(--nav-h);
+}
+
+@utility h-screen-nav {
+  height: calc(100dvh - var(--nav-h));
+}
+
+/*
  * Numeric field with no native up/down spin buttons — a plain box you type into
  * (the little steppers are useless on touch and cramp our score cells).
  */

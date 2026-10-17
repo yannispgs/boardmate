@@ -21,7 +21,7 @@ export default async function AdminPage({
   const { onglet } = await searchParams;
 
   return (
-    <main className="mx-auto flex h-dvh w-full max-w-2xl flex-col px-6">
+    <main className="mx-auto flex h-screen-nav w-full max-w-2xl flex-col px-6">
       <ScreenHeader
         title="Administration"
         description="Les permissions que l'application sait faire respecter, et les rôles qui les distribuent."
