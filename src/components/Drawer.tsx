@@ -10,13 +10,27 @@ import { registerOverlay } from "@/lib/ui/overlay-registry";
  * than a decoration: **right is what every game has** (the score, the live
  * stats, the FAQ), **left is what only the game on the table has** (Terraforming
  * Mars' milestones). Three buttons had already stacked up on the right edge
- * before the rule was written down.
+ * before the rule was written down. **Bottom** is the sheet a tab bar opens,
+ * right above the thumb that opened it.
  */
-export type DrawerSide = "left" | "right";
+export type DrawerSide = "left" | "right" | "bottom";
 
 const SIDE = {
-  right: { edge: "right-0", away: "translate-x-full" },
-  left: { edge: "left-0", away: "-translate-x-full" },
+  right: {
+    panel: "top-0 right-0 h-full max-w-sm",
+    shown: "translate-x-0",
+    away: "translate-x-full",
+  },
+  left: {
+    panel: "top-0 left-0 h-full max-w-sm",
+    shown: "translate-x-0",
+    away: "-translate-x-full",
+  },
+  bottom: {
+    panel: "inset-x-0 bottom-0 max-h-[85dvh] rounded-t-2xl",
+    shown: "translate-y-0",
+    away: "translate-y-full",
+  },
 } as const;
 
 /**
@@ -103,9 +117,9 @@ export function Drawer({
         role="dialog"
         aria-modal="true"
         aria-label={label}
-        className={`absolute top-0 flex h-full w-full max-w-sm flex-col overflow-y-auto bg-white shadow-xl transition-transform duration-300 dark:bg-zinc-900 ${
-          SIDE[side].edge
-        } ${open ? "translate-x-0" : SIDE[side].away}`}
+        className={`absolute flex w-full flex-col overflow-y-auto bg-white shadow-xl transition-transform duration-300 dark:bg-zinc-900 ${
+          SIDE[side].panel
+        } ${open ? SIDE[side].shown : SIDE[side].away}`}
       >
         {children}
       </div>

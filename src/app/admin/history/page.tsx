@@ -13,7 +13,7 @@ export default async function AdminHistoryPage() {
   const mayRead = permissions.includes("audit.read");
 
   return (
-    <main className="mx-auto flex h-dvh w-full max-w-2xl flex-col px-6">
+    <main className="mx-auto flex h-screen-nav w-full max-w-2xl flex-col px-6">
       <ScreenHeader
         title="Historique"
         description="Qui a modifié quoi, quand, et ce que la ligne disait avant."

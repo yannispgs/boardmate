@@ -51,11 +51,16 @@ test("narrows the application to a role, then hands the rights back", async ({
     await expect(banner).toBeVisible();
     await expect(page.getByText(label)).toBeVisible();
 
-    // Home is where the narrowing first shows: the tile leading back to the
-    // administration screen is gone.
+    // The menu is where the narrowing first shows: the entry leading back to
+    // the administration screen is gone, the others are still there.
+    await page.getByRole("button", { name: "Plus", exact: true }).click();
+
+    await expect(page.getByRole("link", { name: "Joueurs" })).toBeVisible();
     await expect(
       page.getByRole("link", { name: "Administration" }),
     ).toHaveCount(0);
+
+    await page.keyboard.press("Escape");
 
     // The narrowing is the database's, not the redirection's, so the screen
     // that started it is narrowed even when walked back to by hand: the two

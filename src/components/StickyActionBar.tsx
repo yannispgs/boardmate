@@ -6,13 +6,13 @@ import type { ReactNode } from "react";
  * list scrolls on its own, and sticks to the bottom of the viewport on a screen
  * that scrolls as a whole document. The negative horizontal margin cancels the
  * page's `px-6` so the bar's background and top border run edge to edge of the
- * content column.
+ * content column. It rests on the tab bar when there is one (`--nav-h`).
  */
 export function StickyActionBar({
   children,
 }: Readonly<{ children: ReactNode }>) {
   return (
-    <div className="sticky bottom-0 z-10 -mx-6 flex flex-col gap-2 border-t border-black/10 bg-[var(--background)] px-6 pt-3 pb-6 dark:border-white/10">
+    <div className="sticky bottom-[var(--nav-h)] z-10 -mx-6 flex flex-col gap-2 border-t border-black/10 bg-[var(--background)] px-6 pt-3 pb-6 dark:border-white/10">
       {children}
     </div>
   );
