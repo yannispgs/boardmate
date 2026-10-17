@@ -13,6 +13,8 @@ import type {
   DraftDirection,
   FieldSpec,
   NextPhase,
+  PhaseClock,
+  PhaseMode,
   PhaseSpec,
 } from "@/lib/domain";
 import { resolveFlag } from "./config-value";
@@ -169,4 +171,46 @@ export function turnTimerApplies(phase: PhaseSpec | null): boolean {
  */
 export function needsPhaseButton(phase: PhaseSpec | null): boolean {
   return phase !== null && phase.mode === "simultaneous";
+}
+
+/** How each clock is named where a table picks one. */
+export const PHASE_CLOCK_LABELS: Readonly<Record<PhaseClock, string>> = {
+  turnTimer: "Minuteur par joueur",
+  stopwatch: "Chronomètre de table",
+  none: "Aucune",
+};
+
+/**
+ * The clocks a phase can be given, by how it is played. A per-player countdown
+ * needs somebody whose turn it is, and a phase everybody plays at once has
+ * nobody: offering it there would start a timer no turn could ever stop.
+ */
+export function clocksFor(mode: PhaseMode): PhaseClock[] {
+  return mode === "simultaneous"
+    ? ["stopwatch", "none"]
+    : ["turnTimer", "stopwatch", "none"];
+}
+
+/**
+ * The phases with the clocks a table picked, and nothing else changed.
+ *
+ * Only the clock is a preference: the name, the mode and the draft come from the
+ * rulebook and are written by migration. So the new clocks are laid over the
+ * phases **by key** — never rebuilt from what an editor shows, which would drop
+ * whatever it does not show (Terraforming Mars' draft block, for one). A clock
+ * the phase's mode cannot run, or a key no phase has, is ignored.
+ */
+export function withPhaseClocks(
+  phases: readonly PhaseSpec[],
+  clocks: Readonly<Record<string, PhaseClock>>,
+): PhaseSpec[] {
+  return phases.map(phase => {
+    const clock = clocks[phase.key];
+
+    if (clock === undefined || !clocksFor(phase.mode).includes(clock)) {
+      return phase;
+    }
+
+    return { ...phase, clock };
+  });
 }

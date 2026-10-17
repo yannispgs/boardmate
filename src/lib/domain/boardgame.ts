@@ -459,6 +459,12 @@ export interface NewBoardgame {
   turnCountVaries?: boolean;
   /** The generator that draws this game's board, or `null` for none. */
   boardGenerator?: BoardGeneratorId | null;
+  /**
+   * The phases of a stage. Only ever written to change their clocks — the rest
+   * is the rulebook's, laid down by migration; build it with `withPhaseClocks`
+   * so nothing the editor does not show is lost.
+   */
+  phases?: PhaseSpec[] | null;
 }
 
 export type BoardgameUpdate = Partial<NewBoardgame>;

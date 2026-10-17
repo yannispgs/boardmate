@@ -90,6 +90,7 @@ function toRow(input: NewBoardgame | BoardgameUpdate): BoardgameWrite {
     track_seat_stats: input.trackSeatStats,
     turn_count_varies: input.turnCountVaries,
     board_generator: input.boardGenerator,
+    phases: input.phases as unknown as Json,
   });
 }
 

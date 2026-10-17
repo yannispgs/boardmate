@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { BoardgameId } from "@/lib/domain";
+import { withPhaseClocks } from "@/lib/game/phase";
 import { BoardgameInUseError } from "@/lib/repositories/errors";
 import { createBoardgameRepository } from "@/lib/supabase/repositories/boardgames";
 import {
@@ -189,6 +190,48 @@ describe("boardgames adapter — row ↔ domain mapping & CRUD", () => {
 
     expect(untimed.timed).toBe(false);
     expect((await repo().get(created.id))?.timed).toBe(false);
+  });
+
+  it("changes a phase's clock and keeps the rulebook's draft block", async () => {
+    const created = await repo().create({ name: uniq("Phased") });
+    createdIds.push(created.id);
+
+    // Laid down the way a migration does it — the app never writes phases
+    // from scratch, only their clocks.
+    await serviceClient()
+      .from("boardgames")
+      .update({
+        phases: [
+          {
+            key: "research",
+            label: "Découverte",
+            mode: "simultaneous",
+            clock: "stopwatch",
+            draft: { configKey: "draft", oddStage: "right" },
+          },
+          {
+            key: "action",
+            label: "Projets",
+            mode: "sequential",
+            clock: "turnTimer",
+          },
+        ],
+      })
+      .eq("id", created.id);
+
+    const phased = await repo().get(created.id);
+    const updated = await repo().update(created.id, {
+      phases: withPhaseClocks(phased?.phases ?? [], {
+        research: "none",
+        action: "stopwatch",
+      }),
+    });
+
+    expect(updated.phases?.map(p => p.clock)).toEqual(["none", "stopwatch"]);
+    expect(updated.phases?.[0].draft).toEqual({
+      configKey: "draft",
+      oddStage: "right",
+    });
   });
 
   it("round-trips the tie-break rules the editor writes", async () => {

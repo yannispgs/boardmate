@@ -4,14 +4,17 @@ import type { FieldSpec, PhaseSpec } from "@/lib/domain";
 import {
   advancePhase,
   clampIndex,
+  clocksFor,
   currentPhase,
   DRAFT_LABEL,
   draftDirection,
   draftingOn,
   needsPhaseButton,
   nextPhase,
+  PHASE_CLOCK_LABELS,
   playedDraft,
   turnTimerApplies,
+  withPhaseClocks,
 } from "./phase";
 
 /** Terraforming Mars' generation, as the migration seeds it. */
@@ -203,5 +206,59 @@ describe("needsPhaseButton", () => {
   it("leaves a sequential phase to advance on its turns", () => {
     expect(needsPhaseButton(TM[1])).toBe(false);
     expect(needsPhaseButton(null)).toBe(false);
+  });
+});
+
+describe("clocksFor", () => {
+  it("offers every clock to a phase played turn by turn", () => {
+    expect(clocksFor("sequential")).toEqual(["turnTimer", "stopwatch", "none"]);
+  });
+
+  it("keeps the per-player countdown off a phase everybody plays at once", () => {
+    expect(clocksFor("simultaneous")).toEqual(["stopwatch", "none"]);
+  });
+});
+
+describe("PHASE_CLOCK_LABELS", () => {
+  it("names each clock", () => {
+    expect(PHASE_CLOCK_LABELS.turnTimer).toBe("Minuteur par joueur");
+    expect(PHASE_CLOCK_LABELS.stopwatch).toBe("Chronomètre de table");
+    expect(PHASE_CLOCK_LABELS.none).toBe("Aucune");
+  });
+});
+
+describe("withPhaseClocks", () => {
+  const phases: PhaseSpec[] = [
+    {
+      key: "research",
+      label: "Découverte",
+      mode: "simultaneous",
+      clock: "stopwatch",
+      draft: { configKey: "draft", oddStage: "right" },
+    },
+    { key: "action", label: "Projets", mode: "sequential", clock: "turnTimer" },
+  ];
+
+  it("changes the clock and keeps everything the editor does not show", () => {
+    const next = withPhaseClocks(phases, { research: "none" });
+
+    expect(next[0]).toEqual({ ...phases[0], clock: "none" });
+    expect(next[0].draft).toEqual({ configKey: "draft", oddStage: "right" });
+    expect(next[1]).toBe(phases[1]);
+  });
+
+  it("ignores a clock the phase cannot run, and a key no phase has", () => {
+    const next = withPhaseClocks(phases, {
+      research: "turnTimer",
+      nowhere: "none",
+    });
+
+    expect(next).toEqual(phases);
+  });
+
+  it("lets a turn-by-turn phase trade its countdown for a stopwatch", () => {
+    expect(withPhaseClocks(phases, { action: "stopwatch" })[1].clock).toBe(
+      "stopwatch",
+    );
   });
 });
