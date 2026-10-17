@@ -17,6 +17,7 @@ import { PastStageCardList } from "./PastStageCardList";
 import { StagePointsPrompt } from "./StagePointsPrompt";
 import { StageRecap } from "./StageRecap";
 import { StandingCardList } from "./StandingCardList";
+import { pointsIntro } from "./stage-intro";
 import type { StageGoalLog } from "./use-stage-goals";
 
 /**
@@ -156,15 +157,6 @@ export function StageBoard({
       )}
     </>
   );
-}
-
-/** The rule the boxes are filled in by, capped when the rules cap it. */
-function pointsIntro(maxPoints: number | null): string {
-  const rule = "Points de chacun : 0 pour celui qui termine, au moins 1 pour";
-
-  return maxPoints === null
-    ? `${rule} les autres.`
-    : `${rule} les autres, ${maxPoints} au plus.`;
 }
 
 /** What the table is playing to, spelled out above the standings. */

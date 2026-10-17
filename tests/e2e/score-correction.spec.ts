@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-
+import { stagePoints } from "./utils/stage-prompt";
 import {
   adminClient,
   dropSeeded,
@@ -15,7 +15,8 @@ import {
  *
  * The entry is the one « Ajouter une partie terminée » uses, opened on what was
  * recorded. The crown follows the corrected sheet; when leaders come out level
- * the table picks among them, whoever was crowned before still picked.
+ * the table picks among them, whoever was crowned before still picked. A game
+ * counted manche by manche is corrected one manche at a time, its totals summed.
  */
 
 async function openCorrection(page: Page, gameId: string) {
@@ -163,6 +164,185 @@ test("reopens a ring of piles as it was counted", async ({ page }) => {
     await expect(
       form.getByRole("button", { name: "Enregistrer la correction" }),
     ).toBeEnabled();
+  } finally {
+    await dropSeeded(admin, {
+      games,
+      boardgames: [bgId],
+      playerNames: players,
+    });
+  }
+});
+
+test("corrects a manche of a game counted manche by manche", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const players = await seedPlayers(2);
+  const [first, second] = players;
+  const games: string[] = [];
+  let bgId: string | null = null;
+
+  try {
+    bgId = await seedBoardgame(admin, {
+      name: `E2E Manches ${Date.now().toString(36)}`,
+      minPlayers: 2,
+      isTimed: false,
+      stages: { label: "Manche", advance: "manual", maxPoints: 9 },
+      scoring: {
+        timing: "final",
+        entry: "total",
+        winCondition: { type: "lowest" },
+      },
+    });
+
+    const idOf = await playerIds(players);
+    // Manche 1: 0 / 4, manche 2: 6 / 0 → 6 / 4, the second seat wins.
+    const party = await seedParty(
+      admin,
+      bgId,
+      [
+        { playerId: idOf(first), score: 6, isWinner: false },
+        { playerId: idOf(second), score: 4, isWinner: true },
+      ],
+      { stage: 2 },
+    );
+
+    games.push(party);
+
+    await admin.from("game_stage_scores").insert([
+      { game_id: party, stage: 1, player_id: idOf(first), points: 0 },
+      { game_id: party, stage: 1, player_id: idOf(second), points: 4 },
+      { game_id: party, stage: 2, player_id: idOf(first), points: 6 },
+      { game_id: party, stage: 2, player_id: idOf(second), points: 0 },
+    ]);
+
+    const form = await openCorrection(page, party);
+
+    // The first seat really kept 2 in manche 2, not 6: 2 / 4, the crown moves.
+    await form.getByRole("button", { name: /^Manche 2/ }).click();
+
+    const prompt = page.getByRole("dialog", { name: "Points de la manche 2" });
+
+    await stagePoints(prompt, first).fill("2");
+    await prompt.getByRole("button", { name: "Valider" }).click();
+
+    await form
+      .getByRole("button", { name: "Enregistrer la correction" })
+      .click();
+
+    await expect(page.getByTestId("score-correction")).toHaveCount(0);
+    await expect.poll(() => winnersOf(party)).toEqual([idOf(first)]);
+
+    const { data: manche } = await admin
+      .from("game_stage_scores")
+      .select("points")
+      .eq("game_id", party)
+      .eq("stage", 2)
+      .eq("player_id", idOf(first))
+      .single();
+    const { data: scores } = await admin
+      .from("game_players")
+      .select("player_id, score")
+      .eq("game_id", party);
+
+    expect(manche?.points).toBe(2);
+    expect(
+      Object.fromEntries((scores ?? []).map(s => [s.player_id, s.score])),
+    ).toEqual({ [idOf(first)]: 2, [idOf(second)]: 4 });
+  } finally {
+    await dropSeeded(admin, {
+      games,
+      boardgames: [bgId],
+      playerNames: players,
+    });
+  }
+});
+
+test("sums a reopened manche into the goals line of the sheet", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const players = await seedPlayers(2);
+  const [first, second] = players;
+  const games: string[] = [];
+  let bgId: string | null = null;
+
+  try {
+    bgId = await seedBoardgame(admin, {
+      name: `E2E Objectifs ${Date.now().toString(36)}`,
+      minPlayers: 2,
+      stages: { label: "Manche", advance: "schedule", schedule: [2, 2] },
+      scoring: {
+        timing: "final",
+        entry: "categories",
+        winCondition: { type: "highest" },
+        sheet: [
+          { key: "oiseaux", label: "Oiseaux" },
+          {
+            key: "manches",
+            label: "Objectifs de manche",
+            derived: "stageGoals",
+          },
+        ],
+      },
+    });
+
+    const idOf = await playerIds(players);
+    // Birds 10 / 12, goals 5 + 3 / 2 + 2 → 18 / 16.
+    const party = await seedParty(admin, bgId, [
+      {
+        playerId: idOf(first),
+        score: 18,
+        isWinner: true,
+        breakdown: { oiseaux: 10, manches: 8 },
+      },
+      {
+        playerId: idOf(second),
+        score: 16,
+        breakdown: { oiseaux: 12, manches: 4 },
+      },
+    ]);
+
+    games.push(party);
+
+    await admin.from("game_stage_scores").insert([
+      { game_id: party, stage: 1, player_id: idOf(first), points: 5 },
+      { game_id: party, stage: 1, player_id: idOf(second), points: 2 },
+      { game_id: party, stage: 2, player_id: idOf(first), points: 3 },
+      { game_id: party, stage: 2, player_id: idOf(second), points: 2 },
+    ]);
+
+    const form = await openCorrection(page, party);
+
+    // The first seat took 1 on manche 1, not 5: goals 4, total 14 — the crown
+    // goes to the second seat's 16.
+    await form.getByRole("button", { name: /^Manche 1/ }).click();
+
+    const prompt = page.getByRole("dialog", { name: "Points de la manche 1" });
+
+    await stagePoints(prompt, first).fill("1");
+    await prompt.getByRole("button", { name: "Valider" }).click();
+
+    await expect(form.getByText("14 pts")).toBeVisible();
+
+    await form
+      .getByRole("button", { name: "Enregistrer la correction" })
+      .click();
+
+    await expect(page.getByTestId("score-correction")).toHaveCount(0);
+    await expect.poll(() => winnersOf(party)).toEqual([idOf(second)]);
+
+    const { data: seat } = await admin
+      .from("game_players")
+      .select("score, score_breakdown")
+      .eq("game_id", party)
+      .eq("player_id", idOf(first))
+      .single();
+
+    expect(seat).toEqual({
+      score: 14,
+      score_breakdown: { oiseaux: 10, manches: 4 },
+    });
   } finally {
     await dropSeeded(admin, {
       games,
