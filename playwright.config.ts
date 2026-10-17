@@ -34,7 +34,10 @@ export default defineConfig({
 
   use: {
     baseURL,
-    trace: "on-first-retry",
+    // CI retries once and traces that retry. Locally there is no retry, so a
+    // failure that does not come back when re-run alone — the rare ones — would
+    // leave nothing to read: keep the trace of every failed test instead.
+    trace: process.env.CI ? "on-first-retry" : "retain-on-failure",
     actionTimeout: 15_000,
     navigationTimeout: 30_000,
     // The suite plays under reduced motion, for two reasons and neither of them
