@@ -1,6 +1,5 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
-import { stagePoints } from "./utils/stage-prompt";
 import {
   adminClient,
   dropSeeded,
@@ -51,12 +50,16 @@ async function openForm(page: Page, game: string, players: string[]) {
   }
 }
 
+/** A player's points in one manche of the grid. */
+function points(page: Page, name: string, manche: number): Locator {
+  return page.getByRole("textbox", { name: `${name} — manche ${manche}` });
+}
+
 /** The box a player ticks in one manche once he laid his phase down. */
-function phaseBox(manche: Locator, name: string): Locator {
-  return manche
-    .getByRole("listitem")
-    .filter({ hasText: name })
-    .getByRole("button", { name: /réalisée/ });
+function phaseBox(page: Page, name: string, manche: number): Locator {
+  return page.getByRole("checkbox", {
+    name: new RegExp(`réalisée — ${name}, manche ${manche}$`),
+  });
 }
 
 async function recorded(players: string[]) {
@@ -86,20 +89,23 @@ test("reads the winner off the manches typed in, phases and all", async ({
     await page.getByRole("button", { name: "+ Ajouter une manche" }).click();
     await page.getByRole("button", { name: "+ Ajouter une manche" }).click();
 
-    const manches = page.getByTestId("ladder-manche");
-    const one = manches.nth(0);
-    const two = manches.nth(1);
+    // One grid: a row per manche, a column per player.
+    await expect(page.getByTestId("ladder-grid").getByRole("row")).toHaveCount(
+      3,
+    );
 
     // Manche 1: the first goes out on his phase 1, the second keeps 20.
-    await stagePoints(one, second).fill("20");
-    await phaseBox(one, first).click();
+    await points(page, second, 1).fill("20");
+    await phaseBox(page, first, 1).check();
 
     // Manche 2: the first is now on his phase 2, and clears it with 45 left
     // in hand; the second goes out on his phase 1.
-    await expect(phaseBox(two, first)).toContainText("Phase 2 réalisée");
-    await stagePoints(two, first).fill("45");
-    await phaseBox(two, first).click();
-    await phaseBox(two, second).click();
+    await expect(phaseBox(page, first, 2)).toHaveAccessibleName(
+      `P2 réalisée — ${first}, manche 2`,
+    );
+    await points(page, first, 2).fill("45");
+    await phaseBox(page, first, 2).check();
+    await phaseBox(page, second, 2).check();
 
     // The climb decides: the first cleared the last phase, nothing is asked.
     await expect(page.getByText("Qui a gagné ?")).toHaveCount(0);

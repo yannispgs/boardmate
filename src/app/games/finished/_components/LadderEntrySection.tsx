@@ -4,7 +4,7 @@ import type { LadderManche, LadderMode } from "@/lib/game/ladder-finished";
 import { EntryModeToggle } from "../../_components/EntryModeToggle";
 import { finishedEntry } from "../../_components/finished-entry";
 import { ScoreEntrySection } from "../../_components/ScoreEntrySection";
-import { LadderMancheCardList } from "./LadderMancheCardList";
+import { LadderMancheGrid } from "./LadderMancheGrid";
 
 /**
  * How a Phase 10 night is written down afterwards: the final totals alone —
@@ -14,7 +14,6 @@ import { LadderMancheCardList } from "./LadderMancheCardList";
 export function LadderEntrySection({
   scoring,
   ladder,
-  step,
   players,
   mode,
   totals,
@@ -30,7 +29,6 @@ export function LadderEntrySection({
 }: Readonly<{
   scoring: ScoringSpec;
   ladder: StageLadder;
-  step: number;
   players: Player[];
   mode: LadderMode;
   totals: Record<string, string>;
@@ -78,12 +76,11 @@ export function LadderEntrySection({
         />
       ) : (
         <>
-          <LadderMancheCardList
+          <LadderMancheGrid
             manches={manches}
             keys={mancheKeys}
             players={players}
             ladder={ladder}
-            step={step}
             disabled={disabled}
             onChange={onManche}
             onRemove={onRemoveManche}
