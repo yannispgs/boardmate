@@ -108,9 +108,9 @@ test("reads the winner off the manches typed in, phases and all", async ({
   try {
     await openForm(page, game.name, players);
 
+    // The grid opens on as many manches as there are phases — a game played
+    // to its end lasts at least that long.
     await page.getByText("Manche par manche").click();
-    await page.getByRole("button", { name: "+ Ajouter une manche" }).click();
-    await page.getByRole("button", { name: "+ Ajouter une manche" }).click();
 
     // One grid: a row per manche, a column per player.
     await expect(page.getByTestId("ladder-grid").getByRole("row")).toHaveCount(

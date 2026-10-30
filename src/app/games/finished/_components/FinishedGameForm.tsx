@@ -209,6 +209,19 @@ export function FinishedGameForm() {
     setCatRaw(raw => mergeCells(raw, cells));
   }
 
+  /** Adds `count` empty manches at the end of the grid. */
+  function addManches(count: number) {
+    setWinnerIds(null);
+    setManches(list => [
+      ...list,
+      ...Array.from({ length: count }, (_unused, i) => ({
+        key: nextKey + i,
+        manche: blankManche(selected.map(p => p.id)),
+      })),
+    ]);
+    setNextKey(k => k + count);
+  }
+
   const canSubmit =
     boardgame !== null &&
     selected.length >= 2 &&
@@ -318,6 +331,13 @@ export function FinishedGameForm() {
                 onMode={mode => {
                   setWinnerIds(null);
                   setLadderMode(mode);
+
+                  // A rung a manche at most: a game played to its end lasts at
+                  // least as many manches as the ladder has rungs, so the grid
+                  // opens on that many rather than on nothing.
+                  if (mode === "detail" && manches.length === 0) {
+                    addManches(ladder.steps.length);
+                  }
                 }}
                 onTotal={(id, text) => {
                   setWinnerIds(null);
@@ -336,17 +356,7 @@ export function FinishedGameForm() {
                     ),
                   );
                 }}
-                onAddManche={() => {
-                  setWinnerIds(null);
-                  setManches(list => [
-                    ...list,
-                    {
-                      key: nextKey,
-                      manche: blankManche(selected.map(p => p.id)),
-                    },
-                  ]);
-                  setNextKey(k => k + 1);
-                }}
+                onAddManche={() => addManches(1)}
                 onRemoveManche={index => {
                   setWinnerIds(null);
                   setManches(list => list.filter((_m, i) => i !== index));
