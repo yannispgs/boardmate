@@ -93,7 +93,7 @@ values (
         "1 suite de 9",
         "2 quadruplés",
         "7 cartes d''une même couleur",
-        "1 quintuplé + 1 doublé",
+        "1 quintuplé + 1 paire",
         "1 quintuplé + 1 triplé"
       ]
     }
@@ -133,7 +133,7 @@ from public.boardgames b
 cross join (values
   (
     'Quelles sont les 10 phases ?',
-    E'1. 2 triplés\n2. 1 triplé + 1 suite de 4\n3. 1 quadruplé + 1 suite de 4\n4. 1 suite de 7\n5. 1 suite de 8\n6. 1 suite de 9\n7. 2 quadruplés\n8. 7 cartes d''une même couleur\n9. 1 quintuplé + 1 doublé\n10. 1 quintuplé + 1 triplé\n\nUn triplé, un quadruplé… sont des cartes de même valeur, de couleurs quelconques ; une suite, des valeurs qui se suivent. Les phases se font dans l''ordre, une seule par manche.',
+    E'1. 2 triplés\n2. 1 triplé + 1 suite de 4\n3. 1 quadruplé + 1 suite de 4\n4. 1 suite de 7\n5. 1 suite de 8\n6. 1 suite de 9\n7. 2 quadruplés\n8. 7 cartes d''une même couleur\n9. 1 quintuplé + 1 paire\n10. 1 quintuplé + 1 triplé\n\nUne paire, un triplé, un quadruplé… sont des cartes de même valeur, de couleurs quelconques ; une suite, des valeurs qui se suivent. Les phases se font dans l''ordre, une seule par manche.',
     1
   ),
   (

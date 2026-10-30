@@ -1,5 +1,6 @@
 import { expect, type Locator, test } from "@playwright/test";
 
+import { correctTime, pausedBadge } from "./utils/play-screen";
 import { stagePoints } from "./utils/stage-prompt";
 import {
   adminClient,
@@ -86,6 +87,18 @@ test("climbs the phases, counts the laps and settles the top on points", async (
       ),
     ).toBeVisible();
 
+    // The manche runs a table stopwatch, corrected like the turn timer when
+    // somebody forgot it: held still, then set to 5:00 and nudged to 5:30.
+    await page.getByRole("button", { name: "Mettre en pause" }).click();
+    await expect(pausedBadge(page)).toBeVisible();
+    await correctTime(page, {
+      sheet: "Corriger le temps écoulé",
+      field: "Temps écoulé",
+      typed: "5:00",
+      step: "Ajouter 30 s",
+      expected: "5:30",
+    });
+
     // The laps are counted as they go round.
     await expect(page.getByTestId("lap-count")).toHaveText("Tour 1");
     await page.getByRole("button", { name: "Tour suivant" }).click();
@@ -120,19 +133,20 @@ test("climbs the phases, counts the laps and settles the top on points", async (
     await expect(recapOne.getByText("Phase 2", { exact: true })).toHaveCount(2);
     await recapOne.getByRole("button", { name: "Manche 2" }).click();
 
-    // The manche's laps and time were banked when it was written down.
+    // The manche's laps and its corrected time were banked when it was written
+    // down.
     await expect
       .poll(async () => {
         const { data } = await admin
           .from("game_phases")
-          .select("laps")
+          .select("laps, duration_s")
           .eq("game_id", party)
           .eq("stage", 1)
           .single();
 
-        return data?.laps;
+        return [data?.laps, data?.duration_s];
       })
-      .toBe(2);
+      .toEqual([2, 330]);
 
     // Manche 2: the second player goes out on 0 — but it is the first who
     // clears the last phase, and the climb decides, not the points.
