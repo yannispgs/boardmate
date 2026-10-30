@@ -1,16 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Modal } from "@/components/Modal";
-
-const BIG_NUDGE =
-  "flex h-16 w-16 items-center justify-center rounded-full border border-black/15 text-3xl leading-none transition hover:bg-black/5 disabled:opacity-30 dark:border-white/15 dark:hover:bg-white/5";
+import { ScrollWheel } from "@/components/ScrollWheel";
 
 /**
- * One cell's points, opened over the grid: the figure large in the middle of
- * the screen, moved up and down by the game's step with two big buttons — the
- * grid itself only has room for the figure.
+ * One cell's points, opened over the grid: a wheel of the values the points
+ * can take — the game's step apart — scrolled with the thumb, the way a phone
+ * picks a timer. The grid itself only has room for the figure.
  */
 export function ManchePointsDialog({
   title,
@@ -27,6 +25,10 @@ export function ManchePointsDialog({
   onCancel: () => void;
 }>) {
   const [points, setPoints] = useState(initial);
+  const values = useMemo(
+    () => Array.from({ length: 51 }, (_v, i) => i * step),
+    [step],
+  );
 
   return (
     <Modal
@@ -36,30 +38,16 @@ export function ManchePointsDialog({
     >
       <h2 className="text-center text-base font-semibold">{title}</h2>
 
-      <div className="mt-6 flex items-center justify-center gap-5">
-        <button
-          type="button"
-          aria-label={`${step} de moins`}
-          disabled={points - step < 0}
-          onClick={() => setPoints(points - step)}
-          className={BIG_NUDGE}
-        >
-          −
-        </button>
-        <span
-          data-testid="dialog-points"
-          className="min-w-20 text-center text-5xl font-bold tabular-nums"
-        >
-          {points}
-        </span>
-        <button
-          type="button"
-          aria-label={`${step} de plus`}
-          onClick={() => setPoints(points + step)}
-          className={BIG_NUDGE}
-        >
-          +
-        </button>
+      <div className="mt-4 flex items-center justify-center gap-3">
+        <div className="w-32">
+          <ScrollWheel
+            values={values}
+            value={points}
+            label="Points"
+            onChange={setPoints}
+          />
+        </div>
+        <span className="text-xl font-semibold">points</span>
       </div>
 
       <div className="mt-6 flex justify-end gap-2">

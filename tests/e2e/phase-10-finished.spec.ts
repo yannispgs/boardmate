@@ -52,7 +52,8 @@ async function openForm(page: Page, game: string, players: string[]) {
 
 /**
  * Sets a player's points in one manche of the grid: the cell opens a dialog
- * with the figure large, nudged five at a time, then validated.
+ * whose wheel is scrolled to the value — the way a thumb would — then
+ * validated.
  */
 async function setPoints(
   page: Page,
@@ -67,13 +68,13 @@ async function setPoints(
   const dialog = page.getByRole("dialog", {
     name: `${name} — manche ${manche}`,
   });
-  const plus = dialog.getByRole("button", { name: "5 de plus" });
+  const value = dialog.getByRole("option", {
+    name: String(points),
+    exact: true,
+  });
 
-  for (let n = 0; n < points / 5; n++) {
-    await plus.click();
-  }
-
-  await expect(dialog.getByTestId("dialog-points")).toHaveText(String(points));
+  await value.evaluate(el => el.scrollIntoView({ block: "center" }));
+  await expect(value).toHaveAttribute("aria-selected", "true");
   await dialog.getByRole("button", { name: "Valider" }).click();
 }
 
