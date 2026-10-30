@@ -2,13 +2,15 @@
 
 import { useEffect, useRef } from "react";
 
+import { useHapticTick } from "./use-haptic-tick";
+
 const ITEM = 40; // px per value — tight, so the neighbours sit close
 const VISIBLE = 5; // values on show, the chosen one in the middle
 
 /**
  * A wheel of values scrolled with the thumb, snapping on each one — the
- * picker an iPhone shows for a timer. The value under the middle band is the
- * one chosen.
+ * picker an iPhone shows for a timer, ticking under the thumb as each value
+ * goes by. The value under the middle band is the one chosen.
  */
 export function ScrollWheel({
   values,
@@ -23,6 +25,7 @@ export function ScrollWheel({
 }>) {
   const ref = useRef<HTMLDivElement>(null);
   const start = useRef(value);
+  const haptic = useHapticTick();
 
   useEffect(() => {
     const index = values.indexOf(start.current);
@@ -35,12 +38,14 @@ export function ScrollWheel({
     const picked = values[Math.round(top / ITEM)];
 
     if (picked !== undefined && picked !== value) {
+      haptic.tick();
       onChange(picked);
     }
   }
 
   return (
     <div className="relative" style={{ height: ITEM * VISIBLE }}>
+      {haptic.node}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 rounded-xl bg-black/5 dark:bg-white/10"
