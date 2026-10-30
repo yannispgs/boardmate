@@ -195,18 +195,22 @@ export function ladderStandings(
     (a, b) => b.rungs - a.rungs || a.total - b.total,
   );
   const ranked: LadderStanding[] = [];
+  let rank = 0;
 
   for (const [i, line] of sorted.entries()) {
-    const prev = ranked[i - 1];
-    const level =
-      prev !== undefined &&
-      prev.rungs === line.rungs &&
-      prev.total === line.total;
-
-    ranked.push({ ...line, rank: level ? prev.rank : i + 1 });
+    rank = levelWith(sorted[i - 1], line) ? rank : i + 1;
+    ranked.push({ ...line, rank });
   }
 
   return ranked;
+}
+
+/** Whether two lines stand level: the same climb and the same points. */
+function levelWith(
+  previous: { rungs: number; total: number } | undefined,
+  line: { rungs: number; total: number },
+): boolean {
+  return previous?.rungs === line.rungs && previous.total === line.total;
 }
 
 /**
@@ -313,17 +317,14 @@ export function ladderFinalStandings(
     rungs: s.rungs,
   }));
 
-  for (const [i, line] of rest.entries()) {
-    const prev = rest[i - 1];
-    const level =
-      prev !== undefined &&
-      prev.rungs === line.rungs &&
-      prev.total === line.total;
+  let rank = 1;
 
+  for (const [i, line] of rest.entries()) {
+    rank = levelWith(rest[i - 1], line) ? rank : first.length + i + 1;
     ranked.push({
       playerId: line.playerId,
       total: line.total,
-      rank: level ? ranked[ranked.length - 1].rank : first.length + i + 1,
+      rank,
       rungs: line.rungs,
     });
   }

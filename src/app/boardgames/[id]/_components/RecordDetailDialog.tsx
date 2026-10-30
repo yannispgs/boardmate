@@ -3,9 +3,10 @@
 import { Modal } from "@/components/Modal";
 import { ModalHeader } from "@/components/ModalHeader";
 import { modalCardClass } from "@/components/ui";
-import type { BoardRow, RecordEntry } from "@/lib/game/record-board";
 import {
+  type BoardRow,
   RECORD_TITLE,
+  type RecordEntry,
   type RecordUnit,
   recordFigure,
   targetLong,

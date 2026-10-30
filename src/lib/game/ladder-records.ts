@@ -172,13 +172,16 @@ export function extraRecordsTaken(
 
   return records.flatMap(record => {
     const highest = extraDirection(record) === "highest";
+    const beats = (mark: ExtraMark, best: ExtraMark | null) => {
+      if (best === null) {
+        return true;
+      }
+
+      return highest ? mark.value > best.value : mark.value < best.value;
+    };
     const pick = (marks: ExtraMark[]) =>
       marks.reduce<ExtraMark | null>(
-        (best, mark) =>
-          best === null ||
-          (highest ? mark.value > best.value : mark.value < best.value)
-            ? mark
-            : best,
+        (best, mark) => (beats(mark, best) ? mark : best),
         null,
       );
     const mine = pick(extraMarks(record, party));

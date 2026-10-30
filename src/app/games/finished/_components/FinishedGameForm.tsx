@@ -10,6 +10,7 @@ import type {
   ExtensionScenarioId,
   Player,
   PlayerId,
+  ScoringSpec,
 } from "@/lib/domain";
 import {
   finishedGoals,
@@ -24,6 +25,7 @@ import {
 import { localDay } from "@/lib/game/game-filters";
 import {
   blankManche,
+  type LadderFinished,
   type LadderManche,
   type LadderMode,
   ladderFinished,
@@ -39,6 +41,7 @@ import type { CategoryRaw } from "../../_components/CategoryScoreGrid";
 import { ExtensionPicker } from "../../_components/ExtensionPicker";
 import {
   type EntryMode,
+  type FinishedEntry,
   finishedEntry,
 } from "../../_components/finished-entry";
 import { BoardgamePicker } from "./BoardgamePicker";
@@ -49,6 +52,43 @@ import { ResultSection } from "./ResultSection";
 /** Today where the reader is, for the default end-date field. */
 function today(): string {
   return localDay(new Date().toISOString());
+}
+
+/**
+ * What the form can file, read off the sheet — or, on a laddered game, off
+ * the climb: who can win, whether the table has to say it, and the scores.
+ */
+function readResult(
+  entry: FinishedEntry,
+  climb: LadderFinished | null,
+  scoring: ScoringSpec | null,
+  selected: Player[],
+): {
+  candidates: Player[];
+  choice: FinishedWinners;
+  scoresComplete: boolean;
+  scoreOf: (id: PlayerId) => number | null;
+} {
+  if (climb === null) {
+    return {
+      candidates: entry.winnerCandidates,
+      choice: finishedWinners(scoring, selected.length, entry.winnerCandidates),
+      scoresComplete: entry.scoresComplete,
+      scoreOf: entry.scoreOf,
+    };
+  }
+
+  return {
+    candidates: selected.filter(p => climb.candidates.includes(p.id)),
+    choice: {
+      asked: climb.asked,
+      preselected: climb.preselected,
+      rules: climb.tied ? (scoring?.tieBreak ?? []) : [],
+      tied: climb.tied,
+    },
+    scoresComplete: climb.error === null,
+    scoreOf: climb.scoreOf,
+  };
 }
 
 const sectionClass =
@@ -134,23 +174,13 @@ export function FinishedGameForm() {
           ladder.steps.length,
           boardgame?.stages?.pointsStep ?? 1,
         );
-  const candidates =
-    climb === null
-      ? entry.winnerCandidates
-      : selected.filter(p => climb.candidates.includes(p.id));
-  const choice: FinishedWinners =
-    climb === null
-      ? finishedWinners(scoring, selected.length, entry.winnerCandidates)
-      : {
-          asked: climb.asked,
-          preselected: climb.preselected,
-          rules: climb.tied ? (scoring?.tieBreak ?? []) : [],
-          tied: climb.tied,
-        };
+  const { candidates, choice, scoresComplete, scoreOf } = readResult(
+    entry,
+    climb,
+    scoring,
+    selected,
+  );
   const effectiveWinners = winnerIds ?? choice.preselected;
-  const scoresComplete =
-    climb === null ? entry.scoresComplete : climb.error === null;
-  const scoreOf = climb === null ? entry.scoreOf : climb.scoreOf;
 
   function chooseBoardgame(b: Boardgame) {
     setBoardgame(b);

@@ -85,6 +85,56 @@ function lapsOf(record: GameStatsRecord, stage: number): number | null {
   );
 }
 
+/** One rung one player cleared: what it cost him. */
+interface Clearing {
+  rung: number;
+  manches: number;
+  /** Null when a manche of it went uncounted. */
+  laps: number | null;
+}
+
+/** The laps two counts add up to, unknown as soon as either one is. */
+function addLaps(sum: number | null, more: number | null): number | null {
+  return sum === null || more === null ? null : sum + more;
+}
+
+/**
+ * One player's climb in one party, rung by rung: the manches he spent on each
+ * rung he cleared, and their laps. A rung he never cleared yields nothing.
+ */
+function clearingsOf(
+  record: GameStatsRecord,
+  playerId: GameStatsRecord["players"][number]["playerId"],
+  stages: readonly number[],
+  top: number,
+): Clearing[] {
+  const scores = record.stageScores ?? [];
+  const clearings: Clearing[] = [];
+  let manches = 0;
+  let laps: number | null = 0;
+
+  for (const stage of stages) {
+    if (clearings.length >= top) {
+      break;
+    }
+
+    manches += 1;
+    laps = addLaps(laps, lapsOf(record, stage));
+
+    const cleared = scores.some(
+      s => s.stage === stage && s.playerId === playerId && s.cleared === true,
+    );
+
+    if (cleared) {
+      clearings.push({ rung: clearings.length, manches, laps });
+      manches = 0;
+      laps = 0;
+    }
+  }
+
+  return clearings;
+}
+
 /**
  * What each rung costs to clear: every manche a player spent on it, the failed
  * ones as much as the one he cleared it in. A rung he was still on when the
@@ -102,48 +152,27 @@ export function rungEffort(
     cleared: 0,
   }));
 
-  for (const record of records) {
-    if (record.ladderFixed === true) {
-      continue;
-    }
+  const clearings = records
+    .filter(record => record.ladderFixed !== true)
+    .flatMap(record => {
+      const stages = [
+        ...new Set((record.stageScores ?? []).map(s => s.stage)),
+      ].sort((a, b) => a - b);
 
-    const scores = record.stageScores ?? [];
-    const stages = [...new Set(scores.map(s => s.stage))].sort((a, b) => a - b);
+      return record.players.flatMap(({ playerId }) =>
+        clearingsOf(record, playerId, stages, top),
+      );
+    });
 
-    for (const { playerId } of record.players) {
-      let rung = 0;
-      let manches = 0;
-      let laps: number | null = 0;
+  for (const clearing of clearings) {
+    const bucket = totals[clearing.rung];
 
-      for (const stage of stages) {
-        if (rung >= top) {
-          break;
-        }
+    bucket.manches += clearing.manches;
+    bucket.cleared += 1;
 
-        const line = scores.find(
-          s => s.stage === stage && s.playerId === playerId,
-        );
-        const lapCount = lapsOf(record, stage);
-
-        manches += 1;
-        laps = laps === null || lapCount === null ? null : laps + lapCount;
-
-        if (line?.cleared === true) {
-          const bucket = totals[rung];
-
-          bucket.manches += manches;
-          bucket.cleared += 1;
-
-          if (laps !== null) {
-            bucket.laps += laps;
-            bucket.counted += 1;
-          }
-
-          rung += 1;
-          manches = 0;
-          laps = 0;
-        }
-      }
+    if (clearing.laps !== null) {
+      bucket.laps += clearing.laps;
+      bucket.counted += 1;
     }
   }
 
