@@ -134,4 +134,18 @@ describe("tallyPointsHistogram", () => {
       { points: 6, count: 1 },
     ]);
   });
+
+  it("goes by the step the points come in", () => {
+    const fives = [
+      { stage: 1, playerId: "a" as PlayerId, points: 0 },
+      { stage: 1, playerId: "b" as PlayerId, points: 15 },
+    ];
+
+    expect(tallyPointsHistogram([record(fives)], 5)).toEqual([
+      { points: 0, count: 1 },
+      { points: 5, count: 0 },
+      { points: 10, count: 0 },
+      { points: 15, count: 1 },
+    ]);
+  });
 });

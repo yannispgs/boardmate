@@ -241,7 +241,7 @@ export interface GameRepository {
   setStageScores(
     id: GameId,
     stage: number,
-    points: Array<{ playerId: PlayerId; points: number }>,
+    points: Array<{ playerId: PlayerId; points: number; cleared?: boolean }>,
   ): Promise<void>;
   /**
    * Puts the table back in the right order, for a seating mis-entered at
@@ -261,6 +261,18 @@ export interface GameRepository {
    * manche stays the only thing the screen has to show.
    */
   advanceStage(id: GameId): Promise<void>;
+  /**
+   * How many laps of the table a phase of a stage has taken so far, counted by
+   * the table (Phase 10's manches). Written as the count goes up, so a party
+   * left and picked up later finds it where it was; the phase's banked time is
+   * left alone.
+   */
+  setPhaseLaps(
+    id: GameId,
+    stage: number,
+    phaseKey: string,
+    laps: number,
+  ): Promise<void>;
   /** Sets one player's current score (live scoring), logged at the given tour. */
   setScore(
     id: GameId,

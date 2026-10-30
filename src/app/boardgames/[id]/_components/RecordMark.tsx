@@ -1,22 +1,11 @@
 "use client";
 
 import type { RecordEntry } from "@/lib/game/record-board";
-import { targetShort } from "@/lib/game/record-board";
-
-/** The sign each kind of mark is worn under, the same two as the end screen. */
-const SIGIL: Readonly<Record<RecordEntry["metric"], string>> = {
-  score: "⭐",
-  speed: "⚡",
-};
-
-/** The figure spelled out in the unit it was measured in. */
-function figure(entry: RecordEntry): string {
-  if (entry.metric === "score") {
-    return `${entry.value} points`;
-  }
-
-  return `${entry.value} ${entry.value > 1 ? "tours" : "tour"}`;
-}
+import {
+  RECORD_SIGIL,
+  recordFigure,
+  targetShort,
+} from "@/lib/game/record-board";
 
 /**
  * One mark inside a table size: the finish line it was set against on the left
@@ -52,7 +41,8 @@ export function RecordMark({
           )}
         </span>
         <span className="shrink-0 text-sm font-semibold tabular-nums">
-          <span aria-hidden>{SIGIL[entry.metric]}</span> {figure(entry)}
+          <span aria-hidden>{RECORD_SIGIL[entry.metric]}</span>{" "}
+          {recordFigure(entry.value, entry.unit)}
         </span>
       </button>
     </li>

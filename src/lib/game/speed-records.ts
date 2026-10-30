@@ -51,6 +51,12 @@ export interface SpeedRun {
   setup: string;
   /** Who reached the target; several only on a shared victory. */
   winners: readonly PlayerId[];
+  /**
+   * What was raced: laps of the table to a score (absent), or manches up a
+   * ladder to its top rung (`ladder`, Phase 10) — `rounds` then counts
+   * manches and `target` the rungs.
+   */
+  course?: "ladder";
 }
 
 /** A party as it stands, before anything has decided whether it is a race. */
@@ -160,12 +166,14 @@ export function sameCourse(a: SpeedRun, b: SpeedRun): boolean {
 
 /** A speed record as it is announced: the new mark, and the one it took. */
 export interface SpeedRecord {
-  /** Laps the party took. */
+  /** Laps the party took — manches, on a ladder. */
   rounds: number;
   /** The mark that stood before — what this run had to beat to be one. */
   previous: number;
   playerCount: number;
   target: number;
+  /** Copied from the run — see {@link SpeedRun.course}. */
+  course?: "ladder";
 }
 
 /**
@@ -203,14 +211,23 @@ export function speedRecord(
     previous,
     playerCount: run.playerCount,
     target: run.target,
+    ...(run.course === undefined ? {} : { course: run.course }),
   };
 }
 
-/** « 9 tours à 3 joueurs pour 16 points » — the mark said in full. */
+/**
+ * « 9 tours à 3 joueurs pour 16 points » — the mark said in full; « 12 manches
+ * à 4 joueurs pour 10 phases » on a ladder.
+ */
 export function speedRecordDetail(
-  record: Readonly<Pick<SpeedRecord, "rounds" | "playerCount" | "target">>,
+  record: Readonly<
+    Pick<SpeedRecord, "rounds" | "playerCount" | "target" | "course">
+  >,
 ): string {
-  const laps = record.rounds > 1 ? "tours" : "tour";
+  const ladder = record.course === "ladder";
+  const unit = ladder ? "manche" : "tour";
+  const laps = record.rounds > 1 ? `${unit}s` : unit;
+  const goal = ladder ? "phases" : "points";
 
-  return `${record.rounds} ${laps} à ${record.playerCount} joueurs pour ${record.target} points`;
+  return `${record.rounds} ${laps} à ${record.playerCount} joueurs pour ${record.target} ${goal}`;
 }

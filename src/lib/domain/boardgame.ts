@@ -226,7 +226,18 @@ export interface ScoringSpec {
    * games have instead of a record.
    */
   trackRecords?: boolean;
+  /**
+   * Records this game keeps on top of the usual ones, each a figure the game
+   * itself makes worth comparing (Phase 10):
+   * - `heaviestStage`: the most points anyone took in a single manche;
+   * - `lowestWin`: the smallest total anyone won a party with.
+   * Absent on every other game.
+   */
+  extraRecords?: ExtraRecord[];
 }
+
+/** A record a game opts into on top of the score and speed ones. */
+export type ExtraRecord = "heaviestStage" | "lowestWin";
 
 /**
  * A game played in stages bigger than the lap of the table, and what its
@@ -248,6 +259,27 @@ export interface ScoringSpec {
  */
 export type StageAdvance = "pass" | "schedule" | "manual";
 
+/**
+ * A ladder every player climbs on his own, one rung per manche at most — Phase
+ * 10's ten phases. It is what decides the game: the first to clear the top rung
+ * wins it, and the points only separate players who clear it in the same
+ * manche.
+ *
+ * Reference data, written by migration: the rungs are the rulebook.
+ */
+export interface StageLadder {
+  /** What one rung is called (« Phase »). */
+  label: string;
+  /** What each rung asks for, bottom first. Its length is the top. */
+  steps: string[];
+  /**
+   * The boolean config field turning on the variant where everybody climbs one
+   * rung every manche, cleared or not, and the game stops once every rung has
+   * been played — the lowest score then wins.
+   */
+  fixedKey?: string;
+}
+
 export interface StageSpec {
   label: string;
   advance: StageAdvance;
@@ -265,6 +297,14 @@ export interface StageSpec {
    * holding. Omitted when nothing caps a stage.
    */
   maxPoints?: number;
+  /**
+   * The step a manche's points come in, when the cards are all worth a
+   * multiple of it — Phase 10: 5. The arrows of the entry move by it, a total
+   * off it is a miscount, and the stats bar the costs by it. Omitted means 1.
+   */
+  pointsStep?: number;
+  /** The rungs each player climbs, for a game won by climbing (Phase 10). */
+  ladder?: StageLadder;
 }
 
 /** One claimable milestone: what it is called and what it takes to claim it. */
