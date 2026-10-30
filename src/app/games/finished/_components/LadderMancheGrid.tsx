@@ -1,8 +1,13 @@
+"use client";
+
+import { useState } from "react";
+
 import type { Player, PlayerId, StageLadder } from "@/lib/domain";
 import { ladderRungs, workingRung } from "@/lib/game/ladder";
 import { type LadderManche, mancheScores } from "@/lib/game/ladder-finished";
 
 import { LadderMancheGridRow } from "./LadderMancheGridRow";
+import { ManchePointsDialog } from "./ManchePointsDialog";
 
 /**
  * The manches of a Phase 10 night typed in afterwards, as one compact grid: a
@@ -35,6 +40,12 @@ export function LadderMancheGrid({
   ) => void;
   onRemove: (index: number) => void;
 }>) {
+  // The cell whose points are open in the dialog, if any.
+  const [editing, setEditing] = useState<{
+    index: number;
+    playerId: PlayerId;
+  } | null>(null);
+
   if (manches.length === 0) {
     return null;
   }
@@ -80,15 +91,30 @@ export function LadderMancheGrid({
                 working={Object.fromEntries(
                   ids.map(id => [id, workingRung(before[id], top)]),
                 )}
-                step={step}
                 disabled={disabled}
                 onChange={(playerId, patch) => onChange(index, playerId, patch)}
+                onEditPoints={playerId => setEditing({ index, playerId })}
                 onRemove={() => onRemove(index)}
               />
             );
           })}
         </tbody>
       </table>
+
+      {editing === null ? null : (
+        <ManchePointsDialog
+          title={`${
+            players.find(p => p.id === editing.playerId)?.name ?? ""
+          } — manche ${editing.index + 1}`}
+          initial={manches[editing.index]?.[editing.playerId]?.points ?? 0}
+          step={step}
+          onConfirm={points => {
+            onChange(editing.index, editing.playerId, { points });
+            setEditing(null);
+          }}
+          onCancel={() => setEditing(null)}
+        />
+      )}
     </div>
   );
 }

@@ -3,9 +3,9 @@ import type { LadderManche } from "@/lib/game/ladder-finished";
 
 /**
  * One manche of the grid: in each player's cell, the points left in his hand —
- * nudged up and down by the game's step, never typed — and the box he ticks if
- * he laid down the phase he was on, tagged with that phase (« P3 »), which the
- * manches above decide.
+ * a figure that opens its own dialog to be changed, so the row stays one line
+ * high — and the box he ticks if he laid down the phase he was on, tagged with
+ * that phase (« P3 »), which the manches above decide.
  */
 export function LadderMancheGridRow({
   index,
@@ -13,9 +13,9 @@ export function LadderMancheGridRow({
   players,
   tag,
   working,
-  step,
   disabled,
   onChange,
+  onEditPoints,
   onRemove,
 }: Readonly<{
   index: number;
@@ -25,10 +25,10 @@ export function LadderMancheGridRow({
   tag: string;
   /** The rung each player was on as this manche opened. */
   working: Record<string, number>;
-  /** How far one tap moves the points — 5 at Phase 10. */
-  step: number;
   disabled: boolean;
   onChange: (playerId: PlayerId, patch: Partial<LadderManche[string]>) => void;
+  /** Opens the dialog that changes one player's points. */
+  onEditPoints: (playerId: PlayerId) => void;
   onRemove: () => void;
 }>) {
   const number = index + 1;
@@ -47,14 +47,16 @@ export function LadderMancheGridRow({
 
         return (
           <td key={p.id} className="px-0.5 py-1.5">
-            <div className="flex flex-col items-center gap-1">
-              <PointsNudge
-                label={`${p.name}, manche ${number}`}
-                value={line.points}
-                step={step}
+            <div className="flex items-center justify-center gap-1">
+              <button
+                type="button"
+                aria-label={`${p.name}, manche ${number} : ${line.points} points`}
                 disabled={disabled}
-                onChange={points => onChange(p.id, { points })}
-              />
+                onClick={() => onEditPoints(p.id)}
+                className="min-w-11 rounded-md border border-black/15 px-1.5 py-1 text-right text-sm font-semibold tabular-nums transition hover:border-indigo-500 dark:border-white/15"
+              >
+                {line.points}
+              </button>
               <label className="flex items-center gap-0.5 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
                 <input
                   type="checkbox"
@@ -84,53 +86,5 @@ export function LadderMancheGridRow({
         </button>
       </td>
     </tr>
-  );
-}
-
-const NUDGE =
-  "flex h-6 w-8 items-center justify-center rounded-md border border-black/10 text-sm leading-none transition hover:bg-black/5 disabled:opacity-30 dark:border-white/15 dark:hover:bg-white/5";
-
-/** The points of one cell, stacked so a column stays narrow: + / figure / −. */
-function PointsNudge({
-  label,
-  value,
-  step,
-  disabled,
-  onChange,
-}: Readonly<{
-  /** Who and which manche — names the two buttons. */
-  label: string;
-  value: number;
-  step: number;
-  disabled: boolean;
-  onChange: (value: number) => void;
-}>) {
-  return (
-    <div className="flex flex-col items-center gap-0.5">
-      <button
-        type="button"
-        aria-label={`${label} : ${step} de plus`}
-        disabled={disabled}
-        onClick={() => onChange(value + step)}
-        className={NUDGE}
-      >
-        +
-      </button>
-      <span
-        data-testid="manche-points"
-        className="text-sm font-semibold tabular-nums"
-      >
-        {value}
-      </span>
-      <button
-        type="button"
-        aria-label={`${label} : ${step} de moins`}
-        disabled={disabled || value - step < 0}
-        onClick={() => onChange(value - step)}
-        className={NUDGE}
-      >
-        −
-      </button>
-    </div>
   );
 }
