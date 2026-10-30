@@ -93,10 +93,9 @@ export function StageBoard({
   return (
     <>
       <div className="flex w-full max-w-sm flex-col gap-3">
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">{tally.note}</p>
-
-        {tally.board(goals.scores, game.stage, false)}
-
+        {/* The controls first, right under the clock: they are what the table
+            reaches for during the manche, and the standings below are only
+            read between two of them — nobody should scroll to end a manche. */}
         {laps === null ? null : <LapCounter laps={laps} disabled={disabled} />}
 
         <button
@@ -107,6 +106,10 @@ export function StageBoard({
         >
           Fin de la {unit} {game.stage} →
         </button>
+
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">{tally.note}</p>
+
+        {tally.board(goals.scores, game.stage, false)}
 
         <PastStageCardList
           closed={past}
