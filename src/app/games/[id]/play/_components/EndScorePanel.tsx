@@ -9,6 +9,7 @@ import { scoresCorrectable } from "@/lib/game/score-correction";
 import { finalStandings, scoreDirectionOf } from "@/lib/game/scoring";
 import { useMyPermissions } from "@/lib/hooks/use-my-permissions";
 import { useRecordsOfGame } from "@/lib/hooks/use-score-records";
+import { LadderDetail } from "../../../_components/LadderDetail";
 import { CategoryBreakdownFill } from "./CategoryBreakdownFill";
 import { FinalScoreTable } from "./FinalScoreTable";
 import { RecordBadgeList } from "./RecordBadgeList";
@@ -154,6 +155,13 @@ export function EndScorePanel({
           );
         })}
       </ol>
+
+      <LadderDetail
+        players={players.map(p => ({ id: p.id, name: p.name }))}
+        scores={game.stageScores}
+        stages={game.boardgame.stages}
+        fixed={game.ladderFixed === true}
+      />
 
       {game.tieBreak ? (
         <TieBreakRecap

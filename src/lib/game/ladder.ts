@@ -252,7 +252,7 @@ export function ladderOutcome(
   scores: readonly StageScore[],
   top: number,
   fixed: boolean,
-): EndOutcome {
+): EndOutcome & { contenders: PlayerId[] } {
   const standings = ladderStandings(
     playerIds,
     scores,
@@ -329,4 +329,50 @@ export function ladderFinalStandings(
   }
 
   return ranked;
+}
+
+/** One player's line of one manche in the detail table. */
+export interface LadderCell {
+  /** What the manche cost him, null when he has no line for it. */
+  points: number | null;
+  /** The rung he cleared that manche (« P3 »), null when he cleared none. */
+  cleared: number | null;
+}
+
+/** One manche of the detail table: everyone's points, and who cleared what. */
+export interface LadderRow {
+  stage: number;
+  cells: Record<string, LadderCell>;
+}
+
+/**
+ * The manches one by one, for the detail table: what each cost everyone, and
+ * the rung each player cleared in it — so « P3 » can sit next to the points of
+ * the manche he laid his third phase down. The variant clears nothing: there
+ * everybody moves up regardless, and a tag on every cell would say nothing.
+ */
+export function ladderRows(
+  playerIds: readonly PlayerId[],
+  scores: readonly StageScore[],
+  top: number,
+  fixed: boolean,
+): LadderRow[] {
+  return stagesUpTo(scores, Number.POSITIVE_INFINITY).map(stage => {
+    const before = ladderRungs(playerIds, scores, stage - 1, top, false);
+
+    return {
+      stage,
+      cells: Object.fromEntries(
+        playerIds.map(id => {
+          const line = scores.find(s => s.stage === stage && s.playerId === id);
+          const cleared =
+            !fixed && line?.cleared === true && before[id] < top
+              ? before[id] + 1
+              : null;
+
+          return [id, { points: line?.points ?? null, cleared }];
+        }),
+      ),
+    };
+  });
 }

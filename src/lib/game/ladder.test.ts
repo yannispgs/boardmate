@@ -9,6 +9,7 @@ import {
   ladderFinalStandings,
   ladderFixedOn,
   ladderOutcome,
+  ladderRows,
   ladderRungs,
   ladderSeries,
   ladderStandings,
@@ -290,5 +291,41 @@ describe("ladderFinalStandings", () => {
     const ranked = ladderFinalStandings(four, [A, B], shared, 1, false);
 
     expect(ranked.map(r => r.rank)).toEqual([1, 1, 3, 3]);
+  });
+});
+
+describe("ladderRows", () => {
+  it("tags each manche with the rung a player cleared in it", () => {
+    expect(ladderRows([A, C, "d" as PlayerId], SCORES, 3, false)).toEqual([
+      {
+        stage: 1,
+        cells: {
+          a: { points: 0, cleared: 1 },
+          c: { points: 35, cleared: 1 },
+          d: { points: null, cleared: null },
+        },
+      },
+      {
+        stage: 2,
+        cells: {
+          a: { points: 10, cleared: 2 },
+          c: { points: 40, cleared: null },
+          d: { points: null, cleared: null },
+        },
+      },
+      {
+        stage: 3,
+        cells: {
+          a: { points: 0, cleared: 3 },
+          c: { points: 5, cleared: null },
+          d: { points: null, cleared: null },
+        },
+      },
+    ]);
+  });
+
+  it("tags nothing past the top, nor in the variant", () => {
+    expect(ladderRows([A], SCORES, 2, false)[2].cells.a.cleared).toBeNull();
+    expect(ladderRows([A], SCORES, 3, true)[0].cells.a.cleared).toBeNull();
   });
 });

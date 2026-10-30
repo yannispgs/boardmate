@@ -6,6 +6,7 @@ import type { PopulatedGame } from "@/lib/domain";
 import type { ScoreDirection } from "@/lib/game/scoring";
 import { closedStages } from "@/lib/game/stage-tally";
 
+import { LadderDetail } from "../../../_components/LadderDetail";
 import { LapCounter } from "./LapCounter";
 import { namedPlayers } from "./named-players";
 import { PastStageCardList } from "./PastStageCardList";
@@ -110,6 +111,13 @@ export function StageBoard({
         <p className="text-sm text-zinc-500 dark:text-zinc-400">{tally.note}</p>
 
         {tally.board(goals.scores, game.stage, false)}
+
+        <LadderDetail
+          players={players}
+          scores={goals.scores}
+          stages={game.boardgame.stages}
+          fixed={game.ladderFixed === true}
+        />
 
         <PastStageCardList
           closed={past}

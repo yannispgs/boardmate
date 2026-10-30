@@ -6,7 +6,7 @@ import { Modal } from "@/components/Modal";
 import type { PlayerId } from "@/lib/domain";
 import type { StageEntry } from "@/lib/game/stage-tally";
 
-import { StagePointsRow } from "./StagePointsRow";
+import { StagePointsRow } from "../../../_components/StagePointsRow";
 
 /**
  * The end of a manche: what each player takes is written down there and then,

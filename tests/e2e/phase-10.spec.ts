@@ -148,6 +148,17 @@ test("climbs the phases, counts the laps and settles the top on points", async (
       })
       .toEqual([2, 330]);
 
+    // The manches so far, one by one: the points of each, and « P1 » next to
+    // whoever laid his first phase down in it.
+    await page
+      .getByRole("button", { name: "Afficher le détail des scores" })
+      .click();
+
+    const detail = page.getByTestId("ladder-detail");
+
+    await expect(detail.getByText("P1")).toHaveCount(2);
+    await expect(detail).toContainText("25");
+
     // Manche 2: the second player goes out on 0 — but it is the first who
     // clears the last phase, and the climb decides, not the points.
     await expect(page.getByTestId("lap-count")).toHaveText("Tour 1");
@@ -193,6 +204,14 @@ test("climbs the phases, counts the laps and settles the top on points", async (
 
     await page.getByRole("button", { name: "Voir le score final" }).click();
     await expect(page.getByText("2 phases réalisées")).toHaveCount(2);
+
+    // The final score carries the same detail, manche 2's phases now tagged.
+    await page
+      .getByRole("button", { name: "Afficher le détail des scores" })
+      .click();
+    await expect(page.getByTestId("ladder-detail").getByText("P2")).toHaveCount(
+      2,
+    );
   } finally {
     await dropSeeded(admin, {
       games,

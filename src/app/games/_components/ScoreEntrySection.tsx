@@ -2,6 +2,7 @@
 
 import type { Player, PlayerId, ScoringSpec } from "@/lib/domain";
 import { type CategoryRaw, CategoryScoreGrid } from "./CategoryScoreGrid";
+import { EntryModeToggle } from "./EntryModeToggle";
 import type { EntryMode, FinishedEntry } from "./finished-entry";
 import { PairScoreCircle } from "./PairScoreCircle";
 
@@ -49,29 +50,15 @@ export function ScoreEntrySection({
   return (
     <div className="flex flex-col gap-3">
       {entry.sheet !== null || entry.pairs ? (
-        <div className="flex flex-wrap gap-2 text-sm">
-          {(["total", "detail"] as const).map(mode => (
-            <label
-              key={mode}
-              className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 font-medium transition ${
-                entryMode === mode
-                  ? "border-indigo-500 bg-indigo-600 text-white"
-                  : "border-black/15 hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
-              }`}
-            >
-              <input
-                type="radio"
-                name="entryMode"
-                className="sr-only"
-                checked={entryMode === mode}
-                onChange={() => onEntryMode(mode)}
-              />
-              <span>
-                {mode === "total" ? "Score total" : detailLabel(entry.pairs)}
-              </span>
-            </label>
-          ))}
-        </div>
+        <EntryModeToggle
+          name="entryMode"
+          value={entryMode}
+          options={[
+            { value: "total", label: "Score total" },
+            { value: "detail", label: detailLabel(entry.pairs) },
+          ]}
+          onChange={onEntryMode}
+        />
       ) : null}
 
       <ScoreFields
