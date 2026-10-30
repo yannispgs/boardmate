@@ -58,19 +58,26 @@ export function ScrollWheel({
             "linear-gradient(to bottom, transparent, black 35%, black 65%, transparent)",
         }}
       >
-        {values.map((v, index) => (
-          <div
-            key={v}
-            role="option"
-            aria-selected={v === value}
-            className={`flex snap-center items-center justify-center tabular-nums transition-all ${sizeAt(
-              Math.abs(index - values.indexOf(value)),
-            )}`}
-            style={{ height: ITEM }}
-          >
-            {v}
-          </div>
-        ))}
+        {values.map((v, index) => {
+          const offset = index - values.indexOf(value);
+
+          return (
+            <div
+              key={v}
+              role="option"
+              aria-selected={v === value}
+              className={`flex snap-center items-center justify-center tabular-nums transition-all ${sizeAt(
+                Math.abs(offset),
+              )}`}
+              style={{
+                height: ITEM,
+                transform: `translateY(${-Math.sign(offset) * pullAt(Math.abs(offset))}px)`,
+              }}
+            >
+              {v}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -90,4 +97,13 @@ function sizeAt(distance: number): string {
   }
 
   return "text-xl text-zinc-400 dark:text-zinc-500";
+}
+
+/**
+ * How far a value is drawn in towards the chosen one, in pixels. Every value
+ * sits in a slot of the same height, so a smaller figure leaves more air around
+ * it: pulled in, the gaps read even from the middle out.
+ */
+function pullAt(distance: number): number {
+  return distance < 2 ? 0 : 4 + (distance - 2) * 6;
 }
