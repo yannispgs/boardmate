@@ -14,6 +14,7 @@ import { LadderMancheGrid } from "./LadderMancheGrid";
 export function LadderEntrySection({
   scoring,
   ladder,
+  step,
   players,
   mode,
   totals,
@@ -29,6 +30,8 @@ export function LadderEntrySection({
 }: Readonly<{
   scoring: ScoringSpec;
   ladder: StageLadder;
+  /** How far one tap moves a manche's points. */
+  step: number;
   players: Player[];
   mode: LadderMode;
   totals: Record<string, string>;
@@ -81,6 +84,7 @@ export function LadderEntrySection({
             keys={mancheKeys}
             players={players}
             ladder={ladder}
+            step={step}
             disabled={disabled}
             onChange={onManche}
             onRemove={onRemoveManche}

@@ -307,6 +307,7 @@ export function FinishedGameForm() {
               <LadderEntrySection
                 scoring={scoring}
                 ladder={ladder}
+                step={boardgame?.stages?.pointsStep ?? 1}
                 players={selected}
                 mode={ladderMode}
                 totals={totals}

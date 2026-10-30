@@ -50,9 +50,20 @@ async function openForm(page: Page, game: string, players: string[]) {
   }
 }
 
-/** A player's points in one manche of the grid. */
-function points(page: Page, name: string, manche: number): Locator {
-  return page.getByRole("textbox", { name: `${name} — manche ${manche}` });
+/** Nudges a player's points in one manche of the grid up, five at a time. */
+async function addPoints(
+  page: Page,
+  name: string,
+  manche: number,
+  points: number,
+): Promise<void> {
+  const plus = page.getByRole("button", {
+    name: `${name}, manche ${manche} : 5 de plus`,
+  });
+
+  for (let n = 0; n < points / 5; n++) {
+    await plus.click();
+  }
 }
 
 /** The box a player ticks in one manche once he laid his phase down. */
@@ -95,7 +106,7 @@ test("reads the winner off the manches typed in, phases and all", async ({
     );
 
     // Manche 1: the first goes out on his phase 1, the second keeps 20.
-    await points(page, second, 1).fill("20");
+    await addPoints(page, second, 1, 20);
     await phaseBox(page, first, 1).check();
 
     // Manche 2: the first is now on his phase 2, and clears it with 45 left
@@ -103,7 +114,13 @@ test("reads the winner off the manches typed in, phases and all", async ({
     await expect(phaseBox(page, first, 2)).toHaveAccessibleName(
       `P2 réalisée — ${first}, manche 2`,
     );
-    await points(page, first, 2).fill("45");
+    await addPoints(page, first, 2, 45);
+
+    // Nudged, never typed: one step back takes the figure back by five.
+    await page
+      .getByRole("button", { name: `${first}, manche 2 : 5 de moins` })
+      .click();
+    await addPoints(page, first, 2, 5);
     await phaseBox(page, first, 2).check();
     await phaseBox(page, second, 2).check();
 

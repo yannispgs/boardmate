@@ -15,6 +15,7 @@ export function LadderMancheGrid({
   keys,
   players,
   ladder,
+  step,
   disabled,
   onChange,
   onRemove,
@@ -24,6 +25,8 @@ export function LadderMancheGrid({
   keys: readonly number[];
   players: Player[];
   ladder: StageLadder;
+  /** How far one tap moves a cell's points. */
+  step: number;
   disabled: boolean;
   onChange: (
     index: number,
@@ -77,6 +80,7 @@ export function LadderMancheGrid({
                 working={Object.fromEntries(
                   ids.map(id => [id, workingRung(before[id], top)]),
                 )}
+                step={step}
                 disabled={disabled}
                 onChange={(playerId, patch) => onChange(index, playerId, patch)}
                 onRemove={() => onRemove(index)}
