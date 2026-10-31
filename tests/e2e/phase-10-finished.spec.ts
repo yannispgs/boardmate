@@ -127,9 +127,13 @@ test("reads the winner off the manches typed in, phases and all", async ({
       3,
     );
 
-    // Nobody has a phase down yet: everybody starts on a whole hand, 50.
+    // Nothing is guessed: every cell waits for its figure, and the night can't
+    // be filed before they all have one.
     await expect(
-      page.getByRole("button", { name: `${second}, manche 1 : 50 points` }),
+      page.getByRole("button", { name: `${second}, manche 1 : à saisir` }),
+    ).toHaveText("—");
+    await expect(
+      page.getByText("Manche 1 : il manque les points de certains joueurs."),
     ).toBeVisible();
 
     // Manche 1: the first lays his phase 1 and goes out; the second keeps

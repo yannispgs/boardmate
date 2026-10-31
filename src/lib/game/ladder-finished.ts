@@ -23,28 +23,30 @@ import {
 /** What was kept of the night: the totals, or the manches. */
 export type LadderMode = "total" | "detail";
 
-/** One manche as typed: each player's points, and whether he laid his phase. */
-export type LadderManche = Record<string, { points: number; cleared: boolean }>;
+/**
+ * One manche as typed: each player's points — null until somebody sets them —
+ * and whether he laid his phase.
+ */
+export type LadderManche = Record<
+  string,
+  { points: number | null; cleared: boolean }
+>;
 
 /**
- * An empty manche: nobody has cleared anything yet, so everybody starts on the
- * least a whole hand can cost (Phase 10: 50).
+ * An empty manche: no points set and no phase ticked. Nothing is guessed — a
+ * figure proposed in every cell would have to be put right in every cell,
+ * starting with the one of whoever went out.
  */
-export function blankManche(
-  playerIds: readonly PlayerId[],
-  rules: LadderEntryRules,
-): LadderManche {
+export function blankManche(playerIds: readonly PlayerId[]): LadderManche {
   return Object.fromEntries(
-    playerIds.map(id => [
-      id,
-      { points: pointsFloor(false, rules), cleared: false },
-    ]),
+    playerIds.map(id => [id, { points: null, cleared: false }]),
   );
 }
 
 /**
  * A manche with one player's points or tick changed, the rest kept. Unticking
- * a phase brings the points back up to what a whole hand costs at the least.
+ * a phase brings points already set back up to what a whole hand costs at the
+ * least; points not set yet stay unset.
  */
 export function patchManche(
   manche: LadderManche,
@@ -53,7 +55,7 @@ export function patchManche(
   rules: LadderEntryRules,
 ): LadderManche {
   const line = {
-    ...(manche[playerId] ?? { points: 0, cleared: false }),
+    ...(manche[playerId] ?? { points: null, cleared: false }),
     ...patch,
   };
 
@@ -61,7 +63,10 @@ export function patchManche(
     ...manche,
     [playerId]: {
       ...line,
-      points: Math.max(line.points, pointsFloor(line.cleared, rules)),
+      points:
+        line.points === null
+          ? null
+          : Math.max(line.points, pointsFloor(line.cleared, rules)),
     },
   };
 }
@@ -169,14 +174,16 @@ function manchesError(
   }
 
   for (const [index, manche] of manches.entries()) {
-    const error = ladderEntryError(
-      playerIds.map(playerId => ({
-        playerId,
-        points: manche[playerId]?.points ?? 0,
-        cleared: manche[playerId]?.cleared ?? false,
-      })),
-      rules,
-    );
+    if (playerIds.some(id => (manche[id]?.points ?? null) === null)) {
+      return `Manche ${index + 1} : il manque les points de certains joueurs.`;
+    }
+
+    // Every cell is set by now: checked just above.
+    const lines = playerIds.map(playerId => ({
+      playerId,
+      ...(manche[playerId] as { points: number; cleared: boolean }),
+    }));
+    const error = ladderEntryError(lines, rules);
 
     if (error !== null) {
       return `Manche ${index + 1} : ${error}`;

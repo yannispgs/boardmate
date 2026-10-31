@@ -33,10 +33,10 @@ function manche(a: [number, boolean], b: [number, boolean]): LadderManche {
 }
 
 describe("blankManche and mancheScores", () => {
-  it("starts everybody on nothing, and numbers the manches from 1", () => {
-    expect(blankManche(SEATS, RULES)).toEqual({
-      a: { points: 0, cleared: false },
-      b: { points: 0, cleared: false },
+  it("leaves every cell unset, and numbers the manches from 1", () => {
+    expect(blankManche(SEATS)).toEqual({
+      a: { points: null, cleared: false },
+      b: { points: null, cleared: false },
     });
     expect(
       mancheScores([manche([0, true], [20, false])], [A, B, "c" as PlayerId]),
@@ -60,6 +60,18 @@ describe("patchManche", () => {
     ).toEqual({ points: 5, cleared: false });
   });
 
+  it("leaves an unset cell unset when its phase is ticked or not", () => {
+    const blank = blankManche(SEATS);
+
+    expect(patchManche(blank, A, { cleared: true }, HAND).a).toEqual({
+      points: null,
+      cleared: true,
+    });
+    expect(
+      patchManche(blank, "c" as PlayerId, { cleared: false }, HAND).c,
+    ).toEqual({ points: null, cleared: false });
+  });
+
   it("brings an unticked phase back up to a whole hand", () => {
     const ticked = manche([0, true], [15, true]);
 
@@ -70,15 +82,6 @@ describe("patchManche", () => {
     expect(patchManche(ticked, B, { points: 70 }, HAND).b).toEqual({
       points: 70,
       cleared: true,
-    });
-  });
-});
-
-describe("blankManche with a whole hand", () => {
-  it("starts everybody on what a whole hand costs at the least", () => {
-    expect(blankManche(SEATS, HAND)).toEqual({
-      a: { points: 50, cleared: false },
-      b: { points: 50, cleared: false },
     });
   });
 });
@@ -145,6 +148,21 @@ describe("ladderFinished — the manches", () => {
     expect(read.tied).toBe(true);
   });
 
+  it("waits for every cell of every manche", () => {
+    const read = ladderFinished(
+      "detail",
+      SEATS,
+      {},
+      [manche([0, true], [60, false]), blankManche(SEATS)],
+      10,
+      RULES,
+    );
+
+    expect(read.error).toBe(
+      "Manche 2 : il manque les points de certains joueurs.",
+    );
+  });
+
   it("says what is wrong, and in which manche", () => {
     expect(ladderFinished("detail", SEATS, {}, [], 10, RULES).error).toBe(
       "Ajoutez au moins une manche.",
@@ -164,7 +182,7 @@ describe("ladderFinished — the manches", () => {
     expect(read.asked).toBe(false);
   });
 
-  it("reads a player missing from a manche as nothing in it", () => {
+  it("waits for a player missing from a manche, as for an unset cell", () => {
     const read = ladderFinished(
       "detail",
       [A, B, "c" as PlayerId],
@@ -174,6 +192,8 @@ describe("ladderFinished — the manches", () => {
       RULES,
     );
 
-    expect(read.error).toBe("Manche 1 : Un seul joueur doit finir à 0 point.");
+    expect(read.error).toBe(
+      "Manche 1 : il manque les points de certains joueurs.",
+    );
   });
 });

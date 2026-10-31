@@ -115,6 +115,8 @@ export function LadderMancheGrid({
           title={`${
             players.find(p => p.id === editing.playerId)?.name ?? ""
           } — manche ${editing.index + 1}`}
+          // An unset cell opens on the wheel's first value: 0 with the phase
+          // down, a whole hand without.
           initial={manches[editing.index]?.[editing.playerId]?.points ?? 0}
           step={step}
           min={

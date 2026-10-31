@@ -43,19 +43,21 @@ export function LadderMancheGridRow({
       </th>
 
       {players.map(p => {
-        const line = manche[p.id] ?? { points: 0, cleared: false };
+        const line = manche[p.id] ?? { points: null, cleared: false };
 
         return (
           <td key={p.id} className="px-0.5 py-1.5">
             <div className="flex items-center justify-center gap-1">
               <button
                 type="button"
-                aria-label={`${p.name}, manche ${number} : ${line.points} points`}
+                aria-label={`${p.name}, manche ${number} : ${
+                  line.points === null ? "à saisir" : `${line.points} points`
+                }`}
                 disabled={disabled}
                 onClick={() => onEditPoints(p.id)}
                 className="min-w-11 rounded-md border border-black/15 px-1.5 py-1 text-right text-sm font-semibold tabular-nums transition hover:border-indigo-500 dark:border-white/15"
               >
-                {line.points}
+                {line.points ?? "—"}
               </button>
               <label className="flex items-center gap-0.5 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
                 <input

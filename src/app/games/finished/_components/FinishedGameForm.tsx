@@ -255,10 +255,7 @@ export function FinishedGameForm() {
       ...list,
       ...Array.from({ length: count }, (_unused, i) => ({
         key: nextKey + i,
-        manche: blankManche(
-          selected.map(p => p.id),
-          entryRules,
-        ),
+        manche: blankManche(selected.map(p => p.id)),
       })),
     ]);
     setNextKey(k => k + count);
