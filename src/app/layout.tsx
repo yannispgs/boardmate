@@ -38,7 +38,7 @@ export const viewport: Viewport = {
 
 // Short commit hash of the deployed build, when running on Vercel.
 const build = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7);
-const version = `v${pkg.version}${build ? ` · ${build}` : ""}`;
+const version = build ? `v${pkg.version} · ${build}` : `v${pkg.version}`;
 
 export default async function RootLayout({
   children,
