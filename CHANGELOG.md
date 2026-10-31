@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.9.0](https://github.com/yannispgs/boardmate/compare/v1.8.0...v1.9.0) (2026-10-31)
+
+
+### Features
+
+* add a bottom tab bar and rebuild the home page around running games ([0e382c3](https://github.com/yannispgs/boardmate/commit/0e382c3371bbdae5be62e74ec99fdb07981d35c2))
+* add a bottom tab bar and rebuild the home page around running games ([0aea7f1](https://github.com/yannispgs/boardmate/commit/0aea7f16b86858482daa56f61b70ca803f1770ac))
+* cap a Phase 10 manche at the 190 points a hand can hold ([dcb91d4](https://github.com/yannispgs/boardmate/commit/dcb91d443789f92ea2fae009a91b7ce83dc921d6))
+* hold a Phase 10 player without his phase down to a whole hand ([3261ca9](https://github.com/yannispgs/boardmate/commit/3261ca9d7a1f251164ad5089de802574694c2030))
+* nudge a finished Phase 10 manche's points by fives instead of typing them ([c9fefcf](https://github.com/yannispgs/boardmate/commit/c9fefcfbfee23979c861b3c6a321ba4254087092))
+* open a finished Phase 10 night's grid on one manche per phase ([1a1546e](https://github.com/yannispgs/boardmate/commit/1a1546e532d128a34608fa85d35f2e2760e46d5e))
+* pick a finished Phase 10 manche's points on a scroll wheel ([c10a824](https://github.com/yannispgs/boardmate/commit/c10a8242017296092838878b06c1422bcb55e1d2))
+* play Phase 10, climbing its phases manche by manche ([c47677d](https://github.com/yannispgs/boardmate/commit/c47677d1f5b16abffe0b02eb85cc7183493ffe8d))
+* play Phase 10, climbing its phases manche by manche ([1579957](https://github.com/yannispgs/boardmate/commit/1579957a72d705fc2b7abe194327e1c38225f007))
+* set a finished Phase 10 manche's points in a dialog over the grid ([72f8bb6](https://github.com/yannispgs/boardmate/commit/72f8bb69ddbc6e29e197f688a2ae4e9bb66a6d0e))
+* show Phase 10's manches one by one, and record a finished night either way ([c88542d](https://github.com/yannispgs/boardmate/commit/c88542d73b044d33737d37a66cd5990dac992e96))
+* tick under the thumb as the wheel goes by each value ([42f1b9a](https://github.com/yannispgs/boardmate/commit/42f1b9a692a6bcd8b5c43565710abf7b3dd19591))
+* type a finished Phase 10 night's manches as one compact grid ([d3e3772](https://github.com/yannispgs/boardmate/commit/d3e3772f121a2acba2594db50680ec7af3a6353f))
+
+
+### Bug Fixes
+
+* bring the wheel to rest on its values itself, not through CSS snapping ([50ed9c7](https://github.com/yannispgs/boardmate/commit/50ed9c7bdd51e65ae150db0bc3c4d32baa6468a1))
+* drop the wheel's haptic tick ([957a74e](https://github.com/yannispgs/boardmate/commit/957a74e172a4b1208c40061b99a74d5f66972125))
+* even out the gaps between the wheel's values ([e0dd6b6](https://github.com/yannispgs/boardmate/commit/e0dd6b676136693cc8fa70e85be082f3d1b67bac))
+* keep the manche controls right under the clock ([ce4a1a5](https://github.com/yannispgs/boardmate/commit/ce4a1a5e27292637bb82ded037eb0934b4a5b8de))
+* leave a finished Phase 10 night's cells empty until they are set ([dbf4e41](https://github.com/yannispgs/boardmate/commit/dbf4e416a6e7a5800bbe3f6c40b1460de5e76ebe))
+* name Phase 10's ninth phase a pair, and prove its stopwatch can be corrected ([6c82f6b](https://github.com/yannispgs/boardmate/commit/6c82f6b3708224b9c1998f111999b5ef3869c867))
+* set the wheel squarely on a value once a fast flick stops ([549a7ef](https://github.com/yannispgs/boardmate/commit/549a7ef6a842a81ab9161487f0a0a4a69ac62073))
+
 ## [1.8.0](https://github.com/yannispgs/boardmate/compare/v1.7.0...v1.8.0) (2026-10-17)
 
 
