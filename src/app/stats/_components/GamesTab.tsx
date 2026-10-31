@@ -17,6 +17,7 @@ import type {
   PlayerId,
   RoundGoal,
   ScoreSheetItem,
+  StageSpec,
 } from "@/lib/domain";
 import { composeGoals } from "@/lib/game/extensions";
 import { DEFAULT_STAGE_LABEL } from "@/lib/game/finished-setup";
@@ -28,6 +29,12 @@ import {
   filterRecords,
   type GlobalStats,
 } from "@/lib/game/global-stats";
+import {
+  type LadderProgressPoint,
+  ladderProgress,
+  type RungEffort,
+  rungEffort,
+} from "@/lib/game/ladder-stats";
 import {
   computeNeighbourStats,
   type NeighbourBoard,
@@ -61,8 +68,10 @@ import { useExtensions } from "@/lib/hooks/use-extensions";
 import { CategoryCharts } from "./CategoryCharts";
 import { GamePlayerTable } from "./GamePlayerTable";
 import { GoalStatsTable } from "./GoalStatsTable";
+import { LadderProgressChart } from "./LadderProgressChart";
 import { NeighbourStats } from "./NeighbourStats";
 import { PhaseTimeCardList } from "./PhaseTimeCardList";
+import { RungEffortChart } from "./RungEffortChart";
 import { SeatStats } from "./SeatStats";
 import { StatsDiceDistribution } from "./StatsDiceDistribution";
 import { TallyExitCardList } from "./TallyExitCardList";
@@ -237,10 +246,14 @@ export function GamesTab({
         ? {
             averages: computeTallyAverages(scopedRecords),
             exits: computeTallyExits(scopedRecords),
-            histogram: tallyPointsHistogram(scopedRecords),
+            histogram: tallyPointsHistogram(
+              scopedRecords,
+              boardgame?.stages?.pointsStep ?? 1,
+            ),
+            ladder: ladderFigures(boardgame?.stages ?? null, scopedRecords),
           }
         : null,
-    [tallyMode, scopedRecords],
+    [tallyMode, scopedRecords, boardgame],
   );
   // Games won by scoring little (Papayoo, Odin): the totals nobody wants back,
   // cut by the size of the table wherever the seat count moves the total. Null
@@ -546,7 +559,11 @@ function SharedPileSections({
 function TallySections({
   tally,
 }: Readonly<{
-  tally: { exits: TallyExitStat[]; histogram: TallyPointsBar[] } | null;
+  tally: {
+    exits: TallyExitStat[];
+    histogram: TallyPointsBar[];
+    ladder: LadderFigures | null;
+  } | null;
 }>) {
   if (tally === null) {
     return null;
@@ -554,6 +571,24 @@ function TallySections({
 
   return (
     <>
+      {tally.ladder !== null && tally.ladder.points.length > 0 ? (
+        <Section title={`Avancée moyenne des ${tally.ladder.label}s`}>
+          <LadderProgressChart
+            points={tally.ladder.points}
+            top={tally.ladder.top}
+          />
+        </Section>
+      ) : null}
+
+      {tally.ladder !== null && tally.ladder.efforts.length > 0 ? (
+        <Section title={`Ce que coûte chaque ${tally.ladder.label}`}>
+          <RungEffortChart
+            efforts={tally.ladder.efforts}
+            rungLabel={tally.ladder.label}
+          />
+        </Section>
+      ) : null}
+
       {tally.exits.length > 0 ? (
         <Section title="Qui sort le plus souvent">
           <TallyExitCardList stats={tally.exits} />
@@ -567,6 +602,34 @@ function TallySections({
       ) : null}
     </>
   );
+}
+
+/** A laddered game's average climb, and what to call and scale it by. */
+interface LadderFigures {
+  /** What one rung is called, lower-cased (« phase »). */
+  label: string;
+  top: number;
+  points: LadderProgressPoint[];
+  efforts: RungEffort[];
+}
+
+/** The climb figures of a laddered game (Phase 10), null for any other. */
+function ladderFigures(
+  stages: StageSpec | null,
+  records: readonly GameStatsRecord[],
+): LadderFigures | null {
+  const ladder = stages?.ladder;
+
+  if (ladder === undefined) {
+    return null;
+  }
+
+  return {
+    label: ladder.label.toLowerCase(),
+    top: ladder.steps.length,
+    points: ladderProgress(records, ladder.steps.length),
+    efforts: rungEffort(records, ladder.steps.length),
+  };
 }
 
 /** What a game played in phases costs, over the parties in scope. */
@@ -714,6 +777,7 @@ function GameSections({
     averages: TallyAverages | null;
     exits: TallyExitStat[];
     histogram: TallyPointsBar[];
+    ladder: LadderFigures | null;
   } | null;
   /** The totals nobody wants back; null where a worst score says nothing. */
   worst: WorstScoreGameView | null;

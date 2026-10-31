@@ -1,9 +1,10 @@
 "use client";
 
 import type { ReactNode } from "react";
-
 import { StatTile } from "@/components/StatTile";
+import { MiniBarChart } from "@/components/stats/MiniBarChart";
 import type { PopulatedGame } from "@/lib/domain";
+import { ladderSeries } from "@/lib/game/ladder";
 import { statDelta } from "@/lib/game/stat-delta";
 import type { TallyAverages } from "@/lib/game/tally-averages";
 import { computeTallyAverages } from "@/lib/game/tally-averages";
@@ -13,6 +14,7 @@ import {
 } from "@/lib/game/tally-stats";
 import { useGameStats } from "@/lib/hooks/use-game-stats";
 
+import { PhaseTimeSection } from "./PhaseTimeSection";
 import { ScoreChart } from "./ScoreChart";
 import { TallyPlayerCardList } from "./TallyPlayerCardList";
 
@@ -31,7 +33,7 @@ function caption(name: string, averages: TallyAverages | null): string {
 }
 
 /**
- * End-of-game statistics for a game counted manche by manche (Odin).
+ * End-of-game statistics for a game counted manche by manche (Odin, Phase 10).
  *
  * Nothing is timed in such a game — no turn is ever recorded — so there is no
  * play time, no average turn and no rhythm to show; the manches themselves are
@@ -64,6 +66,22 @@ export function TallyGameStats({ game }: Readonly<{ game: PopulatedGame }>) {
   );
 
   const totals = buildStageTotalsSeries(players, game.stageScores);
+  // The laps the table counted, manche by manche (Phase 10).
+  const laps = game.phaseTimes.filter(p => p.laps != null);
+
+  // Phase 10: the climb is what decided the game, so it gets its own curve —
+  // except in the variant, where everybody climbs in step and the curve would
+  // be one line drawn over every other.
+  const ladder = game.boardgame.stages?.ladder;
+  const climb =
+    ladder === undefined || game.ladderFixed === true
+      ? null
+      : ladderSeries(
+          players.map(p => p.playerId),
+          game.stageScores,
+          ladder.steps.length,
+          false,
+        );
 
   return (
     <section className="flex flex-col gap-6">
@@ -123,6 +141,25 @@ export function TallyGameStats({ game }: Readonly<{ game: PopulatedGame }>) {
         </Highlight>
       ) : null}
 
+      {climb !== null && ladder !== undefined && stats.stageCount > 0 ? (
+        <div data-testid="ladder-chart" className="flex flex-col gap-3">
+          <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+            Avancée des {ladder.label.toLowerCase()}s — manche par manche
+          </h3>
+          <ScoreChart
+            series={climb}
+            maxScore={ladder.steps.length}
+            threshold={ladder.steps.length}
+            rounds={stats.stageCount}
+            players={players.map(p => ({ id: p.playerId, name: p.name }))}
+          />
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            Le nombre de {ladder.label.toLowerCase()}s réalisées après chaque
+            manche ; la ligne jaune est la dernière, celle qui gagne.
+          </p>
+        </div>
+      ) : null}
+
       {totals.series.length > 0 ? (
         <div className="flex flex-col gap-3">
           <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
@@ -135,10 +172,31 @@ export function TallyGameStats({ game }: Readonly<{ game: PopulatedGame }>) {
             rounds={stats.stageCount}
             players={players.map(p => ({ id: p.playerId, name: p.name }))}
           />
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            La ligne jaune est le score à ne pas atteindre : la partie s&apos;y
-            arrête, et c&apos;est le plus petit total qui gagne.
-          </p>
+          {game.winThreshold === null ? null : (
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              La ligne jaune est le score à ne pas atteindre : la partie
+              s&apos;y arrête, et c&apos;est le plus petit total qui gagne.
+            </p>
+          )}
+        </div>
+      ) : null}
+
+      <PhaseTimeSection game={game} stageLabel="Manche" />
+
+      {laps.length > 0 ? (
+        <div className="flex flex-col gap-3">
+          <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+            Tours de table — manche par manche
+          </h3>
+          <MiniBarChart
+            testId="stage-laps"
+            bars={laps.map(p => ({
+              key: String(p.stage),
+              label: String(p.stage),
+              value: p.laps ?? 0,
+              caption: String(p.laps),
+            }))}
+          />
         </div>
       ) : null}
 

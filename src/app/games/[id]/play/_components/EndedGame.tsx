@@ -13,6 +13,7 @@ import { hasComparablePast } from "@/lib/game/player-recap";
 import { worldRecordOf } from "@/lib/game/score-records";
 import { formatNames } from "@/lib/game/tie-break";
 import { hasPlayStats } from "@/lib/game/turn-time";
+import { useExtraRecords } from "@/lib/hooks/use-extra-records";
 import { usePlayerRecaps } from "@/lib/hooks/use-player-recaps";
 import { useRecordsOfGame } from "@/lib/hooks/use-score-records";
 import { useSpeedRecord } from "@/lib/hooks/use-speed-record";
@@ -20,6 +21,7 @@ import { useSpeedRecord } from "@/lib/hooks/use-speed-record";
 import { ChainPartyButton } from "./ChainPartyButton";
 import { EndRecapTabs } from "./EndRecapTabs";
 import { EndScorePanel } from "./EndScorePanel";
+import { ExtraRecordBanner } from "./ExtraRecordBanner";
 import { GameStats } from "./GameStats";
 import { PlayerRecapSection } from "./PlayerRecapSection";
 import { ScoreRecordBanner } from "./ScoreRecordBanner";
@@ -112,6 +114,7 @@ export function EndedGame({
   // The other mark a party can leave: having reached the target in fewer laps
   // than anyone else on the same course. Only a race towards a score has one.
   const speed = useSpeedRecord(game);
+  const extras = useExtraRecords(game);
   // The evening this party just closed — a sitting of one for most parties,
   // which is exactly when the facts below say nothing.
   const sitting = useSessionGames(game.sessionId, game.id);
@@ -180,6 +183,12 @@ export function EndedGame({
 
             <ScoreRecordBanner record={record} score={winnerScore} />
             <SpeedRecordBanner record={speed} />
+            <ExtraRecordBanner
+              taken={extras}
+              nameOf={id =>
+                game.players.find(p => p.playerId === id)?.player.name ?? "—"
+              }
+            />
 
             {/* Told here, in the first screenful, rather than down with the
                 statistics: it is the story of the evening that just ended, and

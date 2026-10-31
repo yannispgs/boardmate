@@ -29,11 +29,13 @@
 
 import type {
   Boardgame,
+  ExtraRecord,
   GameStatsRecord,
   PlayedExtension,
   PlayerId,
 } from "@/lib/domain";
 import { extensionTab } from "./extensions";
+import { extraDirection, extraMarks, ladderRuns } from "./ladder-records";
 import { tracksScoreRecord } from "./score-records";
 import type { ScoreDirection } from "./scoring";
 import { scoreDirectionOf } from "./scoring";
@@ -41,7 +43,31 @@ import type { SpeedRun } from "./speed-records";
 import { speedRuns, tracksSpeedRecord } from "./speed-records";
 
 /** What a mark on this board is measured in. */
-export type RecordMetric = "score" | "speed";
+export type RecordMetric = "score" | "speed" | ExtraRecord;
+
+/** The unit a mark is counted in, singular — the views add the plural. */
+export type RecordUnit = "point" | "tour" | "manche";
+
+/** The sign each kind of mark is worn under, the same as the end screen's. */
+export const RECORD_SIGIL: Readonly<Record<RecordMetric, string>> = {
+  score: "⭐",
+  speed: "⚡",
+  heaviestStage: "🪨",
+  lowestWin: "🏆",
+};
+
+/** What the per-player list of a mark is titled. */
+export const RECORD_TITLE: Readonly<Record<RecordMetric, string>> = {
+  score: "Meilleurs scores",
+  speed: "Plus rapides",
+  heaviestStage: "Manches les plus lourdes",
+  lowestWin: "Plus petites victoires",
+};
+
+/** « 12 points », « 1 tour » — a mark in the unit it was counted in. */
+export function recordFigure(value: number, unit: RecordUnit): string {
+  return `${value} ${unit}${value > 1 ? "s" : ""}`;
+}
 
 /** How the base game names its own tab. */
 export const BASE_TAB_LABEL = "Jeu de base";
@@ -99,6 +125,8 @@ export interface RecordEntry {
    */
   label: string | null;
   metric: RecordMetric;
+  /** What `value` counts. */
+  unit: RecordUnit;
   value: number;
   /** Who holds the mark; several when they are level on it. */
   holders: string[];
@@ -221,9 +249,13 @@ function entryOf(
     target,
     label,
     metric,
+    unit,
     parties,
   }: Readonly<
-    Pick<RecordEntry, "key" | "target" | "label" | "metric" | "parties">
+    Pick<
+      RecordEntry,
+      "key" | "target" | "label" | "metric" | "unit" | "parties"
+    >
   >,
   marks: readonly Mark[],
   direction: ScoreDirection,
@@ -240,6 +272,7 @@ function entryOf(
     target,
     label,
     metric,
+    unit,
     parties,
     value: top.value,
     holders: bests.filter(b => b.value === top.value).map(b => b.name),
@@ -266,6 +299,7 @@ function scoreEntry(
       target: null,
       label: null,
       metric: "score",
+      unit: "point",
       parties: parties.length,
     },
     marks,
@@ -302,7 +336,13 @@ function speedEntries(
   const here = new Map(parties.map(p => [p.gameId, p]));
   const courses = new Map<
     string,
-    { target: number; label: string | null; parties: number; marks: Mark[] }
+    {
+      target: number;
+      label: string | null;
+      ladder: boolean;
+      parties: number;
+      marks: Mark[];
+    }
   >();
 
   for (const run of runs) {
@@ -316,6 +356,7 @@ function speedEntries(
     const course = courses.get(key) ?? {
       target: run.target,
       label: scenarioLabel(party.extensions ?? []),
+      ladder: run.course === "ladder",
       parties: 0,
       marks: [],
     };
@@ -350,9 +391,12 @@ function speedEntries(
         entryOf(
           {
             key: `speed:${key}`,
-            target: course.target,
+            // A ladder is always climbed to its top: the finish line is the
+            // same for every race and has nothing to tell apart on the rail.
+            target: course.ladder ? null : course.target,
             label: course.label,
             metric: "speed",
+            unit: course.ladder ? "manche" : "tour",
             parties: course.parties,
           },
           course.marks,
@@ -363,6 +407,36 @@ function speedEntries(
   );
 }
 
+/** The best figure posted in a cell towards one of the game's extra records. */
+function extraEntry(
+  parties: readonly GameStatsRecord[],
+  record: ExtraRecord,
+): RecordEntry | null {
+  const marks = parties.flatMap(party => {
+    const names = new Map(party.players.map(p => [p.playerId, p.name]));
+
+    return extraMarks(record, party).map(mark => ({
+      playerId: mark.playerId,
+      /* c8 ignore next -- `?? ""` guards a mark from a seat that can't be missing */
+      name: names.get(mark.playerId) ?? "",
+      value: mark.value,
+    }));
+  });
+
+  return entryOf(
+    {
+      key: record,
+      target: null,
+      label: null,
+      metric: record,
+      unit: "point",
+      parties: parties.length,
+    },
+    marks,
+    extraDirection(record),
+  );
+}
+
 /** The whole board of one game, tab by tab and row by row. */
 export function recordBoard({
   boardgame,
@@ -370,7 +444,10 @@ export function recordBoard({
   records,
 }: Readonly<{
   boardgame: Readonly<
-    Pick<Boardgame, "id" | "minPlayers" | "maxPlayers" | "scoring">
+    Pick<Boardgame, "id" | "minPlayers" | "maxPlayers" | "scoring"> & {
+      /** How it is played in manches — a ladder makes it a race too. */
+      stages?: Boardgame["stages"];
+    }
   >;
   /** The extensions the game declares, in their own order. */
   extensions: readonly string[];
@@ -389,9 +466,17 @@ export function recordBoard({
     metrics.push("score");
   }
 
-  if (tracksSpeedRecord(scoring)) {
+  // A ladder is raced too, in manches to its top rung (Phase 10).
+  const stages = boardgame.stages ?? null;
+  const ladder = stages?.ladder !== undefined;
+
+  if (tracksSpeedRecord(scoring) || ladder) {
     metrics.push("speed");
   }
+
+  const extras = scoring?.extraRecords ?? [];
+
+  metrics.push(...extras);
 
   const direction = scoreDirectionOf(scoring);
   const sizes: Array<number | null> =
@@ -404,7 +489,9 @@ export function recordBoard({
   // Read once for the whole board rather than per cell: the disqualifiers of a
   // race (a party keyed in after the fact, an unknown finish line, nobody to
   // credit) belong to the party, not to the basket it lands in.
-  const runs = speedRuns(scoring, boardgame.id, parties);
+  const runs = ladder
+    ? ladderRuns(stages, boardgame.id, parties)
+    : speedRuns(scoring, boardgame.id, parties);
 
   return {
     metrics,
@@ -431,6 +518,14 @@ export function recordBoard({
 
         if (metrics.includes("speed")) {
           entries.push(...speedEntries(cell, runs));
+        }
+
+        for (const record of extras) {
+          const extra = extraEntry(cell, record);
+
+          if (extra !== null) {
+            entries.push(extra);
+          }
         }
 
         return {

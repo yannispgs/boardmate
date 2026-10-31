@@ -10,6 +10,7 @@ import type {
   ExtensionScenarioId,
   Player,
   PlayerId,
+  ScoringSpec,
 } from "@/lib/domain";
 import {
   finishedGoals,
@@ -17,8 +18,20 @@ import {
   type StageGoalRaw,
 } from "@/lib/game/finished-goals";
 import { finishedSetup } from "@/lib/game/finished-setup";
-import { finishedWinners } from "@/lib/game/finished-winner";
+import {
+  type FinishedWinners,
+  finishedWinners,
+} from "@/lib/game/finished-winner";
 import { localDay } from "@/lib/game/game-filters";
+import type { LadderEntryRules } from "@/lib/game/ladder";
+import {
+  blankManche,
+  type LadderFinished,
+  type LadderManche,
+  type LadderMode,
+  ladderFinished,
+  patchManche,
+} from "@/lib/game/ladder-finished";
 import { type StagePick, stageGoalPrefill } from "@/lib/game/stage";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useExtensions } from "@/lib/hooks/use-extensions";
@@ -29,15 +42,54 @@ import type { CategoryRaw } from "../../_components/CategoryScoreGrid";
 import { ExtensionPicker } from "../../_components/ExtensionPicker";
 import {
   type EntryMode,
+  type FinishedEntry,
   finishedEntry,
 } from "../../_components/finished-entry";
 import { BoardgamePicker } from "./BoardgamePicker";
+import { LadderEntrySection } from "./LadderEntrySection";
 import { PlayerSeatPicker } from "./PlayerSeatPicker";
 import { ResultSection } from "./ResultSection";
 
 /** Today where the reader is, for the default end-date field. */
 function today(): string {
   return localDay(new Date().toISOString());
+}
+
+/**
+ * What the form can file, read off the sheet — or, on a laddered game, off
+ * the climb: who can win, whether the table has to say it, and the scores.
+ */
+function readResult(
+  entry: FinishedEntry,
+  climb: LadderFinished | null,
+  scoring: ScoringSpec | null,
+  selected: Player[],
+): {
+  candidates: Player[];
+  choice: FinishedWinners;
+  scoresComplete: boolean;
+  scoreOf: (id: PlayerId) => number | null;
+} {
+  if (climb === null) {
+    return {
+      candidates: entry.winnerCandidates,
+      choice: finishedWinners(scoring, selected.length, entry.winnerCandidates),
+      scoresComplete: entry.scoresComplete,
+      scoreOf: entry.scoreOf,
+    };
+  }
+
+  return {
+    candidates: selected.filter(p => climb.candidates.includes(p.id)),
+    choice: {
+      asked: climb.asked,
+      preselected: climb.preselected,
+      rules: climb.tied ? (scoring?.tieBreak ?? []) : [],
+      tied: climb.tied,
+    },
+    scoresComplete: climb.error === null,
+    scoreOf: climb.scoreOf,
+  };
 }
 
 const sectionClass =
@@ -69,6 +121,13 @@ export function FinishedGameForm() {
   const [stageRaw, setStageRaw] = useState<StageGoalRaw>({});
   // Null while the form's own suggestion stands; set once the table picks.
   const [winnerIds, setWinnerIds] = useState<PlayerId[] | null>(null);
+  // Phase 10: the totals alone, or the manches one by one — each keyed by a
+  // number of its own, since removing one shifts the others' places.
+  const [ladderMode, setLadderMode] = useState<LadderMode>("total");
+  const [manches, setManches] = useState<
+    Array<{ key: number; manche: LadderManche }>
+  >([]);
+  const [nextKey, setNextKey] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -102,10 +161,33 @@ export function FinishedGameForm() {
     piles,
   );
 
-  const choice = finishedWinners(
+  // A laddered game is read off its climb, not off the sheet: who can win, and
+  // whether the table has to say it, come from there.
+  const ladder = boardgame?.stages?.ladder ?? null;
+  // Phase 10's checks of a manche: points in fives, under what a hand can
+  // hold, and a whole hand at the least without the phase down.
+  const entryRules: LadderEntryRules = {
+    fixed: false,
+    step: boardgame?.stages?.pointsStep ?? 1,
+    maxPoints: boardgame?.stages?.maxPoints ?? null,
+    unclearedMin: ladder?.unclearedMin ?? 0,
+  };
+  const climb =
+    ladder === null
+      ? null
+      : ladderFinished(
+          ladderMode,
+          selected.map(p => p.id),
+          totals,
+          manches.map(m => m.manche),
+          ladder.steps.length,
+          entryRules,
+        );
+  const { candidates, choice, scoresComplete, scoreOf } = readResult(
+    entry,
+    climb,
     scoring,
-    selected.length,
-    entry.winnerCandidates,
+    selected,
   );
   const effectiveWinners = winnerIds ?? choice.preselected;
 
@@ -122,6 +204,8 @@ export function FinishedGameForm() {
     // total. Shared piles are the opposite: they are what was on the table, and
     // the total is the multiplication the app is there to do.
     setEntryMode(b.scoring?.entry === "pairs" ? "detail" : "total");
+    setLadderMode("total");
+    setManches([]);
     setWinnerIds(null);
   }
 
@@ -164,10 +248,23 @@ export function FinishedGameForm() {
     setCatRaw(raw => mergeCells(raw, cells));
   }
 
+  /** Adds `count` empty manches at the end of the grid. */
+  function addManches(count: number) {
+    setWinnerIds(null);
+    setManches(list => [
+      ...list,
+      ...Array.from({ length: count }, (_unused, i) => ({
+        key: nextKey + i,
+        manche: blankManche(selected.map(p => p.id)),
+      })),
+    ]);
+    setNextKey(k => k + count);
+  }
+
   const canSubmit =
     boardgame !== null &&
     selected.length >= 2 &&
-    entry.scoresComplete &&
+    scoresComplete &&
     effectiveWinners.length > 0 &&
     !submitting;
 
@@ -187,14 +284,14 @@ export function FinishedGameForm() {
         players: selected.map((p, index) => ({
           playerId: p.id,
           seatOrder: index,
-          score: entry.scoreOf(p.id),
-          breakdown: entry.breakdownOf(p.id),
+          score: scoreOf(p.id),
+          breakdown: climb === null ? entry.breakdownOf(p.id) : null,
         })),
         extensionIds,
         scenarioByExtension,
         // All or nothing: a half-remembered calendar is not recorded at all.
         stages: goals.complete ? goals.stages : [],
-        stageScores: goals.scores,
+        stageScores: climb === null ? goals.scores : climb.stageScores,
       });
       router.push("/games");
     } catch {
@@ -256,6 +353,63 @@ export function FinishedGameForm() {
           catRaw={catRaw}
           piles={piles}
           winners={effectiveWinners}
+          candidates={candidates}
+          scoreEntry={
+            ladder !== null && scoring !== null && climb !== null ? (
+              <LadderEntrySection
+                scoring={scoring}
+                ladder={ladder}
+                step={entryRules.step}
+                maxPoints={entryRules.maxPoints}
+                unclearedMin={entryRules.unclearedMin}
+                players={selected}
+                mode={ladderMode}
+                totals={totals}
+                manches={manches.map(m => m.manche)}
+                mancheKeys={manches.map(m => m.key)}
+                error={climb.error}
+                disabled={submitting}
+                onMode={mode => {
+                  setWinnerIds(null);
+                  setLadderMode(mode);
+
+                  // A rung a manche at most: a game played to its end lasts at
+                  // least as many manches as the ladder has rungs, so the grid
+                  // opens on that many rather than on nothing.
+                  if (mode === "detail" && manches.length === 0) {
+                    addManches(ladder.steps.length);
+                  }
+                }}
+                onTotal={(id, text) => {
+                  setWinnerIds(null);
+                  setTotals(t => ({ ...t, [id]: text }));
+                }}
+                onManche={(index, playerId, patch) => {
+                  setWinnerIds(null);
+                  setManches(list =>
+                    list.map((m, i) =>
+                      i === index
+                        ? {
+                            ...m,
+                            manche: patchManche(
+                              m.manche,
+                              playerId,
+                              patch,
+                              entryRules,
+                            ),
+                          }
+                        : m,
+                    ),
+                  );
+                }}
+                onAddManche={() => addManches(1)}
+                onRemoveManche={index => {
+                  setWinnerIds(null);
+                  setManches(list => list.filter((_m, i) => i !== index));
+                }}
+              />
+            ) : null
+          }
           choice={choice}
           disabled={submitting}
           onEndedAt={setEndedAt}

@@ -11,6 +11,7 @@ import {
 } from "@/lib/game/end-outcome";
 import { getGameRepository } from "@/lib/repositories";
 import { AlreadyEndedError } from "@/lib/repositories/errors";
+import type { EndOutcomeRequest } from "./stage-tallies";
 import type { PlayGame } from "./use-play-game";
 
 const END_FAILED = "Impossible de terminer la partie.";
@@ -63,6 +64,11 @@ export interface EndFlowState {
    * the app did, so climbing the standings place by place would reveal nothing:
    * the game is recorded straight away.
    */
+  /**
+   * Ends a game counted manche by manche on what its manches add up to — the
+   * summed totals (Odin), or the climb (Phase 10). See `stageTally`.
+   */
+  finishTally: (request: EndOutcomeRequest) => Promise<void>;
   finishTypedTotals: (
     scores: Array<{ playerId: PlayerId; score: number }>,
     override: PlayerId | null,
@@ -250,6 +256,17 @@ export function useEndFlow(game: PopulatedGame, play: PlayGame): EndFlowState {
           game.boardgame.scoring?.winCondition ?? null,
           override,
         ),
+      ),
+
+    finishTally: request =>
+      reveal(
+        request.kind === "totals"
+          ? totalOutcome(
+              request.scores,
+              game.boardgame.scoring?.winCondition ?? null,
+              null,
+            )
+          : request.outcome,
       ),
 
     finishTypedTotals: async (scores, override) => {

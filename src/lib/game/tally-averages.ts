@@ -149,10 +149,13 @@ export interface TallyPointsBar {
  * How often each manche cost was written down, from 0 (went out) up to the
  * heaviest ever taken — the whole hand, when the rules cap it. Every value in
  * between gets its bar, empty ones included, so the shape of the distribution
- * shows rather than the bars merely being listed.
+ * shows rather than the bars merely being listed. « In between » goes by the
+ * `step` the points come in — five by five at Phase 10, where the bars between
+ * two multiples of five could never fill.
  */
 export function tallyPointsHistogram(
   records: readonly GameStatsRecord[],
+  step = 1,
 ): TallyPointsBar[] {
   const counts = new Map<number, number>();
   let max = 0;
@@ -168,8 +171,8 @@ export function tallyPointsHistogram(
     return [];
   }
 
-  return Array.from({ length: max + 1 }, (_unused, points) => ({
-    points,
-    count: counts.get(points) ?? 0,
+  return Array.from({ length: max / step + 1 }, (_unused, index) => ({
+    points: index * step,
+    count: counts.get(index * step) ?? 0,
   }));
 }

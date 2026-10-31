@@ -26,6 +26,8 @@ export interface Standing extends Ranked {
 export interface StageEntry {
   playerId: PlayerId;
   points: number;
+  /** Whether he cleared his rung that manche — on a laddered game only. */
+  cleared?: boolean;
 }
 
 /**

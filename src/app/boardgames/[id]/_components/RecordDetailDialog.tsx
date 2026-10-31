@@ -3,16 +3,18 @@
 import { Modal } from "@/components/Modal";
 import { ModalHeader } from "@/components/ModalHeader";
 import { modalCardClass } from "@/components/ui";
-import type { BoardRow, RecordEntry } from "@/lib/game/record-board";
-import { targetLong } from "@/lib/game/record-board";
+import {
+  type BoardRow,
+  RECORD_TITLE,
+  type RecordEntry,
+  type RecordUnit,
+  recordFigure,
+  targetLong,
+} from "@/lib/game/record-board";
 
-/** How a mark reads in the unit it was measured in, in the detail list. */
-function figure(entry: RecordEntry, value: number): string {
-  if (entry.metric === "score") {
-    return `${value} pts`;
-  }
-
-  return `${value} ${value > 1 ? "tours" : "tour"}`;
+/** How a mark reads in the detail list: points shortened, the rest in full. */
+function figure(value: number, unit: RecordUnit): string {
+  return unit === "point" ? `${value} pts` : recordFigure(value, unit);
 }
 
 /**
@@ -54,7 +56,7 @@ export function RecordDetailDialog({
     <Modal onClose={onClose} label="Records par joueur">
       <div className={`${modalCardClass} max-w-md`}>
         <ModalHeader
-          title={entry.metric === "score" ? "Meilleurs scores" : "Plus rapides"}
+          title={RECORD_TITLE[entry.metric]}
           hint={hint}
           onClose={onClose}
         />
@@ -75,7 +77,7 @@ export function RecordDetailDialog({
                 {best.parties} partie{best.parties > 1 ? "s" : ""}
               </span>
               <span className="w-20 shrink-0 text-right font-semibold tabular-nums">
-                {figure(entry, best.value)}
+                {figure(best.value, entry.unit)}
               </span>
             </li>
           ))}

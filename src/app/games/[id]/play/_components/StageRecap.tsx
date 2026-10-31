@@ -1,10 +1,8 @@
 "use client";
 
-import { Modal } from "@/components/Modal";
-import type { PlayerId } from "@/lib/domain";
-import type { Standing } from "@/lib/game/stage-tally";
+import type { ReactNode } from "react";
 
-import { StandingCardList } from "./StandingCardList";
+import { Modal } from "@/components/Modal";
 
 /**
  * The standings read out at the end of a manche, before anyone deals again.
@@ -12,14 +10,14 @@ import { StandingCardList } from "./StandingCardList";
  * It is the whole point of counting manche by manche: what a manche cost is
  * only worth knowing next to the total it lands on, and the table wants to see
  * where it stands before it commits to another one. It is also where the game
- * announces its own end — the target reached is read off these very totals.
+ * announces its own end — the target reached, or the last phase cleared, is
+ * read off these very standings.
  */
 export function StageRecap({
   stage,
   stageLabel,
-  standings,
-  players,
-  target,
+  board,
+  stopNote,
   stopped,
   disabled,
   onNext,
@@ -28,11 +26,11 @@ export function StageRecap({
   stage: number;
   /** What the box calls a stage (« Manche »). */
   stageLabel: string;
-  standings: readonly Standing[];
-  players: ReadonlyArray<{ id: PlayerId; name: string }>;
-  /** The total that stops the game, or null when nothing stops it. */
-  target: number | null;
-  /** Somebody has reached the target: this manche was the last one. */
+  /** The standings after this manche, with what it cost each player. */
+  board: ReactNode;
+  /** Why the game stops here, read out when it does. */
+  stopNote: string;
+  /** This manche was the last one. */
   stopped: boolean;
   disabled: boolean;
   onNext: () => void;
@@ -51,19 +49,10 @@ export function StageRecap({
         Fin de la {unit} {stage}
       </h2>
       <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-        {stopped
-          ? `La barre des ${target} points est franchie : la partie s'arrête ici.`
-          : "Totaux après cette manche."}
+        {stopped ? stopNote : "Totaux après cette manche."}
       </p>
 
-      <div className="mt-4">
-        <StandingCardList
-          standings={standings}
-          players={players}
-          showPoints
-          target={target}
-        />
-      </div>
+      <div className="mt-4">{board}</div>
 
       <div className="mt-5 flex justify-end">
         <button

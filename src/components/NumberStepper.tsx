@@ -18,6 +18,7 @@ export function NumberStepper({
   value,
   min = 0,
   max = null,
+  step = 1,
   disabled = false,
   onChange,
 }: Readonly<{
@@ -27,6 +28,8 @@ export function NumberStepper({
   min?: number;
   /** The highest the arrows go, `null` when the rules give no ceiling. */
   max?: number | null;
+  /** How far one tap of an arrow goes — 5 where the values go by fives. */
+  step?: number;
   disabled?: boolean;
   onChange: (value: number) => void;
 }>) {
@@ -53,9 +56,9 @@ export function NumberStepper({
     <div className="flex items-center gap-2">
       <button
         type="button"
-        aria-label={`${label} : un de moins`}
-        onClick={() => nudge(-1)}
-        disabled={disabled || value <= min}
+        aria-label={`${label} : ${stepWord(step)} de moins`}
+        onClick={() => nudge(-step)}
+        disabled={disabled || value - step < min}
         className={arrowClass}
       >
         −
@@ -78,13 +81,18 @@ export function NumberStepper({
 
       <button
         type="button"
-        aria-label={`${label} : un de plus`}
-        onClick={() => nudge(1)}
-        disabled={disabled || (max !== null && value >= max)}
+        aria-label={`${label} : ${stepWord(step)} de plus`}
+        onClick={() => nudge(step)}
+        disabled={disabled || (max !== null && value + step > max)}
         className={arrowClass}
       >
         +
       </button>
     </div>
   );
+}
+
+/** How an arrow names its step: « un » for one, the number otherwise. */
+function stepWord(step: number): string {
+  return step === 1 ? "un" : String(step);
 }

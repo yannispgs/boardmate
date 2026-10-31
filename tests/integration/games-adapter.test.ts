@@ -582,7 +582,7 @@ describe("games adapter — generations (Terraforming Mars)", () => {
     expect(p?.phase).toBe(1);
     expect(p?.stage).toBe(1);
     expect(p?.phaseTimes).toEqual([
-      { stage: 1, phaseKey: "discovery", durationS: 95 },
+      { stage: 1, phaseKey: "discovery", durationS: 95, laps: null },
     ]);
 
     // Everybody passes. On a game played in phases that ends the *phase*, not
@@ -612,7 +612,12 @@ describe("games adapter — generations (Terraforming Mars)", () => {
     // since the table was still in the phase while it was on hold.
     expect(
       p?.phaseTimes.find(t => t.stage === 1 && t.phaseKey === "projects"),
-    ).toEqual({ stage: 1, phaseKey: "projects", durationS: 35 });
+    ).toEqual({
+      stage: 1,
+      phaseKey: "projects",
+      durationS: 35,
+      laps: null,
+    });
 
     // The last phase closing is the generation ending: everybody comes back in
     // and the first-player marker has moved on.
@@ -668,6 +673,7 @@ describe("games adapter — generations (Terraforming Mars)", () => {
       stage: 1,
       phaseKey: "discovery",
       durationS: 95,
+      laps: null,
     });
   });
 
@@ -920,7 +926,113 @@ describe("games adapter — manches closed by hand (Odin)", () => {
       stage: 2,
       playerId: playerIds[0],
       points: 9,
+      cleared: false,
     });
+  });
+});
+
+describe("games adapter — a ladder climbed manche by manche (Phase 10)", () => {
+  let phase10Id: BoardgameId;
+
+  beforeAll(async () => {
+    const { data } = await serviceClient()
+      .from("boardgames")
+      .select("id, stages, phases, scoring")
+      .eq("name", "Phase 10")
+      .single();
+
+    phase10Id = data?.id as BoardgameId;
+    // The ten phases are the ladder; the one phase of a manche only carries
+    // the table stopwatch.
+    expect(data?.stages).toMatchObject({
+      advance: "manual",
+      pointsStep: 5,
+      // Ten cards at most in hand: eight Wild at 20 and two Skip at 15.
+      maxPoints: 190,
+      // Ten cards still in hand without the phase down: 50 at the least.
+      ladder: { label: "Phase", fixedKey: "fixedStages", unclearedMin: 50 },
+    });
+    expect(
+      (data?.stages as { ladder: { steps: string[] } }).ladder.steps,
+    ).toHaveLength(10);
+    expect(data?.phases).toEqual([
+      {
+        key: "manche",
+        label: "Manche",
+        mode: "simultaneous",
+        clock: "stopwatch",
+      },
+    ]);
+    expect(data?.scoring).toMatchObject({
+      winCondition: { type: "lowest" },
+      trackRecords: false,
+      extraRecords: ["heaviestStage", "lowestWin"],
+    });
+  });
+
+  it("keeps who laid his phase down, and banks the manche's time and laps", async () => {
+    const game = await repo().create({
+      boardgameId: phase10Id,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    await repo().setStageScores(game.id, 1, [
+      { playerId: playerIds[0], points: 0, cleared: true },
+      { playerId: playerIds[1], points: 25, cleared: true },
+      { playerId: playerIds[2], points: 40 },
+    ]);
+    // The laps are tapped as they go, then the manche's time is banked: one
+    // write must not wipe the other.
+    await repo().setPhaseLaps(game.id, 1, "manche", 2);
+    await repo().endPhase(game.id, {
+      stage: 1,
+      phaseKey: "manche",
+      durationS: 300,
+      next: { index: 0, stageEnds: false },
+    });
+    await repo().setPhaseLaps(game.id, 1, "manche", 3);
+    await repo().advanceStage(game.id);
+
+    const p = await repo().getPopulated(game.id);
+
+    expect(p?.ladderFixed).toBe(false);
+    expect(p?.stage).toBe(2);
+    expect(p?.phaseTimes).toEqual([
+      { stage: 1, phaseKey: "manche", durationS: 300, laps: 3 },
+    ]);
+    expect(p?.stageScores.map(s => [s.playerId, s.cleared]).sort()).toEqual(
+      [
+        [playerIds[0], true],
+        [playerIds[1], true],
+        [playerIds[2], false],
+      ].sort(),
+    );
+
+    await repo().end(game.id, [playerIds[0]]);
+
+    const record = (await repo().listStats()).find(r => r.gameId === game.id);
+
+    expect(record?.ladderFixed).toBe(false);
+    expect(record?.stageScores).toContainEqual({
+      stage: 1,
+      playerId: playerIds[1],
+      points: 25,
+      cleared: true,
+    });
+  });
+
+  it("reads the variant off the configuration the party was launched with", async () => {
+    const game = await repo().create({
+      boardgameId: phase10Id,
+      configId: null,
+      configValues: { fixedStages: true },
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    expect((await repo().getPopulated(game.id))?.ladderFixed).toBe(true);
   });
 });
 
