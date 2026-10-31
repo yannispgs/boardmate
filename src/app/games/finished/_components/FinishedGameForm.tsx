@@ -173,6 +173,7 @@ export function FinishedGameForm() {
           manches.map(m => m.manche),
           ladder.steps.length,
           boardgame?.stages?.pointsStep ?? 1,
+          boardgame?.stages?.maxPoints ?? null,
         );
   const { candidates, choice, scoresComplete, scoreOf } = readResult(
     entry,
@@ -351,6 +352,7 @@ export function FinishedGameForm() {
                 scoring={scoring}
                 ladder={ladder}
                 step={boardgame?.stages?.pointsStep ?? 1}
+                maxPoints={boardgame?.stages?.maxPoints ?? null}
                 players={selected}
                 mode={ladderMode}
                 totals={totals}

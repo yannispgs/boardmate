@@ -84,6 +84,7 @@ export function ladderFinished(
   manches: readonly LadderManche[],
   top: number,
   step: number,
+  maxPoints: number | null,
 ): LadderFinished {
   if (mode === "total") {
     const scoreOf = (id: PlayerId) => {
@@ -104,7 +105,7 @@ export function ladderFinished(
     };
   }
 
-  const error = manchesError(manches, playerIds, step);
+  const error = manchesError(manches, playerIds, step, maxPoints);
   const stageScores = mancheScores(manches, playerIds);
 
   if (error !== null) {
@@ -140,6 +141,7 @@ function manchesError(
   manches: readonly LadderManche[],
   playerIds: readonly PlayerId[],
   step: number,
+  maxPoints: number | null,
 ): string | null {
   if (manches.length === 0) {
     return "Ajoutez au moins une manche.";
@@ -154,6 +156,7 @@ function manchesError(
       })),
       false,
       step,
+      maxPoints,
     );
 
     if (error !== null) {

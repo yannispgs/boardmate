@@ -947,6 +947,8 @@ describe("games adapter — a ladder climbed manche by manche (Phase 10)", () =>
     expect(data?.stages).toMatchObject({
       advance: "manual",
       pointsStep: 5,
+      // Ten cards at most in hand: eight Wild at 20 and two Skip at 15.
+      maxPoints: 190,
       ladder: { label: "Phase", fixedKey: "fixedStages" },
     });
     expect(

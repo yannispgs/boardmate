@@ -35,6 +35,11 @@ comment on column public.boardgames.stages is
   '"ladder": { "label", "steps": text[], '
   '"fixedKey" } }. Null for a game turning in plain laps.';
 
+-- The most a manche can cost: a hand never holds more than ten cards between
+-- two turns (draw one, discard one), and the dearest ten in the box — eight
+-- Wild at 20 (the table's own value) and two of its four Skip at 15 — make
+-- 190.
+--
 -- Timed, but never per turn: the one phase of a manche runs a table stopwatch,
 -- banked when the manche closes, so the stats know how long each manche took.
 -- No plain score record: the score does not decide who wins, so « the best
@@ -81,6 +86,7 @@ values (
     "label": "Manche",
     "advance": "manual",
     "pointsStep": 5,
+    "maxPoints": 190,
     "ladder": {
       "label": "Phase",
       "fixedKey": "fixedStages",

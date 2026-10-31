@@ -60,6 +60,7 @@ describe("ladderFinished — the totals alone", () => {
       [],
       10,
       5,
+      null,
     );
 
     expect(read.error).toBeNull();
@@ -71,7 +72,7 @@ describe("ladderFinished — the totals alone", () => {
   });
 
   it("waits for every total", () => {
-    const read = ladderFinished("total", SEATS, { a: "40" }, [], 10, 5);
+    const read = ladderFinished("total", SEATS, { a: "40" }, [], 10, 5, null);
 
     expect(read.error).toBe("Il manque le score de certains joueurs.");
     expect(read.scoreOf(B)).toBeNull();
@@ -87,6 +88,7 @@ describe("ladderFinished — the manches", () => {
       [manche([0, true], [5, false]), manche([60, true], [0, true])],
       2,
       5,
+      null,
     );
 
     expect(read.error).toBeNull();
@@ -106,6 +108,7 @@ describe("ladderFinished — the manches", () => {
       [manche([0, true], [10, true]), manche([10, true], [0, true])],
       2,
       5,
+      null,
     );
 
     expect(read.candidates).toEqual(SEATS);
@@ -114,7 +117,7 @@ describe("ladderFinished — the manches", () => {
   });
 
   it("says what is wrong, and in which manche", () => {
-    expect(ladderFinished("detail", SEATS, {}, [], 10, 5).error).toBe(
+    expect(ladderFinished("detail", SEATS, {}, [], 10, 5, null).error).toBe(
       "Ajoutez au moins une manche.",
     );
 
@@ -125,6 +128,7 @@ describe("ladderFinished — the manches", () => {
       [manche([0, true], [5, false]), manche([10, false], [15, false])],
       10,
       5,
+      null,
     );
 
     expect(read.error).toBe("Manche 2 : Un seul joueur doit finir à 0 point.");
@@ -140,6 +144,7 @@ describe("ladderFinished — the manches", () => {
       [manche([0, true], [5, false])],
       10,
       5,
+      null,
     );
 
     expect(read.error).toBe("Manche 1 : Un seul joueur doit finir à 0 point.");

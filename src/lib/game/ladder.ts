@@ -216,7 +216,8 @@ function levelWith(
 /**
  * Why a manche's entry can't be validated yet, or `null` when it can.
  *
- * Odin's checks hold — exactly one player goes out, nobody negative — and two
+ * Odin's checks hold — exactly one player goes out, nobody negative, nobody
+ * over the most a hand can hold (Phase 10: 190) — and two
  * of Phase 10's own: cards are worth a multiple of the game's `step` (5), so a
  * total off it is a miscount; and nobody goes out without having laid his
  * phase first, so the player on 0 has cleared his rung. The variant moves
@@ -226,8 +227,9 @@ export function ladderEntryError(
   entries: readonly StageEntry[],
   fixed: boolean,
   step: number,
+  maxPoints: number | null,
 ): string | null {
-  const base = stageEntryError(entries, null);
+  const base = stageEntryError(entries, maxPoints);
 
   if (base !== null) {
     return base;

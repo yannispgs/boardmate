@@ -14,6 +14,7 @@ export function ManchePointsDialog({
   title,
   initial,
   step,
+  max,
   onConfirm,
   onCancel,
 }: Readonly<{
@@ -21,13 +22,16 @@ export function ManchePointsDialog({
   title: string;
   initial: number;
   step: number;
+  /** The last value on the wheel — the most a manche can cost. */
+  max: number;
   onConfirm: (points: number) => void;
   onCancel: () => void;
 }>) {
   const [points, setPoints] = useState(initial);
   const values = useMemo(
-    () => Array.from({ length: 51 }, (_v, i) => i * step),
-    [step],
+    () =>
+      Array.from({ length: Math.floor(max / step) + 1 }, (_v, i) => i * step),
+    [max, step],
   );
 
   return (

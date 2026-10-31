@@ -183,6 +183,7 @@ describe("ladderEntryError", () => {
         ],
         false,
         5,
+        null,
       ),
     ).toBeNull();
   });
@@ -196,8 +197,23 @@ describe("ladderEntryError", () => {
         ],
         false,
         5,
+        null,
       ),
     ).toBe("Un seul joueur doit finir à 0 point.");
+  });
+
+  it("refuses more than a hand can hold", () => {
+    expect(
+      ladderEntryError(
+        [
+          { playerId: A, points: 0, cleared: true },
+          { playerId: B, points: 195 },
+        ],
+        false,
+        5,
+        190,
+      ),
+    ).toBe("Une manche ne peut pas rapporter plus de 190 points.");
   });
 
   it("refuses points that are not a multiple of 5", () => {
@@ -209,6 +225,7 @@ describe("ladderEntryError", () => {
         ],
         false,
         5,
+        null,
       ),
     ).toBe("Les points d'une manche vont de 5 en 5.");
   });
@@ -219,10 +236,10 @@ describe("ladderEntryError", () => {
       { playerId: B, points: 10 },
     ];
 
-    expect(ladderEntryError(out, false, 5)).toBe(
+    expect(ladderEntryError(out, false, 5, null)).toBe(
       "Celui qui finit la manche a forcément posé sa phase.",
     );
-    expect(ladderEntryError(out, true, 5)).toBeNull();
+    expect(ladderEntryError(out, true, 5, null)).toBeNull();
   });
 });
 

@@ -134,6 +134,7 @@ function ladderTally(
   const top = ladder.steps.length;
   const fixed = game.ladderFixed === true;
   const step = game.boardgame.stages?.pointsStep ?? 1;
+  const maxPoints = game.boardgame.stages?.maxPoints ?? null;
   const rung = ladder.label.toLowerCase();
 
   return {
@@ -156,8 +157,8 @@ function ladderTally(
     intro: fixed
       ? "Points en main de chacun : 0 pour celui qui termine."
       : "Points en main de chacun : 0 pour celui qui termine. Cochez la phase de ceux qui l'ont posée.",
-    validate: entries => ladderEntryError(entries, fixed, step),
-    max: null,
+    validate: entries => ladderEntryError(entries, fixed, step, maxPoints),
+    max: maxPoints,
     step,
     rungs: (scores, stage) => {
       if (fixed) {

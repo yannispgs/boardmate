@@ -9,6 +9,9 @@ import { type LadderManche, mancheScores } from "@/lib/game/ladder-finished";
 import { LadderMancheGridRow } from "./LadderMancheGridRow";
 import { ManchePointsDialog } from "./ManchePointsDialog";
 
+/** How far the wheel goes on a game that caps nothing. */
+const DEFAULT_MAX = 250;
+
 /**
  * The manches of a Phase 10 night typed in afterwards, as one compact grid: a
  * row per manche, a column per player, each cell his points and the tick of
@@ -21,6 +24,7 @@ export function LadderMancheGrid({
   players,
   ladder,
   step,
+  maxPoints,
   disabled,
   onChange,
   onRemove,
@@ -32,6 +36,8 @@ export function LadderMancheGrid({
   ladder: StageLadder;
   /** How far one tap moves a cell's points. */
   step: number;
+  /** The most a manche can cost, null when nothing caps it. */
+  maxPoints: number | null;
   disabled: boolean;
   onChange: (
     index: number,
@@ -108,6 +114,7 @@ export function LadderMancheGrid({
           } — manche ${editing.index + 1}`}
           initial={manches[editing.index]?.[editing.playerId]?.points ?? 0}
           step={step}
+          max={maxPoints ?? DEFAULT_MAX}
           onConfirm={points => {
             onChange(editing.index, editing.playerId, { points });
             setEditing(null);

@@ -15,6 +15,7 @@ export function LadderEntrySection({
   scoring,
   ladder,
   step,
+  maxPoints,
   players,
   mode,
   totals,
@@ -32,6 +33,8 @@ export function LadderEntrySection({
   ladder: StageLadder;
   /** How far one tap moves a manche's points. */
   step: number;
+  /** The most a manche can cost, null when nothing caps it. */
+  maxPoints: number | null;
   players: Player[];
   mode: LadderMode;
   totals: Record<string, string>;
@@ -85,6 +88,7 @@ export function LadderEntrySection({
             players={players}
             ladder={ladder}
             step={step}
+            maxPoints={maxPoints}
             disabled={disabled}
             onChange={onManche}
             onRemove={onRemoveManche}
