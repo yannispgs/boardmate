@@ -75,10 +75,11 @@ test("shows a composed role beside the seeded administrator", async ({
   }
 });
 
-test("the home menu links to Administration", async ({ page }) => {
+test("the « Plus » menu links to Administration", async ({ page }) => {
   await page.goto("/");
+  await page.getByRole("button", { name: "Plus", exact: true }).click();
 
   await expect(
-    page.getByRole("link", { name: /Administration/ }),
+    page.getByRole("link", { name: "Administration" }),
   ).toBeVisible();
 });

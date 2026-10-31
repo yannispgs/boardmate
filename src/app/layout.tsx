@@ -1,7 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { BottomNav } from "@/components/BottomNav";
 import { SimulationBanner } from "@/components/SimulationBanner";
+import { getMyPermissions } from "@/lib/auth/permissions";
+import { getCurrentUser } from "@/lib/auth/session";
 import { appleStartupImages } from "@/lib/pwa/assets";
+import pkg from "../../package.json";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -32,11 +36,20 @@ export const viewport: Viewport = {
   themeColor: "#4f46e5",
 };
 
-export default function RootLayout({
+// Short commit hash of the deployed build, when running on Vercel.
+const build = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7);
+const version = build ? `v${pkg.version} · ${build}` : `v${pkg.version}`;
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const [user, permissions] = await Promise.all([
+    getCurrentUser(),
+    getMyPermissions(),
+  ]);
+
   return (
     <html
       lang="fr"
@@ -48,6 +61,13 @@ export default function RootLayout({
             that started it. It draws nothing when nothing is simulated. */}
         <SimulationBanner />
         {children}
+        {user ? (
+          <BottomNav
+            email={user.email ?? ""}
+            canAdmin={permissions.includes("roles.read")}
+            version={version}
+          />
+        ) : null}
       </body>
     </html>
   );

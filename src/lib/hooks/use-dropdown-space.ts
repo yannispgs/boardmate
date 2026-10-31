@@ -68,17 +68,21 @@ export function useDropdownSpace(
 
 /**
  * The slice of the page actually on show, in the same coordinates
- * `getBoundingClientRect` uses.
+ * `getBoundingClientRect` uses — less the tab bar, when there is one: a list
+ * opening under it would be as hidden as one opening under the keyboard.
  */
 function visibleBounds(): VerticalBounds {
   const viewport = window.visualViewport;
+  const shown = viewport
+    ? { top: viewport.offsetTop, bottom: viewport.offsetTop + viewport.height }
+    : { top: 0, bottom: window.innerHeight };
+  const tabBar = document
+    .querySelector("[data-bottom-nav]")
+    ?.getBoundingClientRect();
 
-  if (!viewport) {
-    return { top: 0, bottom: window.innerHeight };
+  if (!tabBar) {
+    return shown;
   }
 
-  return {
-    top: viewport.offsetTop,
-    bottom: viewport.offsetTop + viewport.height,
-  };
+  return { top: shown.top, bottom: Math.min(shown.bottom, tabBar.top) };
 }
