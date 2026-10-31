@@ -202,3 +202,43 @@ test("asks for the winner when only the final totals were kept", async ({
     });
   }
 });
+
+test("ends the wheel squarely on a value when it stops between two", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const players = await seedPlayers(2);
+  const game = await seedLadder();
+
+  try {
+    await openForm(page, game.name, players);
+    await page.getByText("Manche par manche").click();
+    await page
+      .getByRole("button", { name: new RegExp(`^${players[0]}, manche 1 :`) })
+      .click();
+
+    const wheel = page
+      .getByRole("dialog", { name: `${players[0]} — manche 1` })
+      .getByRole("listbox", { name: "Points" });
+
+    // A flick that dies thirteen pixels past 25 (a value every 40): the
+    // wheel ends squarely on a value, and that value is the one chosen.
+    await wheel.evaluate(el => {
+      el.scrollTop = 5 * 40 + 13;
+    });
+
+    await expect.poll(() => wheel.evaluate(el => el.scrollTop % 40)).toBe(0);
+
+    const index = await wheel.evaluate(el => el.scrollTop / 40);
+
+    await expect(
+      wheel.getByRole("option", { name: String(index * 5), exact: true }),
+    ).toHaveAttribute("aria-selected", "true");
+  } finally {
+    await dropSeeded(admin, {
+      games: [],
+      boardgames: [game.id],
+      playerNames: players,
+    });
+  }
+});
