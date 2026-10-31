@@ -35,6 +35,9 @@ comment on column public.boardgames.stages is
   '"ladder": { "label", "steps": text[], '
   '"fixedKey" } }. Null for a game turning in plain laps.';
 
+-- The least it can cost a player who did not lay his phase down: he could
+-- neither lay nor hit a card, so he still holds ten, at 5 at the least — 50.
+--
 -- The most a manche can cost: a hand never holds more than ten cards between
 -- two turns (draw one, discard one), and the dearest ten in the box — eight
 -- Wild at 20 (the table's own value) and two of its four Skip at 15 — make
@@ -90,6 +93,7 @@ values (
     "ladder": {
       "label": "Phase",
       "fixedKey": "fixedStages",
+      "unclearedMin": 50,
       "steps": [
         "2 triplés",
         "1 triplé + 1 suite de 4",

@@ -273,6 +273,12 @@ export interface StageLadder {
   /** What each rung asks for, bottom first. Its length is the top. */
   steps: string[];
   /**
+   * The least a manche can cost a player who did not lay his rung down — he
+   * still holds his whole hand (Phase 10: ten cards at 5 at the least, 50).
+   * Omitted when nothing is known of the hand.
+   */
+  unclearedMin?: number;
+  /**
    * The boolean config field turning on the variant where everybody climbs one
    * rung every manche, cleared or not, and the game stops once every rung has
    * been played — the lowest score then wins.

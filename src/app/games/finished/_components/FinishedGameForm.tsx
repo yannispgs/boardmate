@@ -23,6 +23,7 @@ import {
   finishedWinners,
 } from "@/lib/game/finished-winner";
 import { localDay } from "@/lib/game/game-filters";
+import type { LadderEntryRules } from "@/lib/game/ladder";
 import {
   blankManche,
   type LadderFinished,
@@ -163,6 +164,14 @@ export function FinishedGameForm() {
   // A laddered game is read off its climb, not off the sheet: who can win, and
   // whether the table has to say it, come from there.
   const ladder = boardgame?.stages?.ladder ?? null;
+  // Phase 10's checks of a manche: points in fives, under what a hand can
+  // hold, and a whole hand at the least without the phase down.
+  const entryRules: LadderEntryRules = {
+    fixed: false,
+    step: boardgame?.stages?.pointsStep ?? 1,
+    maxPoints: boardgame?.stages?.maxPoints ?? null,
+    unclearedMin: ladder?.unclearedMin ?? 0,
+  };
   const climb =
     ladder === null
       ? null
@@ -172,8 +181,7 @@ export function FinishedGameForm() {
           totals,
           manches.map(m => m.manche),
           ladder.steps.length,
-          boardgame?.stages?.pointsStep ?? 1,
-          boardgame?.stages?.maxPoints ?? null,
+          entryRules,
         );
   const { candidates, choice, scoresComplete, scoreOf } = readResult(
     entry,
@@ -247,7 +255,10 @@ export function FinishedGameForm() {
       ...list,
       ...Array.from({ length: count }, (_unused, i) => ({
         key: nextKey + i,
-        manche: blankManche(selected.map(p => p.id)),
+        manche: blankManche(
+          selected.map(p => p.id),
+          entryRules,
+        ),
       })),
     ]);
     setNextKey(k => k + count);
@@ -351,8 +362,9 @@ export function FinishedGameForm() {
               <LadderEntrySection
                 scoring={scoring}
                 ladder={ladder}
-                step={boardgame?.stages?.pointsStep ?? 1}
-                maxPoints={boardgame?.stages?.maxPoints ?? null}
+                step={entryRules.step}
+                maxPoints={entryRules.maxPoints}
+                unclearedMin={entryRules.unclearedMin}
                 players={selected}
                 mode={ladderMode}
                 totals={totals}
@@ -382,7 +394,12 @@ export function FinishedGameForm() {
                       i === index
                         ? {
                             ...m,
-                            manche: patchManche(m.manche, playerId, patch),
+                            manche: patchManche(
+                              m.manche,
+                              playerId,
+                              patch,
+                              entryRules,
+                            ),
                           }
                         : m,
                     ),

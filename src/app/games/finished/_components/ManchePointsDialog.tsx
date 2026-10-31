@@ -14,6 +14,7 @@ export function ManchePointsDialog({
   title,
   initial,
   step,
+  min,
   max,
   onConfirm,
   onCancel,
@@ -22,16 +23,21 @@ export function ManchePointsDialog({
   title: string;
   initial: number;
   step: number;
+  /** The first value on the wheel — a whole hand, without the phase down. */
+  min: number;
   /** The last value on the wheel — the most a manche can cost. */
   max: number;
   onConfirm: (points: number) => void;
   onCancel: () => void;
 }>) {
-  const [points, setPoints] = useState(initial);
+  const [points, setPoints] = useState(Math.max(initial, min));
   const values = useMemo(
     () =>
-      Array.from({ length: Math.floor(max / step) + 1 }, (_v, i) => i * step),
-    [max, step],
+      Array.from(
+        { length: Math.floor((max - min) / step) + 1 },
+        (_v, i) => min + i * step,
+      ),
+    [min, max, step],
   );
 
   return (

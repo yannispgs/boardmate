@@ -4,9 +4,11 @@ import { useState } from "react";
 
 import { Modal } from "@/components/Modal";
 import type { PlayerId } from "@/lib/domain";
+import { pointsFloor } from "@/lib/game/ladder";
 import type { StageEntry } from "@/lib/game/stage-tally";
 
 import { StagePointsRow } from "../../../_components/StagePointsRow";
+import type { PromptRungs } from "./stage-tallies";
 
 /**
  * The end of a manche: what each player takes is written down there and then,
@@ -65,10 +67,7 @@ export function StagePointsPrompt({
    * its name; each player then gets a box to tick once he laid it down. Null
    * on every other game, and in the variant where everybody climbs anyway.
    */
-  rungs?: {
-    label: string;
-    of: Record<string, { rung: number; step: string }>;
-  } | null;
+  rungs?: PromptRungs;
   /** Who was already ticked for this stage, by player. */
   initialCleared?: Record<string, boolean>;
   disabled: boolean;
@@ -77,12 +76,24 @@ export function StagePointsPrompt({
   onConfirm: (points: StageEntry[]) => void;
   onCancel: () => void;
 }>) {
-  const [points, setPoints] = useState<Record<string, number>>(() =>
-    Object.fromEntries(players.map(p => [p.id, initial[p.id] ?? 0] as const)),
-  );
+  // Without his phase down a player still holds his whole hand (Phase 10: at
+  // least 50): that is where he starts, and he can't go below it.
+  const floorOf = (ticked: boolean) =>
+    rungs === null ? 0 : pointsFloor(ticked, rungs.rules);
 
   const [cleared, setCleared] =
     useState<Record<string, boolean>>(initialCleared);
+  const [points, setPoints] = useState<Record<string, number>>(() =>
+    Object.fromEntries(
+      players.map(
+        p =>
+          [
+            p.id,
+            initial[p.id] ?? floorOf(initialCleared[p.id] === true),
+          ] as const,
+      ),
+    ),
+  );
 
   const entries = players.map(p => ({
     playerId: p.id,
@@ -108,6 +119,7 @@ export function StagePointsPrompt({
             key={p.id}
             player={p}
             points={points[p.id] ?? 0}
+            min={floorOf(cleared[p.id] === true)}
             max={max}
             step={step}
             rung={rungs === null ? null : (rungs.of[p.id] ?? null)}
@@ -117,9 +129,14 @@ export function StagePointsPrompt({
             onPoints={next =>
               setPoints(current => ({ ...current, [p.id]: next }))
             }
-            onCleared={next =>
-              setCleared(current => ({ ...current, [p.id]: next }))
-            }
+            onCleared={next => {
+              setCleared(current => ({ ...current, [p.id]: next }));
+              // Unticked, he holds his whole hand again.
+              setPoints(current => ({
+                ...current,
+                [p.id]: Math.max(current[p.id] ?? 0, floorOf(next)),
+              }));
+            }}
           />
         ))}
       </ul>

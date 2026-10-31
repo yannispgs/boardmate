@@ -16,6 +16,7 @@ export function LadderEntrySection({
   ladder,
   step,
   maxPoints,
+  unclearedMin,
   players,
   mode,
   totals,
@@ -35,6 +36,8 @@ export function LadderEntrySection({
   step: number;
   /** The most a manche can cost, null when nothing caps it. */
   maxPoints: number | null;
+  /** The least it costs a player whose phase is not ticked. */
+  unclearedMin: number;
   players: Player[];
   mode: LadderMode;
   totals: Record<string, string>;
@@ -89,6 +92,7 @@ export function LadderEntrySection({
             ladder={ladder}
             step={step}
             maxPoints={maxPoints}
+            unclearedMin={unclearedMin}
             disabled={disabled}
             onChange={onManche}
             onRemove={onRemoveManche}

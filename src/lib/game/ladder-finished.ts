@@ -13,7 +13,12 @@
 
 import type { PlayerId, StageScore } from "@/lib/domain";
 
-import { ladderEntryError, ladderOutcome } from "./ladder";
+import {
+  type LadderEntryRules,
+  ladderEntryError,
+  ladderOutcome,
+  pointsFloor,
+} from "./ladder";
 
 /** What was kept of the night: the totals, or the manches. */
 export type LadderMode = "total" | "detail";
@@ -21,24 +26,42 @@ export type LadderMode = "total" | "detail";
 /** One manche as typed: each player's points, and whether he laid his phase. */
 export type LadderManche = Record<string, { points: number; cleared: boolean }>;
 
-/** An empty manche: nobody has any point and nobody has cleared anything. */
-export function blankManche(playerIds: readonly PlayerId[]): LadderManche {
+/**
+ * An empty manche: nobody has cleared anything yet, so everybody starts on the
+ * least a whole hand can cost (Phase 10: 50).
+ */
+export function blankManche(
+  playerIds: readonly PlayerId[],
+  rules: LadderEntryRules,
+): LadderManche {
   return Object.fromEntries(
-    playerIds.map(id => [id, { points: 0, cleared: false }]),
+    playerIds.map(id => [
+      id,
+      { points: pointsFloor(false, rules), cleared: false },
+    ]),
   );
 }
 
-/** A manche with one player's points or tick changed, the rest kept. */
+/**
+ * A manche with one player's points or tick changed, the rest kept. Unticking
+ * a phase brings the points back up to what a whole hand costs at the least.
+ */
 export function patchManche(
   manche: LadderManche,
   playerId: PlayerId,
   patch: Partial<LadderManche[string]>,
+  rules: LadderEntryRules,
 ): LadderManche {
+  const line = {
+    ...(manche[playerId] ?? { points: 0, cleared: false }),
+    ...patch,
+  };
+
   return {
     ...manche,
     [playerId]: {
-      ...(manche[playerId] ?? { points: 0, cleared: false }),
-      ...patch,
+      ...line,
+      points: Math.max(line.points, pointsFloor(line.cleared, rules)),
     },
   };
 }
@@ -83,8 +106,7 @@ export function ladderFinished(
   totals: Readonly<Record<string, string>>,
   manches: readonly LadderManche[],
   top: number,
-  step: number,
-  maxPoints: number | null,
+  rules: LadderEntryRules,
 ): LadderFinished {
   if (mode === "total") {
     const scoreOf = (id: PlayerId) => {
@@ -105,7 +127,7 @@ export function ladderFinished(
     };
   }
 
-  const error = manchesError(manches, playerIds, step, maxPoints);
+  const error = manchesError(manches, playerIds, rules);
   const stageScores = mancheScores(manches, playerIds);
 
   if (error !== null) {
@@ -140,8 +162,7 @@ export function ladderFinished(
 function manchesError(
   manches: readonly LadderManche[],
   playerIds: readonly PlayerId[],
-  step: number,
-  maxPoints: number | null,
+  rules: LadderEntryRules,
 ): string | null {
   if (manches.length === 0) {
     return "Ajoutez au moins une manche.";
@@ -154,9 +175,7 @@ function manchesError(
         points: manche[playerId]?.points ?? 0,
         cleared: manche[playerId]?.cleared ?? false,
       })),
-      false,
-      step,
-      maxPoints,
+      rules,
     );
 
     if (error !== null) {

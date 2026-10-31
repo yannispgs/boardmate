@@ -213,37 +213,61 @@ function levelWith(
   return previous?.rungs === line.rungs && previous.total === line.total;
 }
 
+/** What a laddered manche's entry is checked against. */
+export interface LadderEntryRules {
+  /** The variant: everybody climbs, nobody ticks a rung. */
+  fixed: boolean;
+  /** The step the points come in (Phase 10: 5). */
+  step: number;
+  /** The most a manche can cost, null when nothing caps it. */
+  maxPoints: number | null;
+  /** The least it costs a player who did not clear his rung (Phase 10: 50). */
+  unclearedMin: number;
+}
+
 /**
  * Why a manche's entry can't be validated yet, or `null` when it can.
  *
  * Odin's checks hold — exactly one player goes out, nobody negative, nobody
- * over the most a hand can hold (Phase 10: 190) — and two
- * of Phase 10's own: cards are worth a multiple of the game's `step` (5), so a
- * total off it is a miscount; and nobody goes out without having laid his
- * phase first, so the player on 0 has cleared his rung. The variant moves
- * everybody up regardless, and has no rung to tick.
+ * over the most a hand can hold (Phase 10: 190) — and three of Phase 10's
+ * own: cards are worth a multiple of the game's `step` (5), so a total off it
+ * is a miscount; nobody goes out without having laid his phase first, so the
+ * player on 0 has cleared his rung; and a player who did not lay his phase
+ * still holds his whole hand, so he holds at least `unclearedMin` (50). The
+ * variant moves everybody up regardless, and has no rung to tick.
  */
 export function ladderEntryError(
   entries: readonly StageEntry[],
-  fixed: boolean,
-  step: number,
-  maxPoints: number | null,
+  rules: LadderEntryRules,
 ): string | null {
-  const base = stageEntryError(entries, maxPoints);
+  const base = stageEntryError(entries, rules.maxPoints);
 
   if (base !== null) {
     return base;
   }
 
-  if (entries.some(e => e.points % step !== 0)) {
-    return `Les points d'une manche vont de ${step} en ${step}.`;
+  if (entries.some(e => e.points % rules.step !== 0)) {
+    return `Les points d'une manche vont de ${rules.step} en ${rules.step}.`;
   }
 
-  if (!fixed && entries.some(e => e.points === 0 && e.cleared !== true)) {
+  if (rules.fixed) {
+    return null;
+  }
+
+  if (entries.some(e => e.points === 0 && e.cleared !== true)) {
     return "Celui qui finit la manche a forcément posé sa phase.";
   }
 
+  if (entries.some(e => e.cleared !== true && e.points < rules.unclearedMin)) {
+    return `Sans sa phase posée, on garde toutes ses cartes : au moins ${rules.unclearedMin} points.`;
+  }
+
   return null;
+}
+
+/** The least a player's manche can cost, given whether he cleared his rung. */
+export function pointsFloor(cleared: boolean, rules: LadderEntryRules): number {
+  return rules.fixed || cleared ? 0 : rules.unclearedMin;
 }
 
 /**

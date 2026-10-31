@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { FieldSpec, PlayerId, StageScore, StageSpec } from "@/lib/domain";
 
 import {
+  type LadderEntryRules,
   ladderClimb,
   ladderDone,
   ladderEntryError,
@@ -13,6 +14,7 @@ import {
   ladderRungs,
   ladderSeries,
   ladderStandings,
+  pointsFloor,
   workingRung,
 } from "./ladder";
 
@@ -174,16 +176,22 @@ describe("ladderStandings", () => {
 });
 
 describe("ladderEntryError", () => {
+  const RULES: LadderEntryRules = {
+    fixed: false,
+    step: 5,
+    maxPoints: 190,
+    unclearedMin: 50,
+  };
+
   it("accepts one player out on a cleared phase, the others in fives", () => {
     expect(
       ladderEntryError(
         [
           { playerId: A, points: 0, cleared: true },
-          { playerId: B, points: 25 },
+          { playerId: B, points: 25, cleared: true },
+          { playerId: C, points: 55 },
         ],
-        false,
-        5,
-        null,
+        RULES,
       ),
     ).toBeNull();
   });
@@ -192,26 +200,19 @@ describe("ladderEntryError", () => {
     expect(
       ladderEntryError(
         [
-          { playerId: A, points: 5 },
-          { playerId: B, points: 10 },
+          { playerId: A, points: 55 },
+          { playerId: B, points: 60 },
         ],
-        false,
-        5,
-        null,
+        RULES,
       ),
     ).toBe("Un seul joueur doit finir à 0 point.");
-  });
-
-  it("refuses more than a hand can hold", () => {
     expect(
       ladderEntryError(
         [
           { playerId: A, points: 0, cleared: true },
           { playerId: B, points: 195 },
         ],
-        false,
-        5,
-        190,
+        RULES,
       ),
     ).toBe("Une manche ne peut pas rapporter plus de 190 points.");
   });
@@ -221,11 +222,9 @@ describe("ladderEntryError", () => {
       ladderEntryError(
         [
           { playerId: A, points: 0, cleared: true },
-          { playerId: B, points: 12 },
+          { playerId: B, points: 52 },
         ],
-        false,
-        5,
-        null,
+        RULES,
       ),
     ).toBe("Les points d'une manche vont de 5 en 5.");
   });
@@ -233,13 +232,42 @@ describe("ladderEntryError", () => {
   it("refuses a player out without his phase, except in the variant", () => {
     const out = [
       { playerId: A, points: 0 },
-      { playerId: B, points: 10 },
+      { playerId: B, points: 60 },
     ];
 
-    expect(ladderEntryError(out, false, 5, null)).toBe(
+    expect(ladderEntryError(out, RULES)).toBe(
       "Celui qui finit la manche a forcément posé sa phase.",
     );
-    expect(ladderEntryError(out, true, 5, null)).toBeNull();
+    expect(ladderEntryError(out, { ...RULES, fixed: true })).toBeNull();
+  });
+
+  it("refuses less than a whole hand to a player without his phase", () => {
+    expect(
+      ladderEntryError(
+        [
+          { playerId: A, points: 0, cleared: true },
+          { playerId: B, points: 45 },
+        ],
+        RULES,
+      ),
+    ).toBe(
+      "Sans sa phase posée, on garde toutes ses cartes : au moins 50 points.",
+    );
+  });
+});
+
+describe("pointsFloor", () => {
+  const RULES: LadderEntryRules = {
+    fixed: false,
+    step: 5,
+    maxPoints: 190,
+    unclearedMin: 50,
+  };
+
+  it("holds a player without his phase to a whole hand", () => {
+    expect(pointsFloor(false, RULES)).toBe(50);
+    expect(pointsFloor(true, RULES)).toBe(0);
+    expect(pointsFloor(false, { ...RULES, fixed: true })).toBe(0);
   });
 });
 

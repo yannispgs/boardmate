@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { PlayerId, PopulatedGame, StageScore } from "@/lib/domain";
 import type { EndOutcome } from "@/lib/game/end-outcome";
 import {
+  type LadderEntryRules,
   ladderDone,
   ladderEntryError,
   ladderOutcome,
@@ -28,6 +29,8 @@ type Seats = ReadonlyArray<{ id: PlayerId; name: string }>;
 /** What a manche prompt shows of the ladder: each player's rung and its name. */
 export type PromptRungs = {
   label: string;
+  /** What the entry is checked against — the floor of a whole hand among it. */
+  rules: LadderEntryRules;
   of: Record<string, { rung: number; step: string }>;
 } | null;
 
@@ -135,6 +138,12 @@ function ladderTally(
   const fixed = game.ladderFixed === true;
   const step = game.boardgame.stages?.pointsStep ?? 1;
   const maxPoints = game.boardgame.stages?.maxPoints ?? null;
+  const rules: LadderEntryRules = {
+    fixed,
+    step,
+    maxPoints,
+    unclearedMin: ladder.unclearedMin ?? 0,
+  };
   const rung = ladder.label.toLowerCase();
 
   return {
@@ -157,7 +166,7 @@ function ladderTally(
     intro: fixed
       ? "Points en main de chacun : 0 pour celui qui termine."
       : "Points en main de chacun : 0 pour celui qui termine. Cochez la phase de ceux qui l'ont posée.",
-    validate: entries => ladderEntryError(entries, fixed, step, maxPoints),
+    validate: entries => ladderEntryError(entries, rules),
     max: maxPoints,
     step,
     rungs: (scores, stage) => {
@@ -169,6 +178,7 @@ function ladderTally(
 
       return {
         label: ladder.label,
+        rules,
         of: Object.fromEntries(
           seats.map(id => {
             const working = workingRung(before[id], top);

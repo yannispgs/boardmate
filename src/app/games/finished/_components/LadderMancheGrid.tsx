@@ -25,6 +25,7 @@ export function LadderMancheGrid({
   ladder,
   step,
   maxPoints,
+  unclearedMin,
   disabled,
   onChange,
   onRemove,
@@ -38,6 +39,8 @@ export function LadderMancheGrid({
   step: number;
   /** The most a manche can cost, null when nothing caps it. */
   maxPoints: number | null;
+  /** The least it costs a player whose phase is not ticked. */
+  unclearedMin: number;
   disabled: boolean;
   onChange: (
     index: number,
@@ -114,6 +117,11 @@ export function LadderMancheGrid({
           } — manche ${editing.index + 1}`}
           initial={manches[editing.index]?.[editing.playerId]?.points ?? 0}
           step={step}
+          min={
+            manches[editing.index]?.[editing.playerId]?.cleared === true
+              ? 0
+              : unclearedMin
+          }
           max={maxPoints ?? DEFAULT_MAX}
           onConfirm={points => {
             onChange(editing.index, editing.playerId, { points });

@@ -949,7 +949,8 @@ describe("games adapter — a ladder climbed manche by manche (Phase 10)", () =>
       pointsStep: 5,
       // Ten cards at most in hand: eight Wild at 20 and two Skip at 15.
       maxPoints: 190,
-      ladder: { label: "Phase", fixedKey: "fixedStages" },
+      // Ten cards still in hand without the phase down: 50 at the least.
+      ladder: { label: "Phase", fixedKey: "fixedStages", unclearedMin: 50 },
     });
     expect(
       (data?.stages as { ladder: { steps: string[] } }).ladder.steps,

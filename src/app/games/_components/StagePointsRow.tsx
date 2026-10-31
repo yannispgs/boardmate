@@ -9,6 +9,7 @@ import type { PlayerId } from "@/lib/domain";
 export function StagePointsRow({
   player,
   points,
+  min = 0,
   max,
   step,
   rung,
@@ -20,6 +21,8 @@ export function StagePointsRow({
 }: Readonly<{
   player: { id: PlayerId; name: string };
   points: number;
+  /** The lowest the arrows go — a whole hand, without the phase down. */
+  min?: number;
   max: number | null;
   step: number;
   /** The rung he is working on and what it asks, or null with no ladder. */
@@ -38,6 +41,7 @@ export function StagePointsRow({
         <NumberStepper
           label={player.name}
           value={points}
+          min={min}
           max={max}
           step={step}
           disabled={disabled}

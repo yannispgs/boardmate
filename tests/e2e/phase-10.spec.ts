@@ -391,3 +391,81 @@ test("stopped early, crowns the best climber rather than the lowest total", asyn
     });
   }
 });
+
+test("holds a player without his phase to a whole hand at the end of a manche", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const players = await seedPlayers(2);
+  const [first, second] = players;
+  const games: string[] = [];
+  let bgId: string | null = null;
+
+  try {
+    bgId = await seedBoardgame(admin, {
+      name: `E2E Phase main ${Date.now().toString(36)}`,
+      minPlayers: 2,
+      isTimed: false,
+      scoring: {
+        timing: "final",
+        entry: "total",
+        winCondition: { type: "lowest" },
+        trackRecords: false,
+      },
+      stages: {
+        label: "Manche",
+        advance: "manual",
+        pointsStep: 5,
+        ladder: { label: "Phase", steps: ["a", "b"], unclearedMin: 50 },
+      },
+    });
+
+    const idOf = await playerIds(players);
+    const party = await seedParty(
+      admin,
+      bgId,
+      players.map(name => ({ playerId: idOf(name), score: null })),
+      { ongoing: true, stage: 1 },
+    );
+
+    games.push(party);
+
+    await page.goto(`/games/${party}/play`);
+    await page.getByRole("button", { name: "Fin de la manche 1 →" }).click();
+
+    const one = page.getByRole("dialog", { name: "Points de la manche 1" });
+
+    // Nobody's phase is down yet: everybody holds ten cards, 50 at the least,
+    // and the arrow can't take him under it.
+    await expect(stagePoints(one, first)).toHaveValue("50");
+    const down = one.getByRole("button", { name: `${first} : 5 de moins` });
+
+    await expect(down).toBeDisabled();
+
+    // Laying the phase frees him to go out.
+    await phaseBox(one, first).click();
+    await expect(down).toBeEnabled();
+    await stagePoints(one, first).fill("0");
+
+    // Typed under the floor, the entry is refused and says why.
+    await stagePoints(one, second).fill("45");
+    await expect(
+      one.getByText(
+        "Sans sa phase posée, on garde toutes ses cartes : au moins 50 points.",
+      ),
+    ).toBeVisible();
+
+    // Unticking a phase brings the points back up to a whole hand.
+    await phaseBox(one, second).click();
+    await stagePoints(one, second).fill("10");
+    await phaseBox(one, second).click();
+    await expect(stagePoints(one, second)).toHaveValue("50");
+    await expect(one.getByRole("button", { name: "Valider" })).toBeEnabled();
+  } finally {
+    await dropSeeded(admin, {
+      games,
+      boardgames: [bgId],
+      playerNames: players,
+    });
+  }
+});
