@@ -73,7 +73,13 @@ async function setPoints(
     exact: true,
   });
 
-  await value.evaluate(el => el.scrollIntoView({ block: "center" }));
+  // A value every 40 pixels, 0 at the top: the wheel is scrolled to it.
+  await dialog.getByRole("listbox", { name: "Points" }).evaluate(
+    (el, top) => {
+      el.scrollTop = top;
+    },
+    (points / 5) * 40,
+  );
   await expect(value).toHaveAttribute("aria-selected", "true");
   await dialog.getByRole("button", { name: "Valider" }).click();
 }
@@ -203,7 +209,7 @@ test("asks for the winner when only the final totals were kept", async ({
   }
 });
 
-test("ends the wheel squarely on a value when it stops between two", async ({
+test("slides the wheel onto the nearest value when it stops between two", async ({
   page,
 }) => {
   const admin = adminClient();
@@ -222,17 +228,14 @@ test("ends the wheel squarely on a value when it stops between two", async ({
       .getByRole("listbox", { name: "Points" });
 
     // A flick that dies thirteen pixels past 25 (a value every 40): the
-    // wheel ends squarely on a value, and that value is the one chosen.
+    // wheel slides back onto 25, squarely in the band, and 25 is chosen.
     await wheel.evaluate(el => {
       el.scrollTop = 5 * 40 + 13;
     });
 
-    await expect.poll(() => wheel.evaluate(el => el.scrollTop % 40)).toBe(0);
-
-    const index = await wheel.evaluate(el => el.scrollTop / 40);
-
+    await expect.poll(() => wheel.evaluate(el => el.scrollTop)).toBe(5 * 40);
     await expect(
-      wheel.getByRole("option", { name: String(index * 5), exact: true }),
+      wheel.getByRole("option", { name: "25", exact: true }),
     ).toHaveAttribute("aria-selected", "true");
   } finally {
     await dropSeeded(admin, {

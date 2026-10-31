@@ -4,12 +4,17 @@ import { useEffect, useRef } from "react";
 
 const ITEM = 40; // px per value — tight, so the neighbours sit close
 const VISIBLE = 5; // values on show, the chosen one in the middle
-const SETTLE_MS = 120; // quiet this long, and the wheel has stopped
+const SETTLE_MS = 100; // quiet this long, and the wheel has stopped
 
 /**
- * A wheel of values scrolled with the thumb, snapping on each one — the
+ * A wheel of values scrolled with the thumb, coming to rest on each one — the
  * picker an iPhone shows for a timer. The value under the middle band is the
  * one chosen.
+ *
+ * ⚠️ No CSS scroll snapping: Safari worked its snap points out on its own and
+ * left the values half a step off the band, then pulled back any correction.
+ * The wheel scrolls freely and, once it stops, slides itself onto the nearest
+ * value (see `realign`).
  */
 export function ScrollWheel({
   values,
@@ -57,10 +62,9 @@ export function ScrollWheel({
   }
 
   /**
-   * Puts the value that stopped nearest the band right in it. Safari can end a
-   * fast flick between two values — the snap given up while the figures were
-   * still changing size under it — and a value half out of the band reads as
-   * the wrong one. Never while a thumb is still on the wheel.
+   * Puts the value that stopped nearest the band right in it, once the wheel
+   * has been still a moment — never while a thumb is still on it, which would
+   * fight the thumb.
    */
   function realign() {
     const wheel = ref.current;
@@ -95,7 +99,7 @@ export function ScrollWheel({
           touching.current = false;
           settle();
         }}
-        className="relative h-full snap-y snap-mandatory overflow-y-scroll [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="relative h-full overflow-y-scroll [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         style={{
           paddingBlock: ITEM * 2,
           maskImage:
@@ -110,7 +114,7 @@ export function ScrollWheel({
               key={v}
               role="option"
               aria-selected={v === value}
-              className={`flex snap-center items-center justify-center tabular-nums transition-all ${sizeAt(
+              className={`flex items-center justify-center tabular-nums transition-all ${sizeAt(
                 Math.abs(offset),
               )}`}
               style={{
@@ -149,5 +153,11 @@ function sizeAt(distance: number): string {
  * it: pulled in, the gaps read even from the middle out.
  */
 function pullAt(distance: number): number {
-  return distance < 2 ? 0 : 4 + (distance - 2) * 6;
+  // Capped well under a step: past the second neighbour nothing is on show,
+  // and a pull bigger than the gap would put a value where its neighbour is.
+  if (distance < 2) {
+    return 0;
+  }
+
+  return distance === 2 ? 4 : 8;
 }
