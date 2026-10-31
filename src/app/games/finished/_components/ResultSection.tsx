@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import type { Player, PlayerId, RoundGoal, ScoringSpec } from "@/lib/domain";
 import type { FinishedGoals, StageGoalRaw } from "@/lib/game/finished-goals";
 import type { FinishedWinners } from "@/lib/game/finished-winner";
@@ -39,6 +41,8 @@ export function ResultSection({
   catRaw,
   piles,
   winners,
+  candidates,
+  scoreEntry,
   choice,
   disabled,
   onEndedAt,
@@ -69,6 +73,13 @@ export function ResultSection({
   catRaw: CategoryRaw;
   piles: Record<string, number>;
   winners: PlayerId[];
+  /** The players the win is between, when the table is asked. */
+  candidates: Player[];
+  /**
+   * The game's own way of writing the scores down, in place of the sheet —
+   * Phase 10's totals-or-manches. Null for every other game.
+   */
+  scoreEntry: ReactNode;
   /** What is left to settle about the winner, and what to say while asking. */
   choice: FinishedWinners;
   disabled: boolean;
@@ -110,7 +121,9 @@ export function ResultSection({
         />
       ) : null}
 
-      {scoring !== null ? (
+      {scoreEntry}
+
+      {scoring !== null && scoreEntry === null ? (
         <ScoreEntrySection
           scoring={scoring}
           entry={entry}
@@ -129,7 +142,7 @@ export function ResultSection({
 
       {choice.asked ? (
         <WinnerChoice
-          candidates={entry.winnerCandidates}
+          candidates={candidates}
           winners={winners}
           tied={choice.tied}
           rules={choice.rules}

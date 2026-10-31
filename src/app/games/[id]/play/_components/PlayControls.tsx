@@ -1,19 +1,16 @@
 "use client";
 
-import type {
-  PhaseSpec,
-  PlayerId,
-  PopulatedGame,
-  RoundGoal,
-} from "@/lib/domain";
+import type { PhaseSpec, PopulatedGame, RoundGoal } from "@/lib/domain";
 import { needsPhaseButton, nextPhase } from "@/lib/game/phase";
 import type { ScoreDirection } from "@/lib/game/scoring";
 import { stageGoalLabel, stageScores } from "@/lib/game/stage";
 import { namedPlayers } from "./named-players";
 import { PhaseControls } from "./PhaseControls";
 import { StageBoard } from "./StageBoard";
+import type { EndOutcomeRequest } from "./stage-tallies";
 import { TurnControls } from "./TurnControls";
 import type { StageGoalLog } from "./use-stage-goals";
+import type { StageLaps } from "./use-stage-laps";
 
 /**
  * What the table acts on at the bottom of the play screen: the turn controls,
@@ -29,6 +26,7 @@ import type { StageGoalLog } from "./use-stage-goals";
 export function PlayControls({
   game,
   goals,
+  laps,
   phases,
   phase,
   phaseSwapping,
@@ -46,10 +44,13 @@ export function PlayControls({
   onPass,
   onEndPhase,
   onNextStage,
+  onStageClosed,
   onEnd,
 }: Readonly<{
   game: PopulatedGame;
   goals: StageGoalLog;
+  /** The laps of a manche counted by the table, or null. */
+  laps: StageLaps | null;
   /** The phases this game is played in, or null for a game with none. */
   phases: PhaseSpec[] | null;
   /** The phase being played, or null. */
@@ -76,12 +77,31 @@ export function PlayControls({
   onPass: () => void;
   onEndPhase: (closing: PhaseSpec) => void;
   onNextStage: () => Promise<void>;
-  onEnd: (
-    scores: Array<{ playerId: PlayerId; score: number }>,
-  ) => Promise<void>;
+  /** A manche the table closes itself has just been written down. */
+  onStageClosed: (stage: number) => void;
+  onEnd: (request: EndOutcomeRequest) => Promise<void>;
 }>) {
   if (entryOpen) {
     return null;
+  }
+
+  // A game whose manches the table closes itself (Odin, Phase 10) is played
+  // from its tally board — even with a clock on its manche: the board's own
+  // « Fin de la manche » is what stops it.
+  if (byHand) {
+    return (
+      <StageBoard
+        game={game}
+        goals={goals}
+        laps={laps}
+        stageLabel={stageLabel}
+        direction={direction}
+        disabled={busy || goals.busy}
+        onNextStage={onNextStage}
+        onStageClosed={onStageClosed}
+        onEnd={onEnd}
+      />
+    );
   }
 
   // A phase everybody plays at once has no turn to advance, so the table closes
@@ -106,20 +126,6 @@ export function PlayControls({
   // but the end-of-game form below.
   if (!timed && !byHand) {
     return null;
-  }
-
-  if (byHand) {
-    return (
-      <StageBoard
-        game={game}
-        goals={goals}
-        stageLabel={stageLabel}
-        direction={direction}
-        disabled={busy || goals.busy}
-        onNextStage={onNextStage}
-        onEnd={onEnd}
-      />
-    );
   }
 
   return (

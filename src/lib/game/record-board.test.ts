@@ -13,6 +13,7 @@ import {
   boardSizes,
   boardTabs,
   recordBoard,
+  recordFigure,
   scenarioLabel,
   sizeLabel,
   sizeShort,
@@ -615,5 +616,112 @@ describe("recordBoard — the speed marks", () => {
     });
 
     expect(onlyTab(board).rows[0].entries).toEqual([]);
+  });
+});
+
+describe("recordBoard on a laddered game", () => {
+  const PHASE_10: ScoringSpec = {
+    ...LOWEST,
+    trackRecords: false,
+    extraRecords: ["heaviestStage", "lowestWin"],
+  };
+  const LADDER = {
+    label: "Manche",
+    advance: "manual" as const,
+    ladder: { label: "Phase", steps: ["x", "y"] },
+  };
+
+  function climbed(
+    id: string,
+    manches: number,
+    heaviest: number,
+    winnerScore: number,
+  ): GameStatsRecord {
+    const record = party(
+      id,
+      [
+        [ann, winnerScore],
+        [bob, 90],
+      ],
+      { winners: [ann] },
+    );
+
+    // Ann clears a rung every manche from the second on, and goes out last;
+    // Bob takes `heaviest` once.
+    record.stageScores = Array.from({ length: manches }, (_unused, i) => [
+      {
+        stage: i + 1,
+        playerId: ann,
+        points: 0,
+        cleared: i + 1 > manches - 2,
+      },
+      {
+        stage: i + 1,
+        playerId: bob,
+        points: i === 0 ? heaviest : 5,
+        cleared: false,
+      },
+    ]).flat();
+
+    return record;
+  }
+
+  it("races the ladder in manches and keeps the game's own records", () => {
+    const board = recordBoard({
+      boardgame: { ...boardgame(PHASE_10), stages: LADDER },
+      extensions: [],
+      records: [climbed("slow", 4, 60, 30), climbed("fast", 3, 120, 25)],
+    });
+
+    expect(board.metrics).toEqual(["speed", "heaviestStage", "lowestWin"]);
+    expect(
+      onlyTab(board).rows[0].entries.map(entry => ({
+        metric: entry.metric,
+        unit: entry.unit,
+        target: entry.target,
+        value: entry.value,
+        holders: entry.holders,
+      })),
+    ).toEqual([
+      {
+        metric: "speed",
+        unit: "manche",
+        target: null,
+        value: 3,
+        holders: ["Ann"],
+      },
+      {
+        metric: "heaviestStage",
+        unit: "point",
+        target: null,
+        value: 120,
+        holders: ["Bob"],
+      },
+      {
+        metric: "lowestWin",
+        unit: "point",
+        target: null,
+        value: 25,
+        holders: ["Ann"],
+      },
+    ]);
+  });
+
+  it("leaves a cell nobody played empty of the game's own records", () => {
+    const board = recordBoard({
+      boardgame: { ...boardgame(PHASE_10), stages: LADDER },
+      extensions: [],
+      records: [],
+    });
+
+    expect(onlyTab(board).rows[0].entries).toEqual([]);
+  });
+});
+
+describe("recordFigure", () => {
+  it("says a mark in its unit, plural past one", () => {
+    expect(recordFigure(1, "tour")).toBe("1 tour");
+    expect(recordFigure(12, "manche")).toBe("12 manches");
+    expect(recordFigure(40, "point")).toBe("40 points");
   });
 });

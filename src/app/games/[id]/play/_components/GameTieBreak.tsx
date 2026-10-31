@@ -33,8 +33,16 @@ export function GameTieBreak({
   return (
     <TieBreakPrompt
       players={namedPlayers(game)}
+      // Only the contenders can take it: on a laddered game, a lower total
+      // on a lower phase is no claim to the win.
       scores={Object.fromEntries(
-        outcome.scores.map(s => [s.playerId, s.score]),
+        outcome.scores
+          .filter(
+            s =>
+              outcome.contenders === undefined ||
+              outcome.contenders.includes(s.playerId),
+          )
+          .map(s => [s.playerId, s.score]),
       )}
       direction={scoreDirectionOf(scoring)}
       // The boardgame's own secondary rules; none means the only way out is a

@@ -138,6 +138,19 @@ describe("withStageEntry and changedStages", () => {
     expect(changedStages(ODIN_SCORES, after)).toEqual([1, 2]);
   });
 
+  it("keeps the phases ticked, and writes a manche whose tick alone changed", () => {
+    const ticked = withStageEntry(ODIN_SCORES, 1, [
+      { playerId: id("a"), points: 0, cleared: true },
+      { playerId: id("b"), points: 4, cleared: false },
+    ]);
+
+    expect(ticked.filter(s => s.stage === 1)).toEqual([
+      { stage: 1, playerId: id("a"), points: 0, cleared: true },
+      { stage: 1, playerId: id("b"), points: 4, cleared: false },
+    ]);
+    expect(changedStages(ODIN_SCORES, ticked)).toEqual([1]);
+  });
+
   it("finds nothing to write when the manche is entered again unchanged", () => {
     const after = withStageEntry(ODIN_SCORES, 1, [
       { playerId: id("a"), points: 0 },

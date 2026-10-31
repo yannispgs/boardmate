@@ -2,43 +2,45 @@
 
 import { useState } from "react";
 
-import type { PlayerId, PopulatedGame } from "@/lib/domain";
+import type { PopulatedGame } from "@/lib/domain";
 import type { ScoreDirection } from "@/lib/game/scoring";
-import {
-  closedStages,
-  stageEntryError,
-  stageFinalScores,
-  stageStandings,
-  stopReached,
-} from "@/lib/game/stage-tally";
+import { closedStages } from "@/lib/game/stage-tally";
 
+import { LadderDetail } from "../../../_components/LadderDetail";
+import { LapCounter } from "./LapCounter";
 import { namedPlayers } from "./named-players";
 import { PastStageCardList } from "./PastStageCardList";
 import { StagePointsPrompt } from "./StagePointsPrompt";
 import { StageRecap } from "./StageRecap";
-import { StandingCardList } from "./StandingCardList";
-import { pointsIntro } from "./stage-intro";
+import { type EndOutcomeRequest, stageTally } from "./stage-tallies";
 import type { StageGoalLog } from "./use-stage-goals";
+import type { StageLaps } from "./use-stage-laps";
 
 /**
- * The whole play screen of a game counted manche by manche (Odin).
+ * The whole play screen of a game counted manche by manche (Odin, Phase 10).
  *
- * Nothing is timed and nobody is « up »: such a game runs on the table's own
- * say-so, and the only thing the app can usefully hold is the tally. So the
- * screen is the standings and the one button that closes a manche — points in,
- * recap out, and the game stops itself when a total reaches the target.
+ * Nobody is « up »: such a game runs on the table's own say-so, and the thing
+ * the app can usefully hold is the tally. So the screen is the standings and
+ * the one button that closes a manche — points in, recap out, and the game
+ * stops itself when the tally says so: a total reaching the bar in Odin, the
+ * last phase cleared in Phase 10. How each reads its manches is
+ * {@link stageTally}'s business.
  */
 export function StageBoard({
   game,
   goals,
+  laps,
   stageLabel,
   direction,
   disabled,
   onNextStage,
+  onStageClosed,
   onEnd,
 }: Readonly<{
   game: PopulatedGame;
   goals: StageGoalLog;
+  /** The laps of the manche, counted by the table — null where nobody counts. */
+  laps: StageLaps | null;
   /** What the box calls a stage (« Manche »). */
   stageLabel: string;
   /** Which end of the standings wins — the lowest total, in Odin. */
@@ -46,10 +48,13 @@ export function StageBoard({
   disabled: boolean;
   /** Opens the next manche. */
   onNextStage: () => Promise<void>;
-  /** Ends the game on the totals the manches added up to. */
-  onEnd: (
-    scores: Array<{ playerId: PlayerId; score: number }>,
-  ) => Promise<void>;
+  /**
+   * The manche being played has just been written down — where a game that
+   * times its manches banks the clock.
+   */
+  onStageClosed: (stage: number) => void;
+  /** Ends the game on what the manches added up to. */
+  onEnd: (request: EndOutcomeRequest) => Promise<void>;
 }>) {
   // The manche whose points are open for entry: the one being closed, or an
   // earlier one being put right. Null when the form is shut.
@@ -59,19 +64,10 @@ export function StageBoard({
   const [recapStage, setRecapStage] = useState<number | null>(null);
 
   const players = namedPlayers(game);
-  const seats = players.map(p => p.id);
-  const target = game.winThreshold;
+  const tally = stageTally(game, players, direction);
   const unit = stageLabel.toLowerCase();
-  const maxPoints = game.boardgame.stages?.maxPoints ?? null;
   const past = closedStages(goals.scores, game.stage);
-
-  const standings = stageStandings(seats, goals.scores, game.stage, direction);
-  const recap =
-    recapStage === null
-      ? null
-      : stageStandings(seats, goals.scores, recapStage, direction);
-  const stopped =
-    recap !== null && target !== null && stopReached(recap, target);
+  const stopped = recapStage !== null && tally.stops(goals.scores, recapStage);
 
   /** Writes a manche down: the one being closed, or an older one put right. */
   async function saveEntry(
@@ -85,6 +81,7 @@ export function StageBoard({
     // standings out; correcting an old one puts them right where they stand,
     // in a game that has long moved on.
     if (stage === game.stage) {
+      onStageClosed(stage);
       setRecapStage(stage);
     }
   }
@@ -97,16 +94,10 @@ export function StageBoard({
   return (
     <>
       <div className="flex w-full max-w-sm flex-col gap-3">
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          {targetNote(target, direction)}
-        </p>
-
-        <StandingCardList
-          standings={standings}
-          players={players}
-          showPoints={false}
-          target={target}
-        />
+        {/* The controls first, right under the clock: they are what the table
+            reaches for during the manche, and the standings below are only
+            read between two of them — nobody should scroll to end a manche. */}
+        {laps === null ? null : <LapCounter laps={laps} disabled={disabled} />}
 
         <button
           type="button"
@@ -116,6 +107,17 @@ export function StageBoard({
         >
           Fin de la {unit} {game.stage} →
         </button>
+
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">{tally.note}</p>
+
+        {tally.board(goals.scores, game.stage, false)}
+
+        <LadderDetail
+          players={players}
+          scores={goals.scores}
+          stages={game.boardgame.stages}
+          fixed={game.ladderFixed === true}
+        />
 
         <PastStageCardList
           closed={past}
@@ -130,11 +132,14 @@ export function StageBoard({
         <StagePointsPrompt
           stage={entryStage}
           stageLabel={stageLabel}
-          intro={pointsIntro(maxPoints)}
+          intro={tally.intro}
           players={players}
           initial={goals.entered(entryStage)}
-          validate={entries => stageEntryError(entries, maxPoints)}
-          max={maxPoints}
+          initialCleared={goals.cleared(entryStage)}
+          rungs={tally.rungs(goals.scores, entryStage)}
+          validate={tally.validate}
+          max={tally.max}
+          step={tally.step}
           disabled={disabled}
           confirmLabel="Valider"
           onConfirm={points => void saveEntry(entryStage, points)}
@@ -142,31 +147,18 @@ export function StageBoard({
         />
       )}
 
-      {recap === null || recapStage === null ? null : (
+      {recapStage === null ? null : (
         <StageRecap
           stage={recapStage}
           stageLabel={stageLabel}
-          standings={recap}
-          players={players}
-          target={target}
+          board={tally.board(goals.scores, recapStage, true)}
+          stopNote={tally.stopNote}
           stopped={stopped}
           disabled={disabled}
           onNext={() => void openNextStage()}
-          onEnd={() => void onEnd(stageFinalScores(seats, goals.scores))}
+          onEnd={() => void onEnd(tally.end(goals.scores))}
         />
       )}
     </>
   );
-}
-
-/** What the table is playing to, spelled out above the standings. */
-function targetNote(target: number | null, direction: ScoreDirection): string {
-  const wins =
-    direction === "lowest"
-      ? "le plus petit total gagne"
-      : "le plus gros total gagne";
-
-  return target === null
-    ? `La partie s'arrête quand vous le décidez : ${wins}.`
-    : `La partie s'arrête dès que quelqu'un atteint ${target} points : ${wins}.`;
 }

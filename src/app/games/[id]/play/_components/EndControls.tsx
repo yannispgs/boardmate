@@ -9,15 +9,20 @@ import type {
   StageScore,
 } from "@/lib/domain";
 import { milestonePrefill } from "@/lib/game/milestones";
-import { derivedKeys, mergePrefill, winnerDirection } from "@/lib/game/scoring";
+import {
+  derivedKeys,
+  mergePrefill,
+  scoreDirectionOf,
+  winnerDirection,
+} from "@/lib/game/scoring";
 import { stageGoalPrefill } from "@/lib/game/stage";
-import { stageFinalScores } from "@/lib/game/stage-tally";
 import { loneLeader } from "@/lib/game/tie-break";
 import { completingScore, totalSumError } from "@/lib/game/total-sum";
 import { toggled } from "@/lib/ui/selection";
 import { CategoryScoreEntry } from "../../../_components/CategoryScoreEntry";
 import { PairScoreEntry } from "../../../_components/PairScoreEntry";
 import { namedPlayers } from "./named-players";
+import { stageTally } from "./stage-tallies";
 import type { EndFlowState } from "./use-end-flow";
 
 /**
@@ -118,17 +123,15 @@ export function EndControls({
   // manche: asking for a total at the end would ask the table to add up what
   // the app is holding. It ends on those sums, and on nothing else.
   if (finalScoring && game.boardgame.stages?.advance === "manual") {
+    const tally = stageTally(
+      game,
+      players,
+      scoreDirectionOf(game.boardgame.scoring),
+    );
+
     return (
       <EndGameButton
-        onClick={() =>
-          void flow.finishTotals(
-            stageFinalScores(
-              players.map(p => p.id),
-              stageScores,
-            ),
-            null,
-          )
-        }
+        onClick={() => void flow.finishTally(tally.end(stageScores))}
       />
     );
   }

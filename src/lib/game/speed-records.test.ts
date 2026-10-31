@@ -245,6 +245,15 @@ describe("speedRecord", () => {
     expect(speedRecord(null, [run()])).toBeNull();
   });
 
+  it("keeps a ladder race's course on the mark it takes", () => {
+    const climb = {
+      ...run({ gameId: "g-now" as GameId, rounds: 9 }),
+      course: "ladder" as const,
+    };
+
+    expect(speedRecord(climb, [run()])?.course).toBe("ladder");
+  });
+
   it("crowns nobody on a first race — there is nothing to beat", () => {
     expect(speedRecord(speedRunOf(RACE, candidate()), [])).toBeNull();
   });
@@ -276,6 +285,17 @@ describe("speedRecord", () => {
 });
 
 describe("speedRecordDetail", () => {
+  it("says a ladder race in manches and phases", () => {
+    expect(
+      speedRecordDetail({
+        rounds: 12,
+        playerCount: 4,
+        target: 10,
+        course: "ladder",
+      }),
+    ).toBe("12 manches à 4 joueurs pour 10 phases");
+  });
+
   it("says the mark in full", () => {
     expect(speedRecordDetail({ rounds: 9, playerCount: 3, target: 16 })).toBe(
       "9 tours à 3 joueurs pour 16 points",

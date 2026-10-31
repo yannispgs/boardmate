@@ -82,22 +82,31 @@ export function withStageEntry(
 ): StageScore[] {
   return [
     ...scores.filter(s => s.stage !== stage),
-    ...entries.map(e => ({ stage, playerId: e.playerId, points: e.points })),
+    ...entries.map(e => ({
+      stage,
+      playerId: e.playerId,
+      points: e.points,
+      ...(e.cleared === undefined ? {} : { cleared: e.cleared }),
+    })),
   ];
 }
 
-/** The manches whose points differ from what was recorded — those to write. */
+/**
+ * The manches whose points — or whose ticked phases, on a laddered game —
+ * differ from what was recorded: those to write.
+ */
 export function changedStages(
   before: readonly StageScore[],
   after: readonly StageScore[],
 ): number[] {
+  const line = (s: StageScore) => `${s.points}|${s.cleared === true}`;
   const recorded = new Map(
-    before.map(s => [`${s.stage}:${s.playerId}`, s.points]),
+    before.map(s => [`${s.stage}:${s.playerId}`, line(s)]),
   );
   const changed = new Set<number>();
 
   for (const score of after) {
-    if (recorded.get(`${score.stage}:${score.playerId}`) !== score.points) {
+    if (recorded.get(`${score.stage}:${score.playerId}`) !== line(score)) {
       changed.add(score.stage);
     }
   }

@@ -182,6 +182,11 @@ export interface PhaseTime {
   phaseKey: string;
   /** Active seconds spent in it (pauses excluded, like a turn's). */
   durationS: number;
+  /**
+   * Laps of the table it took, counted by the table (Phase 10's manches).
+   * Absent or null wherever nobody counted them.
+   */
+  laps?: number | null;
 }
 
 /** What one player scored on one stage's goal, entered when the stage ends. */
@@ -189,6 +194,11 @@ export interface StageScore {
   stage: number;
   playerId: PlayerId;
   points: number;
+  /**
+   * Whether the player cleared his rung that manche — laid his phase down, in
+   * Phase 10. Absent or false for every game with no ladder.
+   */
+  cleared?: boolean;
 }
 
 /**
@@ -254,6 +264,13 @@ export interface PopulatedGame extends Game {
    * Mars and L'Île des Chats.
    */
   drafting: boolean;
+  /**
+   * Whether this party runs the ladder's variant, where everybody climbs every
+   * manche (Phase 10's « 10 manches »). Resolved like `drafting`; false for
+   * every game with no ladder. Always set by the adapter; optional so
+   * lightweight test fixtures can omit it.
+   */
+  ladderFixed?: boolean;
   /**
    * How many seconds the play screen waits, on a stage change, for the table to
    * say it has seen it — after which the new stage's clock starts on its own.
@@ -335,6 +352,11 @@ export interface GameStatsRecord {
    * Always set by the adapter; optional so lightweight fixtures can omit it.
    */
   extensions?: PlayedExtension[];
+  /**
+   * Whether this party ran the ladder's variant (see `PopulatedGame`). Always
+   * set by the adapter; optional so lightweight fixtures can omit it.
+   */
+  ladderFixed?: boolean;
   players: Array<{
     playerId: PlayerId;
     name: string;

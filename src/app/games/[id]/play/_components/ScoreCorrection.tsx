@@ -3,9 +3,18 @@
 import { useState } from "react";
 
 import { ErrorText } from "@/components/ErrorText";
-import type { PlayerId, PopulatedGame, StageScore } from "@/lib/domain";
+import type {
+  PlayerId,
+  PopulatedGame,
+  StageScore,
+  TieBreakRule,
+} from "@/lib/domain";
+import type { EndOutcome } from "@/lib/game/end-outcome";
 import { composeGoals } from "@/lib/game/extensions";
-import { finishedWinners } from "@/lib/game/finished-winner";
+import {
+  type FinishedWinners,
+  finishedWinners,
+} from "@/lib/game/finished-winner";
 import {
   type CorrectionSeed,
   changedStages,
@@ -20,7 +29,6 @@ import {
 } from "@/lib/game/score-correction";
 import { mergePrefill, scoreDirectionOf } from "@/lib/game/scoring";
 import { stageGoalLabel, stageGoalPrefill } from "@/lib/game/stage";
-import { stageEntryError, stageStandings } from "@/lib/game/stage-tally";
 import { getGameRepository } from "@/lib/repositories";
 import { toggled } from "@/lib/ui/selection";
 import {
@@ -31,8 +39,8 @@ import { ScoreEntrySection } from "../../../_components/ScoreEntrySection";
 import { WinnerChoice } from "../../../_components/WinnerChoice";
 import { PastStageCardList } from "./PastStageCardList";
 import { StagePointsPrompt } from "./StagePointsPrompt";
-import { StandingCardList } from "./StandingCardList";
-import { goalIntro, pointsIntro } from "./stage-intro";
+import { goalIntro } from "./stage-intro";
+import { stageTally } from "./stage-tallies";
 
 /**
  * Correcting a finished party's scores, from its final score panel.
@@ -129,9 +137,17 @@ function CorrectionForm({
       ? catRaw
       : mergePrefill([catRaw, stageGoalPrefill(sheet, ids, stageScores)]);
   const stageLabel = stageSpec?.label ?? "Manche";
-  const maxPoints = stageSpec?.maxPoints ?? null;
   const catalogue = composeGoals(game.boardgame.roundGoals, game.extensions);
   const recorded = recordedStages(stageScores);
+
+  // Manches the table closed itself are read the way they were played — the
+  // totals summed (Odin), or the climb (Phase 10): the same tally the board
+  // runs on, its rules and its winner.
+  const tally = byStage
+    ? stageTally(game, players, scoreDirectionOf(scoring))
+    : null;
+  const ended = tally?.end(stageScores) ?? null;
+  const climb = ended?.kind === "outcome" ? ended.outcome : null;
 
   const entry = finishedEntry(
     scoring,
@@ -141,11 +157,14 @@ function CorrectionForm({
     shownRaw,
     piles,
   );
-  const choice = finishedWinners(
-    scoring,
-    players.length,
-    entry.winnerCandidates,
-  );
+  const candidates =
+    climb === null
+      ? entry.winnerCandidates
+      : players.filter(p => climb.contenders?.includes(p.id));
+  const choice =
+    climb === null
+      ? finishedWinners(scoring, players.length, entry.winnerCandidates)
+      : climbChoice(climb, scoring.tieBreak ?? []);
   const previousWinners = seats.filter(s => s.isWinner).map(s => s.playerId);
   const winners =
     picked ??
@@ -153,7 +172,7 @@ function CorrectionForm({
       choice.asked,
       choice.preselected,
       previousWinners,
-      entry.winnerCandidates.map(p => p.id),
+      candidates.map(p => p.id),
     );
   const canSave = entry.scoresComplete && winners.length > 0 && !busy;
 
@@ -215,18 +234,8 @@ function CorrectionForm({
     >
       <h3 className="text-sm font-semibold">Corriger les scores</h3>
 
-      {byStage ? (
-        <StandingCardList
-          standings={stageStandings(
-            ids,
-            stageScores,
-            Number.POSITIVE_INFINITY,
-            scoreDirectionOf(scoring),
-          )}
-          players={players}
-          showPoints={false}
-          target={game.winThreshold}
-        />
+      {tally !== null ? (
+        tally.board(stageScores, Number.POSITIVE_INFINITY, false)
       ) : (
         <ScoreEntrySection
           scoring={scoring}
@@ -258,7 +267,7 @@ function CorrectionForm({
 
       {choice.asked ? (
         <WinnerChoice
-          candidates={entry.winnerCandidates}
+          candidates={candidates}
           winners={winners}
           tied={choice.tied}
           rules={choice.rules}
@@ -291,8 +300,8 @@ function CorrectionForm({
           stage={editedStage}
           stageLabel={stageLabel}
           intro={
-            byStage
-              ? pointsIntro(maxPoints)
+            tally !== null
+              ? tally.intro
               : goalIntro(
                   stageGoalLabel(
                     game.stages.find(st => st.stage === editedStage),
@@ -302,10 +311,15 @@ function CorrectionForm({
           }
           players={players}
           initial={recorded.find(st => st.stage === editedStage)?.points ?? {}}
-          validate={
-            byStage ? entries => stageEntryError(entries, maxPoints) : undefined
-          }
-          max={byStage ? maxPoints : null}
+          initialCleared={Object.fromEntries(
+            stageScores
+              .filter(st => st.stage === editedStage)
+              .map(st => [st.playerId, st.cleared === true]),
+          )}
+          rungs={tally?.rungs(stageScores, editedStage) ?? null}
+          validate={tally?.validate}
+          max={tally?.max ?? null}
+          step={tally?.step ?? 1}
           disabled={busy}
           confirmLabel="Valider"
           onConfirm={points => {
@@ -320,4 +334,23 @@ function CorrectionForm({
       )}
     </section>
   );
+}
+
+/**
+ * Who a corrected laddered party (Phase 10) is crowned by: the climb names the
+ * winner when one player alone tops it on the fewest points; level, the table
+ * is asked among those level — with the game's own tie-break named.
+ */
+function climbChoice(
+  climb: EndOutcome,
+  rules: TieBreakRule[],
+): FinishedWinners {
+  const settled = climb.winners.length === 1;
+
+  return {
+    asked: !settled,
+    preselected: climb.winners,
+    rules: settled ? [] : rules,
+    tied: !settled,
+  };
 }

@@ -27,6 +27,7 @@ import type {
   StageAdvance,
   StageGoalRecord,
   StageScore,
+  StageSpec,
   TieBreakRecord,
   TurnMode,
 } from "@/lib/domain";
@@ -36,6 +37,7 @@ import {
   playedExtensions,
 } from "@/lib/game/extensions";
 import { activeSeat, generationOver } from "@/lib/game/generation";
+import { ladderFixedOn } from "@/lib/game/ladder";
 import { draftingOn } from "@/lib/game/phase";
 import { scheduledPosition, stageHoldSeconds } from "@/lib/game/stage";
 import { advanceTurn as nextTurnState } from "@/lib/game/turn";
@@ -162,6 +164,7 @@ type StatsRow = {
     name: string;
     dice: unknown;
     scoring: unknown;
+    stages: unknown;
     config_templates: { fields: unknown } | null;
   } | null;
   config: { values: unknown } | null;
@@ -194,8 +197,14 @@ type StatsRow = {
     stage: number;
     player_id: string;
     points: number;
+    cleared: boolean;
   }>;
-  game_phases: Array<{ stage: number; phase_key: string; duration_s: number }>;
+  game_phases: Array<{
+    stage: number;
+    phase_key: string;
+    duration_s: number;
+    laps: number | null;
+  }>;
 };
 
 /**
@@ -229,14 +238,24 @@ function toStageGoals(row: StatsRow): StageGoalRecord[] {
  * Read here rather than in the stats layer because it takes four joined rows to
  * answer, and none of them means anything downstream on its own.
  */
+/** The config a stats row was played with, and the template it fills in. */
+function statsConfig(row: StatsRow): {
+  fields: FieldSpec[];
+  values: ConfigValues | null;
+} {
+  return {
+    fields: (row.boardgame?.config_templates?.fields ??
+      []) as unknown as FieldSpec[],
+    values:
+      (row.config_values as ConfigValues | null) ??
+      (row.config?.values as ConfigValues | null) ??
+      null,
+  };
+}
+
 function toWinThreshold(row: StatsRow, played: PlayedWith[]): number | null {
   const scoring = row.boardgame?.scoring as ScoringSpec | null | undefined;
-  const fields = (row.boardgame?.config_templates?.fields ??
-    []) as unknown as FieldSpec[];
-  const values =
-    (row.config_values as ConfigValues | null) ??
-    (row.config?.values as ConfigValues | null) ??
-    null;
+  const { fields, values } = statsConfig(row);
 
   return resolveWinTarget(scoring?.stopCondition, fields, values, played);
 }
@@ -259,6 +278,11 @@ function toStatsRecord(row: StatsRow): GameStatsRecord {
     rounds: row.round,
     winThreshold: toWinThreshold(row, played),
     extensions: playedExtensions(played),
+    ladderFixed: ladderFixedOn(
+      (row.boardgame?.stages as StageSpec | null | undefined) ?? null,
+      statsConfig(row).values,
+      statsConfig(row).fields,
+    ),
     players: row.game_players.map(gp => ({
       playerId: gp.player_id as PlayerId,
       /* c8 ignore next -- `?? "?"` guards a player row that can't be missing (FK) */
@@ -288,11 +312,13 @@ function toStatsRecord(row: StatsRow): GameStatsRecord {
         stage: score.stage,
         playerId: score.player_id as PlayerId,
         points: score.points,
+        cleared: score.cleared,
       })),
     phaseTimes: row.game_phases.map(p => ({
       stage: p.stage,
       phaseKey: p.phase_key,
       durationS: p.duration_s,
+      laps: p.laps,
     })),
   };
 }
@@ -336,6 +362,7 @@ type PopulatedRow = GameRow & {
     stage: number;
     player_id: string;
     points: number;
+    cleared: boolean;
   }>;
   game_milestones: Array<{
     player_id: string;
@@ -347,6 +374,7 @@ type PopulatedRow = GameRow & {
     stage: number;
     phase_key: string;
     duration_s: number;
+    laps: number | null;
   }>;
 };
 
@@ -365,9 +393,9 @@ const POPULATED_SELECT =
   "dice_rolls(value, created_at), " +
   "game_stage_passes(player_id, stage), " +
   "game_stages(stage, goal_key, goal_params, turns), " +
-  "game_stage_scores(stage, player_id, points), " +
+  "game_stage_scores(stage, player_id, points, cleared), " +
   "game_milestones(player_id, milestone_key, stage, created_at), " +
-  "game_phases(stage, phase_key, duration_s)";
+  "game_phases(stage, phase_key, duration_s, laps)";
 
 /** Where a game stands once the turn that just ended has been recorded. */
 interface NextTurn {
@@ -890,6 +918,7 @@ export function createGameRepository(
         stage: score.stage,
         player_id: score.playerId,
         points: score.points,
+        cleared: score.cleared ?? false,
       })),
     );
     if (error) {
@@ -954,7 +983,7 @@ export function createGameRepository(
       const { data, error } = await games()
         .select(
           "id, boardgame_id, ended_at, round, config_values, " +
-            "boardgame:boardgames(name, dice, scoring, config_templates(fields)), " +
+            "boardgame:boardgames(name, dice, scoring, stages, config_templates(fields)), " +
             "config:configs(values), " +
             "game_extensions(scenario_id, " +
             "extension:extensions(*, extension_scenarios(*))), " +
@@ -962,8 +991,8 @@ export function createGameRepository(
             "game_turns(player_id, round, duration_s, pause_duration_s, overtime_s), " +
             "dice_rolls(value, created_at), " +
             "game_stages(stage, goal_key, goal_params), " +
-            "game_stage_scores(stage, player_id, points), " +
-            "game_phases(stage, phase_key, duration_s)",
+            "game_stage_scores(stage, player_id, points, cleared), " +
+            "game_phases(stage, phase_key, duration_s, laps)",
         )
         .eq("status", "ended");
       /* c8 ignore next 3 -- defensive guard: a healthy select doesn't error */
@@ -1036,6 +1065,12 @@ export function createGameRepository(
         effectiveValues,
         templateFields,
       );
+      // Phase 10's variant: the same kind of switch, read the same way.
+      const ladderFixed = ladderFixedOn(
+        boardgame.stages,
+        effectiveValues,
+        templateFields,
+      );
 
       const scoreEvents = [...row.score_events]
         .sort((a, b) => a.created_at.localeCompare(b.created_at))
@@ -1069,6 +1104,7 @@ export function createGameRepository(
         stage: s.stage,
         playerId: s.player_id as PlayerId,
         points: s.points,
+        cleared: s.cleared,
       }));
 
       // Oldest generation first, so the recap reads them the way they were
@@ -1079,6 +1115,7 @@ export function createGameRepository(
           stage: p.stage,
           phaseKey: p.phase_key,
           durationS: p.duration_s,
+          laps: p.laps,
         }));
 
       // Oldest first: the order they were taken in is the order they are read
@@ -1098,6 +1135,7 @@ export function createGameRepository(
         winThreshold,
         turnSchedule,
         drafting,
+        ladderFixed,
         stageHoldS,
         extensions,
         scoreEvents,
@@ -1342,7 +1380,7 @@ export function createGameRepository(
     async setStageScores(
       id: GameId,
       stage: number,
-      points: Array<{ playerId: PlayerId; points: number }>,
+      points: Array<{ playerId: PlayerId; points: number; cleared?: boolean }>,
     ) {
       // Upserted on (game, stage, player): re-entering a manche's goal points
       // corrects what was typed instead of stacking a second row beside it.
@@ -1352,6 +1390,7 @@ export function createGameRepository(
           stage,
           player_id: entry.playerId,
           points: Math.round(entry.points),
+          cleared: entry.cleared ?? false,
         })),
         { onConflict: "game_id,stage,player_id" },
       );
@@ -1399,6 +1438,25 @@ export function createGameRepository(
       /* c8 ignore next 3 -- defensive guard: update errors surface via e2e */
       if (updateError) {
         throw new Error(`Passage à la manche suivante: ${updateError.message}`);
+      }
+    },
+
+    async setPhaseLaps(
+      id: GameId,
+      stage: number,
+      phaseKey: string,
+      laps: number,
+    ) {
+      // Only the count: on a phase already banked, the time stays as it was.
+      const { error } = await supabase.from("game_phases").upsert({
+        game_id: id,
+        stage,
+        phase_key: phaseKey,
+        laps: Math.max(0, Math.round(laps)),
+      });
+      /* c8 ignore next 3 -- defensive guard: upsert errors surface via e2e */
+      if (error) {
+        throw new Error(`Enregistrement des tours: ${error.message}`);
       }
     },
 

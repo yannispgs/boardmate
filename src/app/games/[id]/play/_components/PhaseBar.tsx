@@ -23,7 +23,9 @@ export function PhaseBar({
   /** Which way the cards go, or null when this phase is not drafted. */
   draft: DraftDirection | null;
 }>) {
-  if (phases === null) {
+  // One phase is no sequence to follow: Phase 10's « Manche » only exists to
+  // carry its stopwatch, and a bar of one segment would say nothing.
+  if (phases === null || phases.length < 2) {
     return null;
   }
 

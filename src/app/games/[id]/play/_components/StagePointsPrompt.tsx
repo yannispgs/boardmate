@@ -3,9 +3,12 @@
 import { useState } from "react";
 
 import { Modal } from "@/components/Modal";
-import { NumberStepper } from "@/components/NumberStepper";
 import type { PlayerId } from "@/lib/domain";
+import { pointsFloor } from "@/lib/game/ladder";
 import type { StageEntry } from "@/lib/game/stage-tally";
+
+import { StagePointsRow } from "../../../_components/StagePointsRow";
+import type { PromptRungs } from "./stage-tallies";
 
 /**
  * The end of a manche: what each player takes is written down there and then,
@@ -29,6 +32,9 @@ export function StagePointsPrompt({
   initial,
   validate,
   max = null,
+  step = 1,
+  rungs = null,
+  initialCleared = {},
   disabled,
   confirmLabel,
   onConfirm,
@@ -54,19 +60,45 @@ export function StagePointsPrompt({
    * to say what is wrong with it instead of the box quietly rewriting it.
    */
   max?: number | null;
+  /** How far one tap of an arrow goes (Phase 10's cards count by fives). */
+  step?: number;
+  /**
+   * On a laddered game, the rung each player is working on — « Phase 4 » — and
+   * its name; each player then gets a box to tick once he laid it down. Null
+   * on every other game, and in the variant where everybody climbs anyway.
+   */
+  rungs?: PromptRungs;
+  /** Who was already ticked for this stage, by player. */
+  initialCleared?: Record<string, boolean>;
   disabled: boolean;
   /** What validating does next (« Manche suivante », « Enregistrer »). */
   confirmLabel: string;
   onConfirm: (points: StageEntry[]) => void;
   onCancel: () => void;
 }>) {
+  // Without his phase down a player still holds his whole hand (Phase 10: at
+  // least 50): that is where he starts, and he can't go below it.
+  const floorOf = (ticked: boolean) =>
+    rungs === null ? 0 : pointsFloor(ticked, rungs.rules);
+
+  const [cleared, setCleared] =
+    useState<Record<string, boolean>>(initialCleared);
   const [points, setPoints] = useState<Record<string, number>>(() =>
-    Object.fromEntries(players.map(p => [p.id, initial[p.id] ?? 0] as const)),
+    Object.fromEntries(
+      players.map(
+        p =>
+          [
+            p.id,
+            initial[p.id] ?? floorOf(initialCleared[p.id] === true),
+          ] as const,
+      ),
+    ),
   );
 
   const entries = players.map(p => ({
     playerId: p.id,
     points: points[p.id] ?? 0,
+    ...(rungs === null ? {} : { cleared: cleared[p.id] === true }),
   }));
   const refused = validate?.(entries) ?? null;
 
@@ -83,21 +115,29 @@ export function StagePointsPrompt({
 
       <ul className="mt-4 flex flex-col gap-2">
         {players.map(p => (
-          <li
+          <StagePointsRow
             key={p.id}
-            className="flex items-center justify-between gap-3 rounded-lg border border-black/10 px-3 py-2 dark:border-white/10"
-          >
-            <span className="min-w-0 flex-1 truncate text-sm">{p.name}</span>
-            <NumberStepper
-              label={p.name}
-              value={points[p.id] ?? 0}
-              max={max}
-              disabled={disabled}
-              onChange={next =>
-                setPoints(current => ({ ...current, [p.id]: next }))
-              }
-            />
-          </li>
+            player={p}
+            points={points[p.id] ?? 0}
+            min={floorOf(cleared[p.id] === true)}
+            max={max}
+            step={step}
+            rung={rungs === null ? null : (rungs.of[p.id] ?? null)}
+            rungLabel={rungs?.label ?? ""}
+            cleared={cleared[p.id] === true}
+            disabled={disabled}
+            onPoints={next =>
+              setPoints(current => ({ ...current, [p.id]: next }))
+            }
+            onCleared={next => {
+              setCleared(current => ({ ...current, [p.id]: next }));
+              // Unticked, he holds his whole hand again.
+              setPoints(current => ({
+                ...current,
+                [p.id]: Math.max(current[p.id] ?? 0, floorOf(next)),
+              }));
+            }}
+          />
         ))}
       </ul>
 

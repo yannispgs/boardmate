@@ -36,6 +36,30 @@ export function PhaseTimeSection({
 
   const stageWord = stageLabel.toLowerCase();
 
+  // A single phase is the manche itself (Phase 10's stopwatch): there is no
+  // share to split, only how long each manche took.
+  if (phases.length === 1) {
+    return (
+      <StatGroup title={`Durée des ${stageWord}s`}>
+        <StatView
+          title={`${stageWord} par ${stageWord}`}
+          info={
+            <p>
+              Une colonne par {stageWord} jouée, dans l&apos;ordre, à la hauteur
+              du temps qu&apos;elle a pris face à la plus longue.
+            </p>
+          }
+        >
+          <PhaseStageChart
+            stages={stages}
+            phases={phases}
+            stageLabel={stageLabel}
+          />
+        </StatView>
+      </StatGroup>
+    );
+  }
+
   return (
     <StatGroup title="Temps par phase">
       <StatView

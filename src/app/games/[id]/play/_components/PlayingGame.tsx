@@ -53,6 +53,7 @@ import { usePlaySounds } from "./use-play-sounds";
 import { useSessionGames } from "./use-session-games";
 import { useStageGoals } from "./use-stage-goals";
 import { useStageHold } from "./use-stage-hold";
+import { useStageLaps } from "./use-stage-laps";
 
 /**
  * A game in progress. Takes the loaded game, so nothing below has to wonder
@@ -195,6 +196,11 @@ export function PlayingGame({
   // second tap during the cross-fade would close a phase nobody saw open.
   const phaseSwapping = useChangeBeat(game.phase, PHASE_FADE_MS);
   const draft = playedDraft(phase, game.drafting, game.stage);
+  // Phase 10: the table counts the laps of each manche, for the stats.
+  const laps = useStageLaps(
+    game,
+    stages?.ladder !== undefined && phase !== null ? phase.key : null,
+  );
 
   function pickBlocked(id: PlayerId | null) {
     setBlockedById(id);
@@ -259,6 +265,34 @@ export function PlayingGame({
       await repo.advanceStage(game.id);
       await play.reload();
     });
+  }
+
+  /**
+   * Banks the clock of a manche the table closed itself (Phase 10's stopwatch):
+   * the time goes to the manche just written down, and the clock starts afresh
+   * for the next one — the deal included, which is part of playing it. A game
+   * that times no manche (Odin) has no phase to bank.
+   */
+  async function bankStage(stage: number) {
+    if (phase === null) {
+      return;
+    }
+
+    const durationS = timer.elapsedS;
+
+    timer.reset();
+
+    await play.run(
+      "Impossible d'enregistrer la durée de la manche.",
+      async () => {
+        await repo.endPhase(game.id, {
+          stage,
+          phaseKey: phase.key,
+          durationS,
+          next: { index: game.phase, stageEnds: false },
+        });
+      },
+    );
   }
 
   /**
@@ -352,6 +386,7 @@ export function PlayingGame({
       <PlayControls
         game={game}
         goals={goals}
+        laps={laps}
         phases={phases}
         phase={phase}
         phaseSwapping={phaseSwapping}
@@ -369,7 +404,8 @@ export function PlayingGame({
         onPass={pass}
         onEndPhase={closing => void endPhase(closing)}
         onNextStage={nextStage}
-        onEnd={scores => flow.finishTotals(scores, null)}
+        onStageClosed={stage => void bankStage(stage)}
+        onEnd={flow.finishTally}
       />
 
       <LiveScoreSection

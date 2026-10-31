@@ -34,6 +34,12 @@ export interface EndOutcome {
    * and the table settles it there.
    */
   winners: PlayerId[];
+  /**
+   * The players the win is between, when that is not simply the whole table:
+   * on a laddered game only those who climbed highest can take it, whatever
+   * the others' points. Absent means everybody.
+   */
+  contenders?: PlayerId[];
 }
 
 /** A category sheet: each player's lines summed into a total, then ranked. */

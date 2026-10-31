@@ -351,3 +351,110 @@ test("sums a reopened manche into the goals line of the sheet", async ({
     });
   }
 });
+
+test("corrects a Phase 10 manche, its phases and all, and lets the climb crown", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const players = await seedPlayers(2);
+  const [first, second] = players;
+  const games: string[] = [];
+  let bgId: string | null = null;
+
+  try {
+    bgId = await seedBoardgame(admin, {
+      name: `E2E Correction phases ${Date.now().toString(36)}`,
+      minPlayers: 2,
+      isTimed: false,
+      scoring: {
+        timing: "final",
+        entry: "total",
+        winCondition: { type: "lowest" },
+        trackRecords: false,
+      },
+      stages: {
+        label: "Manche",
+        advance: "manual",
+        pointsStep: 5,
+        ladder: { label: "Phase", steps: ["a", "b"], unclearedMin: 50 },
+      },
+    });
+
+    const idOf = await playerIds(players);
+    // Each cleared one phase: level climbers, the fewest points (55) won.
+    const party = await seedParty(admin, bgId, [
+      { playerId: idOf(first), score: 55, isWinner: true },
+      { playerId: idOf(second), score: 60 },
+    ]);
+
+    games.push(party);
+
+    await admin.from("game_stage_scores").insert([
+      {
+        game_id: party,
+        stage: 1,
+        player_id: idOf(first),
+        points: 0,
+        cleared: true,
+      },
+      {
+        game_id: party,
+        stage: 1,
+        player_id: idOf(second),
+        points: 60,
+        cleared: false,
+      },
+      {
+        game_id: party,
+        stage: 2,
+        player_id: idOf(first),
+        points: 55,
+        cleared: false,
+      },
+      {
+        game_id: party,
+        stage: 2,
+        player_id: idOf(second),
+        points: 0,
+        cleared: true,
+      },
+    ]);
+
+    // The second had in fact laid his phase in manche 1 too: two phases, the
+    // top of the ladder — he takes it, on more points.
+    const form = await openCorrection(page, party);
+
+    await form.getByRole("button", { name: /^Manche 1/ }).click();
+
+    const prompt = page.getByRole("dialog", { name: "Points de la manche 1" });
+
+    await prompt
+      .getByRole("listitem")
+      .filter({ hasText: second })
+      .getByRole("button", { name: /réalisée/ })
+      .click();
+    await prompt.getByRole("button", { name: "Valider" }).click();
+    await form
+      .getByRole("button", { name: "Enregistrer la correction" })
+      .click();
+
+    await expect(page.getByTestId("score-correction")).toHaveCount(0);
+    await expect.poll(() => winnersOf(party)).toEqual([idOf(second)]);
+
+    const { data: line } = await admin
+      .from("game_stage_scores")
+      .select("cleared")
+      .eq("game_id", party)
+      .eq("stage", 1)
+      .eq("player_id", idOf(second))
+      .single();
+
+    expect(line?.cleared).toBe(true);
+  } finally {
+    await dropSeeded(admin, {
+      games,
+      boardgames: [bgId],
+      playerNames: players,
+    });
+  }
+});

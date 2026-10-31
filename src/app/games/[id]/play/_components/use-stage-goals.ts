@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 
-import type { PlayerId, PopulatedGame, StageScore } from "@/lib/domain";
+import type { PopulatedGame, StageScore } from "@/lib/domain";
+import type { StageEntry } from "@/lib/game/stage-tally";
 import { getGameRepository } from "@/lib/repositories";
 
 export interface StageGoalLog {
@@ -14,11 +15,10 @@ export interface StageGoalLog {
   error: string | null;
   /** What was already entered for one stage, by player — the form's prefill. */
   entered: (stage: number) => Record<string, number>;
+  /** Who cleared his rung on one stage, by player — a laddered game's prefill. */
+  cleared: (stage: number) => Record<string, boolean>;
   /** Records what each player scored on one stage's goal. */
-  save: (
-    stage: number,
-    points: Array<{ playerId: PlayerId; points: number }>,
-  ) => Promise<void>;
+  save: (stage: number, points: StageEntry[]) => Promise<void>;
 }
 
 /**
@@ -39,10 +39,15 @@ export function useStageGoals(game: PopulatedGame): StageGoalLog {
     );
   }
 
-  async function save(
-    stage: number,
-    points: Array<{ playerId: PlayerId; points: number }>,
-  ) {
+  function cleared(stage: number): Record<string, boolean> {
+    return Object.fromEntries(
+      scores
+        .filter(s => s.stage === stage)
+        .map(s => [s.playerId, s.cleared === true]),
+    );
+  }
+
+  async function save(stage: number, points: StageEntry[]) {
     const before = scores;
 
     // Re-entering a manche replaces it: the same player never holds two rows.
@@ -63,5 +68,5 @@ export function useStageGoals(game: PopulatedGame): StageGoalLog {
     }
   }
 
-  return { scores, busy, error, entered, save };
+  return { scores, busy, error, entered, cleared, save };
 }

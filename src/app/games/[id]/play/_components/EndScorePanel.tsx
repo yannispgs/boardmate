@@ -3,11 +3,13 @@
 import { useState } from "react";
 
 import type { PlayerId, PopulatedGame } from "@/lib/domain";
+import { ladderFinalStandings } from "@/lib/game/ladder";
 import { readPairBreakdown } from "@/lib/game/pair-scoring";
 import { scoresCorrectable } from "@/lib/game/score-correction";
 import { finalStandings, scoreDirectionOf } from "@/lib/game/scoring";
 import { useMyPermissions } from "@/lib/hooks/use-my-permissions";
 import { useRecordsOfGame } from "@/lib/hooks/use-score-records";
+import { LadderDetail } from "../../../_components/LadderDetail";
 import { CategoryBreakdownFill } from "./CategoryBreakdownFill";
 import { FinalScoreTable } from "./FinalScoreTable";
 import { RecordBadgeList } from "./RecordBadgeList";
@@ -50,14 +52,28 @@ export function EndScorePanel({
   // The recorded winners take rank 1 (several on a shared victory); co-leaders
   // on the same score who lost the tie-break are 2nd. Shared ranks resume from
   // 2nd place down.
-  const ranking = finalStandings(
-    players.map(p => ({
-      playerId: p.id,
-      score: p.score,
-      isWinner: p.isWinner,
-    })),
-    direction,
-  );
+  // Phase 10: the climb ranks the table, the points only separate climbers.
+  const ladder = game.boardgame.stages?.ladder;
+  const climb =
+    ladder === undefined
+      ? null
+      : ladderFinalStandings(
+          players.map(p => p.id),
+          players.filter(p => p.isWinner).map(p => p.id),
+          game.stageScores,
+          ladder.steps.length,
+          game.ladderFixed === true,
+        );
+  const ranking =
+    climb ??
+    finalStandings(
+      players.map(p => ({
+        playerId: p.id,
+        score: p.score,
+        isWinner: p.isWinner,
+      })),
+      direction,
+    );
   const rankOf = (id: PlayerId) => ranking.find(r => r.playerId === id);
   const ordered = [...players].sort(
     (a, b) => (rankOf(a.id)?.rank ?? 0) - (rankOf(b.id)?.rank ?? 0),
@@ -115,6 +131,15 @@ export function EndScorePanel({
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate font-medium">{p.name}</span>
 
+                {climb !== null && ladder !== undefined ? (
+                  <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                    {rungsCleared(
+                      climb.find(c => c.playerId === p.id)?.rungs ?? 0,
+                      ladder.label,
+                    )}
+                  </span>
+                ) : null}
+
                 {p.pair ? (
                   <span className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
                     {p.pair.left} × {p.pair.right}
@@ -130,6 +155,13 @@ export function EndScorePanel({
           );
         })}
       </ol>
+
+      <LadderDetail
+        players={players.map(p => ({ id: p.id, name: p.name }))}
+        scores={game.stageScores}
+        stages={game.boardgame.stages}
+        fixed={game.ladderFixed === true}
+      />
 
       {game.tieBreak ? (
         <TieBreakRecap
@@ -172,4 +204,13 @@ export function EndScorePanel({
       ) : null}
     </div>
   );
+}
+
+/** « 6 phases réalisées » — how far a player climbed, said under his name. */
+function rungsCleared(rungs: number, label: string): string {
+  const word = label.toLowerCase();
+
+  return rungs > 1
+    ? `${rungs} ${word}s réalisées`
+    : `${rungs} ${word} réalisée`;
 }

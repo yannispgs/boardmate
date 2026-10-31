@@ -532,18 +532,21 @@ export type Database = {
         Row: {
           duration_s: number
           game_id: string
+          laps: number | null
           phase_key: string
           stage: number
         }
         Insert: {
           duration_s?: number
           game_id: string
+          laps?: number | null
           phase_key: string
           stage: number
         }
         Update: {
           duration_s?: number
           game_id?: string
+          laps?: number | null
           phase_key?: string
           stage?: number
         }
@@ -640,18 +643,21 @@ export type Database = {
       }
       game_stage_scores: {
         Row: {
+          cleared: boolean
           game_id: string
           player_id: string
           points: number
           stage: number
         }
         Insert: {
+          cleared?: boolean
           game_id: string
           player_id: string
           points?: number
           stage: number
         }
         Update: {
+          cleared?: boolean
           game_id?: string
           player_id?: string
           points?: number
