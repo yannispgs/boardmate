@@ -14,6 +14,7 @@ import {
   ladderRungs,
   ladderSeries,
   ladderStandings,
+  ladderWheel,
   pointsFloor,
   workingRung,
 } from "./ladder";
@@ -268,6 +269,24 @@ describe("pointsFloor", () => {
     expect(pointsFloor(false, RULES)).toBe(50);
     expect(pointsFloor(true, RULES)).toBe(0);
     expect(pointsFloor(false, { ...RULES, fixed: true })).toBe(0);
+  });
+});
+
+describe("ladderWheel", () => {
+  const RULES: LadderEntryRules = {
+    fixed: false,
+    step: 5,
+    maxPoints: 20,
+    unclearedMin: 10,
+  };
+
+  it("runs from the floor to the cap, a step apart", () => {
+    expect(ladderWheel(false, RULES)).toEqual([10, 15, 20]);
+    expect(ladderWheel(true, RULES)).toEqual([0, 5, 10, 15, 20]);
+  });
+
+  it("stops somewhere on a game that caps nothing", () => {
+    expect(ladderWheel(true, { ...RULES, maxPoints: null }).at(-1)).toBe(250);
   });
 });
 

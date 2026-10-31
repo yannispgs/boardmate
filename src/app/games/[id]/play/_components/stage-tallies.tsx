@@ -1,6 +1,12 @@
 import type { ReactNode } from "react";
 
-import type { PlayerId, PopulatedGame, StageScore } from "@/lib/domain";
+import type {
+  PlayerId,
+  PopulatedGame,
+  StageBet,
+  StageScore,
+} from "@/lib/domain";
+import { betDone, betEntryError } from "@/lib/game/bet";
 import type { EndOutcome } from "@/lib/game/end-outcome";
 import {
   type LadderEntryRules,
@@ -37,8 +43,9 @@ export type PromptRungs = {
 /**
  * How a game counted manche by manche reads its manches: what the standings
  * look like, when the game stops, what a manche's entry must satisfy, and how
- * the game ends. Two games, two ways — Odin's totals racing to a bar, Phase 10's
- * climb up a ladder — behind one shape, so the board itself is written once.
+ * the game ends. Three games, three ways — Odin's totals racing to a bar,
+ * Phase 10's climb up a ladder, Luz's bets over four donnes — behind one shape,
+ * so the board itself is written once.
  */
 export interface StageTally {
   /** The line under the title: what the table is playing to. */
@@ -55,7 +62,8 @@ export interface StageTally {
   stopNote: string;
   /** The rule the prompt's boxes are filled in by. */
   intro: string;
-  validate: (entries: StageEntry[]) => string | null;
+  /** Why manche `stage`'s entry can't be recorded, or null. */
+  validate: (entries: StageEntry[], stage: number) => string | null;
   max: number | null;
   step: number;
   /** The rung each player is on as manche `stage` opens, or null. */
@@ -75,11 +83,17 @@ export function stageTally(
   players: Seats,
   direction: ScoreDirection,
 ): StageTally {
-  const ladder = game.boardgame.stages?.ladder;
+  const stages = game.boardgame.stages;
 
-  return ladder === undefined
-    ? totalsTally(game, players, direction)
-    : ladderTally(game, players, ladder);
+  if (stages?.ladder !== undefined) {
+    return ladderTally(game, players, stages.ladder);
+  }
+
+  if (stages?.bet !== undefined) {
+    return betTally(players, stages.label, stages.bet, stages.count ?? 1);
+  }
+
+  return totalsTally(game, players, direction);
 }
 
 /** Odin: the manches summed, the game stopping once a total reaches the bar. */
@@ -191,6 +205,41 @@ function ladderTally(
     end: scores => ({
       kind: "outcome",
       outcome: ladderOutcome(seats, scores, top, fixed),
+    }),
+  };
+}
+
+/** Luz: a set number of donnes played on bets, the highest total winning. */
+function betTally(
+  players: Seats,
+  stageLabel: string,
+  bet: StageBet,
+  count: number,
+): StageTally {
+  const seats = players.map(p => p.id);
+  const unit = stageLabel.toLowerCase();
+
+  return {
+    note: `La partie dure ${count} ${unit}s : le plus gros total gagne.`,
+    board: (scores, upTo, recap) => (
+      <StandingCardList
+        standings={stageStandings(seats, scores, upTo, "highest")}
+        players={players}
+        showPoints={recap}
+        target={null}
+      />
+    ),
+    stops: (scores, upTo) => betDone(scores, upTo, count),
+    stopNote: `C'était la ${count}ᵉ ${unit} : la partie s'arrête ici.`,
+    intro: `Pari réussi : ${bet.win} × le numéro de la ${unit} (${bet.hedgedWin} × avec le ${bet.hedgeLabel.toLowerCase()}), sinon −${bet.missPerTrick} par pli d'écart.`,
+    validate: (entries, stage) =>
+      betEntryError(entries, bet, stage, stageLabel),
+    max: null,
+    step: 1,
+    rungs: () => null,
+    end: scores => ({
+      kind: "totals",
+      scores: stageFinalScores(seats, scores),
     }),
   };
 }

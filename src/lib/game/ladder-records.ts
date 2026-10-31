@@ -8,7 +8,11 @@
  *   climb is the same for everybody and says nothing;
  * - **the heaviest manche** (`heaviestStage`): the most points anyone took in a
  *   single manche;
- * - **the smallest win** (`lowestWin`): the smallest total anyone won with.
+ * - **the smallest win** (`lowestWin`): the smallest total anyone won with;
+ * - **the worst manche** (`worstStage`): the fewest points anyone took in a
+ *   single manche — the biggest drop, on a game where a manche can cost;
+ * - the records of a game played on bets (`betsWon`, `betStreak`), read in
+ *   `bet-records.ts`.
  *
  * Pure: no vendor types, no React, unit-tested.
  */
@@ -24,6 +28,7 @@ import type {
   StageSpec,
 } from "@/lib/domain";
 
+import { betStreakMarks, betsWonMarks, type PartyMark } from "./bet-records";
 import { ladderRungs } from "./ladder";
 import { type SpeedRun, setupKey } from "./speed-records";
 
@@ -116,15 +121,21 @@ export interface ExtraMark {
 
 /** Which end of an extra record's scale wins. */
 export function extraDirection(record: ExtraRecord): "highest" | "lowest" {
-  return record === "heaviestStage" ? "highest" : "lowest";
+  return record === "lowestWin" || record === "worstStage"
+    ? "lowest"
+    : "highest";
 }
 
-/** Every figure one party posted towards an extra record. */
+/**
+ * Every figure one party posted towards an extra record that a party holds on
+ * its own — a run of bets (`betStreak`) runs across parties, see
+ * {@link extraMarksAcross}.
+ */
 export function extraMarks(
-  record: ExtraRecord,
+  record: Exclude<ExtraRecord, "betStreak">,
   party: Readonly<Pick<GameStatsRecord, "players" | "stageScores">>,
 ): ExtraMark[] {
-  if (record === "heaviestStage") {
+  if (record === "heaviestStage" || record === "worstStage") {
     return (party.stageScores ?? []).map(s => ({
       playerId: s.playerId,
       value: s.points,
@@ -132,10 +143,28 @@ export function extraMarks(
     }));
   }
 
+  if (record === "betsWon") {
+    return betsWonMarks(party);
+  }
+
   return party.players.flatMap(seat =>
     seat.isWinner && seat.score !== null
       ? [{ playerId: seat.playerId, value: seat.score, stage: null }]
       : [],
+  );
+}
+
+/** Every figure the parties posted towards an extra record, party by party. */
+export function extraMarksAcross(
+  record: ExtraRecord,
+  parties: readonly GameStatsRecord[],
+): PartyMark[] {
+  if (record === "betStreak") {
+    return betStreakMarks(parties);
+  }
+
+  return parties.flatMap(party =>
+    extraMarks(record, party).map(mark => ({ ...mark, gameId: party.gameId })),
   );
 }
 
@@ -184,8 +213,13 @@ export function extraRecordsTaken(
         (best, mark) => (beats(mark, best) ? mark : best),
         null,
       );
-    const mine = pick(extraMarks(record, party));
-    const before = pick(rivals.flatMap(other => extraMarks(record, other)));
+    // Read with the rivals before it, for a run carried over from them.
+    const mine = pick(
+      extraMarksAcross(record, [...rivals, party]).filter(
+        mark => mark.gameId === party.gameId,
+      ),
+    );
+    const before = pick(extraMarksAcross(record, rivals));
 
     if (mine === null || before === null) {
       return [];
@@ -194,7 +228,10 @@ export function extraRecordsTaken(
     const beaten = highest
       ? mine.value > before.value
       : mine.value < before.value;
+    const { playerId, value, stage } = mine;
 
-    return beaten ? [{ record, mark: mine, previous: before.value }] : [];
+    return beaten
+      ? [{ record, mark: { playerId, value, stage }, previous: before.value }]
+      : [];
   });
 }

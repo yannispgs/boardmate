@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import { ErrorText } from "@/components/ErrorText";
 import type {
@@ -12,6 +12,12 @@ import type {
   PlayerId,
   ScoringSpec,
 } from "@/lib/domain";
+import {
+  type BetManche,
+  betFinished,
+  blankBetManche,
+  patchBetManche,
+} from "@/lib/game/bet-finished";
 import {
   finishedGoals,
   mergeCells,
@@ -26,10 +32,10 @@ import { localDay } from "@/lib/game/game-filters";
 import type { LadderEntryRules } from "@/lib/game/ladder";
 import {
   blankManche,
-  type LadderFinished,
   type LadderManche,
-  type LadderMode,
   ladderFinished,
+  type MancheFinished,
+  type MancheMode,
   patchManche,
 } from "@/lib/game/ladder-finished";
 import { type StagePick, stageGoalPrefill } from "@/lib/game/stage";
@@ -45,8 +51,10 @@ import {
   type FinishedEntry,
   finishedEntry,
 } from "../../_components/finished-entry";
+import { BetMancheGrid } from "./BetMancheGrid";
 import { BoardgamePicker } from "./BoardgamePicker";
-import { LadderEntrySection } from "./LadderEntrySection";
+import { LadderMancheGrid } from "./LadderMancheGrid";
+import { MancheEntrySection } from "./MancheEntrySection";
 import { PlayerSeatPicker } from "./PlayerSeatPicker";
 import { ResultSection } from "./ResultSection";
 
@@ -56,12 +64,13 @@ function today(): string {
 }
 
 /**
- * What the form can file, read off the sheet — or, on a laddered game, off
- * the climb: who can win, whether the table has to say it, and the scores.
+ * What the form can file, read off the sheet — or, on a game entered manche by
+ * manche, off the manches: who can win, whether the table has to say it, and
+ * the scores.
  */
 function readResult(
   entry: FinishedEntry,
-  climb: LadderFinished | null,
+  climb: MancheFinished | null,
   scoring: ScoringSpec | null,
   selected: Player[],
 ): {
@@ -121,11 +130,14 @@ export function FinishedGameForm() {
   const [stageRaw, setStageRaw] = useState<StageGoalRaw>({});
   // Null while the form's own suggestion stands; set once the table picks.
   const [winnerIds, setWinnerIds] = useState<PlayerId[] | null>(null);
-  // Phase 10: the totals alone, or the manches one by one — each keyed by a
-  // number of its own, since removing one shifts the others' places.
-  const [ladderMode, setLadderMode] = useState<LadderMode>("total");
+  // Phase 10 and Luz: the totals alone, or the manches one by one — each
+  // keyed by a number of its own, since removing one shifts the others' places.
+  const [mancheMode, setMancheMode] = useState<MancheMode>("total");
   const [manches, setManches] = useState<
     Array<{ key: number; manche: LadderManche }>
+  >([]);
+  const [betManches, setBetManches] = useState<
+    Array<{ key: number; manche: BetManche }>
   >([]);
   const [nextKey, setNextKey] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -162,8 +174,12 @@ export function FinishedGameForm() {
   );
 
   // A laddered game is read off its climb, not off the sheet: who can win, and
-  // whether the table has to say it, come from there.
+  // whether the table has to say it, come from there. So is a game played on
+  // bets entered donne by donne, off its donnes.
   const ladder = boardgame?.stages?.ladder ?? null;
+  const bet = boardgame?.stages?.bet ?? null;
+  // How many manches the grid opens on: the game's own count, or a rung each.
+  const opening = boardgame?.stages?.count ?? ladder?.steps.length ?? 0;
   // Phase 10's checks of a manche: points in fives, under what a hand can
   // hold, and a whole hand at the least without the phase down.
   const entryRules: LadderEntryRules = {
@@ -172,17 +188,7 @@ export function FinishedGameForm() {
     maxPoints: boardgame?.stages?.maxPoints ?? null,
     unclearedMin: ladder?.unclearedMin ?? 0,
   };
-  const climb =
-    ladder === null
-      ? null
-      : ladderFinished(
-          ladderMode,
-          selected.map(p => p.id),
-          totals,
-          manches.map(m => m.manche),
-          ladder.steps.length,
-          entryRules,
-        );
+  const climb = readManches();
   const { candidates, choice, scoresComplete, scoreOf } = readResult(
     entry,
     climb,
@@ -204,8 +210,9 @@ export function FinishedGameForm() {
     // total. Shared piles are the opposite: they are what was on the table, and
     // the total is the multiplication the app is there to do.
     setEntryMode(b.scoring?.entry === "pairs" ? "detail" : "total");
-    setLadderMode("total");
+    setMancheMode("total");
     setManches([]);
+    setBetManches([]);
     setWinnerIds(null);
   }
 
@@ -248,17 +255,114 @@ export function FinishedGameForm() {
     setCatRaw(raw => mergeCells(raw, cells));
   }
 
+  /** The night read off its manches, on a game entered that way — or null. */
+  function readManches(): MancheFinished | null {
+    const ids = selected.map(p => p.id);
+
+    if (ladder !== null) {
+      return ladderFinished(
+        mancheMode,
+        ids,
+        totals,
+        manches.map(m => m.manche),
+        ladder.steps.length,
+        entryRules,
+      );
+    }
+
+    // The totals alone go through the ordinary sheet: they say who won.
+    return bet === null || mancheMode === "total"
+      ? null
+      : betFinished(
+          ids,
+          betManches.map(m => m.manche),
+          bet,
+          stageLabel,
+        );
+  }
+
   /** Adds `count` empty manches at the end of the grid. */
   function addManches(count: number) {
+    const ids = selected.map(p => p.id);
+    const keys = Array.from({ length: count }, (_unused, i) => nextKey + i);
+
     setWinnerIds(null);
-    setManches(list => [
-      ...list,
-      ...Array.from({ length: count }, (_unused, i) => ({
-        key: nextKey + i,
-        manche: blankManche(selected.map(p => p.id)),
-      })),
-    ]);
+
+    if (bet === null) {
+      setManches(list => [
+        ...list,
+        ...keys.map(key => ({ key, manche: blankManche(ids) })),
+      ]);
+    } else {
+      setBetManches(list => [
+        ...list,
+        ...keys.map(key => ({ key, manche: blankBetManche(ids) })),
+      ]);
+    }
+
     setNextKey(k => k + count);
+  }
+
+  /** Puts one manche's line right in whichever grid the game uses. */
+  function patchRow<T>(
+    list: Array<{ key: number; manche: T }>,
+    index: number,
+    patch: (manche: T) => T,
+  ): Array<{ key: number; manche: T }> {
+    return list.map((m, i) =>
+      i === index ? { ...m, manche: patch(m.manche) } : m,
+    );
+  }
+
+  /** The grid of the game's manches: Luz's donnes, or Phase 10's climb. */
+  function mancheGrid(): ReactNode {
+    if (bet !== null) {
+      return (
+        <BetMancheGrid
+          stageLabel={stageLabel}
+          manches={betManches.map(m => m.manche)}
+          keys={betManches.map(m => m.key)}
+          players={selected}
+          bet={bet}
+          disabled={submitting}
+          onChange={(index, playerId, patch) => {
+            setWinnerIds(null);
+            setBetManches(list =>
+              patchRow(list, index, manche =>
+                patchBetManche(manche, playerId, patch, bet, index + 1),
+              ),
+            );
+          }}
+          onRemove={removeManche}
+        />
+      );
+    }
+
+    return ladder === null ? null : (
+      <LadderMancheGrid
+        manches={manches.map(m => m.manche)}
+        keys={manches.map(m => m.key)}
+        players={selected}
+        ladder={ladder}
+        rules={entryRules}
+        disabled={submitting}
+        onChange={(index, playerId, patch) => {
+          setWinnerIds(null);
+          setManches(list =>
+            patchRow(list, index, manche =>
+              patchManche(manche, playerId, patch, entryRules),
+            ),
+          );
+        }}
+        onRemove={removeManche}
+      />
+    );
+  }
+
+  function removeManche(index: number) {
+    setWinnerIds(null);
+    setManches(list => list.filter((_m, i) => i !== index));
+    setBetManches(list => list.filter((_m, i) => i !== index));
   }
 
   const canSubmit =
@@ -355,58 +459,36 @@ export function FinishedGameForm() {
           winners={effectiveWinners}
           candidates={candidates}
           scoreEntry={
-            ladder !== null && scoring !== null && climb !== null ? (
-              <LadderEntrySection
+            (ladder !== null || bet !== null) && scoring !== null ? (
+              <MancheEntrySection
                 scoring={scoring}
-                ladder={ladder}
-                step={entryRules.step}
-                maxPoints={entryRules.maxPoints}
-                unclearedMin={entryRules.unclearedMin}
+                stageLabel={stageLabel}
                 players={selected}
-                mode={ladderMode}
+                mode={mancheMode}
                 totals={totals}
-                manches={manches.map(m => m.manche)}
-                mancheKeys={manches.map(m => m.key)}
-                error={climb.error}
+                grid={mancheGrid()}
+                error={climb?.error ?? null}
                 disabled={submitting}
                 onMode={mode => {
                   setWinnerIds(null);
-                  setLadderMode(mode);
+                  setMancheMode(mode);
 
-                  // A rung a manche at most: a game played to its end lasts at
-                  // least as many manches as the ladder has rungs, so the grid
-                  // opens on that many rather than on nothing.
-                  if (mode === "detail" && manches.length === 0) {
-                    addManches(ladder.steps.length);
+                  // A game played to its end lasts at least as many manches as
+                  // the ladder has rungs (Phase 10), or exactly its count (Luz),
+                  // so the grid opens on that many rather than on nothing.
+                  if (
+                    mode === "detail" &&
+                    manches.length === 0 &&
+                    betManches.length === 0
+                  ) {
+                    addManches(opening);
                   }
                 }}
                 onTotal={(id, text) => {
                   setWinnerIds(null);
                   setTotals(t => ({ ...t, [id]: text }));
                 }}
-                onManche={(index, playerId, patch) => {
-                  setWinnerIds(null);
-                  setManches(list =>
-                    list.map((m, i) =>
-                      i === index
-                        ? {
-                            ...m,
-                            manche: patchManche(
-                              m.manche,
-                              playerId,
-                              patch,
-                              entryRules,
-                            ),
-                          }
-                        : m,
-                    ),
-                  );
-                }}
                 onAddManche={() => addManches(1)}
-                onRemoveManche={index => {
-                  setWinnerIds(null);
-                  setManches(list => list.filter((_m, i) => i !== index));
-                }}
               />
             ) : null
           }

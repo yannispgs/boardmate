@@ -15,8 +15,10 @@ export interface StageGoalLog {
   error: string | null;
   /** What was already entered for one stage, by player — the form's prefill. */
   entered: (stage: number) => Record<string, number>;
-  /** Who cleared his rung on one stage, by player — a laddered game's prefill. */
+  /** Who cleared their rung on one stage, by player — a laddered game's prefill. */
   cleared: (stage: number) => Record<string, boolean>;
+  /** Who hedged their bet on one stage, by player — a game played on bets' prefill. */
+  hedged: (stage: number) => Record<string, boolean>;
   /** Records what each player scored on one stage's goal. */
   save: (stage: number, points: StageEntry[]) => Promise<void>;
 }
@@ -39,11 +41,14 @@ export function useStageGoals(game: PopulatedGame): StageGoalLog {
     );
   }
 
-  function cleared(stage: number): Record<string, boolean> {
+  function flagged(
+    stage: number,
+    flag: "cleared" | "hedged",
+  ): Record<string, boolean> {
     return Object.fromEntries(
       scores
         .filter(s => s.stage === stage)
-        .map(s => [s.playerId, s.cleared === true]),
+        .map(s => [s.playerId, s[flag] === true]),
     );
   }
 
@@ -68,5 +73,13 @@ export function useStageGoals(game: PopulatedGame): StageGoalLog {
     }
   }
 
-  return { scores, busy, error, entered, cleared, save };
+  return {
+    scores,
+    busy,
+    error,
+    entered,
+    cleared: stage => flagged(stage, "cleared"),
+    hedged: stage => flagged(stage, "hedged"),
+    save,
+  };
 }

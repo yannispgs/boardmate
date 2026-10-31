@@ -216,7 +216,7 @@ test("climbs the phases, counts the laps and settles the top on points", async (
         .getByRole("button", { name: "Afficher le détail des scores" })
         .click();
 
-      const detail = page.getByTestId("ladder-detail");
+      const detail = page.getByTestId("stage-detail");
 
       await expect(detail.getByText("P1")).toHaveCount(2);
       await expect(detail).toContainText("25");
@@ -274,7 +274,7 @@ test("climbs the phases, counts the laps and settles the top on points", async (
         .getByRole("button", { name: "Afficher le détail des scores" })
         .click();
       await expect(
-        page.getByTestId("ladder-detail").getByText("P2"),
+        page.getByTestId("stage-detail").getByText("P2"),
       ).toHaveCount(2);
     },
   );

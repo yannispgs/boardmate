@@ -198,6 +198,7 @@ type StatsRow = {
     player_id: string;
     points: number;
     cleared: boolean;
+    hedged: boolean;
   }>;
   game_phases: Array<{
     stage: number;
@@ -313,6 +314,7 @@ function toStatsRecord(row: StatsRow): GameStatsRecord {
         playerId: score.player_id as PlayerId,
         points: score.points,
         cleared: score.cleared,
+        hedged: score.hedged,
       })),
     phaseTimes: row.game_phases.map(p => ({
       stage: p.stage,
@@ -363,6 +365,7 @@ type PopulatedRow = GameRow & {
     player_id: string;
     points: number;
     cleared: boolean;
+    hedged: boolean;
   }>;
   game_milestones: Array<{
     player_id: string;
@@ -393,7 +396,7 @@ const POPULATED_SELECT =
   "dice_rolls(value, created_at), " +
   "game_stage_passes(player_id, stage), " +
   "game_stages(stage, goal_key, goal_params, turns), " +
-  "game_stage_scores(stage, player_id, points, cleared), " +
+  "game_stage_scores(stage, player_id, points, cleared, hedged), " +
   "game_milestones(player_id, milestone_key, stage, created_at), " +
   "game_phases(stage, phase_key, duration_s, laps)";
 
@@ -919,6 +922,7 @@ export function createGameRepository(
         player_id: score.playerId,
         points: score.points,
         cleared: score.cleared ?? false,
+        hedged: score.hedged ?? false,
       })),
     );
     if (error) {
@@ -991,7 +995,7 @@ export function createGameRepository(
             "game_turns(player_id, round, duration_s, pause_duration_s, overtime_s), " +
             "dice_rolls(value, created_at), " +
             "game_stages(stage, goal_key, goal_params), " +
-            "game_stage_scores(stage, player_id, points, cleared), " +
+            "game_stage_scores(stage, player_id, points, cleared, hedged), " +
             "game_phases(stage, phase_key, duration_s, laps)",
         )
         .eq("status", "ended");
@@ -1105,6 +1109,7 @@ export function createGameRepository(
         playerId: s.player_id as PlayerId,
         points: s.points,
         cleared: s.cleared,
+        hedged: s.hedged,
       }));
 
       // Oldest generation first, so the recap reads them the way they were
@@ -1380,7 +1385,7 @@ export function createGameRepository(
     async setStageScores(
       id: GameId,
       stage: number,
-      points: Array<{ playerId: PlayerId; points: number; cleared?: boolean }>,
+      points: Array<Omit<StageScore, "stage">>,
     ) {
       // Upserted on (game, stage, player): re-entering a manche's goal points
       // corrects what was typed instead of stacking a second row beside it.
@@ -1391,6 +1396,7 @@ export function createGameRepository(
           player_id: entry.playerId,
           points: Math.round(entry.points),
           cleared: entry.cleared ?? false,
+          hedged: entry.hedged ?? false,
         })),
         { onConflict: "game_id,stage,player_id" },
       );

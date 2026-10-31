@@ -21,7 +21,7 @@ import {
 } from "./ladder";
 
 /** What was kept of the night: the totals, or the manches. */
-export type LadderMode = "total" | "detail";
+export type MancheMode = "total" | "detail";
 
 /**
  * One manche as typed: each player's points — null until somebody sets them —
@@ -87,7 +87,7 @@ export function mancheScores(
 }
 
 /** What the form still lacks, and who it carries as the winner. */
-export interface LadderFinished {
+export interface MancheFinished {
   /** Why the entry can't be recorded yet, or null. */
   error: string | null;
   /** Each player's total, null while it is still missing. */
@@ -106,13 +106,13 @@ export interface LadderFinished {
 
 /** Reads the form into what the night can be recorded as. */
 export function ladderFinished(
-  mode: LadderMode,
+  mode: MancheMode,
   playerIds: readonly PlayerId[],
   totals: Readonly<Record<string, string>>,
   manches: readonly LadderManche[],
   top: number,
   rules: LadderEntryRules,
-): LadderFinished {
+): MancheFinished {
   if (mode === "total") {
     const scoreOf = (id: PlayerId) => {
       const n = Number.parseInt(totals[id] ?? "", 10);

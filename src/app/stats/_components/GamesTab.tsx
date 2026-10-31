@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { DateWindow } from "@/components/DateWindow";
 import { InfoTip } from "@/components/InfoTip";
 import { MultiSelectField } from "@/components/MultiSelectField";
@@ -19,6 +19,7 @@ import type {
   ScoreSheetItem,
   StageSpec,
 } from "@/lib/domain";
+import { type BetStats, betStats } from "@/lib/game/bet-stats";
 import { composeGoals } from "@/lib/game/extensions";
 import { DEFAULT_STAGE_LABEL } from "@/lib/game/finished-setup";
 import { formatDuration } from "@/lib/game/format-time";
@@ -65,6 +66,7 @@ import {
 } from "@/lib/game/zero-finishes";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useExtensions } from "@/lib/hooks/use-extensions";
+import { BetSections } from "./BetSections";
 import { CategoryCharts } from "./CategoryCharts";
 import { GamePlayerTable } from "./GamePlayerTable";
 import { GoalStatsTable } from "./GoalStatsTable";
@@ -74,6 +76,7 @@ import { PhaseTimeCardList } from "./PhaseTimeCardList";
 import { RungEffortChart } from "./RungEffortChart";
 import { SeatStats } from "./SeatStats";
 import { StatsDiceDistribution } from "./StatsDiceDistribution";
+import { StatsSection } from "./StatsSection";
 import { TallyExitCardList } from "./TallyExitCardList";
 import { TallyPointsChart } from "./TallyPointsChart";
 import { TimeIndexInfo } from "./TimeIndexInfo";
@@ -251,6 +254,8 @@ export function GamesTab({
               boardgame?.stages?.pointsStep ?? 1,
             ),
             ladder: ladderFigures(boardgame?.stages ?? null, scopedRecords),
+            bet: betFigures(boardgame?.stages ?? null, scopedRecords),
+            stageLabel: boardgame?.stages?.label ?? DEFAULT_STAGE_LABEL,
           }
         : null,
     [tallyMode, scopedRecords, boardgame],
@@ -382,21 +387,6 @@ export function GamesTab({
   );
 }
 
-/** A titled block of the tab. */
-function Section({
-  title,
-  children,
-}: Readonly<{ title: ReactNode; children: ReactNode }>) {
-  return (
-    <div className="flex flex-col gap-3">
-      <h2 className="flex items-center gap-1 text-sm font-medium text-zinc-500 dark:text-zinc-400">
-        {title}
-      </h2>
-      {children}
-    </div>
-  );
-}
-
 /** The overall figures of the selected game, over the parties in scope. */
 function OverallTiles({
   stats,
@@ -456,34 +446,53 @@ function OverallTiles({
 function TallyOverallTiles({
   stats,
   averages,
-}: Readonly<{ stats: GlobalStats; averages: TallyAverages | null }>) {
+  stageLabel,
+  prize,
+}: Readonly<{
+  stats: GlobalStats;
+  averages: TallyAverages | null;
+  /** What a manche is called (« Manche », « Donne »). */
+  stageLabel: string;
+  /** Whether a manche's points are won (Luz) rather than picked up (Odin). */
+  prize: boolean;
+}>) {
+  const unit = stageLabel.toLowerCase();
+
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
       <StatTile label="Parties" value={String(stats.gameCount)} accent />
       <StatTile
-        label="Manches moy."
+        label={`${stageLabel}s moy.`}
         value={averages === null ? "—" : averages.avgStages.toFixed(1)}
         info={
-          <InfoTip label="Manches moyennes">
+          <InfoTip label={`${stageLabel}s moyennes`}>
             <p>
-              Nombre moyen de <strong>manches</strong> par partie — une manche
-              se termine quand un joueur se débarrasse de toutes ses cartes.
+              Nombre moyen de <strong>{unit}s</strong> par partie.
             </p>
             <p>
-              Rien n&apos;est chronométré dans ce jeu : il n&apos;y a donc ni
-              temps de jeu ni durée de tour à afficher.
+              Aucun tour n&apos;est chronométré dans ce jeu : il n&apos;y a donc
+              pas de durée de tour à afficher.
             </p>
           </InfoTip>
         }
       />
       <StatTile
-        label="Points / manche"
+        label={`Points / ${unit}`}
         value={averages === null ? "—" : averages.avgPointsPerStage.toFixed(1)}
         info={
-          <InfoTip label="Points par manche">
-            Points ramassés par <strong>toute la table</strong> sur une manche,
-            en moyenne. Plus le chiffre est haut, plus les manches sont
-            douloureuses.
+          <InfoTip label={`Points par ${unit}`}>
+            {prize ? (
+              <>
+                Points marqués par <strong>toute la table</strong> sur une{" "}
+                {unit}, en moyenne : paris réussis moins paris ratés.
+              </>
+            ) : (
+              <>
+                Points ramassés par <strong>toute la table</strong> sur une{" "}
+                {unit}, en moyenne. Plus le chiffre est haut, plus les {unit}s
+                sont douloureuses.
+              </>
+            )}
           </InfoTip>
         }
       />
@@ -543,9 +552,9 @@ function SharedPileSections({
       {worst === null ? null : <WorstScoreSection games={[worst]} />}
 
       {zeroes.length > 0 ? (
-        <Section title="Qui finit le plus souvent à 0">
+        <StatsSection title="Qui finit le plus souvent à 0">
           <ZeroFinishCardList stats={zeroes} />
-        </Section>
+        </StatsSection>
       ) : null}
     </>
   );
@@ -563,6 +572,8 @@ function TallySections({
     exits: TallyExitStat[];
     histogram: TallyPointsBar[];
     ladder: LadderFigures | null;
+    bet: BetFigures | null;
+    stageLabel: string;
   } | null;
 }>) {
   if (tally === null) {
@@ -572,33 +583,43 @@ function TallySections({
   return (
     <>
       {tally.ladder !== null && tally.ladder.points.length > 0 ? (
-        <Section title={`Avancée moyenne des ${tally.ladder.label}s`}>
+        <StatsSection title={`Avancée moyenne des ${tally.ladder.label}s`}>
           <LadderProgressChart
             points={tally.ladder.points}
             top={tally.ladder.top}
           />
-        </Section>
+        </StatsSection>
       ) : null}
 
       {tally.ladder !== null && tally.ladder.efforts.length > 0 ? (
-        <Section title={`Ce que coûte chaque ${tally.ladder.label}`}>
+        <StatsSection title={`Ce que coûte chaque ${tally.ladder.label}`}>
           <RungEffortChart
             efforts={tally.ladder.efforts}
             rungLabel={tally.ladder.label}
           />
-        </Section>
+        </StatsSection>
       ) : null}
 
-      {tally.exits.length > 0 ? (
-        <Section title="Qui sort le plus souvent">
+      {tally.bet === null ? null : (
+        <BetSections
+          stats={tally.bet.stats}
+          stageLabel={tally.bet.stageLabel}
+          hedgeLabel={tally.bet.hedgeLabel}
+        />
+      )}
+
+      {/* Going out, and what a manche costs, are a shedding game's story: on a
+          game played on bets nobody goes out and the points are a prize. */}
+      {tally.bet === null && tally.exits.length > 0 ? (
+        <StatsSection title="Qui sort le plus souvent">
           <TallyExitCardList stats={tally.exits} />
-        </Section>
+        </StatsSection>
       ) : null}
 
-      {tally.histogram.length > 0 ? (
-        <Section title="Ce que coûte une manche">
+      {tally.bet === null && tally.histogram.length > 0 ? (
+        <StatsSection title="Ce que coûte une manche">
           <TallyPointsChart bars={tally.histogram} />
-        </Section>
+        </StatsSection>
       ) : null}
     </>
   );
@@ -629,6 +650,31 @@ function ladderFigures(
     top: ladder.steps.length,
     points: ladderProgress(records, ladder.steps.length),
     efforts: rungEffort(records, ladder.steps.length),
+  };
+}
+
+/** A game played on bets' figures, and what to call its manches and hedge. */
+interface BetFigures {
+  stats: BetStats;
+  stageLabel: string;
+  hedgeLabel: string;
+}
+
+/** The bet figures of a game played on bets (Luz), null for any other. */
+function betFigures(
+  stages: StageSpec | null,
+  records: readonly GameStatsRecord[],
+): BetFigures | null {
+  const bet = stages?.bet;
+
+  if (stages === null || bet === undefined) {
+    return null;
+  }
+
+  return {
+    stats: betStats(records, bet, stages.count ?? 1),
+    stageLabel: stages.label,
+    hedgeLabel: bet.hedgeLabel,
   };
 }
 
@@ -778,6 +824,8 @@ function GameSections({
     exits: TallyExitStat[];
     histogram: TallyPointsBar[];
     ladder: LadderFigures | null;
+    bet: BetFigures | null;
+    stageLabel: string;
   } | null;
   /** The totals nobody wants back; null where a worst score says nothing. */
   worst: WorstScoreGameView | null;
@@ -796,14 +844,19 @@ function GameSections({
   return (
     <>
       {tally ? (
-        <TallyOverallTiles stats={stats} averages={tally.averages} />
+        <TallyOverallTiles
+          stats={stats}
+          averages={tally.averages}
+          stageLabel={tally.stageLabel}
+          prize={tally.bet !== null}
+        />
       ) : (
         <OverallTiles stats={stats} scored={scored} />
       )}
       <ChampionBanner champion={champion} />
 
       {rounds !== null && rounds.length > 0 ? (
-        <Section
+        <StatsSection
           title={
             <>
               Répartition du nombre de tours
@@ -826,13 +879,13 @@ function GameSections({
             values={rounds}
             unit={{ noun: "partie", scale: "tours" }}
           />
-        </Section>
+        </StatsSection>
       ) : null}
 
       {scored && scores !== null && scores.length > 0 ? (
-        <Section title="Répartition des scores">
+        <StatsSection title="Répartition des scores">
           <ValueDistribution values={scores} />
-        </Section>
+        </StatsSection>
       ) : null}
 
       <TallySections tally={tally} />
@@ -846,28 +899,28 @@ function GameSections({
       {neighbours === null ? null : <NeighbourStats board={neighbours} />}
 
       {categorySheet ? (
-        <Section title="Répartition des points">
+        <StatsSection title="Répartition des points">
           <CategoryCharts
             sheet={categorySheet}
             records={scopedRecords}
             comparePlayers={comparePlayers}
           />
-        </Section>
+        </StatsSection>
       ) : null}
 
       {goalCatalogue ? (
-        <Section title="Objectifs de manche">
+        <StatsSection title="Objectifs de manche">
           <GoalStatsTable records={scopedRecords} catalogue={goalCatalogue} />
-        </Section>
+        </StatsSection>
       ) : null}
 
       {dice.spec && dice.rolls.length > 0 ? (
-        <Section title="Distribution des lancers de dés">
+        <StatsSection title="Distribution des lancers de dés">
           <StatsDiceDistribution rolls={dice.rolls} spec={dice.spec} />
-        </Section>
+        </StatsSection>
       ) : null}
 
-      <Section
+      <StatsSection
         title={
           <>
             Statistiques des joueurs sur ce jeu
@@ -882,7 +935,7 @@ function GameSections({
           exits={tally?.exits ?? null}
           positions={positions}
         />
-      </Section>
+      </StatsSection>
     </>
   );
 }

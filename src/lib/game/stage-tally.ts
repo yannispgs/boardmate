@@ -26,8 +26,10 @@ export interface Standing extends Ranked {
 export interface StageEntry {
   playerId: PlayerId;
   points: number;
-  /** Whether he cleared his rung that manche — on a laddered game only. */
+  /** Whether the player cleared their rung that manche — on a laddered game only. */
   cleared?: boolean;
+  /** Whether the player hedged their bet that manche — on a game played on bets only. */
+  hedged?: boolean;
 }
 
 /**
@@ -153,4 +155,18 @@ export function stageFinalScores(
     playerId,
     score: totals[playerId] ?? 0,
   }));
+}
+
+/**
+ * What each player scored on the last manche written down, by player id — the
+ * figure a `lastStage` tie-break ranks on (Luz). Empty with no manche.
+ */
+export function lastStagePoints(
+  scores: readonly StageScore[],
+): Record<string, number> {
+  const last = Math.max(0, ...scores.map(s => s.stage));
+
+  return Object.fromEntries(
+    scores.filter(s => s.stage === last).map(s => [s.playerId, s.points]),
+  );
 }
