@@ -84,6 +84,13 @@ test("records a night counted card by card, line by line", async ({ page }) => {
       page.getByTestId("score-grid").getByRole("listitem"),
     ).toHaveCount(2);
 
+    // The name sits beside the boxes, cut short if need be: a tap shows it whole.
+    await page
+      .getByTestId("score-grid")
+      .getByRole("button", { name: first, exact: true })
+      .click();
+    await expect(page.getByTestId("info-bubble")).toHaveText(first);
+
     // A card forgotten keeps the night from being recorded.
     await fillMare(page, first, [1, 2, 3, 4, 5, 6, 7, 8]);
     await fillMare(page, second, [2, 2, 2, 2, 2, 2, 2, 2]);

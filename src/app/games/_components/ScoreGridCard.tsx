@@ -1,10 +1,15 @@
+import { InfoTip } from "@/components/InfoTip";
 import { scoreInputClass } from "@/components/ui";
 import type { PlayerId, ScoreGrid } from "@/lib/domain";
 import { zoneOffset, zoneSize } from "@/lib/game/score-grid";
 
+/** Room for the longest name a player may have (20 characters). */
+const NAME_BUBBLE = 180;
+
 /**
  * One player's cards, counted where they lie: a box per card, the zones side
- * by side, a wider gap between two zones than between two cards.
+ * by side, a wider gap between two zones than between two cards. The name
+ * sits on the left, so a player takes two rows of boxes and no more.
  */
 export function ScoreGridCard({
   player,
@@ -34,10 +39,15 @@ export function ScoreGridCard({
   });
 
   return (
-    <li className="flex flex-col gap-1.5 rounded-lg border border-black/10 p-2 dark:border-white/10">
-      <span className="truncate text-sm font-semibold">{player.name}</span>
+    <li className="flex items-center gap-2 rounded-lg border border-black/10 p-2 dark:border-white/10">
+      {/* Cut short to leave the boxes their room; a tap shows it whole. */}
+      <span className="min-w-0 flex-1 text-sm font-semibold">
+        <InfoTip label={player.name} trigger={player.name} width={NAME_BUBBLE}>
+          {player.name}
+        </InfoTip>
+      </span>
 
-      <div className="flex justify-center gap-3">
+      <div className="flex shrink-0 gap-3">
         {zones.map(({ zone, start, boxes }) => {
           const label = labelOf(zone.category);
 
