@@ -142,6 +142,28 @@ export interface CategorySubsection {
  */
 export type ScoreSheetItem = CategorySubsection | CategoryDef;
 
+/** One zone of a {@link ScoreGrid}: side-by-side columns adding up to a line. */
+export interface ScoreGridZone {
+  /** The sheet line the zone's cells add up to. */
+  category: string;
+  /** How many columns of cards the zone spans. */
+  columns: number;
+  /** Whether a thin outline marks the zone off from its neighbours. */
+  framed?: boolean;
+}
+
+/**
+ * A category sheet laid out the way the cards lie on the table — Symbiose's
+ * mare, 2 rows of 4 cards: one cell per card, the cells of each zone adding up
+ * to its sheet line. Only the lines are recorded, so a game keeps its stats
+ * whether its parties were counted card by card or line by line.
+ */
+export interface ScoreGrid {
+  rows: number;
+  /** The zones, left to right. */
+  zones: ScoreGridZone[];
+}
+
 /**
  * How a boardgame is scored — inherent to the game, authored per boardgame.
  * `null` on the boardgame means the game isn't scored (pick the winner by hand).
@@ -182,6 +204,11 @@ export interface ScoringSpec {
   minScore?: number;
   /** The scoresheet, present when `entry` is `categories`. */
   sheet?: ScoreSheetItem[];
+  /**
+   * The sheet laid out as the cards lie (Symbiose), each player's cards counted
+   * one by one. Omitted for a sheet counted line by line.
+   */
+  grid?: ScoreGrid;
   /**
    * The points the whole table always shares out — Papayoo: 250, the twenty
    * payoos (1 + 2 + … + 20 = 210) plus the papayoo card (40). Every one of them

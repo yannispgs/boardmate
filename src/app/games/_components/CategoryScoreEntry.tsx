@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Modal } from "@/components/Modal";
 import { ModalHeader } from "@/components/ModalHeader";
 import { modalCardClass } from "@/components/ui";
-import type { PlayerId, ScoreSheetItem } from "@/lib/domain";
+import type { PlayerId, ScoreGrid, ScoreSheetItem } from "@/lib/domain";
 import {
   type CategoryRaw,
   CategoryScoreGrid,
@@ -23,6 +23,7 @@ export function CategoryScoreEntry({
   sheet,
   initial,
   readOnlyKeys,
+  grid,
   onSubmit,
   onCancel,
   disabled,
@@ -41,6 +42,8 @@ export function CategoryScoreEntry({
    * they are corrected where they were entered, manche by manche.
    */
   readOnlyKeys?: readonly string[];
+  /** The sheet laid out as the cards lie, when the game counts it that way. */
+  grid?: ScoreGrid;
   onSubmit: (values: Record<string, Record<string, number>>) => void;
   onCancel: () => void;
   disabled: boolean;
@@ -74,6 +77,7 @@ export function CategoryScoreEntry({
           onCell={setCell}
           disabled={disabled}
           readOnlyKeys={readOnlyKeys}
+          grid={grid}
         />
       </div>
 

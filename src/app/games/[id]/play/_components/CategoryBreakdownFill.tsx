@@ -122,6 +122,7 @@ export function CategoryBreakdownFill({
       <CategoryScoreGrid
         players={players}
         sheet={sheet}
+        grid={scoring?.grid}
         raw={raw}
         disabled={busy}
         onCell={(pid, key, text) =>

@@ -110,6 +110,7 @@ export function EndControls({
               ),
             ])}
             readOnlyKeys={derivedKeys(finalScoring.sheet, "stageGoals")}
+            grid={finalScoring.grid}
             onSubmit={flow.finishCategories}
             onCancel={() => flow.setEntryOpen(false)}
             disabled={disabled}

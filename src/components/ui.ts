@@ -23,6 +23,10 @@ export const dangerIconButtonClass =
 export const sectionHeadingClass =
   "text-xs font-semibold uppercase tracking-wide text-zinc-400";
 
+/** A score cell of a sheet: a small number box, its figure right-aligned. */
+export const scoreInputClass =
+  "no-spinners w-11 rounded-md border border-black/15 bg-white px-1 py-1 text-right tabular-nums outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900";
+
 /** A text/number/select field, bordered to match the buttons beside it. */
 export const fieldClass =
   "rounded-lg border border-black/10 px-3 py-2 text-sm dark:border-white/15";
