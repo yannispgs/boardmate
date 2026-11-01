@@ -1,11 +1,9 @@
 "use client";
 
-import { StatTile } from "@/components/StatTile";
 import { MiniBarChart } from "@/components/stats/MiniBarChart";
 import type { PopulatedGame } from "@/lib/domain";
 import { DEFAULT_STAGE_LABEL } from "@/lib/game/finished-setup";
 import { ladderSeries } from "@/lib/game/ladder";
-import { statDelta } from "@/lib/game/stat-delta";
 import type { TallyAverages } from "@/lib/game/tally-averages";
 import { computeTallyAverages } from "@/lib/game/tally-averages";
 import {
@@ -20,6 +18,7 @@ import { PhaseTimeSection } from "./PhaseTimeSection";
 import { ScoreChart } from "./ScoreChart";
 import { TallyHighlight as Highlight } from "./TallyHighlight";
 import { TallyPlayerCardList } from "./TallyPlayerCardList";
+import { TallyStatTiles } from "./TallyStatTiles";
 
 /**
  * What the figures above are being compared to — the plural falls on the noun
@@ -98,39 +97,13 @@ export function TallyGameStats({ game }: Readonly<{ game: PopulatedGame }>) {
 
   return (
     <section className="flex flex-col gap-6">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        <StatTile
-          label={`${stageLabel}s`}
-          value={String(stats.stageCount)}
-          accent
-          delta={statDelta(stats.stageCount, averages?.avgStages ?? null)}
-        />
-        <StatTile
-          label="Score du vainqueur"
-          value={winnerScore === null ? "—" : String(winnerScore)}
-          delta={
-            winnerScore === null
-              ? null
-              : statDelta(winnerScore, averages?.avgWinnerScore ?? null)
-          }
-        />
-        <StatTile
-          label={`Points / ${unit}`}
-          value={
-            stats.avgPointsPerStage === null
-              ? "—"
-              : stats.avgPointsPerStage.toFixed(1)
-          }
-          delta={
-            stats.avgPointsPerStage === null
-              ? null
-              : statDelta(
-                  stats.avgPointsPerStage,
-                  averages?.avgPointsPerStage ?? null,
-                )
-          }
-        />
-      </div>
+      <TallyStatTiles
+        stageLabel={stageLabel}
+        stageCount={stats.stageCount}
+        winnerScore={winnerScore}
+        avgPointsPerStage={stats.avgPointsPerStage}
+        averages={averages}
+      />
 
       <p className="text-center text-xs text-zinc-500 dark:text-zinc-400">
         {caption(game.boardgame.name, averages)}
