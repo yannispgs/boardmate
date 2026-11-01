@@ -7,6 +7,7 @@ import type { StageEntry } from "@/lib/game/stage-tally";
 
 import { NextTurnControl } from "./NextTurnControl";
 import { StagePointsPrompt } from "./StagePointsPrompt";
+import { goalIntro } from "./stage-intro";
 
 /** What one player took on the manche's goal tile. */
 export type GoalPoints = StageEntry[];
@@ -120,11 +121,4 @@ export function TurnControls({
       ) : null}
     </>
   );
-}
-
-/** The prompt's opening line: the tile read out, when the calendar names one. */
-function goalIntro(goalLabel: string): string {
-  return goalLabel === ""
-    ? "Points marqués par chacun sur l'objectif."
-    : `Objectif : ${goalLabel}. Points marqués par chacun.`;
 }

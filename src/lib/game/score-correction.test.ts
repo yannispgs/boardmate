@@ -4,13 +4,20 @@ import type {
   Boardgame,
   PlayerId,
   ScoringSpec,
+  StageScore,
   TieBreakRecord,
 } from "@/lib/domain";
 import {
+  changedStages,
   correctedWinners,
   correctionSeed,
+  correctsByStage,
   keptTieBreak,
+  recordedStages,
   scoresCorrectable,
+  stageDerivedKeys,
+  stageTotals,
+  withStageEntry,
 } from "./score-correction";
 
 const id = (value: string) => value as PlayerId;
@@ -41,32 +48,126 @@ function game(
 }
 
 describe("scoresCorrectable", () => {
-  it("corrects a game typed as totals, piles or a category grid", () => {
+  it("corrects every scored game, manches included", () => {
     expect(scoresCorrectable(game(TOTAL))).toBe(true);
     expect(scoresCorrectable(game(PAIRS))).toBe(true);
-    expect(scoresCorrectable(game(CATEGORIES))).toBe(true);
-    expect(scoresCorrectable(game(CATEGORIES, "pass"))).toBe(true);
+    expect(scoresCorrectable(game(CATEGORIES, "schedule"))).toBe(true);
+    expect(scoresCorrectable(game(TOTAL, "manual"))).toBe(true);
   });
 
-  it("leaves out a game with no score, and one added up manche by manche", () => {
+  it("leaves out a game with no score", () => {
     expect(scoresCorrectable(game(null))).toBe(false);
-    expect(scoresCorrectable(game(TOTAL, "manual"))).toBe(false);
+  });
+});
+
+const ODIN_SCORES: StageScore[] = [
+  { stage: 1, playerId: id("a"), points: 0 },
+  { stage: 1, playerId: id("b"), points: 4 },
+  { stage: 2, playerId: id("a"), points: 6 },
+  { stage: 2, playerId: id("b"), points: 0 },
+];
+
+describe("correctsByStage", () => {
+  it("reads a manche-by-manche game off its recorded manches", () => {
+    expect(correctsByStage(game(TOTAL, "manual"), ODIN_SCORES)).toBe(true);
   });
 
-  it("leaves out a sheet with a line counted during play", () => {
-    const wingspan = {
-      ...CATEGORIES,
-      sheet: [
-        { key: "oiseaux", label: "Oiseaux" },
-        {
-          key: "manches",
-          label: "Objectifs de manche",
-          derived: "stageGoals",
-        },
-      ],
-    } as ScoringSpec;
+  it("types the totals of one added without its manches, or of any other game", () => {
+    expect(correctsByStage(game(TOTAL, "manual"), [])).toBe(false);
+    expect(correctsByStage(game(TOTAL, "schedule"), ODIN_SCORES)).toBe(false);
+    expect(correctsByStage(game(TOTAL), ODIN_SCORES)).toBe(false);
+  });
+});
 
-    expect(scoresCorrectable(game(wingspan, "schedule"))).toBe(false);
+describe("stageDerivedKeys", () => {
+  const wingspan = {
+    ...CATEGORIES,
+    sheet: [
+      { key: "oiseaux", label: "Oiseaux" },
+      { key: "manches", label: "Objectifs de manche", derived: "stageGoals" },
+    ],
+  } as ScoringSpec;
+
+  it("locks the line summed from recorded manches", () => {
+    expect(stageDerivedKeys(wingspan, ODIN_SCORES)).toEqual(["manches"]);
+  });
+
+  it("leaves it typed when no manche was recorded, and has none elsewhere", () => {
+    expect(stageDerivedKeys(wingspan, [])).toEqual([]);
+    expect(stageDerivedKeys(CATEGORIES, ODIN_SCORES)).toEqual([]);
+    expect(stageDerivedKeys(TOTAL, ODIN_SCORES)).toEqual([]);
+  });
+});
+
+describe("recordedStages", () => {
+  it("lists every manche, oldest first", () => {
+    expect(recordedStages([...ODIN_SCORES].reverse())).toEqual([
+      { stage: 1, points: { a: 0, b: 4 } },
+      { stage: 2, points: { a: 6, b: 0 } },
+    ]);
+  });
+});
+
+describe("withStageEntry and changedStages", () => {
+  it("replaces one manche and says only that one changed", () => {
+    const after = withStageEntry(ODIN_SCORES, 2, [
+      { playerId: id("a"), points: 3 },
+      { playerId: id("b"), points: 0 },
+    ]);
+
+    expect(recordedStages(after)).toEqual([
+      { stage: 1, points: { a: 0, b: 4 } },
+      { stage: 2, points: { a: 3, b: 0 } },
+    ]);
+    expect(changedStages(ODIN_SCORES, after)).toEqual([2]);
+  });
+
+  it("lists several changed manches in order", () => {
+    const after = withStageEntry(
+      withStageEntry(ODIN_SCORES, 2, [
+        { playerId: id("a"), points: 3 },
+        { playerId: id("b"), points: 0 },
+      ]),
+      1,
+      [
+        { playerId: id("a"), points: 0 },
+        { playerId: id("b"), points: 5 },
+      ],
+    );
+
+    expect(changedStages(ODIN_SCORES, after)).toEqual([1, 2]);
+  });
+
+  it("keeps the phases ticked, and writes a manche whose tick alone changed", () => {
+    const ticked = withStageEntry(ODIN_SCORES, 1, [
+      { playerId: id("a"), points: 0, cleared: true },
+      { playerId: id("b"), points: 4, cleared: false },
+    ]);
+
+    expect(ticked.filter(s => s.stage === 1)).toEqual([
+      { stage: 1, playerId: id("a"), points: 0, cleared: true },
+      { stage: 1, playerId: id("b"), points: 4, cleared: false },
+    ]);
+    expect(changedStages(ODIN_SCORES, ticked)).toEqual([1]);
+  });
+
+  it("finds nothing to write when the manche is entered again unchanged", () => {
+    const after = withStageEntry(ODIN_SCORES, 1, [
+      { playerId: id("a"), points: 0 },
+      { playerId: id("b"), points: 4 },
+    ]);
+
+    expect(changedStages(ODIN_SCORES, after)).toEqual([]);
+  });
+});
+
+describe("stageTotals", () => {
+  it("sums each player's manches, zero for one with none", () => {
+    expect(stageTotals([id("a"), id("b"), id("c")], ODIN_SCORES)).toEqual({
+      a: "6",
+      b: "4",
+      c: "0",
+    });
   });
 });
 
