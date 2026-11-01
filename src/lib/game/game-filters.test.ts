@@ -76,7 +76,6 @@ describe("matchesGameFilter", () => {
     boardgameId: "catan",
     playerIds: ["p1", "p2"],
     day: "2026-07-10",
-    status: "ongoing" as GameStatus,
   };
 
   it("keeps everything when nothing is asked", () => {
@@ -108,12 +107,6 @@ describe("matchesGameFilter", () => {
     expect(matchesGameFilter(one, { from: "2026-07-11" })).toBe(false);
     expect(matchesGameFilter(one, { until: "2026-07-09" })).toBe(false);
   });
-
-  it("keeps only the status asked for", () => {
-    expect(matchesGameFilter(one, { status: "ongoing" })).toBe(true);
-    expect(matchesGameFilter(one, { status: "ended" })).toBe(false);
-    expect(matchesGameFilter(one, { status: null })).toBe(true);
-  });
 });
 
 describe("activeFilterCount", () => {
@@ -143,10 +136,6 @@ describe("activeFilterCount", () => {
       }),
     ).toBe(3);
   });
-
-  it("counts a chosen status", () => {
-    expect(activeFilterCount({ ...NO_GAME_FILTER, status: "ended" })).toBe(1);
-  });
 });
 
 describe("filterGameList", () => {
@@ -164,15 +153,6 @@ describe("filterGameList", () => {
     ).toEqual(all);
   });
 
-  it("splits the running games from the finished ones", () => {
-    expect(
-      filterGameList(all, { ...NO_GAME_FILTER, status: "ongoing" }),
-    ).toEqual([catanWithBoth, cascadiaWithOne]);
-    expect(filterGameList(all, { ...NO_GAME_FILTER, status: "ended" })).toEqual(
-      [catanLater],
-    );
-  });
-
   it("crosses every criterion", () => {
     expect(
       filterGameList(all, {
@@ -180,7 +160,6 @@ describe("filterGameList", () => {
         playerIds: ["p2" as PlayerId],
         from: "2026-07-05",
         until: null,
-        status: "ended",
       }),
     ).toEqual([catanLater]);
   });

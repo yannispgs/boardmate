@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 import { ErrorText } from "@/components/ErrorText";
 import { ListBody } from "@/components/ListBody";
@@ -8,33 +10,46 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 import { StickyActionBar } from "@/components/StickyActionBar";
 import { useConfirm } from "@/components/use-confirm";
 import type { BoardgameId, GameListItem } from "@/lib/domain";
-import { filterGameList } from "@/lib/game/game-filters";
+import { activeFilterCount, filterGameList } from "@/lib/game/game-filters";
 import {
   closingSessionSize,
+  entryGames,
   partyRanks,
   sessionSections,
 } from "@/lib/game/game-sessions";
+import { type GamesTab, gamesTabHref, shownTab } from "@/lib/game/games-tab";
 import { finishedParties, recordHolders } from "@/lib/game/score-records";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useGames } from "@/lib/hooks/use-games";
 import { useMyPermissions } from "@/lib/hooks/use-my-permissions";
+import { EntryModeToggle } from "./EntryModeToggle";
 import { GameCardList } from "./GameCardList";
 import { useGameFilter } from "./use-game-filter";
 
 /**
- * What stands in for the list: never having played, or having filtered every
- * game out. `null` once there is something to show.
+ * What stands in for the tab's list: never having played, having filtered
+ * every game out, or simply nothing on that side. `null` once there is
+ * something to show.
  */
-function emptyMessage(recorded: number, shown: number): string | null {
+function emptyMessage(
+  recorded: number,
+  shown: number,
+  filtered: boolean,
+  tab: GamesTab,
+): string | null {
   if (recorded === 0) {
     return "Aucune partie. Lance-en une !";
   }
 
-  if (shown === 0) {
+  if (shown > 0) {
+    return null;
+  }
+
+  if (filtered) {
     return "Aucune partie ne correspond aux filtres.";
   }
 
-  return null;
+  return tab === "live" ? "Aucune partie en cours." : "Aucune partie terminée.";
 }
 
 /**
@@ -54,7 +69,16 @@ function sealedWarning(sealed: number): string {
   );
 }
 
-export function GamesList() {
+/**
+ * « Parties »: two tabs, the games still on the table and the history. The tab
+ * opened comes from the address (`initialTab`), and switching rewrites it, so
+ * the back button returns to the tab a game was opened from.
+ */
+export function GamesList({
+  initialTab,
+}: Readonly<{ initialTab: GamesTab | null }>) {
+  const router = useRouter();
+  const [asked, setAsked] = useState(initialTab);
   const { games, endedGames, loading, error, removeGame } = useGames();
   const { boardgames } = useBoardgames();
   const { can } = useMyPermissions();
@@ -75,7 +99,15 @@ export function GamesList() {
     ...filterGameList(games, filter),
     ...filterGameList(endedGames, filter),
   ]);
-  const shown = live.length + finished.length;
+  // A running evening's finished deals sit with it on the live side, so each
+  // tab counts its parties: the running ones, then those in the history.
+  const running = filterGameList(games, filter).length;
+  const ended = finished.reduce(
+    (total, entry) => total + entryGames(entry).length,
+    0,
+  );
+  const tab = shownTab(asked, running);
+  const entries = tab === "live" ? live : finished;
   // Read against every finished party, not the shown ones: a record is a fact
   // about the game, and narrowing the screen must not hand it to someone else.
   const records = recordHolders(
@@ -86,6 +118,11 @@ export function GamesList() {
   // still running while the earlier ones are over, and numbering each section
   // on its own would give the table two « #1 ».
   const ranks = partyRanks([...games, ...endedGames]);
+
+  function pickTab(next: GamesTab) {
+    setAsked(next);
+    router.replace(gamesTabHref(next), { scroll: false });
+  }
 
   function handleAbandon(game: GameListItem) {
     const name = boardgameFor(game.boardgameId)?.name ?? "cette partie";
@@ -108,7 +145,7 @@ export function GamesList() {
     <>
       <ScreenHeader
         title="Parties"
-        description="Les parties en cours. L'historique des parties terminées arrivera avec les statistiques."
+        description="Les parties en cours et l'historique des parties terminées."
         action={filterToggle}
       >
         {filterPanel}
@@ -117,36 +154,32 @@ export function GamesList() {
       <div className="flex min-h-0 flex-1 flex-col gap-3">
         <ErrorText message={error} />
 
+        <EntryModeToggle
+          name="vue"
+          value={tab}
+          options={[
+            { value: "live", label: `En cours · ${running}` },
+            { value: "ended", label: `Terminées · ${ended}` },
+          ]}
+          onChange={pickTab}
+        />
+
         <ListBody
           loading={loading}
-          message={emptyMessage(games.length + endedGames.length, shown)}
+          message={emptyMessage(
+            games.length + endedGames.length,
+            entries.length,
+            activeFilterCount(filter) > 0,
+            tab,
+          )}
         >
-          {live.length > 0 ? (
-            <GameCardList
-              entries={live}
-              boardgameFor={boardgameFor}
-              records={records}
-              partyRanks={ranks}
-              onAbandon={can("games.delete") ? handleAbandon : undefined}
-            />
-          ) : null}
-
-          {/* Worth saying nothing is running — unless "Terminées" is precisely
-              what was asked for. */}
-          {live.length === 0 && filter.status !== "ended" ? (
-            <p className="text-sm text-zinc-500">Aucune partie en cours.</p>
-          ) : null}
-
-          {finished.length > 0 ? (
-            <GameCardList
-              entries={finished}
-              boardgameFor={boardgameFor}
-              collapsible
-              title="Terminées"
-              records={records}
-              partyRanks={ranks}
-            />
-          ) : null}
+          <GameCardList
+            entries={entries}
+            boardgameFor={boardgameFor}
+            records={records}
+            partyRanks={ranks}
+            onAbandon={can("games.delete") ? handleAbandon : undefined}
+          />
         </ListBody>
 
         {/* Both doors open the same right — composing a party — so they leave

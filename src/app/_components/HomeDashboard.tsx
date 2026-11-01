@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { CheckIcon, HexIcon, PlusIcon, WheelIcon } from "@/components/icons";
 import type { GameListItem } from "@/lib/domain";
+import { gamesTabHref } from "@/lib/game/games-tab";
 import { ongoingSummaries, recentSummaries } from "@/lib/game/home-summary";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useGames } from "@/lib/hooks/use-games";
@@ -114,7 +115,7 @@ export function HomeDashboard() {
       ) : null}
 
       {recent.length > 0 ? (
-        <HomeSection title="Dernières parties" seeAll="/games">
+        <HomeSection title="Dernières parties" seeAll={gamesTabHref("ended")}>
           <RecentGameCardList games={recent} />
         </HomeSection>
       ) : null}

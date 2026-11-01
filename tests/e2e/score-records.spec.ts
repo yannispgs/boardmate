@@ -127,11 +127,8 @@ test("crowns a personal best and a game record on the reveal", async ({
     // In the list, the mark goes to the party that *holds* the record — this
     // one — and not to the party of 90 it was just taken from.
     await page.goto("/games");
-    const finished = page.locator("details", {
-      has: page.getByText("Terminées"),
-    });
-
-    await finished.locator("summary").click();
+    await page.getByText(/^Terminées ·/).click();
+    const finished = page.getByRole("main");
     await expect(finished.getByText("⭐ WR", { exact: true })).toHaveCount(1);
     await expect(
       finished
@@ -211,13 +208,8 @@ test("lifts the mark onto the sitting the record party is folded into", async ({
     );
 
     await page.goto("/games");
-    const finished = page.locator("details", {
-      has: page.getByText("Terminées"),
-    });
-
-    // The sitting is a `<details>` of its own inside the finished one, so the
-    // disclosure of the section has to be picked as a direct child.
-    await finished.locator("> summary").click();
+    await page.getByText(/^Terminées ·/).click();
+    const finished = page.getByRole("main");
 
     const sitting = finished.locator("details", {
       has: page.getByText("2 parties"),
@@ -359,11 +351,8 @@ test("reads a record against tables of the same size only", async ({
     // The card of the party holding it carries the table size too: the list is
     // read across every size at once, so a bare « WR » would be a lie there.
     await page.goto("/games");
-    const finished = page.locator("details", {
-      has: page.getByText("Terminées"),
-    });
-
-    await finished.locator("summary").click();
+    await page.getByText(/^Terminées ·/).click();
+    const finished = page.getByRole("main");
     await expect(
       finished
         .locator(`a[href="/games/${gameId}/play"]`)
@@ -452,11 +441,8 @@ test("crowns nothing at Papayoo, where a nought is a lucky deal", async ({
 
     // Nor on the card of the party in the list, where the star used to ride.
     await page.goto("/games");
-    const finished = page.locator("details", {
-      has: page.getByText("Terminées"),
-    });
-
-    await finished.locator("summary").click();
+    await page.getByText(/^Terminées ·/).click();
+    const finished = page.getByRole("main");
     await expect(
       finished.locator(`a[href="/games/${gameId}/play"]`),
     ).toBeVisible();

@@ -66,7 +66,7 @@ test("plays a cooperative game: shared victory, no individual winner", async ({
     await expect(page.getByText("Victoire commune 🎉")).toBeVisible();
 
     // The games list shows the shared victory instead of a winner name
-    // (ended games live behind a "Terminées" disclosure).
+    // (ended games live on the « Terminées » tab).
     await page.goto("/games");
     await page.getByText(/Terminées ·/).click();
     await expect(page.getByText("🎉 Victoire").first()).toBeVisible();
