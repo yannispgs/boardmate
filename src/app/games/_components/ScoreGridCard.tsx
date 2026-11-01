@@ -4,8 +4,7 @@ import { zoneOffset, zoneSize } from "@/lib/game/score-grid";
 
 /**
  * One player's cards, counted where they lie: a box per card, the zones side
- * by side — those that score differently marked off by a thin outline, as on
- * the printed pad.
+ * by side, a wider gap between two zones than between two cards.
  */
 export function ScoreGridCard({
   player,
@@ -38,7 +37,7 @@ export function ScoreGridCard({
     <li className="flex flex-col gap-1.5 rounded-lg border border-black/10 p-2 dark:border-white/10">
       <span className="truncate text-sm font-semibold">{player.name}</span>
 
-      <div className="flex justify-center gap-1">
+      <div className="flex justify-center gap-3">
         {zones.map(({ zone, start, boxes }) => {
           const label = labelOf(zone.category);
 
@@ -46,11 +45,7 @@ export function ScoreGridCard({
             <div
               key={start}
               title={label}
-              className={`grid gap-1 rounded-md border p-1 ${
-                zone.framed
-                  ? "border-black/25 dark:border-white/30"
-                  : "border-transparent"
-              }`}
+              className="grid gap-1"
               style={{
                 gridTemplateColumns: `repeat(${zone.columns}, auto)`,
               }}

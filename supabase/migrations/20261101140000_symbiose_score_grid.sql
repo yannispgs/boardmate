@@ -19,8 +19,8 @@
 comment on column public.boardgames.scoring is
   'ScoringSpec — { "timing", "entry", "stopCondition", "winCondition", '
   '"allowNegative", "startScore", "minScore", "sheet", "grid", "totalSum", '
-  '"tieBreak" }. "grid" ({ "rows", "zones": [{ "category", "columns", '
-  '"framed" }] }) lays a category sheet out as the cards lie on the table, '
+  '"tieBreak" }. "grid" ({ "rows", "zones": [{ "category", "columns" '
+  '}] }) lays a category sheet out as the cards lie on the table, '
   'each zone''s boxes adding up to its sheet line (Symbiose).';
 
 update public.boardgames
@@ -30,8 +30,7 @@ set scoring = scoring || jsonb_build_object(
     'zones', jsonb_build_array(
       jsonb_build_object(
         'category', scoring -> 'sheet' -> 0 ->> 'key',
-        'columns', 1,
-        'framed', true
+        'columns', 1
       ),
       jsonb_build_object(
         'category', scoring -> 'sheet' -> 1 ->> 'key',
@@ -39,8 +38,7 @@ set scoring = scoring || jsonb_build_object(
       ),
       jsonb_build_object(
         'category', scoring -> 'sheet' -> 2 ->> 'key',
-        'columns', 1,
-        'framed', true
+        'columns', 1
       )
     )
   )

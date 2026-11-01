@@ -16,9 +16,9 @@ import {
 const MARE: ScoreGrid = {
   rows: 2,
   zones: [
-    { category: "left", columns: 1, framed: true },
+    { category: "left", columns: 1 },
     { category: "centre", columns: 2 },
-    { category: "right", columns: 1, framed: true },
+    { category: "right", columns: 1 },
   ],
 };
 const SHEET: ScoreSheetItem[] = [

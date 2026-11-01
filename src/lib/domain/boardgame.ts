@@ -148,8 +148,6 @@ export interface ScoreGridZone {
   category: string;
   /** How many columns of cards the zone spans. */
   columns: number;
-  /** Whether a thin outline marks the zone off from its neighbours. */
-  framed?: boolean;
 }
 
 /**
