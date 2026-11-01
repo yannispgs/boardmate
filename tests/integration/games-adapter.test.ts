@@ -927,6 +927,7 @@ describe("games adapter — manches closed by hand (Odin)", () => {
       playerId: playerIds[0],
       points: 9,
       cleared: false,
+      hedged: false,
     });
   });
 });
@@ -1020,6 +1021,7 @@ describe("games adapter — a ladder climbed manche by manche (Phase 10)", () =>
       playerId: playerIds[1],
       points: 25,
       cleared: true,
+      hedged: false,
     });
   });
 
@@ -1033,6 +1035,111 @@ describe("games adapter — a ladder climbed manche by manche (Phase 10)", () =>
     gameIds.push(game.id);
 
     expect((await repo().getPopulated(game.id))?.ladderFixed).toBe(true);
+  });
+});
+
+describe("games adapter — bets written down donne by donne (Luz)", () => {
+  let luzId: BoardgameId;
+
+  beforeAll(async () => {
+    const { data } = await serviceClient()
+      .from("boardgames")
+      .select("id, min_players, max_players, stages, phases, scoring")
+      .eq("name", "Luz")
+      .single();
+
+    luzId = data?.id as BoardgameId;
+    // Four donnes, a won bet paying 10 × the donne (5 × with the token), a
+    // miss 5 per trick off, ten tricks a donne.
+    expect([data?.min_players, data?.max_players]).toEqual([3, 5]);
+    expect(data?.stages).toEqual({
+      label: "Donne",
+      advance: "manual",
+      count: 4,
+      bet: {
+        win: 10,
+        hedgedWin: 5,
+        missPerTrick: 5,
+        tricks: 10,
+        hedgeLabel: "Jeton Sécurité",
+      },
+    });
+    expect(data?.phases).toEqual([
+      {
+        key: "donne",
+        label: "Donne",
+        mode: "simultaneous",
+        clock: "stopwatch",
+      },
+    ]);
+    expect(data?.scoring).toMatchObject({
+      winCondition: { type: "highest" },
+      allowNegative: true,
+      extraRecords: ["worstStage", "betsWon", "betStreak"],
+    });
+    expect(
+      (data?.scoring as { tieBreak: Array<{ source: string }> }).tieBreak.map(
+        rule => rule.source,
+      ),
+    ).toEqual(["lastStage", "ask"]);
+  });
+
+  it("keeps who took the safety token, in play and typed in afterwards", async () => {
+    const game = await repo().create({
+      boardgameId: luzId,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    await repo().setStageScores(game.id, 1, [
+      { playerId: playerIds[0], points: 5, hedged: true },
+      { playerId: playerIds[1], points: 10 },
+      { playerId: playerIds[2], points: -15 },
+    ]);
+
+    const p = await repo().getPopulated(game.id);
+
+    expect(p?.stageScores.map(s => [s.playerId, s.hedged]).sort()).toEqual(
+      [
+        [playerIds[0], true],
+        [playerIds[1], false],
+        [playerIds[2], false],
+      ].sort(),
+    );
+
+    const finished = await repo().createFinished({
+      boardgameId: luzId,
+      endedAt: new Date().toISOString(),
+      winnerIds: [playerIds[1]],
+      players: playerIds.map((playerId, seatOrder) => ({
+        playerId,
+        seatOrder,
+        score: seatOrder === 1 ? 10 : -5,
+        breakdown: null,
+      })),
+      extensionIds: [],
+      scenarioByExtension: {},
+      stages: [],
+      stageScores: [
+        { stage: 1, playerId: playerIds[0], points: -5, hedged: true },
+        { stage: 1, playerId: playerIds[1], points: 10 },
+        { stage: 1, playerId: playerIds[2], points: -5 },
+      ],
+    });
+    gameIds.push(finished.id);
+
+    const record = (await repo().listStats()).find(
+      r => r.gameId === finished.id,
+    );
+
+    expect(record?.stageScores).toContainEqual({
+      stage: 1,
+      playerId: playerIds[0],
+      points: -5,
+      cleared: false,
+      hedged: true,
+    });
   });
 });
 

@@ -6,7 +6,8 @@ import type { PopulatedGame } from "@/lib/domain";
 import type { ScoreDirection } from "@/lib/game/scoring";
 import { closedStages } from "@/lib/game/stage-tally";
 
-import { LadderDetail } from "../../../_components/LadderDetail";
+import { StageDetail } from "../../../_components/StageDetail";
+import { BetPointsPrompt } from "./BetPointsPrompt";
 import { LapCounter } from "./LapCounter";
 import { namedPlayers } from "./named-players";
 import { PastStageCardList } from "./PastStageCardList";
@@ -17,14 +18,15 @@ import type { StageGoalLog } from "./use-stage-goals";
 import type { StageLaps } from "./use-stage-laps";
 
 /**
- * The whole play screen of a game counted manche by manche (Odin, Phase 10).
+ * The whole play screen of a game counted manche by manche (Odin, Phase 10,
+ * Luz).
  *
  * Nobody is « up »: such a game runs on the table's own say-so, and the thing
  * the app can usefully hold is the tally. So the screen is the standings and
  * the one button that closes a manche — points in, recap out, and the game
  * stops itself when the tally says so: a total reaching the bar in Odin, the
- * last phase cleared in Phase 10. How each reads its manches is
- * {@link stageTally}'s business.
+ * last phase cleared in Phase 10, the fourth donne in Luz. How each reads its
+ * manches is {@link stageTally}'s business.
  */
 export function StageBoard({
   game,
@@ -68,6 +70,7 @@ export function StageBoard({
   const unit = stageLabel.toLowerCase();
   const past = closedStages(goals.scores, game.stage);
   const stopped = recapStage !== null && tally.stops(goals.scores, recapStage);
+  const bet = game.boardgame.stages?.bet;
 
   /** Writes a manche down: the one being closed, or an older one put right. */
   async function saveEntry(
@@ -112,7 +115,7 @@ export function StageBoard({
 
         {tally.board(goals.scores, game.stage, false)}
 
-        <LadderDetail
+        <StageDetail
           players={players}
           scores={goals.scores}
           stages={game.boardgame.stages}
@@ -128,7 +131,23 @@ export function StageBoard({
         />
       </div>
 
-      {entryStage === null ? null : (
+      {entryStage !== null && bet !== undefined ? (
+        <BetPointsPrompt
+          stage={entryStage}
+          stageLabel={stageLabel}
+          players={players}
+          bet={bet}
+          initial={goals.entered(entryStage)}
+          initialHedged={goals.hedged(entryStage)}
+          validate={entries => tally.validate(entries, entryStage)}
+          disabled={disabled}
+          confirmLabel="Valider"
+          onConfirm={points => void saveEntry(entryStage, points)}
+          onCancel={() => setEntryStage(null)}
+        />
+      ) : null}
+
+      {entryStage === null || bet !== undefined ? null : (
         <StagePointsPrompt
           stage={entryStage}
           stageLabel={stageLabel}
@@ -137,7 +156,7 @@ export function StageBoard({
           initial={goals.entered(entryStage)}
           initialCleared={goals.cleared(entryStage)}
           rungs={tally.rungs(goals.scores, entryStage)}
-          validate={tally.validate}
+          validate={entries => tally.validate(entries, entryStage)}
           max={tally.max}
           step={tally.step}
           disabled={disabled}

@@ -87,7 +87,7 @@ function RuleRow({
   canDown: boolean;
   onRemove: () => void;
 }>) {
-  const asked = rule.source !== "currentTurn";
+  const asked = rule.source === "ask";
 
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-black/15 p-2 dark:border-white/15">
@@ -114,7 +114,7 @@ function RuleRow({
         <Field
           className={fieldCol}
           label="Valeur comparée"
-          tipLabel="Saisie par la table ou tour en cours"
+          tipLabel="Saisie par la table, tour en cours ou dernière manche"
           tip={
             <>
               <p>
@@ -126,6 +126,11 @@ function RuleRow({
                 <strong>Celui dont c&apos;est le tour</strong>&nbsp;: rien à
                 saisir. L&apos;application sait déjà à qui appartient le tour en
                 cours, et cette règle le désigne vainqueur (Catan).
+              </p>
+              <p>
+                <strong>Le plus de points à la dernière manche</strong>&nbsp;:
+                rien à saisir non plus, pour un jeu compté manche par manche.
+                L&apos;application a noté les points de chaque manche (Luz).
               </p>
             </>
           }
@@ -141,6 +146,9 @@ function RuleRow({
             >
               <option value="ask">Saisie par la table en fin de partie</option>
               <option value="currentTurn">Celui dont c&apos;est le tour</option>
+              <option value="lastStage">
+                Le plus de points à la dernière manche
+              </option>
             </select>
           )}
         </Field>

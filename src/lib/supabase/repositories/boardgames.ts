@@ -52,6 +52,8 @@ export function toBoardgame(row: BoardgameRow): Boardgame {
     dice: (row.dice as Boardgame["dice"]) ?? null,
     // Reference data, authored in migrations — never written back from the app.
     roundGoals: row.round_goals as unknown as RoundGoal[],
+    // The rulebook's too, but for its name and a fixed count: the editor writes
+    // those two back, over the spec as it stands.
     stages: (row.stages as Boardgame["stages"]) ?? null,
     phases: (row.phases as Boardgame["phases"]) ?? null,
     milestones: (row.milestones as Boardgame["milestones"]) ?? null,
@@ -91,6 +93,7 @@ function toRow(input: NewBoardgame | BoardgameUpdate): BoardgameWrite {
     turn_count_varies: input.turnCountVaries,
     board_generator: input.boardGenerator,
     phases: input.phases as unknown as Json,
+    stages: input.stages as unknown as Json,
   });
 }
 

@@ -153,7 +153,8 @@ test("shows a total-only game's score with no category detail toggle", async ({
     await page.getByRole("button", { name: "Voir le score final" }).click();
 
     const panel = page.getByRole("dialog", { name: "Score final" });
-    await expect(panel.getByText("10")).toBeVisible();
+    // Exact: the players' random suffix can hold a « 10 » of its own.
+    await expect(panel.getByText("10", { exact: true })).toBeVisible();
     // No per-category detail for a total-only game.
     await expect(
       panel.getByRole("button", { name: "Voir le détail des points" }),

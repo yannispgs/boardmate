@@ -707,6 +707,29 @@ describe("recordBoard on a laddered game", () => {
     ]);
   });
 
+  it("counts the records of a game played on bets in bets", () => {
+    const board = recordBoard({
+      boardgame: boardgame({
+        ...LOWEST,
+        extraRecords: ["worstStage", "betsWon", "betStreak"],
+      }),
+      extensions: [],
+      records: [climbed("bets", 2, 10, 0)],
+    });
+
+    expect(
+      onlyTab(board).rows[0].entries.flatMap(entry =>
+        entry.metric === "score"
+          ? []
+          : [{ metric: entry.metric, unit: entry.unit, value: entry.value }],
+      ),
+    ).toEqual([
+      { metric: "worstStage", unit: "point", value: 0 },
+      { metric: "betsWon", unit: "pari", value: 2 },
+      { metric: "betStreak", unit: "pari", value: 2 },
+    ]);
+  });
+
   it("leaves a cell nobody played empty of the game's own records", () => {
     const board = recordBoard({
       boardgame: { ...boardgame(PHASE_10), stages: LADDER },
@@ -723,5 +746,7 @@ describe("recordFigure", () => {
     expect(recordFigure(1, "tour")).toBe("1 tour");
     expect(recordFigure(12, "manche")).toBe("12 manches");
     expect(recordFigure(40, "point")).toBe("40 points");
+    expect(recordFigure(-10, "point")).toBe("-10 points");
+    expect(recordFigure(4, "pari")).toBe("4 paris");
   });
 });

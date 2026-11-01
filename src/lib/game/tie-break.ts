@@ -19,6 +19,11 @@ export interface TieBreakContext {
    * applied once every tied player has a value.
    */
   answers?: Record<string, Record<string, number>>;
+  /**
+   * What each player scored on the game's last manche — the value behind a
+   * `lastStage` rule (Luz). A player with no line for it ranks on nothing.
+   */
+  lastStage?: Record<string, number>;
 }
 
 export interface TieBreakResult {
@@ -95,7 +100,8 @@ function valuesFor(
     );
   }
 
-  const answers = ctx.answers?.[rule.key];
+  const answers =
+    rule.source === "lastStage" ? ctx.lastStage : ctx.answers?.[rule.key];
 
   if (!answers || tied.some(id => typeof answers[id] !== "number")) {
     return null;

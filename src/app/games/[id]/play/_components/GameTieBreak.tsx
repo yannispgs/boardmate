@@ -1,7 +1,8 @@
 "use client";
 
-import type { PopulatedGame } from "@/lib/domain";
+import type { PopulatedGame, StageScore } from "@/lib/domain";
 import { scoreDirectionOf } from "@/lib/game/scoring";
+import { lastStagePoints } from "@/lib/game/stage-tally";
 import { namedPlayers } from "./named-players";
 import { TieBreakPrompt } from "./TieBreakPrompt";
 import type { EndFlowState } from "./use-end-flow";
@@ -16,10 +17,13 @@ import type { EndFlowState } from "./use-end-flow";
 export function GameTieBreak({
   game,
   flow,
+  stageScores,
   disabled,
 }: Readonly<{
   game: PopulatedGame;
   flow: EndFlowState;
+  /** The manches as the board holds them — the last one may not be reloaded. */
+  stageScores: StageScore[];
   disabled: boolean;
 }>) {
   const outcome = flow.outcome;
@@ -49,6 +53,7 @@ export function GameTieBreak({
       // shared victory.
       rules={scoring?.tieBreak ?? []}
       currentPlayerId={game.currentPlayerId}
+      lastStage={lastStagePoints(stageScores)}
       onConfirm={flow.settleTie}
       onCancel={() => flow.setTieOpen(false)}
       disabled={disabled}

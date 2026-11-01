@@ -87,19 +87,22 @@ export function withStageEntry(
       playerId: e.playerId,
       points: e.points,
       ...(e.cleared === undefined ? {} : { cleared: e.cleared }),
+      ...(e.hedged === undefined ? {} : { hedged: e.hedged }),
     })),
   ];
 }
 
 /**
- * The manches whose points — or whose ticked phases, on a laddered game —
- * differ from what was recorded: those to write.
+ * The manches whose points — or whose ticked phases on a laddered game, whose
+ * safety token on a game played on bets — differ from what was recorded:
+ * those to write.
  */
 export function changedStages(
   before: readonly StageScore[],
   after: readonly StageScore[],
 ): number[] {
-  const line = (s: StageScore) => `${s.points}|${s.cleared === true}`;
+  const line = (s: StageScore) =>
+    `${s.points}|${s.cleared === true}|${s.hedged === true}`;
   const recorded = new Map(
     before.map(s => [`${s.stage}:${s.playerId}`, line(s)]),
   );

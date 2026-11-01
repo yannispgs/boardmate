@@ -323,6 +323,7 @@ export function PlayingGame({
         game={game}
         flow={flow}
         outcome={flow.outcome}
+        stageScores={goals.scores}
         disabled={play.busy}
       />
     );
@@ -433,7 +434,12 @@ export function PlayingGame({
       {/* Totals typed by the table go straight into the books, with no reveal
           to open the tie-break from: it opens over the form instead — so it
           stays right under the form it opens over. */}
-      <GameTieBreak game={game} flow={flow} disabled={play.busy} />
+      <GameTieBreak
+        game={game}
+        flow={flow}
+        stageScores={goals.scores}
+        disabled={play.busy}
+      />
 
       {/* High up on purpose: on a table dealing party after party, « où on en
           est » is the whole reason to look at the phone between two deals. */}

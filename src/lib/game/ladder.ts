@@ -49,7 +49,7 @@ export function ladderFixedOn(
 }
 
 /** The manches written down up to `upToStage`, oldest first. */
-function stagesUpTo(
+export function stagesUpTo(
   scores: readonly StageScore[],
   upToStage: number,
 ): number[] {
@@ -268,6 +268,26 @@ export function ladderEntryError(
 /** The least a player's manche can cost, given whether he cleared his rung. */
 export function pointsFloor(cleared: boolean, rules: LadderEntryRules): number {
   return rules.fixed || cleared ? 0 : rules.unclearedMin;
+}
+
+/** How far the wheel goes on a game that caps nothing. */
+const WHEEL_CAP = 250;
+
+/**
+ * What a manche's points can be picked among on the wheel: from what the
+ * player can't go below to what a hand can cost, the game's step apart.
+ */
+export function ladderWheel(
+  cleared: boolean,
+  rules: LadderEntryRules,
+): number[] {
+  const min = pointsFloor(cleared, rules);
+  const max = rules.maxPoints ?? WHEEL_CAP;
+
+  return Array.from(
+    { length: Math.floor((max - min) / rules.step) + 1 },
+    (_v, i) => min + i * rules.step,
+  );
 }
 
 /**

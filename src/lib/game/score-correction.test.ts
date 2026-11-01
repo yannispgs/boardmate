@@ -151,6 +151,19 @@ describe("withStageEntry and changedStages", () => {
     expect(changedStages(ODIN_SCORES, ticked)).toEqual([1]);
   });
 
+  it("keeps the safety token, and writes a donne whose token alone changed", () => {
+    const hedged = withStageEntry(ODIN_SCORES, 1, [
+      { playerId: id("a"), points: 0, hedged: true },
+      { playerId: id("b"), points: 4 },
+    ]);
+
+    expect(hedged.filter(s => s.stage === 1)).toEqual([
+      { stage: 1, playerId: id("a"), points: 0, hedged: true },
+      { stage: 1, playerId: id("b"), points: 4 },
+    ]);
+    expect(changedStages(ODIN_SCORES, hedged)).toEqual([1]);
+  });
+
   it("finds nothing to write when the manche is entered again unchanged", () => {
     const after = withStageEntry(ODIN_SCORES, 1, [
       { playerId: id("a"), points: 0 },

@@ -1,11 +1,9 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { StatTile } from "@/components/StatTile";
 import { MiniBarChart } from "@/components/stats/MiniBarChart";
 import type { PopulatedGame } from "@/lib/domain";
+import { DEFAULT_STAGE_LABEL } from "@/lib/game/finished-setup";
 import { ladderSeries } from "@/lib/game/ladder";
-import { statDelta } from "@/lib/game/stat-delta";
 import type { TallyAverages } from "@/lib/game/tally-averages";
 import { computeTallyAverages } from "@/lib/game/tally-averages";
 import {
@@ -14,9 +12,13 @@ import {
 } from "@/lib/game/tally-stats";
 import { useGameStats } from "@/lib/hooks/use-game-stats";
 
+import { BetHighlights } from "./BetHighlights";
+import { BetPartySection } from "./BetPartySection";
 import { PhaseTimeSection } from "./PhaseTimeSection";
 import { ScoreChart } from "./ScoreChart";
+import { TallyHighlight as Highlight } from "./TallyHighlight";
 import { TallyPlayerCardList } from "./TallyPlayerCardList";
+import { TallyStatTiles } from "./TallyStatTiles";
 
 /**
  * What the figures above are being compared to — the plural falls on the noun
@@ -33,7 +35,8 @@ function caption(name: string, averages: TallyAverages | null): string {
 }
 
 /**
- * End-of-game statistics for a game counted manche by manche (Odin, Phase 10).
+ * End-of-game statistics for a game counted manche by manche (Odin, Phase 10,
+ * Luz).
  *
  * Nothing is timed in such a game — no turn is ever recorded — so there is no
  * play time, no average turn and no rhythm to show; the manches themselves are
@@ -66,6 +69,15 @@ export function TallyGameStats({ game }: Readonly<{ game: PopulatedGame }>) {
   );
 
   const totals = buildStageTotalsSeries(players, game.stageScores);
+  const stageLabel = game.boardgame.stages?.label ?? DEFAULT_STAGE_LABEL;
+  const unit = stageLabel.toLowerCase();
+  // Luz: the party's bets — who bet well, and what stands out.
+  const bet = game.boardgame.stages?.bet;
+  const party = {
+    players,
+    stageScores: game.stageScores,
+    count: game.boardgame.stages?.count ?? stats.stageCount,
+  };
   // The laps the table counted, manche by manche (Phase 10).
   const laps = game.phaseTimes.filter(p => p.laps != null);
 
@@ -85,45 +97,23 @@ export function TallyGameStats({ game }: Readonly<{ game: PopulatedGame }>) {
 
   return (
     <section className="flex flex-col gap-6">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        <StatTile
-          label="Manches"
-          value={String(stats.stageCount)}
-          accent
-          delta={statDelta(stats.stageCount, averages?.avgStages ?? null)}
-        />
-        <StatTile
-          label="Score du vainqueur"
-          value={winnerScore === null ? "—" : String(winnerScore)}
-          delta={
-            winnerScore === null
-              ? null
-              : statDelta(winnerScore, averages?.avgWinnerScore ?? null)
-          }
-        />
-        <StatTile
-          label="Points / manche"
-          value={
-            stats.avgPointsPerStage === null
-              ? "—"
-              : stats.avgPointsPerStage.toFixed(1)
-          }
-          delta={
-            stats.avgPointsPerStage === null
-              ? null
-              : statDelta(
-                  stats.avgPointsPerStage,
-                  averages?.avgPointsPerStage ?? null,
-                )
-          }
-        />
-      </div>
+      <TallyStatTiles
+        stageLabel={stageLabel}
+        stageCount={stats.stageCount}
+        winnerScore={winnerScore}
+        avgPointsPerStage={stats.avgPointsPerStage}
+        averages={averages}
+      />
 
       <p className="text-center text-xs text-zinc-500 dark:text-zinc-400">
         {caption(game.boardgame.name, averages)}
       </p>
 
-      {stats.worstStage ? (
+      {bet === undefined ? null : <BetHighlights party={party} unit={unit} />}
+
+      {/* What a manche cost is a shedding game's story; on Luz a manche's
+          points are a prize, and the drop above is the story instead. */}
+      {bet === undefined && stats.worstStage ? (
         <Highlight emoji="🪨">
           <span className="font-semibold">{stats.worstStage.name}</span> a
           ramassé {stats.worstStage.points} points d&apos;un coup à la manche{" "}
@@ -163,7 +153,7 @@ export function TallyGameStats({ game }: Readonly<{ game: PopulatedGame }>) {
       {totals.series.length > 0 ? (
         <div className="flex flex-col gap-3">
           <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-            Évolution des totaux — manche par manche
+            Évolution des totaux — {unit} par {unit}
           </h3>
           <ScoreChart
             series={totals.series}
@@ -181,7 +171,7 @@ export function TallyGameStats({ game }: Readonly<{ game: PopulatedGame }>) {
         </div>
       ) : null}
 
-      <PhaseTimeSection game={game} stageLabel="Manche" />
+      <PhaseTimeSection game={game} stageLabel={stageLabel} />
 
       {laps.length > 0 ? (
         <div className="flex flex-col gap-3">
@@ -200,7 +190,9 @@ export function TallyGameStats({ game }: Readonly<{ game: PopulatedGame }>) {
         </div>
       ) : null}
 
-      {stats.stageCount > 0 ? (
+      {bet === undefined ? null : <BetPartySection bet={bet} party={party} />}
+
+      {bet === undefined && stats.stageCount > 0 ? (
         <div className="flex flex-col gap-3">
           <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
             Sorties — du plus souvent sorti au moins souvent
@@ -213,18 +205,5 @@ export function TallyGameStats({ game }: Readonly<{ game: PopulatedGame }>) {
         </div>
       ) : null}
     </section>
-  );
-}
-
-/** A one-line fact worth pulling out of the numbers above. */
-function Highlight({
-  emoji,
-  children,
-}: Readonly<{ emoji: string; children: ReactNode }>) {
-  return (
-    <p className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-3 text-sm">
-      <span aria-hidden>{emoji}</span>
-      <span>{children}</span>
-    </p>
   );
 }

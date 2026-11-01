@@ -1,6 +1,6 @@
 "use client";
 
-import type { PlayerId, PopulatedGame } from "@/lib/domain";
+import type { PlayerId, PopulatedGame, StageScore } from "@/lib/domain";
 import type { EndOutcome } from "@/lib/game/end-outcome";
 import type { ScoreRecord } from "@/lib/game/score-records";
 import { useScoreRecords } from "@/lib/hooks/use-score-records";
@@ -21,11 +21,14 @@ export function EndFlow({
   game,
   flow,
   outcome,
+  stageScores,
   disabled,
 }: Readonly<{
   game: PopulatedGame;
   flow: EndFlowState;
   outcome: EndOutcome;
+  /** The manches as the board holds them, for a tie broken on the last one. */
+  stageScores: StageScore[];
   disabled: boolean;
 }>) {
   const players = namedPlayers(game);
@@ -41,6 +44,7 @@ export function EndFlow({
         outcome={outcome}
         players={players}
         records={records}
+        stageScores={stageScores}
         disabled={disabled}
       />
     );
@@ -77,6 +81,7 @@ function Reveal({
   outcome,
   players,
   records,
+  stageScores,
   disabled,
 }: Readonly<{
   game: PopulatedGame;
@@ -84,6 +89,7 @@ function Reveal({
   outcome: EndOutcome;
   players: Array<{ id: PlayerId; name: string }>;
   records: ReadonlyMap<PlayerId, ScoreRecord[]>;
+  stageScores: StageScore[];
   disabled: boolean;
 }>) {
   // The boardgame's own secondary rules, for a game that ends level.
@@ -109,7 +115,12 @@ function Reveal({
         onDone={flow.leaveReveal}
       />
 
-      <GameTieBreak game={game} flow={flow} disabled={disabled} />
+      <GameTieBreak
+        game={game}
+        flow={flow}
+        stageScores={stageScores}
+        disabled={disabled}
+      />
     </>
   );
 }

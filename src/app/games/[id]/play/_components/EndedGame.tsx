@@ -185,6 +185,7 @@ export function EndedGame({
             <SpeedRecordBanner record={speed} />
             <ExtraRecordBanner
               taken={extras}
+              stageLabel={game.boardgame.stages?.label ?? "Manche"}
               nameOf={id =>
                 game.players.find(p => p.playerId === id)?.player.name ?? "—"
               }

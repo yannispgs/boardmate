@@ -199,6 +199,11 @@ export interface StageScore {
    * Phase 10. Absent or false for every game with no ladder.
    */
   cleared?: boolean;
+  /**
+   * Whether the player hedged his bet that manche — took Luz's safety token.
+   * Absent or false for every game not played on bets.
+   */
+  hedged?: boolean;
 }
 
 /**

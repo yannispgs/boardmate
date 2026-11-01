@@ -90,6 +90,21 @@ describe("cleanTieBreakRules", () => {
     ]);
   });
 
+  it("asks nothing either for the last manche's points", () => {
+    const rules = cleanTieBreakRules([
+      ask({ label: "Dernière donne", source: "lastStage", help: "Sans objet" }),
+    ]);
+
+    expect(rules).toEqual([
+      {
+        key: "k1",
+        label: "Dernière donne",
+        direction: "highest",
+        source: "lastStage",
+      },
+    ]);
+  });
+
   it("keeps the order, which is the order the rules are applied in", () => {
     const rules = cleanTieBreakRules([
       ask({ key: "a", label: "Premier" }),
