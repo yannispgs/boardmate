@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import type { PopulatedGame, StageScore } from "@/lib/domain";
-import type { StageEntry } from "@/lib/game/stage-tally";
+import { type StageEntry, stageFlags } from "@/lib/game/stage-tally";
 import { getGameRepository } from "@/lib/repositories";
 
 export interface StageGoalLog {
@@ -41,17 +41,6 @@ export function useStageGoals(game: PopulatedGame): StageGoalLog {
     );
   }
 
-  function flagged(
-    stage: number,
-    flag: "cleared" | "hedged",
-  ): Record<string, boolean> {
-    return Object.fromEntries(
-      scores
-        .filter(s => s.stage === stage)
-        .map(s => [s.playerId, s[flag] === true]),
-    );
-  }
-
   async function save(stage: number, points: StageEntry[]) {
     const before = scores;
 
@@ -78,8 +67,8 @@ export function useStageGoals(game: PopulatedGame): StageGoalLog {
     busy,
     error,
     entered,
-    cleared: stage => flagged(stage, "cleared"),
-    hedged: stage => flagged(stage, "hedged"),
+    cleared: stage => stageFlags(scores, stage, "cleared"),
+    hedged: stage => stageFlags(scores, stage, "hedged"),
     save,
   };
 }

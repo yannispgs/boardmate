@@ -170,3 +170,19 @@ export function lastStagePoints(
     scores.filter(s => s.stage === last).map(s => [s.playerId, s.points]),
   );
 }
+
+/**
+ * Who carried a flag on one manche, by player id — the phase ticked (Phase
+ * 10), the safety token taken (Luz): what a reopened manche starts from.
+ */
+export function stageFlags(
+  scores: readonly StageScore[],
+  stage: number,
+  flag: "cleared" | "hedged",
+): Record<string, boolean> {
+  return Object.fromEntries(
+    scores
+      .filter(s => s.stage === stage)
+      .map(s => [s.playerId, s[flag] === true]),
+  );
+}

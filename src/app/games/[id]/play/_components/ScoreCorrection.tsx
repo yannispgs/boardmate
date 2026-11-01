@@ -29,6 +29,7 @@ import {
 } from "@/lib/game/score-correction";
 import { mergePrefill, scoreDirectionOf } from "@/lib/game/scoring";
 import { stageGoalLabel, stageGoalPrefill } from "@/lib/game/stage";
+import { type StageEntry, stageFlags } from "@/lib/game/stage-tally";
 import { getGameRepository } from "@/lib/repositories";
 import { toggled } from "@/lib/ui/selection";
 import {
@@ -37,6 +38,7 @@ import {
 } from "../../../_components/finished-entry";
 import { ScoreEntrySection } from "../../../_components/ScoreEntrySection";
 import { WinnerChoice } from "../../../_components/WinnerChoice";
+import { BetPointsPrompt } from "./BetPointsPrompt";
 import { PastStageCardList } from "./PastStageCardList";
 import { StagePointsPrompt } from "./StagePointsPrompt";
 import { goalIntro } from "./stage-intro";
@@ -176,6 +178,13 @@ function CorrectionForm({
     );
   const canSave = entry.scoresComplete && winners.length > 0 && !busy;
 
+  /** Puts a reopened manche back with what was entered, and closes it. */
+  function reenter(stage: number, points: StageEntry[]) {
+    setStageScores(scores => withStageEntry(scores, stage, points));
+    setPicked(null);
+    setEditedStage(null);
+  }
+
   async function save() {
     if (!canSave || scoring === null) {
       return;
@@ -295,7 +304,25 @@ function CorrectionForm({
         </button>
       </div>
 
-      {editedStage === null ? null : (
+      {editedStage !== null &&
+      stageSpec?.bet !== undefined &&
+      tally !== null ? (
+        <BetPointsPrompt
+          stage={editedStage}
+          stageLabel={stageLabel}
+          players={players}
+          bet={stageSpec.bet}
+          initial={recorded.find(st => st.stage === editedStage)?.points ?? {}}
+          initialHedged={stageFlags(stageScores, editedStage, "hedged")}
+          validate={entries => tally.validate(entries, editedStage)}
+          disabled={busy}
+          confirmLabel="Valider"
+          onConfirm={points => reenter(editedStage, points)}
+          onCancel={() => setEditedStage(null)}
+        />
+      ) : null}
+
+      {editedStage === null || stageSpec?.bet !== undefined ? null : (
         <StagePointsPrompt
           stage={editedStage}
           stageLabel={stageLabel}
@@ -311,24 +338,18 @@ function CorrectionForm({
           }
           players={players}
           initial={recorded.find(st => st.stage === editedStage)?.points ?? {}}
-          initialCleared={Object.fromEntries(
-            stageScores
-              .filter(st => st.stage === editedStage)
-              .map(st => [st.playerId, st.cleared === true]),
-          )}
+          initialCleared={stageFlags(stageScores, editedStage, "cleared")}
           rungs={tally?.rungs(stageScores, editedStage) ?? null}
-          validate={tally?.validate}
+          validate={
+            tally === null
+              ? undefined
+              : entries => tally.validate(entries, editedStage)
+          }
           max={tally?.max ?? null}
           step={tally?.step ?? 1}
           disabled={busy}
           confirmLabel="Valider"
-          onConfirm={points => {
-            setStageScores(scores =>
-              withStageEntry(scores, editedStage, points),
-            );
-            setPicked(null);
-            setEditedStage(null);
-          }}
+          onConfirm={points => reenter(editedStage, points)}
           onCancel={() => setEditedStage(null)}
         />
       )}

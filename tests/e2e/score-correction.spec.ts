@@ -443,3 +443,81 @@ test("corrects a Phase 10 manche, its phases and all, and lets the climb crown",
     },
   );
 });
+
+test("corrects a Luz donne's safety token, and the crown follows", async ({
+  page,
+}) => {
+  await atCorrectionTable(
+    {
+      name: "E2E Correction paris",
+      players: 2,
+      boardgame: {
+        isTimed: false,
+        scoring: {
+          timing: "final",
+          entry: "total",
+          winCondition: { type: "highest" },
+          allowNegative: true,
+        },
+        stages: {
+          label: "Donne",
+          advance: "manual",
+          count: 2,
+          bet: {
+            win: 10,
+            hedgedWin: 5,
+            missPerTrick: 5,
+            tricks: 10,
+            hedgeLabel: "Jeton Sécurité",
+          },
+        },
+      },
+      // 10 − 5 against −10 + 20: the second seat won, on 10.
+      seats: (idOf, [first, second]) => [
+        { playerId: idOf(first), score: 5 },
+        { playerId: idOf(second), score: 10, isWinner: true },
+      ],
+      manches: ([first, second]) => [
+        [1, first, 10],
+        [1, second, -10],
+        [2, first, -5],
+        [2, second, 20],
+      ],
+    },
+    async ({ admin, party, players, idOf }) => {
+      const [first, second] = players;
+      const form = await openCorrection(page, party);
+
+      // The second had taken the token on donne 2: his won bet paid 10, not
+      // 20 — 0 against 5, the crown moves.
+      await form.getByRole("button", { name: /^Donne 2/ }).click();
+
+      const prompt = page.getByRole("dialog", { name: "Points de la donne 2" });
+
+      await prompt
+        .getByRole("listitem")
+        .filter({ hasText: second })
+        .getByRole("button", { name: "Jeton Sécurité" })
+        .click();
+      await expect(
+        prompt.getByRole("button", { name: `${second}, donne 2 : 10 points` }),
+      ).toBeVisible();
+      await prompt.getByRole("button", { name: "Valider" }).click();
+      await saveCorrection(page, form, party, idOf(first));
+
+      const { data: line } = await admin
+        .from("game_stage_scores")
+        .select("points, hedged")
+        .eq("game_id", party)
+        .eq("stage", 2)
+        .eq("player_id", idOf(second))
+        .single();
+
+      expect(line).toEqual({ points: 10, hedged: true });
+      expect(await totalsOf(admin, party)).toEqual({
+        [idOf(first)]: 5,
+        [idOf(second)]: 0,
+      });
+    },
+  );
+});
