@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.10.0](https://github.com/yannispgs/boardmate/compare/v1.9.0...v1.10.0) (2026-11-01)
+
+
+### Features
+
+* correct the scores of a finished party played in manches ([774f67b](https://github.com/yannispgs/boardmate/commit/774f67b65da8e5a8159ef4ff6381998074dd010a))
+* count Symbiose card by card on a 2x4 grid laid out like the mare ([4bbe58e](https://github.com/yannispgs/boardmate/commit/4bbe58ef5028d9406e39e26a2cf512da5c63df1d))
+* count Symbiose card by card on a 2x4 grid laid out like the mare ([16c80af](https://github.com/yannispgs/boardmate/commit/16c80afa91a307c9e2406f2da434114cd4686770))
+* drop the outline round Symbiose's end zones ([72177b3](https://github.com/yannispgs/boardmate/commit/72177b3e772f78b7ac48dc9f0f45324cb5acef43))
+* put the player's name beside Symbiose's boxes ([2340c23](https://github.com/yannispgs/boardmate/commit/2340c236d354f9a3b2052a31d9859547ba673f94))
+
 ## [1.9.0](https://github.com/yannispgs/boardmate/compare/v1.8.0...v1.9.0) (2026-10-31)
 
 
