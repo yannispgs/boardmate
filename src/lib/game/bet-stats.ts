@@ -163,7 +163,7 @@ export function betStats(
   });
 
   return {
-    players: players.sort(
+    players: players.toSorted(
       (a, b) => b.successRate - a.successRate || a.name.localeCompare(b.name),
     ),
     byStage: stages.map(stage => {

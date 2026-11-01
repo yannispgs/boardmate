@@ -5,6 +5,17 @@ export function percent(rate: number): string {
   return `${Math.round(rate * 100)} %`;
 }
 
+/** « · raté de 1.5 plis en moyenne », or nothing with no bet missed. */
+function missLine(gap: number | null): string {
+  if (gap === null) {
+    return "";
+  }
+
+  const tricks = gap > 1 ? "plis" : "pli";
+
+  return ` · raté de ${gap.toFixed(1)} ${tricks} en moyenne`;
+}
+
 /**
  * One player's way of betting (Luz): how often the bets came off — the bar —
  * how often they took the safety token, by how much a missed bet usually
@@ -44,11 +55,7 @@ export function BetPlayerCard({
         {stat.won} pari{stat.won > 1 ? "s" : ""} réussi
         {stat.won > 1 ? "s" : ""} sur {stat.bets} · {hedgeLabel.toLowerCase()}{" "}
         {stat.hedges} fois
-        {stat.avgMissGap === null
-          ? ""
-          : ` · raté de ${stat.avgMissGap.toFixed(1)} pli${
-              stat.avgMissGap > 1 ? "s" : ""
-            } en moyenne`}
+        {missLine(stat.avgMissGap)}
       </p>
       <p className="text-xs font-medium">{stat.profile}</p>
     </li>

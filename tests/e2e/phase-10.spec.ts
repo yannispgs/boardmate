@@ -218,7 +218,7 @@ test("climbs the phases, counts the laps and settles the top on points", async (
 
       const detail = page.getByTestId("stage-detail");
 
-      await expect(detail.getByText("P1")).toHaveCount(2);
+      await expect(detail.getByText("P1", { exact: true })).toHaveCount(2);
       await expect(detail).toContainText("25");
 
       // Manche 2: the second player goes out on 0 — but it is the first who
@@ -274,7 +274,7 @@ test("climbs the phases, counts the laps and settles the top on points", async (
         .getByRole("button", { name: "Afficher le détail des scores" })
         .click();
       await expect(
-        page.getByTestId("stage-detail").getByText("P2"),
+        page.getByTestId("stage-detail").getByText("P2", { exact: true }),
       ).toHaveCount(2);
     },
   );

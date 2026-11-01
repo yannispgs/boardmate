@@ -1,11 +1,8 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { StatTile } from "@/components/StatTile";
-import { BetPlayerCardList } from "@/components/stats/BetPlayerCardList";
 import { MiniBarChart } from "@/components/stats/MiniBarChart";
 import type { PopulatedGame } from "@/lib/domain";
-import { betHighlights, betStats } from "@/lib/game/bet-stats";
 import { DEFAULT_STAGE_LABEL } from "@/lib/game/finished-setup";
 import { ladderSeries } from "@/lib/game/ladder";
 import { statDelta } from "@/lib/game/stat-delta";
@@ -17,8 +14,11 @@ import {
 } from "@/lib/game/tally-stats";
 import { useGameStats } from "@/lib/hooks/use-game-stats";
 
+import { BetHighlights } from "./BetHighlights";
+import { BetPartySection } from "./BetPartySection";
 import { PhaseTimeSection } from "./PhaseTimeSection";
 import { ScoreChart } from "./ScoreChart";
+import { TallyHighlight as Highlight } from "./TallyHighlight";
 import { TallyPlayerCardList } from "./TallyPlayerCardList";
 
 /**
@@ -74,16 +74,11 @@ export function TallyGameStats({ game }: Readonly<{ game: PopulatedGame }>) {
   const unit = stageLabel.toLowerCase();
   // Luz: the party's bets — who bet well, and what stands out.
   const bet = game.boardgame.stages?.bet;
-  const count = game.boardgame.stages?.count ?? stats.stageCount;
-  const party = { players, stageScores: game.stageScores };
-  const bets =
-    bet === undefined
-      ? null
-      : {
-          bet,
-          players: betStats([party], bet, count).players,
-          ...betHighlights(party, count),
-        };
+  const party = {
+    players,
+    stageScores: game.stageScores,
+    count: game.boardgame.stages?.count ?? stats.stageCount,
+  };
   // The laps the table counted, manche by manche (Phase 10).
   const laps = game.phaseTimes.filter(p => p.laps != null);
 
@@ -141,24 +136,11 @@ export function TallyGameStats({ game }: Readonly<{ game: PopulatedGame }>) {
         {caption(game.boardgame.name, averages)}
       </p>
 
-      {bets?.drop ? (
-        <Highlight emoji="📉">
-          <span className="font-semibold">{bets.drop.name}</span> a perdu{" "}
-          {-bets.drop.points} points à la {unit} {bets.drop.stage} — la plus
-          grosse chute de la partie.
-        </Highlight>
-      ) : null}
-
-      {bets?.perfect.map(name => (
-        <Highlight key={name} emoji="🎯">
-          <span className="font-semibold">{name}</span> a réussi ses {count}{" "}
-          paris : la partie parfaite !
-        </Highlight>
-      ))}
+      {bet === undefined ? null : <BetHighlights party={party} unit={unit} />}
 
       {/* What a manche cost is a shedding game's story; on Luz a manche's
           points are a prize, and the drop above is the story instead. */}
-      {bets === null && stats.worstStage ? (
+      {bet === undefined && stats.worstStage ? (
         <Highlight emoji="🪨">
           <span className="font-semibold">{stats.worstStage.name}</span> a
           ramassé {stats.worstStage.points} points d&apos;un coup à la manche{" "}
@@ -235,19 +217,9 @@ export function TallyGameStats({ game }: Readonly<{ game: PopulatedGame }>) {
         </div>
       ) : null}
 
-      {bets !== null && bets.players.length > 0 ? (
-        <div className="flex flex-col gap-3">
-          <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-            Paris — du plus fiable au moins fiable
-          </h3>
-          <BetPlayerCardList
-            stats={bets.players}
-            hedgeLabel={bets.bet.hedgeLabel}
-          />
-        </div>
-      ) : null}
+      {bet === undefined ? null : <BetPartySection bet={bet} party={party} />}
 
-      {bets === null && stats.stageCount > 0 ? (
+      {bet === undefined && stats.stageCount > 0 ? (
         <div className="flex flex-col gap-3">
           <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
             Sorties — du plus souvent sorti au moins souvent
@@ -260,18 +232,5 @@ export function TallyGameStats({ game }: Readonly<{ game: PopulatedGame }>) {
         </div>
       ) : null}
     </section>
-  );
-}
-
-/** A one-line fact worth pulling out of the numbers above. */
-function Highlight({
-  emoji,
-  children,
-}: Readonly<{ emoji: string; children: ReactNode }>) {
-  return (
-    <p className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-3 text-sm">
-      <span aria-hidden>{emoji}</span>
-      <span>{children}</span>
-    </p>
   );
 }

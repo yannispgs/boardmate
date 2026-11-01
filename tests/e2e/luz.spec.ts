@@ -210,9 +210,10 @@ test("writes the bets down donne by donne and crowns the highest total", async (
     await page
       .getByRole("button", { name: "Afficher le détail des scores" })
       .click();
-    await expect(page.getByTestId("stage-detail").getByText("S")).toHaveCount(
-      1,
-    );
+    // Exact: the players' random suffix may itself hold an « s ».
+    await expect(
+      page.getByTestId("stage-detail").getByText("S", { exact: true }),
+    ).toHaveCount(1);
   } finally {
     await dropSeeded(admin, {
       games,
