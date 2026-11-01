@@ -53,10 +53,8 @@ test("plays a full game from the funnel to the winner", {
     // The finished-games list shows the winner and, for a scored game, their
     // score.
     await page.goto("/games");
-    const finished = page.locator("details", {
-      has: page.getByText("Terminées"),
-    });
-    await finished.locator("summary").click();
+    await page.getByText(/^Terminées ·/).click();
+    const finished = page.getByRole("main");
     await expect(
       finished.getByText(new RegExp(`${players[0]}.*10 pts`)),
     ).toBeVisible();
