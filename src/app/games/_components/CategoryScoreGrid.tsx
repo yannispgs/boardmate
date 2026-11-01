@@ -2,21 +2,27 @@
 
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { ScoreSheetLegend } from "@/components/ScoreSheetLegend";
-import type { CategoryDef, PlayerId, ScoreSheetItem } from "@/lib/domain";
+import { scoreInputClass } from "@/components/ui";
+import type {
+  CategoryDef,
+  PlayerId,
+  ScoreGrid,
+  ScoreSheetItem,
+} from "@/lib/domain";
 import { categoryIconOf } from "@/lib/game/category-icons";
+import { usableGrid } from "@/lib/game/score-grid";
 import {
   isSubsection,
   rankBonusFor,
   sheetCategories,
 } from "@/lib/game/scoring";
 
+import { ScoreGridCardList } from "./ScoreGridCardList";
+
 // Fixed columns so every framed section lines up under the same player columns
 // and the whole sheet scrolls sideways as one block on a narrow phone.
 const LABEL_COL = "7rem";
 const PLAYER_COL = "4.25rem";
-
-const inputClass =
-  "no-spinners w-11 rounded-md border border-black/15 bg-white px-1 py-1 text-right tabular-nums outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-zinc-900";
 
 // A line the game filled in itself: flat, so the eye reads it as a result
 // already settled rather than a cell somebody forgot.
@@ -93,6 +99,7 @@ export function CategoryScoreGrid({
   onCell,
   disabled,
   readOnlyKeys = [],
+  grid,
 }: Readonly<{
   players: { id: PlayerId; name: string }[];
   sheet: ScoreSheetItem[];
@@ -105,7 +112,27 @@ export function CategoryScoreGrid({
    * the sheet is being filled from memory, where there is nothing to derive.
    */
   readOnlyKeys?: readonly string[];
+  /**
+   * The sheet laid out as the cards lie (Symbiose's mare), counted card by
+   * card. Ignored once the sheet no longer fits it.
+   */
+  grid?: ScoreGrid;
 }>) {
+  const cards = usableGrid(sheet, grid);
+
+  if (cards !== null) {
+    return (
+      <ScoreGridCardList
+        players={players}
+        sheet={sheet}
+        grid={cards}
+        raw={raw}
+        onCell={onCell}
+        disabled={disabled}
+      />
+    );
+  }
+
   const gridCols = `${LABEL_COL} repeat(${players.length}, ${PLAYER_COL})`;
 
   // Live placement bonus for one ranked line: 0 for everyone until the whole
@@ -297,7 +324,7 @@ function Row({
               disabled={disabled}
               readOnly={readOnly}
               aria-label={`${label} — ${pl.name}`}
-              className={`${inputClass} ${readOnly ? readOnlyClass : ""}`}
+              className={`${scoreInputClass} ${readOnly ? readOnlyClass : ""}`}
             />
             {bonus ? (
               <span className="-translate-y-1/2 absolute top-1/2 left-full ml-0.5 text-xs text-indigo-600 tabular-nums dark:text-indigo-400">

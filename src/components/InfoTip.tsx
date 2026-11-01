@@ -22,14 +22,23 @@ const WIDTH = 240;
  * Clicking anywhere outside the bubble dismisses it. Unlike {@link Tooltip}
  * (hover-only, unreachable on touch), this is tap-friendly on phones.
  *
+ * Given a `trigger`, the text itself opens the bubble instead of the icon —
+ * a name cut short on a narrow card, shown whole on a tap.
+ *
  * The bubble is rendered in a portal on `document.body` with fixed positioning,
  * so it is never clipped by an ancestor's `overflow-hidden` (tables, cards).
  */
 export function InfoTip({
   label = "Informations",
+  trigger,
+  width = WIDTH,
   children,
 }: Readonly<{
   label?: string;
+  /** What is tapped to open the bubble, in place of the icon. */
+  trigger?: ReactNode;
+  /** How wide the bubble opens when the screen has the room for it. */
+  width?: number;
   children: ReactNode;
 }>) {
   const [open, setOpen] = useState(false);
@@ -85,7 +94,7 @@ export function InfoTip({
 
       setPos({
         top,
-        ...horizontalFit(rect, { left: 0, right: window.innerWidth }, WIDTH),
+        ...horizontalFit(rect, { left: 0, right: window.innerWidth }, width),
         maxHeight: window.innerHeight - top - 8,
       });
     }
@@ -102,9 +111,13 @@ export function InfoTip({
         aria-expanded={open}
         aria-controls={id}
         onClick={toggle}
-        className="inline-flex text-zinc-400 transition-colors [@media(hover:hover)]:hover:text-zinc-600 dark:[@media(hover:hover)]:hover:text-zinc-200"
+        className={
+          trigger === undefined
+            ? "inline-flex text-zinc-400 transition-colors [@media(hover:hover)]:hover:text-zinc-600 dark:[@media(hover:hover)]:hover:text-zinc-200"
+            : "block max-w-full truncate text-left"
+        }
       >
-        <InfoIcon className="h-3.5 w-3.5" />
+        {trigger ?? <InfoIcon className="h-3.5 w-3.5" />}
       </button>
       {open && pos
         ? createPortal(
