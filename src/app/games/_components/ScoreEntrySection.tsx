@@ -72,6 +72,7 @@ export function ScoreEntrySection({
         piles={piles}
         readOnlyKeys={readOnlyKeys}
         allowNegative={scoring.allowNegative ?? false}
+        grid={scoring.grid}
         disabled={disabled}
         onTotal={onTotal}
         onCell={onCell}
@@ -90,6 +91,7 @@ function ScoreFields({
   piles,
   readOnlyKeys,
   allowNegative,
+  grid,
   disabled,
   onTotal,
   onCell,
@@ -102,6 +104,8 @@ function ScoreFields({
   piles: Record<string, number>;
   readOnlyKeys?: readonly string[];
   allowNegative: boolean;
+  /** The sheet laid out as the cards lie, when the game counts it that way. */
+  grid: ScoringSpec["grid"];
   disabled: boolean;
   onTotal: (id: PlayerId, text: string) => void;
   onCell: (id: PlayerId, key: string, text: string) => void;
@@ -115,6 +119,7 @@ function ScoreFields({
         <CategoryScoreGrid
           players={named}
           sheet={entry.sheet}
+          grid={grid}
           raw={catRaw}
           readOnlyKeys={readOnlyKeys}
           disabled={disabled}
