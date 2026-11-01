@@ -567,6 +567,12 @@ export interface NewBoardgame {
    * so nothing the editor does not show is lost.
    */
   phases?: PhaseSpec[] | null;
+  /**
+   * The game's manches. Only ever written to rename them or change how many a
+   * fixed game lasts — the rest is the rulebook's; build it with
+   * `withStageSettings` so nothing the editor does not show is lost.
+   */
+  stages?: StageSpec | null;
 }
 
 export type BoardgameUpdate = Partial<NewBoardgame>;
