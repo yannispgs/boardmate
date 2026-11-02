@@ -169,6 +169,12 @@ test("writes the bets down donne by donne and crowns the highest total", async (
     await expect(
       recap.getByText("C'était la 2ᵉ donne : la partie s'arrête ici."),
     ).toBeVisible();
+
+    // No totals before the reveal, neither in the recap nor behind it: they
+    // would give the final ranking away.
+    await expect(recap.getByText(first)).toHaveCount(0);
+    await expect(page.getByTestId("stage-detail")).toHaveCount(0);
+
     await recap.getByRole("button", { name: "Voir le classement" }).click();
 
     // 10 − 5 against −10 + 10: the first takes it.

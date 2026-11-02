@@ -131,22 +131,29 @@ export function StageBoard({
 
         <p className="text-sm text-zinc-500 dark:text-zinc-400">{tally.note}</p>
 
-        {tally.board(goals.scores, game.stage, false)}
+        {/* Once the last manche is in, the standings would give the result
+            away through the recap's backdrop: the reveal is the one place
+            the table learns it (owner, 2026-11-02). */}
+        {stopped ? null : (
+          <>
+            {tally.board(goals.scores, game.stage, false)}
 
-        <StageDetail
-          players={players}
-          scores={goals.scores}
-          stages={game.boardgame.stages}
-          fixed={game.ladderFixed === true}
-        />
+            <StageDetail
+              players={players}
+              scores={goals.scores}
+              stages={game.boardgame.stages}
+              fixed={game.ladderFixed === true}
+            />
 
-        <PastStageCardList
-          closed={past}
-          stageLabel={stageLabel}
-          players={players}
-          disabled={disabled}
-          onEdit={setEntryStage}
-        />
+            <PastStageCardList
+              closed={past}
+              stageLabel={stageLabel}
+              players={players}
+              disabled={disabled}
+              onEdit={setEntryStage}
+            />
+          </>
+        )}
       </div>
 
       {entryStage !== null && bet !== undefined ? (
