@@ -1,5 +1,4 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
-
 import {
   adminClient,
   dropSeeded,
@@ -7,6 +6,7 @@ import {
   seedBoardgame,
   seedPlayers,
 } from "./utils/supabase";
+import { pickOnWheel } from "./utils/wheel";
 
 /**
  * A Phase 10 night recorded after the fact (full-suite only — untagged), on a
@@ -54,8 +54,7 @@ async function openForm(page: Page, game: string, players: string[]) {
 
 /**
  * Sets a player's points in one manche of the grid: the cell opens a dialog
- * whose wheel is scrolled to the value — the way a thumb would — then
- * validated.
+ * whose wheel is scrolled to the value, then validated.
  */
 async function setPoints(
   page: Page,
@@ -67,25 +66,10 @@ async function setPoints(
     .getByRole("button", { name: new RegExp(`^${name}, manche ${manche} :`) })
     .click();
 
-  const dialog = page.getByRole("dialog", {
-    name: `${name} — manche ${manche}`,
-  });
-  const value = dialog.getByRole("option", {
-    name: String(points),
-    exact: true,
-  });
-
-  // A value every 40 pixels, the wheel's first at the top: scrolled to it.
-  await dialog
-    .getByRole("listbox", { name: "Points" })
-    .evaluate((el, wanted) => {
-      const options = [...el.querySelectorAll('[role="option"]')];
-      const index = options.findIndex(o => o.textContent === wanted);
-
-      el.scrollTop = index * 40;
-    }, String(points));
-  await expect(value).toHaveAttribute("aria-selected", "true");
-  await dialog.getByRole("button", { name: "Valider" }).click();
+  await pickOnWheel(
+    page.getByRole("dialog", { name: `${name} — manche ${manche}` }),
+    points,
+  );
 }
 
 /** The box a player ticks in one manche once he laid his phase down. */

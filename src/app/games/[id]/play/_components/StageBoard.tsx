@@ -6,10 +6,12 @@ import type { PopulatedGame } from "@/lib/domain";
 import type { ScoreDirection } from "@/lib/game/scoring";
 import { closedStages } from "@/lib/game/stage-tally";
 
-import { LadderDetail } from "../../../_components/LadderDetail";
+import { StageDetail } from "../../../_components/StageDetail";
+import { BetPointsPrompt } from "./BetPointsPrompt";
 import { LapCounter } from "./LapCounter";
 import { namedPlayers } from "./named-players";
 import { PastStageCardList } from "./PastStageCardList";
+import { PhaseControls } from "./PhaseControls";
 import { StagePointsPrompt } from "./StagePointsPrompt";
 import { StageRecap } from "./StageRecap";
 import { type EndOutcomeRequest, stageTally } from "./stage-tallies";
@@ -17,14 +19,15 @@ import type { StageGoalLog } from "./use-stage-goals";
 import type { StageLaps } from "./use-stage-laps";
 
 /**
- * The whole play screen of a game counted manche by manche (Odin, Phase 10).
+ * The whole play screen of a game counted manche by manche (Odin, Phase 10,
+ * Luz).
  *
  * Nobody is « up »: such a game runs on the table's own say-so, and the thing
  * the app can usefully hold is the tally. So the screen is the standings and
  * the one button that closes a manche — points in, recap out, and the game
  * stops itself when the tally says so: a total reaching the bar in Odin, the
- * last phase cleared in Phase 10. How each reads its manches is
- * {@link stageTally}'s business.
+ * last phase cleared in Phase 10, the fourth donne in Luz. How each reads its
+ * manches is {@link stageTally}'s business.
  */
 export function StageBoard({
   game,
@@ -33,6 +36,7 @@ export function StageBoard({
   stageLabel,
   direction,
   disabled,
+  phaseEnd,
   onNextStage,
   onStageClosed,
   onEnd,
@@ -46,6 +50,12 @@ export function StageBoard({
   /** Which end of the standings wins — the lowest total, in Odin. */
   direction: ScoreDirection;
   disabled: boolean;
+  /**
+   * The phase to close before the manche can be (Luz: the bets, before the
+   * tricks), and what it gives way to — null on the manche's last phase, or
+   * for a game whose manche is all one.
+   */
+  phaseEnd: { nextLabel: string; onEndPhase: () => void } | null;
   /** Opens the next manche. */
   onNextStage: () => Promise<void>;
   /**
@@ -68,6 +78,7 @@ export function StageBoard({
   const unit = stageLabel.toLowerCase();
   const past = closedStages(goals.scores, game.stage);
   const stopped = recapStage !== null && tally.stops(goals.scores, recapStage);
+  const bet = game.boardgame.stages?.bet;
 
   /** Writes a manche down: the one being closed, or an older one put right. */
   async function saveEntry(
@@ -99,36 +110,69 @@ export function StageBoard({
             read between two of them — nobody should scroll to end a manche. */}
         {laps === null ? null : <LapCounter laps={laps} disabled={disabled} />}
 
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => setEntryStage(game.stage)}
-          className="rounded-xl bg-indigo-600 px-4 py-3 font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
-        >
-          Fin de la {unit} {game.stage} →
-        </button>
+        {/* The points are only written once the manche is played out, so an
+            earlier phase hands on to the next one instead. */}
+        {phaseEnd === null ? (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => setEntryStage(game.stage)}
+            className="rounded-xl bg-indigo-600 px-4 py-3 font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
+          >
+            Fin de la {unit} {game.stage} →
+          </button>
+        ) : (
+          <PhaseControls
+            nextLabel={phaseEnd.nextLabel}
+            disabled={disabled}
+            onEndPhase={phaseEnd.onEndPhase}
+          />
+        )}
 
         <p className="text-sm text-zinc-500 dark:text-zinc-400">{tally.note}</p>
 
-        {tally.board(goals.scores, game.stage, false)}
+        {/* Once the last manche is in, the standings would give the result
+            away through the recap's backdrop: the reveal is the one place
+            the table learns it (owner, 2026-11-02). */}
+        {stopped ? null : (
+          <>
+            {tally.board(goals.scores, game.stage, false)}
 
-        <LadderDetail
-          players={players}
-          scores={goals.scores}
-          stages={game.boardgame.stages}
-          fixed={game.ladderFixed === true}
-        />
+            <StageDetail
+              players={players}
+              scores={goals.scores}
+              stages={game.boardgame.stages}
+              fixed={game.ladderFixed === true}
+            />
 
-        <PastStageCardList
-          closed={past}
-          stageLabel={stageLabel}
-          players={players}
-          disabled={disabled}
-          onEdit={setEntryStage}
-        />
+            <PastStageCardList
+              closed={past}
+              stageLabel={stageLabel}
+              players={players}
+              disabled={disabled}
+              onEdit={setEntryStage}
+            />
+          </>
+        )}
       </div>
 
-      {entryStage === null ? null : (
+      {entryStage !== null && bet !== undefined ? (
+        <BetPointsPrompt
+          stage={entryStage}
+          stageLabel={stageLabel}
+          players={players}
+          bet={bet}
+          initial={goals.entered(entryStage)}
+          initialHedged={goals.hedged(entryStage)}
+          validate={entries => tally.validate(entries, entryStage)}
+          disabled={disabled}
+          confirmLabel="Valider"
+          onConfirm={points => void saveEntry(entryStage, points)}
+          onCancel={() => setEntryStage(null)}
+        />
+      ) : null}
+
+      {entryStage === null || bet !== undefined ? null : (
         <StagePointsPrompt
           stage={entryStage}
           stageLabel={stageLabel}
@@ -137,7 +181,7 @@ export function StageBoard({
           initial={goals.entered(entryStage)}
           initialCleared={goals.cleared(entryStage)}
           rungs={tally.rungs(goals.scores, entryStage)}
-          validate={tally.validate}
+          validate={entries => tally.validate(entries, entryStage)}
           max={tally.max}
           step={tally.step}
           disabled={disabled}

@@ -72,6 +72,8 @@ function PhaseClocksForm({
   const [error, setError] = useState<string | null>(null);
 
   const changed = phases.some(phase => picked[phase.key] !== phase.clock);
+  // A manche the table closes itself follows no turn, so no countdown either.
+  const byHand = boardgame.stages?.advance === "manual";
 
   async function save() {
     setSaving(true);
@@ -80,7 +82,7 @@ function PhaseClocksForm({
     try {
       // Laid over the phases as they are NOW, by key — never rebuilt from what
       // this form shows, which would drop the draft block it does not show.
-      await onSave(withPhaseClocks(phases, picked));
+      await onSave(withPhaseClocks(phases, picked, byHand));
       setSaved(true);
       window.setTimeout(() => setSaved(false), 3000);
     } catch (cause) {
@@ -138,7 +140,7 @@ function PhaseClocksForm({
                 }
                 className={fieldClass}
               >
-                {clocksFor(phase.mode).map(clock => (
+                {clocksFor(phase.mode, byHand).map(clock => (
                   <option key={clock} value={clock}>
                     {PHASE_CLOCK_LABELS[clock]}
                   </option>

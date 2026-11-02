@@ -79,14 +79,18 @@ export function PlayBlock({
   // with no phases keeps the countdown, which is every game but one.
   const countdown = turnTimerApplies(phase);
   const untimed = phase?.clock === "none";
+  const stages = game.boardgame.stages;
   // Nobody is « up » in a phase everybody plays at once, so the turn ribbon has
-  // nothing to point at and steps aside until the turns come back round.
-  const turnless = phase?.mode === "simultaneous";
+  // nothing to point at and steps aside until the turns come back round. Nor in
+  // a manche the table closes itself (Luz): its bets and tricks go round the
+  // table, but the app follows no turn there, and a ribbon would sit on the
+  // first player all along.
+  const turnless =
+    phase?.mode === "simultaneous" || stages?.advance === "manual";
   const spec = game.boardgame.dice;
   const range = spec ? diceValues(spec) : [];
   /** A game that also shows a dice histogram gives the clock less room. */
   const size = spec ? 168 : undefined;
-  const stages = game.boardgame.stages;
   // A game played in generations keeps every player on the ribbon: whoever has
   // passed is simply not given a turn until the next generation opens.
   const generation =

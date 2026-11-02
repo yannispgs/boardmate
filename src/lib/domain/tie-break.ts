@@ -6,8 +6,10 @@ import type { PlayerId } from "./ids";
  *   the game ends (Catan's « celui dont c'est le tour »). Nothing to ask.
  * - `ask`: the app has no way to know (leftover food, nature tokens…), so the
  *   table enters one number per tied player at game end.
+ * - `lastStage`: the app knows it too — what each player scored on the last
+ *   manche, which it wrote down (Luz). Nothing to ask.
  */
-export type TieBreakSource = "currentTurn" | "ask";
+export type TieBreakSource = "currentTurn" | "ask" | "lastStage";
 
 /**
  * One secondary rule of a boardgame, applied — in order — to separate players

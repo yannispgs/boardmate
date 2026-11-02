@@ -58,13 +58,21 @@ export function ScoreChart({
     2,
     Math.ceil(Math.max(maxScore, threshold ?? 0) / 2) * 2,
   );
-  const full: View = { x0: 0, x1: 1, y0: 0, y1: chartMax };
+  // And the bottom down, below zero when a score went there (Luz's lost bets):
+  // a floor at 0 would clip those lines flat along the axis.
+  const chartMin = Math.min(
+    0,
+    Math.floor(
+      Math.min(0, ...series.flatMap(s => s.points.map(pt => pt.score))) / 2,
+    ) * 2,
+  );
+  const full: View = { x0: 0, x1: 1, y0: chartMin, y1: chartMax };
 
   const [view, setView] = useState<View>(full);
   const pointers = useRef<Map<number, { x: number; y: number }>>(new Map());
   const pinchDist = useRef<number | null>(null);
   const zoomed =
-    view.x0 > 0 || view.x1 < 1 || view.y0 > 0 || view.y1 < chartMax;
+    view.x0 > 0 || view.x1 < 1 || view.y0 > chartMin || view.y1 < chartMax;
 
   const sx = (x: number) =>
     LEFT + ((x - view.x0) / (view.x1 - view.x0)) * PLOT_W;
@@ -74,9 +82,9 @@ export function ScoreChart({
   // Keep the window inside the data bounds, honouring min/max zoom.
   function clampView(v: View): View {
     const w = Math.min(1, Math.max(0.08, v.x1 - v.x0));
-    const h = Math.min(chartMax, Math.max(1, v.y1 - v.y0));
+    const h = Math.min(chartMax - chartMin, Math.max(1, v.y1 - v.y0));
     const x0 = Math.min(Math.max(0, v.x0), 1 - w);
-    const y0 = Math.min(Math.max(0, v.y0), chartMax - h);
+    const y0 = Math.min(Math.max(chartMin, v.y0), chartMax - h);
 
     return { x0, x1: x0 + w, y0, y1: y0 + h };
   }
@@ -207,9 +215,14 @@ export function ScoreChart({
               y1={sy(t)}
               x2={W - RIGHT}
               y2={sy(t)}
-              className="stroke-black/10 dark:stroke-white/15"
+              className={
+                t === 0 && chartMin < 0
+                  ? "stroke-black/30 dark:stroke-white/40"
+                  : "stroke-black/10 dark:stroke-white/15"
+              }
               strokeWidth={1}
-              strokeDasharray="3 3"
+              // Solid at zero once scores go below it, so the sign reads.
+              strokeDasharray={t === 0 && chartMin < 0 ? undefined : "3 3"}
             />
             <text
               x={LEFT - 5}

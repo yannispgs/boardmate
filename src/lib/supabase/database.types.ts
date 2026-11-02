@@ -645,6 +645,7 @@ export type Database = {
         Row: {
           cleared: boolean
           game_id: string
+          hedged: boolean
           player_id: string
           points: number
           stage: number
@@ -652,6 +653,7 @@ export type Database = {
         Insert: {
           cleared?: boolean
           game_id: string
+          hedged?: boolean
           player_id: string
           points?: number
           stage: number
@@ -659,6 +661,7 @@ export type Database = {
         Update: {
           cleared?: boolean
           game_id?: string
+          hedged?: boolean
           player_id?: string
           points?: number
           stage?: number
