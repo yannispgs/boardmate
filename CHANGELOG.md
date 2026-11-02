@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.10.0](https://github.com/yannispgs/boardmate/compare/v1.9.0...v1.10.0) (2026-11-02)
+
+
+### Features
+
+* add Luz, a trick-taking game scored on bets donne by donne ([6411a4d](https://github.com/yannispgs/boardmate/commit/6411a4d5a0b4ef9717d51c5a665c69a950055154))
+* add Luz, a trick-taking game scored on bets donne by donne ([11c754e](https://github.com/yannispgs/boardmate/commit/11c754e212098107e93c36cca78afc3a35dabf13))
+* correct a Luz donne from a finished party, safety token and all ([c90b338](https://github.com/yannispgs/boardmate/commit/c90b338b9af58b89a250aa2ae6d97424179ac369))
+* correct the scores of a finished party played in manches ([774f67b](https://github.com/yannispgs/boardmate/commit/774f67b65da8e5a8159ef4ff6381998074dd010a))
+* count Symbiose card by card on a 2x4 grid laid out like the mare ([4bbe58e](https://github.com/yannispgs/boardmate/commit/4bbe58ef5028d9406e39e26a2cf512da5c63df1d))
+* count Symbiose card by card on a 2x4 grid laid out like the mare ([16c80af](https://github.com/yannispgs/boardmate/commit/16c80afa91a307c9e2406f2da434114cd4686770))
+* draw score curves below zero on the evolution chart ([63751fb](https://github.com/yannispgs/boardmate/commit/63751fb02cbe455c73be7f0943f0863c0c10490f))
+* drop the outline round Symbiose's end zones ([72177b3](https://github.com/yannispgs/boardmate/commit/72177b3e772f78b7ac48dc9f0f45324cb5acef43))
+* keep the final standings for the reveal once the last manche is in ([442ad58](https://github.com/yannispgs/boardmate/commit/442ad58856664d2e20b1ad2a1dedff1280547e87))
+* list a Luz donne's points lowest first on the wheel ([eb9c059](https://github.com/yannispgs/boardmate/commit/eb9c059d44cd8189de6663f1272f847c9a06e5b3))
+* name a game's manches and set how many it lasts from its settings ([d3ec36a](https://github.com/yannispgs/boardmate/commit/d3ec36a72b4d213f5fa95438b7c92570983bd83a))
+* play a Luz donne in two phases, the bets then the tricks ([afa01c9](https://github.com/yannispgs/boardmate/commit/afa01c9d68c437f331b6ffac32d1dab21e97cba4))
+* put the player's name beside Symbiose's boxes ([2340c23](https://github.com/yannispgs/boardmate/commit/2340c236d354f9a3b2052a31d9859547ba673f94))
+
 ## [1.9.0](https://github.com/yannispgs/boardmate/compare/v1.8.0...v1.9.0) (2026-10-31)
 
 
