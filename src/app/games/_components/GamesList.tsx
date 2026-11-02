@@ -143,11 +143,7 @@ export function GamesList({
 
   return (
     <>
-      <ScreenHeader
-        title="Parties"
-        description="Les parties en cours et l'historique des parties terminées."
-        action={filterToggle}
-      >
+      <ScreenHeader title="Parties" action={filterToggle}>
         {filterPanel}
       </ScreenHeader>
 
