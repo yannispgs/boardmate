@@ -387,3 +387,86 @@ test("records a night typed in afterwards, donne by donne", async ({
     });
   }
 });
+
+test("plays a donne in two phases, the bets then the tricks", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const players = await seedPlayers(2);
+  const [first, second] = players;
+  const games: string[] = [];
+  let bgId: string | null = null;
+
+  try {
+    bgId = await seedBoardgame(admin, {
+      name: `E2E Luz phases ${Date.now().toString(36)}`,
+      minPlayers: 2,
+      scoring: {
+        timing: "final",
+        entry: "total",
+        winCondition: { type: "highest" },
+        allowNegative: true,
+      },
+      stages: { label: "Donne", advance: "manual", count: 2, bet: BET },
+      phases: [
+        { key: "bet", label: "Pari", mode: "sequential", clock: "stopwatch" },
+        { key: "tricks", label: "Pli", mode: "sequential", clock: "stopwatch" },
+      ],
+    });
+
+    const idOf = await playerIds(players);
+    const party = await seedParty(
+      admin,
+      bgId,
+      players.map(name => ({ playerId: idOf(name), score: null })),
+      { ongoing: true, stage: 1 },
+    );
+
+    games.push(party);
+    await page.goto(`/games/${party}/play`);
+
+    // The points wait for the tricks: the bets only hand on to them.
+    await expect(page.getByText("Ensuite : Pli")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Fin de la donne 1 →" }),
+    ).toHaveCount(0);
+    await page.getByRole("button", { name: "Phase terminée →" }).click();
+
+    const recap = await closeDonne(page, 1, [
+      { name: first, points: 10 },
+      { name: second, points: -5 },
+    ]);
+
+    await expect(recap).toBeVisible();
+
+    // Both phases are timed for the donne, and the next one opens on the bets.
+    await expect
+      .poll(async () => {
+        const { data } = await admin
+          .from("game_phases")
+          .select("phase_key")
+          .eq("game_id", party)
+          .eq("stage", 1);
+
+        return (data ?? []).map(row => row.phase_key).sort();
+      })
+      .toEqual(["bet", "tricks"]);
+    await expect
+      .poll(async () => {
+        const { data } = await admin
+          .from("games")
+          .select("phase")
+          .eq("id", party)
+          .single();
+
+        return data?.phase;
+      })
+      .toBe(0);
+  } finally {
+    await dropSeeded(admin, {
+      games,
+      boardgames: [bgId],
+      playerNames: players,
+    });
+  }
+});

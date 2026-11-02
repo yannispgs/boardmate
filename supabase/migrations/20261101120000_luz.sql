@@ -27,7 +27,9 @@ comment on column public.boardgames.stages is
 
 -- Ten tricks a donne, so a bet is missed by ten at the most: −50.
 --
--- Timed like Phase 10, never per turn: one table stopwatch per donne, banked
+-- Timed like Phase 10, never per turn — the bets and the tricks go round the
+-- table, but nobody follows whose turn it is: a donne is played in two phases,
+-- the bets then the tricks, each on a table stopwatch, the last one banked
 -- when the donne closes. Its own records, besides the best total: the worst
 -- donne ever taken, the most bets won in a party (all four is the perfect
 -- one), and the longest run of won bets.
@@ -91,9 +93,15 @@ values (
   }'::jsonb,
   '[
     {
-      "key": "donne",
-      "label": "Donne",
-      "mode": "simultaneous",
+      "key": "bet",
+      "label": "Pari",
+      "mode": "sequential",
+      "clock": "stopwatch"
+    },
+    {
+      "key": "tricks",
+      "label": "Pli",
+      "mode": "sequential",
       "clock": "stopwatch"
     }
   ]'::jsonb

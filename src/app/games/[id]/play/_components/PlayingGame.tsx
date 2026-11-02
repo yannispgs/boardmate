@@ -289,7 +289,8 @@ export function PlayingGame({
           stage,
           phaseKey: phase.key,
           durationS,
-          next: { index: game.phase, stageEnds: false },
+          // The next manche opens on its first phase again (Luz: the bets).
+          next: { index: 0, stageEnds: false },
         });
       },
     );

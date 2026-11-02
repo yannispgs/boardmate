@@ -89,6 +89,10 @@ export function PlayControls({
   // from its tally board — even with a clock on its manche: the board's own
   // « Fin de la manche » is what stops it.
   if (byHand) {
+    // A manche in several phases (Luz: the bets, then the tricks) closes each
+    // but the last on its own; only the last one asks for the points.
+    const following = nextPhase(phases, game.phase);
+
     return (
       <StageBoard
         game={game}
@@ -96,7 +100,17 @@ export function PlayControls({
         laps={laps}
         stageLabel={stageLabel}
         direction={direction}
-        disabled={busy || goals.busy}
+        disabled={busy || goals.busy || phaseSwapping}
+        phaseEnd={
+          phase === null || following === null
+            ? null
+            : {
+                nextLabel: following.label,
+                onEndPhase: () => {
+                  onEndPhase(phase);
+                },
+              }
+        }
         onNextStage={onNextStage}
         onStageClosed={onStageClosed}
         onEnd={onEnd}

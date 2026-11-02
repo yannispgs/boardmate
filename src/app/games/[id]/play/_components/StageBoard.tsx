@@ -11,6 +11,7 @@ import { BetPointsPrompt } from "./BetPointsPrompt";
 import { LapCounter } from "./LapCounter";
 import { namedPlayers } from "./named-players";
 import { PastStageCardList } from "./PastStageCardList";
+import { PhaseControls } from "./PhaseControls";
 import { StagePointsPrompt } from "./StagePointsPrompt";
 import { StageRecap } from "./StageRecap";
 import { type EndOutcomeRequest, stageTally } from "./stage-tallies";
@@ -35,6 +36,7 @@ export function StageBoard({
   stageLabel,
   direction,
   disabled,
+  phaseEnd,
   onNextStage,
   onStageClosed,
   onEnd,
@@ -48,6 +50,12 @@ export function StageBoard({
   /** Which end of the standings wins — the lowest total, in Odin. */
   direction: ScoreDirection;
   disabled: boolean;
+  /**
+   * The phase to close before the manche can be (Luz: the bets, before the
+   * tricks), and what it gives way to — null on the manche's last phase, or
+   * for a game whose manche is all one.
+   */
+  phaseEnd: { nextLabel: string; onEndPhase: () => void } | null;
   /** Opens the next manche. */
   onNextStage: () => Promise<void>;
   /**
@@ -102,14 +110,24 @@ export function StageBoard({
             read between two of them — nobody should scroll to end a manche. */}
         {laps === null ? null : <LapCounter laps={laps} disabled={disabled} />}
 
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => setEntryStage(game.stage)}
-          className="rounded-xl bg-indigo-600 px-4 py-3 font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
-        >
-          Fin de la {unit} {game.stage} →
-        </button>
+        {/* The points are only written once the manche is played out, so an
+            earlier phase hands on to the next one instead. */}
+        {phaseEnd === null ? (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => setEntryStage(game.stage)}
+            className="rounded-xl bg-indigo-600 px-4 py-3 font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
+          >
+            Fin de la {unit} {game.stage} →
+          </button>
+        ) : (
+          <PhaseControls
+            nextLabel={phaseEnd.nextLabel}
+            disabled={disabled}
+            onEndPhase={phaseEnd.onEndPhase}
+          />
+        )}
 
         <p className="text-sm text-zinc-500 dark:text-zinc-400">{tally.note}</p>
 
