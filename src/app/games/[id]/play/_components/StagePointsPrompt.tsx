@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { DialogActions } from "@/components/DialogActions";
 import { Modal } from "@/components/Modal";
 import type { PlayerId } from "@/lib/domain";
 import { pointsFloor } from "@/lib/game/ladder";
@@ -147,23 +148,12 @@ export function StagePointsPrompt({
         </p>
       )}
 
-      <div className="mt-5 flex justify-end gap-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-lg border border-black/10 px-4 py-2 text-sm transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
-        >
-          Annuler
-        </button>
-        <button
-          type="button"
-          disabled={disabled || refused !== null}
-          onClick={() => onConfirm(entries)}
-          className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-sm text-white transition hover:bg-indigo-500 disabled:opacity-60"
-        >
-          {confirmLabel}
-        </button>
-      </div>
+      <DialogActions
+        confirmLabel={confirmLabel}
+        disabled={disabled || refused !== null}
+        onConfirm={() => onConfirm(entries)}
+        onCancel={onCancel}
+      />
     </Modal>
   );
 }

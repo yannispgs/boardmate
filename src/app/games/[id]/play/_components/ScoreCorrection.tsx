@@ -29,6 +29,7 @@ import {
 } from "@/lib/game/score-correction";
 import { mergePrefill, scoreDirectionOf } from "@/lib/game/scoring";
 import { stageGoalLabel, stageGoalPrefill } from "@/lib/game/stage";
+import type { StageEntry } from "@/lib/game/stage-tally";
 import { getGameRepository } from "@/lib/repositories";
 import { toggled } from "@/lib/ui/selection";
 import {
@@ -38,7 +39,7 @@ import {
 import { ScoreEntrySection } from "../../../_components/ScoreEntrySection";
 import { WinnerChoice } from "../../../_components/WinnerChoice";
 import { PastStageCardList } from "./PastStageCardList";
-import { StagePointsPrompt } from "./StagePointsPrompt";
+import { ReopenedStagePrompt } from "./ReopenedStagePrompt";
 import { goalIntro } from "./stage-intro";
 import { stageTally } from "./stage-tallies";
 
@@ -176,6 +177,13 @@ function CorrectionForm({
     );
   const canSave = entry.scoresComplete && winners.length > 0 && !busy;
 
+  /** Puts a reopened manche back with what was entered, and closes it. */
+  function reenter(stage: number, points: StageEntry[]) {
+    setStageScores(scores => withStageEntry(scores, stage, points));
+    setPicked(null);
+    setEditedStage(null);
+  }
+
   async function save() {
     if (!canSave || scoring === null) {
       return;
@@ -296,39 +304,22 @@ function CorrectionForm({
       </div>
 
       {editedStage === null ? null : (
-        <StagePointsPrompt
+        <ReopenedStagePrompt
+          game={game}
+          tally={tally}
           stage={editedStage}
           stageLabel={stageLabel}
-          intro={
-            tally !== null
-              ? tally.intro
-              : goalIntro(
-                  stageGoalLabel(
-                    game.stages.find(st => st.stage === editedStage),
-                    catalogue,
-                  ),
-                )
-          }
           players={players}
-          initial={recorded.find(st => st.stage === editedStage)?.points ?? {}}
-          initialCleared={Object.fromEntries(
-            stageScores
-              .filter(st => st.stage === editedStage)
-              .map(st => [st.playerId, st.cleared === true]),
+          recorded={recorded.find(st => st.stage === editedStage)?.points ?? {}}
+          stageScores={stageScores}
+          intro={goalIntro(
+            stageGoalLabel(
+              game.stages.find(st => st.stage === editedStage),
+              catalogue,
+            ),
           )}
-          rungs={tally?.rungs(stageScores, editedStage) ?? null}
-          validate={tally?.validate}
-          max={tally?.max ?? null}
-          step={tally?.step ?? 1}
           disabled={busy}
-          confirmLabel="Valider"
-          onConfirm={points => {
-            setStageScores(scores =>
-              withStageEntry(scores, editedStage, points),
-            );
-            setPicked(null);
-            setEditedStage(null);
-          }}
+          onConfirm={points => reenter(editedStage, points)}
           onCancel={() => setEditedStage(null)}
         />
       )}

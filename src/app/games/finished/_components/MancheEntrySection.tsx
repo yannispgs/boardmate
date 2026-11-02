@@ -1,69 +1,55 @@
-import type { Player, PlayerId, ScoringSpec, StageLadder } from "@/lib/domain";
-import type { LadderManche, LadderMode } from "@/lib/game/ladder-finished";
+import type { ReactNode } from "react";
+
+import type { Player, PlayerId, ScoringSpec } from "@/lib/domain";
+import type { MancheMode } from "@/lib/game/ladder-finished";
 
 import { EntryModeToggle } from "../../_components/EntryModeToggle";
 import { finishedEntry } from "../../_components/finished-entry";
 import { ScoreEntrySection } from "../../_components/ScoreEntrySection";
-import { LadderMancheGrid } from "./LadderMancheGrid";
 
 /**
- * How a Phase 10 night is written down afterwards: the final totals alone —
- * the winner then named by hand, since totals hold no climb — or the manches
- * one by one with who laid his phase down, the winner then read off them.
+ * How a night counted manche by manche (Phase 10, Luz) is written down
+ * afterwards: the final totals alone, or the manches one by one in the game's
+ * own grid — which then decides the winner.
  */
-export function LadderEntrySection({
+export function MancheEntrySection({
   scoring,
-  ladder,
-  step,
-  maxPoints,
-  unclearedMin,
+  stageLabel,
   players,
   mode,
   totals,
-  manches,
-  mancheKeys,
+  grid,
   error,
   disabled,
   onMode,
   onTotal,
-  onManche,
   onAddManche,
-  onRemoveManche,
 }: Readonly<{
   scoring: ScoringSpec;
-  ladder: StageLadder;
-  /** How far one tap moves a manche's points. */
-  step: number;
-  /** The most a manche can cost, null when nothing caps it. */
-  maxPoints: number | null;
-  /** The least it costs a player whose phase is not ticked. */
-  unclearedMin: number;
+  /** What a manche is called (« Manche », « Donne »). */
+  stageLabel: string;
   players: Player[];
-  mode: LadderMode;
+  mode: MancheMode;
   totals: Record<string, string>;
-  manches: readonly LadderManche[];
-  mancheKeys: readonly number[];
+  /** The game's grid of manches. */
+  grid: ReactNode;
   /** What the entry still lacks, shown under the manches. */
   error: string | null;
   disabled: boolean;
-  onMode: (mode: LadderMode) => void;
+  onMode: (mode: MancheMode) => void;
   onTotal: (id: PlayerId, text: string) => void;
-  onManche: (
-    index: number,
-    playerId: PlayerId,
-    patch: Partial<LadderManche[string]>,
-  ) => void;
   onAddManche: () => void;
-  onRemoveManche: (index: number) => void;
 }>) {
+  const unit = stageLabel.toLowerCase();
+
   return (
     <div className="flex flex-col gap-3">
       <EntryModeToggle
-        name="ladderMode"
+        name="mancheMode"
         value={mode}
         options={[
           { value: "total", label: "Score final" },
-          { value: "detail", label: "Manche par manche" },
+          { value: "detail", label: `${stageLabel} par ${unit}` },
         ]}
         onChange={onMode}
       />
@@ -85,25 +71,14 @@ export function LadderEntrySection({
         />
       ) : (
         <>
-          <LadderMancheGrid
-            manches={manches}
-            keys={mancheKeys}
-            players={players}
-            ladder={ladder}
-            step={step}
-            maxPoints={maxPoints}
-            unclearedMin={unclearedMin}
-            disabled={disabled}
-            onChange={onManche}
-            onRemove={onRemoveManche}
-          />
+          {grid}
           <button
             type="button"
             disabled={disabled}
             onClick={onAddManche}
             className="self-start rounded-lg border border-black/15 px-3 py-1.5 text-sm font-medium transition hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
           >
-            + Ajouter une manche
+            + Ajouter une {unit}
           </button>
           {error === null ? null : (
             <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>

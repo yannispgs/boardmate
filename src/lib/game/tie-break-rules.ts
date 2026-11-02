@@ -30,9 +30,10 @@ export function newTieBreakRule(): TieBreakRule {
  * The rules as they deserve to be saved: labels and hints trimmed, unnamed
  * rules dropped, and the fields a source makes meaningless left out.
  *
- * A `currentTurn` rule asks the table for nothing — the app already knows whose
- * turn it was — so it carries no hint, and the player holding the turn is the
- * one it favours. Order is kept: it *is* the order the rules are applied in.
+ * A rule the app answers itself asks the table for nothing, so it carries no
+ * hint and ranks the highest first: the player holding the turn
+ * (`currentTurn`), the most points on the last manche (`lastStage`). Order is
+ * kept: it *is* the order the rules are applied in.
  */
 export function cleanTieBreakRules(
   rules: readonly TieBreakRule[],
@@ -46,12 +47,12 @@ export function cleanTieBreakRules(
       continue;
     }
 
-    if (rule.source === "currentTurn") {
+    if (rule.source !== "ask") {
       clean.push({
         key: rule.key,
         label,
         direction: "highest",
-        source: "currentTurn",
+        source: rule.source,
       });
 
       continue;

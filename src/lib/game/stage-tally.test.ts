@@ -6,6 +6,7 @@ import {
   closedStages,
   stageEntryError,
   stageFinalScores,
+  stageFlags,
   stageStandings,
   stopReached,
 } from "./stage-tally";
@@ -173,5 +174,18 @@ describe("stageFinalScores", () => {
 
   it("scores a player who never took a point at zero", () => {
     expect(stageFinalScores([A], [])).toEqual([{ playerId: A, score: 0 }]);
+  });
+});
+
+describe("stageFlags", () => {
+  it("reads who carried a flag on one manche", () => {
+    const scores: StageScore[] = [
+      { stage: 1, playerId: "a" as PlayerId, points: 0, cleared: true },
+      { stage: 1, playerId: "b" as PlayerId, points: 5, hedged: true },
+      { stage: 2, playerId: "a" as PlayerId, points: 0, hedged: true },
+    ];
+
+    expect(stageFlags(scores, 1, "cleared")).toEqual({ a: true, b: false });
+    expect(stageFlags(scores, 1, "hedged")).toEqual({ a: false, b: true });
   });
 });

@@ -122,6 +122,20 @@ describe("extraMarks and extraDirection", () => {
     ]);
   });
 
+  it("reads every manche for the worst one, the fewest points best", () => {
+    expect(extraDirection("worstStage")).toBe("lowest");
+    expect(extraMarks("worstStage", party("p", CLIMB))).toHaveLength(4);
+  });
+
+  it("counts the bets won, the most best", () => {
+    expect(extraDirection("betsWon")).toBe("highest");
+    expect(extraDirection("betStreak")).toBe("highest");
+    expect(extraMarks("betsWon", party("p", CLIMB))).toEqual([
+      { playerId: A, value: 0, stage: null },
+      { playerId: B, value: 2, stage: null },
+    ]);
+  });
+
   it("leaves out a winner with no score", () => {
     const unscored = party("p", CLIMB);
 
@@ -206,6 +220,28 @@ describe("extraRecordsTaken", () => {
         record: "lowestWin",
         mark: { playerId: A, value: 5, stage: null },
         previous: 40,
+      },
+    ]);
+  });
+
+  it("announces a run carried over from the parties before", () => {
+    const old = party("old", [{ stage: 1, playerId: B, points: 10 }], {
+      endedAt: "2026-10-01T20:00:00Z",
+    });
+    const now = party(
+      "now",
+      [
+        { stage: 1, playerId: A, points: -5 },
+        { stage: 1, playerId: B, points: 10 },
+      ],
+      { endedAt: null },
+    );
+
+    expect(extraRecordsTaken(["betStreak"], now, [old], false)).toEqual([
+      {
+        record: "betStreak",
+        mark: { playerId: B, value: 2, stage: null },
+        previous: 1,
       },
     ]);
   });

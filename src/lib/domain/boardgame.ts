@@ -255,14 +255,22 @@ export interface ScoringSpec {
    * Records this game keeps on top of the usual ones, each a figure the game
    * itself makes worth comparing (Phase 10):
    * - `heaviestStage`: the most points anyone took in a single manche;
-   * - `lowestWin`: the smallest total anyone won a party with.
+   * - `lowestWin`: the smallest total anyone won a party with;
+   * - `worstStage`: the lowest a single manche ever went (Luz: −50);
+   * - `betsWon`: the most bets won in one party (Luz: 4 is a perfect game);
+   * - `betStreak`: the longest run of bets won in a row, party after party.
    * Absent on every other game.
    */
   extraRecords?: ExtraRecord[];
 }
 
 /** A record a game opts into on top of the score and speed ones. */
-export type ExtraRecord = "heaviestStage" | "lowestWin";
+export type ExtraRecord =
+  | "heaviestStage"
+  | "lowestWin"
+  | "worstStage"
+  | "betsWon"
+  | "betStreak";
 
 /**
  * A game played in stages bigger than the lap of the table, and what its
@@ -311,6 +319,22 @@ export interface StageLadder {
   fixedKey?: string;
 }
 
+/**
+ * How a manche is scored on a bet (Luz): each player bets on his tricks and
+ * may hedge with a safety token; a won bet pays `win` × the manche's number —
+ * `hedgedWin` × it when hedged — and a lost one costs `missPerTrick` for every
+ * trick off, up to `tricks` of them. Reference data, written by migration.
+ */
+export interface StageBet {
+  win: number;
+  hedgedWin: number;
+  missPerTrick: number;
+  /** Tricks in a manche — the most a bet can be off by. */
+  tricks: number;
+  /** What the hedge is called at the table (« Jeton Sécurité »). */
+  hedgeLabel: string;
+}
+
 export interface StageSpec {
   label: string;
   advance: StageAdvance;
@@ -336,6 +360,13 @@ export interface StageSpec {
   pointsStep?: number;
   /** The rungs each player climbs, for a game won by climbing (Phase 10). */
   ladder?: StageLadder;
+  /**
+   * How many manches the game lasts, when the rules fix it (Luz: 4) — the game
+   * stops once the last one is written down.
+   */
+  count?: number;
+  /** How a manche is scored on a bet, for a game played on bets (Luz). */
+  bet?: StageBet;
 }
 
 /** One claimable milestone: what it is called and what it takes to claim it. */
@@ -536,6 +567,12 @@ export interface NewBoardgame {
    * so nothing the editor does not show is lost.
    */
   phases?: PhaseSpec[] | null;
+  /**
+   * The game's manches. Only ever written to rename them or change how many a
+   * fixed game lasts — the rest is the rulebook's; build it with
+   * `withStageSettings` so nothing the editor does not show is lost.
+   */
+  stages?: StageSpec | null;
 }
 
 export type BoardgameUpdate = Partial<NewBoardgame>;

@@ -184,9 +184,13 @@ export const PHASE_CLOCK_LABELS: Readonly<Record<PhaseClock, string>> = {
  * The clocks a phase can be given, by how it is played. A per-player countdown
  * needs somebody whose turn it is, and a phase everybody plays at once has
  * nobody: offering it there would start a timer no turn could ever stop.
+ *
+ * Nor does a game whose manches the table closes itself (`byHand`: Luz, Phase
+ * 10), even in a phase played turn by turn: the app follows no turn there, so
+ * nothing would ever hand the countdown on.
  */
-export function clocksFor(mode: PhaseMode): PhaseClock[] {
-  return mode === "simultaneous"
+export function clocksFor(mode: PhaseMode, byHand = false): PhaseClock[] {
+  return mode === "simultaneous" || byHand
     ? ["stopwatch", "none"]
     : ["turnTimer", "stopwatch", "none"];
 }
@@ -198,16 +202,18 @@ export function clocksFor(mode: PhaseMode): PhaseClock[] {
  * rulebook and are written by migration. So the new clocks are laid over the
  * phases **by key** — never rebuilt from what an editor shows, which would drop
  * whatever it does not show (Terraforming Mars' draft block, for one). A clock
- * the phase's mode cannot run, or a key no phase has, is ignored.
+ * the phase cannot run (see {@link clocksFor}), or a key no phase has, is
+ * ignored.
  */
 export function withPhaseClocks(
   phases: readonly PhaseSpec[],
   clocks: Readonly<Record<string, PhaseClock>>,
+  byHand = false,
 ): PhaseSpec[] {
   return phases.map(phase => {
     const clock = clocks[phase.key];
 
-    if (clock === undefined || !clocksFor(phase.mode).includes(clock)) {
+    if (clock === undefined || !clocksFor(phase.mode, byHand).includes(clock)) {
       return phase;
     }
 

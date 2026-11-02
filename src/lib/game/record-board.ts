@@ -35,7 +35,7 @@ import type {
   PlayerId,
 } from "@/lib/domain";
 import { extensionTab } from "./extensions";
-import { extraDirection, extraMarks, ladderRuns } from "./ladder-records";
+import { extraDirection, extraMarksAcross, ladderRuns } from "./ladder-records";
 import { tracksScoreRecord } from "./score-records";
 import type { ScoreDirection } from "./scoring";
 import { scoreDirectionOf } from "./scoring";
@@ -46,7 +46,7 @@ import { speedRuns, tracksSpeedRecord } from "./speed-records";
 export type RecordMetric = "score" | "speed" | ExtraRecord;
 
 /** The unit a mark is counted in, singular — the views add the plural. */
-export type RecordUnit = "point" | "tour" | "manche";
+export type RecordUnit = "point" | "tour" | "manche" | "pari";
 
 /** The sign each kind of mark is worn under, the same as the end screen's. */
 export const RECORD_SIGIL: Readonly<Record<RecordMetric, string>> = {
@@ -54,6 +54,9 @@ export const RECORD_SIGIL: Readonly<Record<RecordMetric, string>> = {
   speed: "⚡",
   heaviestStage: "🪨",
   lowestWin: "🏆",
+  worstStage: "📉",
+  betsWon: "🎯",
+  betStreak: "🔥",
 };
 
 /** What the per-player list of a mark is titled. */
@@ -62,11 +65,19 @@ export const RECORD_TITLE: Readonly<Record<RecordMetric, string>> = {
   speed: "Plus rapides",
   heaviestStage: "Manches les plus lourdes",
   lowestWin: "Plus petites victoires",
+  worstStage: "Plus grosses chutes",
+  betsWon: "Plus de paris réussis",
+  betStreak: "Plus longues séries de paris réussis",
 };
 
-/** « 12 points », « 1 tour » — a mark in the unit it was counted in. */
+/** What an extra record counts. */
+export function extraUnit(record: ExtraRecord): RecordUnit {
+  return record === "betsWon" || record === "betStreak" ? "pari" : "point";
+}
+
+/** « 12 points », « 1 tour », « −10 points » — a mark in the unit it was counted in. */
 export function recordFigure(value: number, unit: RecordUnit): string {
-  return `${value} ${unit}${value > 1 ? "s" : ""}`;
+  return `${value} ${unit}${Math.abs(value) > 1 ? "s" : ""}`;
 }
 
 /** How the base game names its own tab. */
@@ -412,16 +423,15 @@ function extraEntry(
   parties: readonly GameStatsRecord[],
   record: ExtraRecord,
 ): RecordEntry | null {
-  const marks = parties.flatMap(party => {
-    const names = new Map(party.players.map(p => [p.playerId, p.name]));
-
-    return extraMarks(record, party).map(mark => ({
-      playerId: mark.playerId,
-      /* c8 ignore next -- `?? ""` guards a mark from a seat that can't be missing */
-      name: names.get(mark.playerId) ?? "",
-      value: mark.value,
-    }));
-  });
+  const names = new Map(
+    parties.flatMap(party => party.players.map(p => [p.playerId, p.name])),
+  );
+  const marks = extraMarksAcross(record, parties).map(mark => ({
+    playerId: mark.playerId,
+    /* c8 ignore next -- `?? ""` guards a mark from a seat that can't be missing */
+    name: names.get(mark.playerId) ?? "",
+    value: mark.value,
+  }));
 
   return entryOf(
     {
@@ -429,7 +439,7 @@ function extraEntry(
       target: null,
       label: null,
       metric: record,
-      unit: "point",
+      unit: extraUnit(record),
       parties: parties.length,
     },
     marks,

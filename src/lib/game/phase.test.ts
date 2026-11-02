@@ -217,6 +217,10 @@ describe("clocksFor", () => {
   it("keeps the per-player countdown off a phase everybody plays at once", () => {
     expect(clocksFor("simultaneous")).toEqual(["stopwatch", "none"]);
   });
+
+  it("keeps it off a game whose manches the table closes itself", () => {
+    expect(clocksFor("sequential", true)).toEqual(["stopwatch", "none"]);
+  });
 });
 
 describe("PHASE_CLOCK_LABELS", () => {
@@ -254,6 +258,15 @@ describe("withPhaseClocks", () => {
     });
 
     expect(next).toEqual(phases);
+  });
+
+  it("refuses the countdown on a game the table closes by hand", () => {
+    expect(withPhaseClocks(phases, { action: "turnTimer" }, true)).toEqual(
+      phases,
+    );
+    expect(withPhaseClocks(phases, { action: "none" }, true)[1].clock).toBe(
+      "none",
+    );
   });
 
   it("lets a turn-by-turn phase trade its countdown for a stopwatch", () => {

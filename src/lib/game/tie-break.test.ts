@@ -175,6 +175,23 @@ describe("resolveTieBreak", () => {
     expect(result.steps[0].values).toEqual({ a: 0, b: 1 });
   });
 
+  it("ranks on the last manche's points without asking (Luz)", () => {
+    const lastStage: TieBreakRule = {
+      key: "lastStage",
+      label: "Le plus de points à la dernière donne",
+      source: "lastStage",
+    };
+    const result = resolveTieBreak(
+      [score("a", 10), score("b", 10)],
+      "highest",
+      [lastStage],
+      { lastStage: { a: -5, b: 20 } },
+    );
+
+    expect(result.winners).toEqual([p("b")]);
+    expect(result.pending).toBeNull();
+  });
+
   it("shares the victory when the turn holder is not one of the tied players", () => {
     const result = resolveTieBreak(
       [score("a", 10), score("b", 10)],

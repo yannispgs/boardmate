@@ -48,6 +48,7 @@ import type {
   RoleId,
   RoleSimulation,
   StageAdvance,
+  StageScore,
   TieBreakRecord,
   TurnMode,
   UserId,
@@ -241,7 +242,7 @@ export interface GameRepository {
   setStageScores(
     id: GameId,
     stage: number,
-    points: Array<{ playerId: PlayerId; points: number; cleared?: boolean }>,
+    points: Array<Omit<StageScore, "stage">>,
   ): Promise<void>;
   /**
    * Puts the table back in the right order, for a seating mis-entered at

@@ -10,8 +10,8 @@ import { Modal } from "@/components/Modal";
  * It is the whole point of counting manche by manche: what a manche cost is
  * only worth knowing next to the total it lands on, and the table wants to see
  * where it stands before it commits to another one. It is also where the game
- * announces its own end — the target reached, or the last phase cleared, is
- * read off these very standings.
+ * announces its own end — but then without the standings: the final ranking
+ * is the reveal's to tell, and totals shown here would spoil it.
  */
 export function StageRecap({
   stage,
@@ -26,7 +26,10 @@ export function StageRecap({
   stage: number;
   /** What the box calls a stage (« Manche »). */
   stageLabel: string;
-  /** The standings after this manche, with what it cost each player. */
+  /**
+   * The standings after this manche, with what it cost each player — left out
+   * on the last one.
+   */
   board: ReactNode;
   /** Why the game stops here, read out when it does. */
   stopNote: string;
@@ -52,7 +55,7 @@ export function StageRecap({
         {stopped ? stopNote : "Totaux après cette manche."}
       </p>
 
-      <div className="mt-4">{board}</div>
+      {stopped ? null : <div className="mt-4">{board}</div>}
 
       <div className="mt-5 flex justify-end">
         <button

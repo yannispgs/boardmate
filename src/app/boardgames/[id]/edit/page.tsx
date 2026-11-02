@@ -8,6 +8,7 @@ import { BoardgameFormPage } from "../../_components/BoardgameFormPage";
 import { ConfigsManager } from "../_components/ConfigsManager";
 import { DangerZone } from "../_components/DangerZone";
 import { PhaseClocksSection } from "../_components/PhaseClocksSection";
+import { StageSettingsSection } from "../_components/StageSettingsSection";
 
 export const metadata: Metadata = {
   title: "Réglages d'un jeu — Boardmate",
@@ -60,8 +61,12 @@ export default async function EditBoardgamePage({
         </section>
       ) : null}
 
-      {/* The phases' clocks are rules of play: the database files them on the
-          barème's side, so they ask for the barème's permission. */}
+      {/* The manches and the phases' clocks are rules of play: the database
+          files them on the barème's side, so they ask for its permission. */}
+      {mayScore ? (
+        <StageSettingsSection boardgameId={id as BoardgameId} />
+      ) : null}
+
       {mayScore ? <PhaseClocksSection boardgameId={id as BoardgameId} /> : null}
 
       {mayScore ? <ConfigsManager boardgameId={id as BoardgameId} /> : null}

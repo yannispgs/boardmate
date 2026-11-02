@@ -49,6 +49,7 @@ export function TieBreakPrompt({
   direction,
   rules,
   currentPlayerId,
+  lastStage,
   onConfirm,
   onCancel,
   disabled,
@@ -58,6 +59,8 @@ export function TieBreakPrompt({
   direction: ScoreDirection;
   rules: TieBreakRule[];
   currentPlayerId: PlayerId | null;
+  /** What each player scored on the last manche, for a `lastStage` rule. */
+  lastStage?: Record<string, number>;
   onConfirm: (winnerIds: PlayerId[], record: TieBreakRecord | null) => void;
   onCancel: () => void;
   disabled: boolean;
@@ -76,7 +79,7 @@ export function TieBreakPrompt({
     players.map(p => ({ playerId: p.id, score: scores[p.id] ?? 0 })),
     direction,
     rules,
-    { currentPlayerId, answers },
+    { currentPlayerId, answers, lastStage },
   );
   const winners = picked ?? result.winners;
   const tiedScore = scores[result.tied[0]] ?? 0;
