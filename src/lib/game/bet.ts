@@ -13,23 +13,27 @@
 
 import type { PlayerId, StageBet, StageScore } from "@/lib/domain";
 
+/** What a won bet pays on this manche — at the token's rate when hedged. */
+export function betWin(bet: StageBet, stage: number, hedged: boolean): number {
+  return (hedged ? bet.hedgedWin : bet.win) * stage;
+}
+
 /**
- * The points a manche can pay one player, best first: the won bet, then every
- * miss from one trick off to all of them.
+ * The points a manche can pay one player, lowest first, the way the wheel
+ * shows them top down (owner, 2026-11-02): every miss from all the tricks off
+ * to one, then the won bet.
  */
 export function betValues(
   bet: StageBet,
   stage: number,
   hedged: boolean,
 ): number[] {
-  const win = (hedged ? bet.hedgedWin : bet.win) * stage;
-
   return [
-    win,
     ...Array.from(
       { length: bet.tricks },
-      (_v, i) => -(i + 1) * bet.missPerTrick,
+      (_v, i) => -(bet.tricks - i) * bet.missPerTrick,
     ),
+    betWin(bet, stage, hedged),
   ];
 }
 

@@ -5,7 +5,7 @@ import { useState } from "react";
 import { DialogActions } from "@/components/DialogActions";
 import { Modal } from "@/components/Modal";
 import type { PlayerId, StageBet } from "@/lib/domain";
-import { betValues, withHedge } from "@/lib/game/bet";
+import { betValues, betWin, withHedge } from "@/lib/game/bet";
 import type { StageEntry } from "@/lib/game/stage-tally";
 
 import { BetPointsRow } from "../../../_components/BetPointsRow";
@@ -132,7 +132,9 @@ export function BetPointsPrompt({
           key={editing}
           title={`${editedName} — ${unit} ${stage}`}
           values={betValues(bet, stage, hedged[editing] === true)}
-          initial={points[editing] ?? null}
+          initial={
+            points[editing] ?? betWin(bet, stage, hedged[editing] === true)
+          }
           onConfirm={next => {
             setPoints(current => ({ ...current, [editing]: next }));
             setEditing(null);

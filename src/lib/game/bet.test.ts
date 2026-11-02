@@ -6,6 +6,7 @@ import {
   betDone,
   betEntryError,
   betValues,
+  betWin,
   betWon,
   tricksOff,
   withHedge,
@@ -22,9 +23,16 @@ const A = "a" as PlayerId;
 const B = "b" as PlayerId;
 
 describe("betValues", () => {
-  it("offers the won bet of the manche, then every miss", () => {
-    expect(betValues(LUZ, 3, false)).toEqual([30, -5, -10, -15]);
-    expect(betValues(LUZ, 3, true)).toEqual([15, -5, -10, -15]);
+  it("offers every miss from the worst up, then the won bet of the manche", () => {
+    expect(betValues(LUZ, 3, false)).toEqual([-15, -10, -5, 30]);
+    expect(betValues(LUZ, 3, true)).toEqual([-15, -10, -5, 15]);
+  });
+});
+
+describe("betWin", () => {
+  it("pays the manche's number, at the token's rate when hedged", () => {
+    expect(betWin(LUZ, 3, false)).toBe(30);
+    expect(betWin(LUZ, 3, true)).toBe(15);
   });
 });
 

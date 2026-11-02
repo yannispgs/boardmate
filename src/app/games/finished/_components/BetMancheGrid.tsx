@@ -1,7 +1,7 @@
 "use client";
 
 import type { Player, PlayerId, StageBet } from "@/lib/domain";
-import { betValues } from "@/lib/game/bet";
+import { betValues, betWin } from "@/lib/game/bet";
 import type { BetManche } from "@/lib/game/bet-finished";
 
 import { MancheGrid } from "./MancheGrid";
@@ -52,6 +52,7 @@ export function BetMancheGrid({
       tagOf={() => bet.hedgeLabel.charAt(bet.hedgeLabel.lastIndexOf(" ") + 1)}
       checkNameOf={() => bet.hedgeLabel}
       valuesOf={(index, hedged) => betValues(bet, index + 1, hedged)}
+      openingOf={(index, hedged) => betWin(bet, index + 1, hedged)}
       disabled={disabled}
       onPoints={(index, id, points) => onChange(index, id, { points })}
       onCheck={(index, id, hedged) => onChange(index, id, { hedged })}

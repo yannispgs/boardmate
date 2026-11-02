@@ -28,6 +28,7 @@ export function MancheGrid({
   tagOf,
   checkNameOf,
   valuesOf,
+  openingOf,
   disabled,
   onPoints,
   onCheck,
@@ -46,6 +47,8 @@ export function MancheGrid({
   checkNameOf: (index: number, playerId: PlayerId) => string;
   /** What a cell's wheel offers, given whether its box is ticked. */
   valuesOf: (index: number, checked: boolean) => number[];
+  /** Where an empty cell's wheel opens; its first value when not given. */
+  openingOf?: (index: number, checked: boolean) => number;
   disabled: boolean;
   onPoints: (index: number, playerId: PlayerId, points: number) => void;
   onCheck: (index: number, playerId: PlayerId, checked: boolean) => void;
@@ -112,7 +115,11 @@ export function MancheGrid({
             players.find(p => p.id === editing.playerId)?.name ?? ""
           } — ${unit} ${editing.index + 1}`}
           values={valuesOf(editing.index, open?.checked === true)}
-          initial={open?.points ?? null}
+          initial={
+            open?.points ??
+            openingOf?.(editing.index, open?.checked === true) ??
+            null
+          }
           onConfirm={points => {
             onPoints(editing.index, editing.playerId, points);
             setEditing(null);
