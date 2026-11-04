@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.10.0](https://github.com/yannispgs/boardmate/compare/v1.9.0...v1.10.0) (2026-11-02)
+## [1.10.0](https://github.com/yannispgs/boardmate/compare/v1.9.0...v1.10.0) (2026-11-04)
 
 
 ### Features
@@ -13,11 +13,14 @@
 * count Symbiose card by card on a 2x4 grid laid out like the mare ([16c80af](https://github.com/yannispgs/boardmate/commit/16c80afa91a307c9e2406f2da434114cd4686770))
 * draw score curves below zero on the evolution chart ([63751fb](https://github.com/yannispgs/boardmate/commit/63751fb02cbe455c73be7f0943f0863c0c10490f))
 * drop the outline round Symbiose's end zones ([72177b3](https://github.com/yannispgs/boardmate/commit/72177b3e772f78b7ac48dc9f0f45324cb5acef43))
+* drop the Parties screen's description ([bea71ca](https://github.com/yannispgs/boardmate/commit/bea71ca397e010deeb8f15660e4a42a71d78cfdd))
 * keep the final standings for the reveal once the last manche is in ([442ad58](https://github.com/yannispgs/boardmate/commit/442ad58856664d2e20b1ad2a1dedff1280547e87))
 * list a Luz donne's points lowest first on the wheel ([eb9c059](https://github.com/yannispgs/boardmate/commit/eb9c059d44cd8189de6663f1272f847c9a06e5b3))
 * name a game's manches and set how many it lasts from its settings ([d3ec36a](https://github.com/yannispgs/boardmate/commit/d3ec36a72b4d213f5fa95438b7c92570983bd83a))
 * play a Luz donne in two phases, the bets then the tricks ([afa01c9](https://github.com/yannispgs/boardmate/commit/afa01c9d68c437f331b6ffac32d1dab21e97cba4))
 * put the player's name beside Symbiose's boxes ([2340c23](https://github.com/yannispgs/boardmate/commit/2340c236d354f9a3b2052a31d9859547ba673f94))
+* split the games screen into running and finished tabs ([532233a](https://github.com/yannispgs/boardmate/commit/532233a2c4341dfffea964b686681311d6a4f7bf))
+* split the games screen into running and finished tabs ([41dd7c7](https://github.com/yannispgs/boardmate/commit/41dd7c780247e483254133e45ee908e091ad8617))
 
 ## [1.9.0](https://github.com/yannispgs/boardmate/compare/v1.8.0...v1.9.0) (2026-10-31)
 
