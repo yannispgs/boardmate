@@ -189,10 +189,7 @@ test("records a tie left unbroken as a shared victory (two winners)", async ({
     expect(rows.filter(r => r.is_winner)).toHaveLength(2);
 
     // The ended list credits both names, and the game keeps the ex æquo trail.
-    const finished = page.locator("details", {
-      has: page.getByText("Terminées"),
-    });
-    await finished.locator("summary").click();
+    await page.getByText(/^Terminées ·/).click();
     await expect(page.getByText(`🏆 ${names[0]} et ${names[1]}`)).toBeVisible();
 
     const { data: game } = await admin

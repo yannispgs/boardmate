@@ -1,6 +1,5 @@
 "use client";
 
-import { ChevronRightIcon } from "@/components/icons";
 import type {
   Boardgame,
   BoardgameId,
@@ -8,19 +7,15 @@ import type {
   GameListItem,
 } from "@/lib/domain";
 import { gameProgress } from "@/lib/game/game-progress";
-import { entryGames, type SessionEntry } from "@/lib/game/game-sessions";
+import type { SessionEntry } from "@/lib/game/game-sessions";
 import type { ScoreRecord } from "@/lib/game/score-records";
 import { tracksPlayerTurns } from "@/lib/game/turn-time";
 import { GameCard } from "./GameCard";
 import { GameSessionCard } from "./GameSessionCard";
 
-const headingClass =
-  "text-xs font-semibold uppercase tracking-wide text-zinc-400";
-
 /**
  * One section of « Parties »; resolves each game's boardgame (name + logo) via
- * `boardgameFor`. The finished section passes `collapsible` to hide its rows
- * behind a disclosure, like deactivated players/boardgames.
+ * `boardgameFor`.
  *
  * The list is given **entries**, not games: parties dealt one after another
  * without leaving the table are folded into their sitting upstream, where both
@@ -32,16 +27,12 @@ const headingClass =
 export function GameCardList({
   entries,
   boardgameFor,
-  collapsible = false,
-  title,
   records,
   partyRanks,
   onAbandon,
 }: Readonly<{
   entries: ReadonlyArray<SessionEntry<GameListItem>>;
   boardgameFor: (id: BoardgameId) => Boardgame | undefined;
-  collapsible?: boolean;
-  title?: string;
   /**
    * Which parties hold their game's record. Resolved once by the list, against
    * **every** finished party — filtering the screen must not move a record.
@@ -86,7 +77,7 @@ export function GameCardList({
     });
   }
 
-  const cards = (
+  return (
     <ul className="flex flex-col gap-2">
       {entries.map(entry => {
         if (entry.kind === "game") {
@@ -112,27 +103,4 @@ export function GameCardList({
       })}
     </ul>
   );
-
-  if (collapsible) {
-    // Counted in parties, not in rows: a folded evening is one line but several
-    // games, and « Terminées · 1 » over a dozen deals would read as a mistake.
-    const parties = entries.reduce(
-      (total, entry) => total + entryGames(entry).length,
-      0,
-    );
-
-    return (
-      <details className="group flex flex-col">
-        <summary
-          className={`sticky top-0 z-10 flex cursor-pointer list-none items-center gap-1.5 bg-[var(--background)] pt-1 pb-2 ${headingClass}`}
-        >
-          <ChevronRightIcon className="h-3.5 w-3.5 transition-transform group-open:rotate-90" />
-          {title} · {parties}
-        </summary>
-        {cards}
-      </details>
-    );
-  }
-
-  return cards;
 }

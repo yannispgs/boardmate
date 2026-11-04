@@ -2,8 +2,7 @@
 
 import { DateWindow } from "@/components/DateWindow";
 import { MultiSelectField } from "@/components/MultiSelectField";
-import { OptionPicker, type PickerOption } from "@/components/OptionPicker";
-import type { BoardgameId, GameListItem, GameStatus } from "@/lib/domain";
+import type { BoardgameId, GameListItem } from "@/lib/domain";
 import {
   filterablePlayers,
   type GameFilter,
@@ -11,17 +10,11 @@ import {
   playedBoardgames,
 } from "@/lib/game/game-filters";
 
-/** "Toutes" is the absence of a status criterion, spelled as a chip. */
-const STATUS_OPTIONS: PickerOption<GameStatus | "all">[] = [
-  { value: "all", label: "Toutes" },
-  { value: "ongoing", label: "En cours" },
-  { value: "ended", label: "Terminées" },
-];
-
 /**
  * The criteria the games list is narrowed by: which game, who was at the table,
- * when, and whether it is over. Only what has actually been played is offered —
- * a criterion that can only return nothing is not worth a tap.
+ * and when — whether it is over is the screen's tabs. Only what has actually
+ * been played is offered: a criterion that can only return nothing is not
+ * worth a tap.
  */
 export function GameFilterPanel({
   games,
@@ -41,21 +34,10 @@ export function GameFilterPanel({
     filter.boardgameIds.length > 0 ||
     filter.playerIds.length > 0 ||
     filter.from !== null ||
-    filter.until !== null ||
-    filter.status !== null;
+    filter.until !== null;
 
   return (
     <div className="mt-3 flex flex-col gap-4 rounded-xl border border-black/10 p-4 dark:border-white/10">
-      <OptionPicker
-        variant="chips"
-        label="Statut"
-        options={STATUS_OPTIONS}
-        value={filter.status ?? "all"}
-        onChange={status =>
-          onChange({ ...filter, status: status === "all" ? null : status })
-        }
-      />
-
       <MultiSelectField
         label="Jeux"
         options={boardgames}

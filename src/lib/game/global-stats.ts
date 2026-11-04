@@ -352,9 +352,6 @@ export function filterRecords(
         // the day it ended — the day it ended where it was played; one without
         // an end date matches no window at all.
         day: g.endedAt === null ? "" : localDay(g.endedAt),
-        // A statistics record only ever describes a game that is over, so the
-        // status criterion has nothing left to sort out here.
-        status: "ended",
       },
       { ...filters, from: filters.from ?? null, until: filters.until ?? null },
     ),

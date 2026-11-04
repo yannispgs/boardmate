@@ -240,12 +240,12 @@ test("deals the next party from the end screen, same table, same seats", async (
     ]);
 
     // On « Parties », the evening stays whole while one of its deals is still
-    // on the table: one row, in plain sight, wearing « Reprendre » — not a bare
-    // « Papayoo #2 » with the deals that came before folded away behind
-    // « Terminées ».
+    // on the table: one row on the « En cours » tab, wearing « Reprendre » —
+    // not a bare « Papayoo #2 » with the deals that came before filed away
+    // under « Terminées ».
     await page.goto("/games");
 
-    await expect(page.getByText("Terminées ·")).toHaveCount(0);
+    await expect(page.getByRole("radio", { name: /^En cours/ })).toBeChecked();
 
     const eveningRow = page
       .locator("li")
