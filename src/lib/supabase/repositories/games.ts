@@ -48,7 +48,11 @@ import {
   AlreadyClaimedError,
   AlreadyEndedError,
 } from "@/lib/repositories/errors";
-import type { GameRepository, Unsubscribe } from "@/lib/repositories/types";
+import type {
+  ClosingTurn,
+  GameRepository,
+  Unsubscribe,
+} from "@/lib/repositories/types";
 import type {
   Database,
   Json,
@@ -498,6 +502,20 @@ async function recordTurn(
 }
 
 /**
+ * The seconds a simultaneous round waited on somebody. Nothing is recorded when
+ * nobody was waited on, or when the turn was not a shared one.
+ */
+function waitedOn(
+  simultaneous: boolean,
+  blockedById: PlayerId | null,
+  waitedSeconds: number | undefined,
+): number | null {
+  return simultaneous && blockedById !== null
+    ? Math.max(0, Math.round(waitedSeconds ?? 0))
+    : null;
+}
+
+/**
  * Where a lap-based game moves to: the rotation is pure arithmetic on the turn
  * counter (`@/lib/game/turn`), and the generation is left alone since the game
  * has none.
@@ -877,6 +895,51 @@ export function createGameRepository(
       .update(fields, { count: "exact" })
       .eq("id", id)
       .eq("status", "ongoing");
+  }
+
+  /**
+   * Logs the turn the game ends on. It has to land **before** the game closes:
+   * the last act of a party needs `games.updateLive` alone, but a row added to
+   * an ended game asks for `games.updateDone`, which a player does not hold. So
+   * a party somebody else already closed is refused here, first, rather than
+   * given a second last turn.
+   */
+  async function recordClosingTurn(
+    id: GameId,
+    closingTurn: ClosingTurn | null | undefined,
+  ): Promise<void> {
+    if (!closingTurn) {
+      return;
+    }
+
+    const { data: game, error } = await games()
+      .select("status, round, turn, stage, phase, current_player_id")
+      .eq("id", id)
+      .single();
+    if (error) {
+      throw new Error(`Lecture de la partie: ${error.message}`);
+    }
+
+    if (game.status !== "ongoing") {
+      throw new AlreadyEndedError();
+    }
+
+    const simultaneous = closingTurn.turnMode === "simultaneous";
+
+    await recordTurn(supabase, id, game, {
+      elapsedSeconds: closingTurn.elapsedSeconds,
+      pauseCount: closingTurn.pauseCount,
+      pauseDurationSeconds: closingTurn.pauseDurationSeconds,
+      overtimeSeconds: closingTurn.overtimeSeconds,
+      simultaneous,
+      staged: closingTurn.staged,
+      blockedById: closingTurn.blockedById,
+      waitedS: waitedOn(
+        simultaneous,
+        closingTurn.blockedById,
+        closingTurn.waitedSeconds,
+      ),
+    });
   }
 
   /**
@@ -1300,10 +1363,7 @@ export function createGameRepository(
       const simultaneous = opts?.turnMode === "simultaneous";
       const advance = opts?.advance;
       const blockedById = opts?.blockedById ?? null;
-      const waitedS =
-        simultaneous && blockedById !== null
-          ? Math.max(0, Math.round(opts?.waitedSeconds ?? 0))
-          : null;
+      const waitedS = waitedOn(simultaneous, blockedById, opts?.waitedSeconds);
 
       const { data: game, error } = await games()
         .select("round, turn, stage, phase, current_player_id")
@@ -1573,7 +1633,15 @@ export function createGameRepository(
       }
     },
 
-    async end(id: GameId, winnerIds: PlayerId[], scores, tieBreak) {
+    async end(
+      id: GameId,
+      winnerIds: PlayerId[],
+      scores,
+      tieBreak,
+      closingTurn,
+    ) {
+      await recordClosingTurn(id, closingTurn);
+
       const { count, error } = await endOnce(
         {
           status: "ended",
@@ -1638,7 +1706,9 @@ export function createGameRepository(
       }
     },
 
-    async endCoop(id: GameId, won: boolean) {
+    async endCoop(id: GameId, won: boolean, closingTurn) {
+      await recordClosingTurn(id, closingTurn);
+
       const { count, error } = await endOnce(
         { status: "ended", ended_at: new Date().toISOString() },
         id,

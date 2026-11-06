@@ -136,6 +136,22 @@ export interface ConfigRepository {
   subscribe(onChange: () => void): Unsubscribe;
 }
 
+/**
+ * The turn a game ends on. Ending takes the place of « Tour suivant » for it, so
+ * it carries everything that button would have recorded.
+ */
+export interface ClosingTurn {
+  elapsedSeconds: number;
+  pauseCount: number;
+  pauseDurationSeconds: number;
+  overtimeSeconds: number;
+  turnMode: TurnMode;
+  blockedById: PlayerId | null;
+  waitedSeconds: number;
+  /** The game plays in stages, so the turn is stamped with the one it is in. */
+  staged: boolean;
+}
+
 export interface GameRepository {
   /**
    * Defaults to ongoing games only when no filter is given. Each item carries
@@ -310,6 +326,9 @@ export interface GameRepository {
    * the first count with nobody the wiser. The first one through stands, the
    * others are refused.
    *
+   * `closingTurn` is the turn the game ends on, which no « Tour suivant » will
+   * ever record: null when the game was not in a turn.
+   *
    * @throws AlreadyEndedError when the game is already over.
    */
   end(
@@ -321,6 +340,7 @@ export interface GameRepository {
       breakdown?: Record<string, number>;
     }>,
     tieBreak?: TieBreakRecord | null,
+    closingTurn?: ClosingTurn | null,
   ): Promise<void>;
   /**
    * Ends a cooperative game on a *shared* outcome: `won` marks every player a
@@ -329,7 +349,11 @@ export interface GameRepository {
    *
    * @throws AlreadyEndedError when the game is already over — see {@link end}.
    */
-  endCoop(id: GameId, won: boolean): Promise<void>;
+  endCoop(
+    id: GameId,
+    won: boolean,
+    closingTurn?: ClosingTurn | null,
+  ): Promise<void>;
   /**
    * Rewrites the scores of an already-ended game: each player's total and the
    * detail kept behind it — `null` clears a detail that no longer adds up to a

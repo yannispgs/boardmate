@@ -81,6 +81,9 @@ test("ends automatically after the last round, then scores", async ({
     await expect(
       page.getByRole("button", { name: /Durée du tour/ }),
     ).toHaveCount(0);
+    // Longer than the shortest pause the clock tallies: filling in the sheet is
+    // not a pause the table took.
+    await page.waitForTimeout(5500);
     await page.getByLabel(`Points — ${players[0]}`).fill("5");
     await page.getByLabel(`Points — ${players[1]}`).fill("2");
     await page.getByRole("button", { name: "Total final" }).click();
@@ -89,6 +92,20 @@ test("ends automatically after the last round, then scores", async ({
     await page.getByRole("button", { name: "Suivant" }).click();
     await page.getByRole("button", { name: "Voir les scores" }).click();
     await leaveScoreSheet(page);
+
+    // No « Tour suivant » closed the last turn: ending the game did, on the
+    // player who was up, and neither the sheet nor its wait counts against it.
+    const { data: turns } = await admin
+      .from("game_turns")
+      .select("turn_no, duration_s, pause_count, pause_duration_s")
+      .eq("game_id", gameId ?? "")
+      .order("turn_no");
+
+    expect(turns?.map(t => t.turn_no)).toEqual([1, 2]);
+    expect(turns?.[1]?.pause_count).toBe(0);
+    expect(turns?.[1]?.pause_duration_s).toBe(0);
+    expect(turns?.[1]?.duration_s).toBeLessThan(5);
+
     await backToGames(page);
   } finally {
     await dropSeeded(admin, {
