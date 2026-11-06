@@ -1,9 +1,11 @@
 "use client";
 
 import { SummaryList, SummaryRow } from "@/components/SummaryList";
-import type { FieldSpec, PopulatedGame } from "@/lib/domain";
+import type { FieldSpec, PlayerId, PopulatedGame } from "@/lib/domain";
+import { chainedSeats } from "@/lib/game/chained-game";
 import { configRecap } from "@/lib/game/config-recap";
 import { tracksPlayerTurns } from "@/lib/game/turn-time";
+import { FirstPlayerDraw } from "../../../_components/FirstPlayerDraw";
 
 /**
  * Everything the next deal inherits from the one that just ended, laid out to be
@@ -23,6 +25,8 @@ export function ChainRecap({
   game,
   fields,
   loading,
+  leader,
+  onDrawFirstPlayer,
 }: Readonly<{
   game: PopulatedGame;
   fields: readonly FieldSpec[];
@@ -33,13 +37,12 @@ export function ChainRecap({
    * trusted.
    */
   loading: boolean;
+  /** Who the table drew to start the next party, if it did. */
+  leader: PlayerId | null;
+  onDrawFirstPlayer: () => void;
 }>) {
   const ordered = tracksPlayerTurns(game.boardgame);
-  // Read off the seat order rather than the array's, which is the order the
-  // query happened to return — the same sort `chainedGame` seats them by.
-  const seated = [...game.players].sort((a, b) => {
-    return a.seatOrder - b.seatOrder;
-  });
+  const seated = chainedSeats(game.players, leader);
   const names = ordered
     ? seated.map((p, i) => {
         return `${i + 1}. ${p.player.name}`;
@@ -74,6 +77,13 @@ export function ChainRecap({
           La même, la partie s&apos;y ajoute
         </SummaryRow>
       </SummaryList>
+
+      {ordered && seated.length >= 2 ? (
+        <FirstPlayerDraw
+          name={seated[0]?.player.name}
+          onDraw={onDrawFirstPlayer}
+        />
+      ) : null}
 
       {loading ? (
         <SummaryList>

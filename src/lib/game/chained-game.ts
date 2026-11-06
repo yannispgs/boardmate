@@ -9,7 +9,9 @@
  *
  * The next party is the same one again: same players in the same seats, same
  * config, same extensions. Nothing is asked, because nothing changed — the table
- * did not get up. It is still **shown** before it is dealt: chaining is the one
+ * did not get up — though the table may hand the lead to somebody else on the
+ * way, which moves the first seat round and nobody's neighbours. It is still
+ * **shown** before it is dealt: chaining is the one
  * way into a party that never passes the funnel, so the recap on the
  * confirmation is the only place that setup is ever read.
  *
@@ -28,6 +30,7 @@ import type {
   ScoringSpec,
 } from "@/lib/domain";
 
+import { rotateToFirst } from "./first-player-wheel";
 import { initialScoreFor } from "./scoring";
 
 /** What dealing the same party again needs to know about the current one. */
@@ -45,23 +48,43 @@ export interface ChainableGame {
 }
 
 /**
- * The party to open once this one is recorded: this one, dealt again.
+ * The seats of the next party. Read from the seat order rather than from the
+ * array, so the players sit down again in the order they are playing in, not the
+ * order the query happened to return them — then turned so `leader` starts, when
+ * the table has drawn one.
+ */
+export function chainedSeats<
+  P extends { playerId: PlayerId; seatOrder: number },
+>(players: readonly P[], leader: PlayerId | null): P[] {
+  const seated = [...players].sort((a, b) => {
+    return a.seatOrder - b.seatOrder;
+  });
+
+  return rotateToFirst(
+    seated,
+    seated.findIndex(p => {
+      return p.playerId === leader;
+    }),
+  );
+}
+
+/**
+ * The party to open once this one is recorded: this one, dealt again, led by
+ * `leader` when the table drew one.
  *
  * It joins the session of the party it follows, so the evening stays one row of
  * the list however many deals it ends up being.
  */
-export function chainedGame(game: ChainableGame): NewGame {
+export function chainedGame(
+  game: ChainableGame,
+  leader: PlayerId | null = null,
+): NewGame {
   return {
     sessionId: game.sessionId,
     boardgameId: game.boardgameId,
     configId: game.configId,
     configValues: game.configValues,
-    // Seats are read from the seat order rather than from the array, so the
-    // players sit down again in the order they are playing in, not the order
-    // the query happened to return them.
-    playerIds: [...game.players]
-      .sort((a, b) => a.seatOrder - b.seatOrder)
-      .map(p => p.playerId),
+    playerIds: chainedSeats(game.players, leader).map(p => p.playerId),
     initialScore: initialScoreFor(game.boardgame.scoring),
     extensionIds: game.extensions.map(e => e.id),
     scenarioByExtension: scenarios(game.extensions),

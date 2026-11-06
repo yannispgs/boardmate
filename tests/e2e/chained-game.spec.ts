@@ -342,3 +342,100 @@ test("stops offering the next deal once the table has got up", async ({
     await dropSeeded(admin, { games: [gameId], playerNames: players });
   }
 });
+
+test("hands the next party's lead to the wheel, seats turned, when asked", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const players = await seedPlayers(3);
+  const games: string[] = [];
+  let boardgameId: string | null = null;
+
+  try {
+    const { data } = await admin
+      .from("boardgames")
+      .insert({
+        name: `E2E Chain ${Date.now().toString(36)}`,
+        min_players: 2,
+        max_players: 4,
+        is_chainable: true,
+        scoring: {
+          timing: "final",
+          entry: "total",
+          winCondition: { type: "highest" },
+        },
+      })
+      .select("id")
+      .single();
+    boardgameId = data?.id ?? null;
+
+    const idOf = await playerIds(players);
+
+    games.push(
+      await seedParty(
+        admin,
+        boardgameId as string,
+        players.map((name, seat) => ({
+          playerId: idOf(name),
+          score: 10 * (seat + 1),
+          isWinner: seat === 2,
+        })),
+      ),
+    );
+
+    await page.goto(`/games/${games[0]}/play`);
+    await page
+      .getByRole("button", { name: "Enchaîner une nouvelle partie" })
+      .click();
+
+    // Nothing is drawn unless somebody asks: the lead stays where it was.
+    await expect(
+      page.getByText(new RegExp(`Premier joueur · ${players[0]}`)),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "🎡 Tirer au sort" }).click();
+
+    const wheel = page.getByRole("dialog", { name: "Roue du premier joueur" });
+
+    await wheel.getByRole("button", { name: "Tourner la roue" }).click();
+
+    const choice = wheel.getByRole("button", { name: /commence$/ });
+
+    await expect(choice).toBeVisible();
+
+    const label = (await choice.textContent()) ?? "";
+    const winner = label.replace(/\s*commence$/, "").trim();
+
+    await choice.click();
+    await expect(wheel).toBeHidden();
+
+    // The recap follows the wheel, since it is what the table is agreeing to.
+    await expect(
+      page.getByText(new RegExp(`Premier joueur · ${winner}`)),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Enchaîner", exact: true }).click();
+    await expect(page).not.toHaveURL(new RegExp(games[0]));
+    await expect(page).toHaveURL(/\/games\/[0-9a-f-]+\/play$/);
+
+    const next = page.url().match(/games\/([0-9a-f-]+)\/play/)?.[1] ?? "";
+
+    games.push(next);
+
+    const lead = players.indexOf(winner);
+    const expected = [...players.slice(lead), ...players.slice(0, lead)];
+    const { data: seats } = await admin
+      .from("game_players")
+      .select("player_id")
+      .eq("game_id", next)
+      .order("seat_order");
+
+    expect(seats?.map(s => s.player_id)).toEqual(expected.map(idOf));
+  } finally {
+    await dropSeeded(admin, {
+      games,
+      boardgames: [boardgameId],
+      playerNames: players,
+    });
+  }
+});
