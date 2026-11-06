@@ -10,7 +10,12 @@ import type {
   ScoringSpec,
 } from "@/lib/domain";
 
-import { type ChainableGame, chainedGame, justEnded } from "./chained-game";
+import {
+  type ChainableGame,
+  chainedGame,
+  chainedSeats,
+  justEnded,
+} from "./chained-game";
 
 const PAPAYOO: ScoringSpec = {
   timing: "final",
@@ -142,5 +147,40 @@ describe("justEnded", () => {
 
   it("offers nothing on a closing time that is not one", () => {
     expect(justEnded("hier soir", now)).toBe(false);
+  });
+});
+
+describe("chainedSeats", () => {
+  const players = [
+    { playerId: "c" as PlayerId, seatOrder: 2 },
+    { playerId: "a" as PlayerId, seatOrder: 0 },
+    { playerId: "b" as PlayerId, seatOrder: 1 },
+  ];
+
+  function order(leader: string | null) {
+    return chainedSeats(players, leader as PlayerId | null).map(
+      p => p.playerId,
+    );
+  }
+
+  it("keeps the seats when nobody was drawn", () => {
+    expect(order(null)).toEqual(["a", "b", "c"]);
+  });
+
+  it("turns the table so the drawn player leads, neighbours kept", () => {
+    expect(order("b")).toEqual(["b", "c", "a"]);
+  });
+
+  it("keeps the seats for a player who is not at the table", () => {
+    expect(order("z")).toEqual(["a", "b", "c"]);
+  });
+});
+
+describe("chainedGame with a leader", () => {
+  it("seats the party the wheel chose", () => {
+    const players = game().players;
+    const last = players[players.length - 1];
+
+    expect(chainedGame(game(), last.playerId).playerIds[0]).toBe(last.playerId);
   });
 });
