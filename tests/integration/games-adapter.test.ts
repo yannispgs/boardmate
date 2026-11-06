@@ -1673,7 +1673,7 @@ describe("games adapter — listing & ending", () => {
     expect(populated?.turns).toHaveLength(1);
     expect(populated?.turns[0]).toMatchObject({
       playerId: null,
-      blockedByPlayerId: playerIds[1],
+      blockedById: playerIds[1],
       waitedS: 8,
     });
   });

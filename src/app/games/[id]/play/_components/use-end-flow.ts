@@ -216,7 +216,13 @@ export function useEndFlow(
   /** Records a game the table itself added up, and hands over to the recap. */
   async function endTyped(ended: EndOutcome, tieBreak: TieBreakRecord | null) {
     await recordOnce(async () => {
-      await repo.end(game.id, ended.winners, ended.scores, tieBreak, closingTurn());
+      await repo.end(
+        game.id,
+        ended.winners,
+        ended.scores,
+        tieBreak,
+        closingTurn(),
+      );
       await play.reload();
     });
   }

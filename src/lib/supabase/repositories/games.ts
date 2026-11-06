@@ -506,11 +506,11 @@ async function recordTurn(
  * nobody was waited on, or when the turn was not a shared one.
  */
 function waitedOn(
-  simultaneous: boolean,
+  turnMode: TurnMode | undefined,
   blockedById: PlayerId | null,
   waitedSeconds: number | undefined,
 ): number | null {
-  return simultaneous && blockedById !== null
+  return turnMode === "simultaneous" && blockedById !== null
     ? Math.max(0, Math.round(waitedSeconds ?? 0))
     : null;
 }
@@ -935,7 +935,7 @@ export function createGameRepository(
       staged: closingTurn.staged,
       blockedById: closingTurn.blockedById,
       waitedS: waitedOn(
-        simultaneous,
+        closingTurn.turnMode,
         closingTurn.blockedById,
         closingTurn.waitedSeconds,
       ),
@@ -1363,7 +1363,11 @@ export function createGameRepository(
       const simultaneous = opts?.turnMode === "simultaneous";
       const advance = opts?.advance;
       const blockedById = opts?.blockedById ?? null;
-      const waitedS = waitedOn(simultaneous, blockedById, opts?.waitedSeconds);
+      const waitedS = waitedOn(
+        opts?.turnMode,
+        blockedById,
+        opts?.waitedSeconds,
+      );
 
       const { data: game, error } = await games()
         .select("round, turn, stage, phase, current_player_id")

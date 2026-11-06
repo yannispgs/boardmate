@@ -83,7 +83,11 @@ test("ends automatically after the last round, then scores", async ({
     ).toHaveCount(0);
     // Longer than the shortest pause the clock tallies: filling in the sheet is
     // not a pause the table took.
-    await page.waitForTimeout(5500);
+    const opened = Date.now();
+
+    await expect
+      .poll(() => Date.now() - opened, { timeout: 8000 })
+      .toBeGreaterThanOrEqual(5500);
     await page.getByLabel(`Points — ${players[0]}`).fill("5");
     await page.getByLabel(`Points — ${players[1]}`).fill("2");
     await page.getByRole("button", { name: "Total final" }).click();

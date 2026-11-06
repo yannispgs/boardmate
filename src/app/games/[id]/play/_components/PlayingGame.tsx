@@ -150,9 +150,7 @@ export function PlayingGame({
   // reading: opening the FAQ or the stats pauses the clock too, and blacking
   // out over the panel that was just asked for is the opposite of helpful.
   const overlayOpen = useOverlaysOpen();
-  const veil = useDimVeil(
-    timed && !counting && !overlayOpen && !timer.running,
-  );
+  const veil = useDimVeil(timed && !counting && !overlayOpen && !timer.running);
 
   // A stage that turns over on its own does it *to* the table, not because
   // somebody asked — so the clock waits to be told the change has been seen.
