@@ -1616,6 +1616,111 @@ describe("games adapter — listing & ending", () => {
     ).toBe(8);
   });
 
+  it("records the turn the game ends on", async () => {
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    await repo().advanceTurn(game.id, 10, 0, 0, 0);
+    await repo().end(game.id, [playerIds[0]], undefined, null, {
+      elapsedSeconds: 42,
+      pauseCount: 1,
+      pauseDurationSeconds: 6,
+      overtimeSeconds: 2,
+      turnMode: "sequential",
+      blockedById: null,
+      waitedSeconds: 0,
+      staged: false,
+    });
+
+    const populated = await repo().getPopulated(game.id);
+    const closing = populated?.turns.find(t => t.turnNo === 2);
+
+    expect(populated?.turns).toHaveLength(2);
+    expect(closing).toMatchObject({
+      playerId: playerIds[1],
+      durationS: 42,
+      pauseCount: 1,
+      pauseDurationS: 6,
+      overtimeS: 2,
+    });
+  });
+
+  it("records the shared round a simultaneous game ends on", async () => {
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    await repo().endCoop(game.id, true, {
+      elapsedSeconds: 30,
+      pauseCount: 0,
+      pauseDurationSeconds: 0,
+      overtimeSeconds: 0,
+      turnMode: "simultaneous",
+      blockedById: playerIds[1],
+      waitedSeconds: 8,
+      staged: false,
+    });
+
+    const populated = await repo().getPopulated(game.id);
+
+    expect(populated?.turns).toHaveLength(1);
+    expect(populated?.turns[0]).toMatchObject({
+      playerId: null,
+      blockedById: playerIds[1],
+      waitedS: 8,
+    });
+  });
+
+  it("adds no last turn to a party somebody else already closed", async () => {
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    await repo().end(game.id, [playerIds[0]]);
+
+    await expect(
+      repo().end(game.id, [playerIds[1]], undefined, null, {
+        elapsedSeconds: 42,
+        pauseCount: 0,
+        pauseDurationSeconds: 0,
+        overtimeSeconds: 0,
+        turnMode: "sequential",
+        blockedById: null,
+        waitedSeconds: 0,
+        staged: false,
+      }),
+    ).rejects.toBeInstanceOf(AlreadyEndedError);
+
+    const populated = await repo().getPopulated(game.id);
+
+    expect(populated?.turns).toHaveLength(0);
+  });
+
+  it("refuses a closing turn on a party that does not exist", async () => {
+    await expect(
+      repo().end("not-a-uuid" as GameId, [], undefined, null, {
+        elapsedSeconds: 1,
+        pauseCount: 0,
+        pauseDurationSeconds: 0,
+        overtimeSeconds: 0,
+        turnMode: "sequential",
+        blockedById: null,
+        waitedSeconds: 0,
+        staged: false,
+      }),
+    ).rejects.toThrow(/Lecture de la partie/);
+  });
+
   it("records a party once when two phones hand in their count together", async () => {
     const game = await repo().create({
       boardgameId: CATAN_ID,

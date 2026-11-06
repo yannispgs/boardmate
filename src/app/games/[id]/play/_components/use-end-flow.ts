@@ -11,6 +11,7 @@ import {
 } from "@/lib/game/end-outcome";
 import { getGameRepository } from "@/lib/repositories";
 import { AlreadyEndedError } from "@/lib/repositories/errors";
+import type { ClosingTurn } from "@/lib/repositories/types";
 import type { EndOutcomeRequest } from "./stage-tallies";
 import type { PlayGame } from "./use-play-game";
 
@@ -87,7 +88,11 @@ export interface EndFlowState {
  * whichever sheet the game uses, revealing the standings, settling a tie, and
  * recording the finished game.
  */
-export function useEndFlow(game: PopulatedGame, play: PlayGame): EndFlowState {
+export function useEndFlow(
+  game: PopulatedGame,
+  play: PlayGame,
+  closingTurn: () => ClosingTurn | null,
+): EndFlowState {
   const repo = getGameRepository();
   const [phase, setPhase] = useState<EndPhase>("play");
   const [outcome, setOutcome] = useState<EndOutcome | null>(null);
@@ -175,7 +180,7 @@ export function useEndFlow(game: PopulatedGame, play: PlayGame): EndFlowState {
     tieBreak: TieBreakRecord | null,
   ): Promise<boolean> {
     const written = await recordEnd(() =>
-      repo.end(game.id, ended.winners, ended.scores, tieBreak),
+      repo.end(game.id, ended.winners, ended.scores, tieBreak, closingTurn()),
     );
 
     return written === "done";
@@ -203,7 +208,7 @@ export function useEndFlow(game: PopulatedGame, play: PlayGame): EndFlowState {
     tieBreak: TieBreakRecord | null,
   ) {
     await recordOnce(async () => {
-      await repo.end(game.id, winnerIds, scores, tieBreak);
+      await repo.end(game.id, winnerIds, scores, tieBreak, closingTurn());
       await play.reload();
     });
   }
@@ -211,7 +216,13 @@ export function useEndFlow(game: PopulatedGame, play: PlayGame): EndFlowState {
   /** Records a game the table itself added up, and hands over to the recap. */
   async function endTyped(ended: EndOutcome, tieBreak: TieBreakRecord | null) {
     await recordOnce(async () => {
-      await repo.end(game.id, ended.winners, ended.scores, tieBreak);
+      await repo.end(
+        game.id,
+        ended.winners,
+        ended.scores,
+        tieBreak,
+        closingTurn(),
+      );
       await play.reload();
     });
   }
@@ -232,7 +243,7 @@ export function useEndFlow(game: PopulatedGame, play: PlayGame): EndFlowState {
     // Cooperative games end on a shared outcome (all win, or none).
     endCoop: async won => {
       await recordOnce(async () => {
-        await repo.endCoop(game.id, won);
+        await repo.endCoop(game.id, won, closingTurn());
         await play.reload();
       });
     },
