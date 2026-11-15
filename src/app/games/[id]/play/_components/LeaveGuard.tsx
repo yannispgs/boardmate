@@ -106,7 +106,16 @@ export function LeaveGuard({
   return (
     <ConfirmDialog
       message="Tu es en train de compter les points. Quitter la page ?"
-      warning="Les scores saisis seront perdus, et un autre joueur pourra reprendre le comptage."
+      details={
+        <>
+          <p className="text-sm font-bold text-red-600 dark:text-red-400">
+            Les scores saisis seront perdus et devront être saisis à nouveau.
+          </p>
+          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+            Un autre joueur pourra alors reprendre le comptage.
+          </p>
+        </>
+      }
       confirmLabel="Quitter"
       onConfirm={() => {
         leaving.current = true;

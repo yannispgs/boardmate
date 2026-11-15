@@ -151,6 +151,13 @@ test("asks before a link or the back button takes the phone counting the points 
 
     // Staying: the sheet is still there, as it was.
     await back.click();
+    await expect(
+      page
+        .getByRole("dialog")
+        .getByText(
+          "Les scores saisis seront perdus et devront être saisis à nouveau.",
+        ),
+    ).toBeVisible();
     await page
       .getByRole("dialog")
       .getByRole("button", { name: "Annuler" })
