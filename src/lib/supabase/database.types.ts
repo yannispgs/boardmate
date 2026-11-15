@@ -795,6 +795,8 @@ export type Database = {
           id: string
           phase: number
           round: number
+          scoring_lock: string | null
+          scoring_locked_at: string | null
           session_id: string
           stage: number
           started_at: string
@@ -811,6 +813,8 @@ export type Database = {
           id?: string
           phase?: number
           round?: number
+          scoring_lock?: string | null
+          scoring_locked_at?: string | null
           session_id?: string
           stage?: number
           started_at?: string
@@ -827,6 +831,8 @@ export type Database = {
           id?: string
           phase?: number
           round?: number
+          scoring_lock?: string | null
+          scoring_locked_at?: string | null
           session_id?: string
           stage?: number
           started_at?: string
@@ -1107,6 +1113,14 @@ export type Database = {
           retry_after_s: number
         }[]
       }
+      claim_scoring: {
+        Args: { p_device: string; p_game: string; p_take_over?: boolean }
+        Returns: {
+          holder: string
+          locked_at: string
+          status: string
+        }[]
+      }
       current_role_simulation: {
         Args: never
         Returns: {
@@ -1116,11 +1130,27 @@ export type Database = {
           started_at: string
         }[]
       }
+      end_game: {
+        Args: {
+          p_closing_turn?: Json
+          p_coop_won?: boolean
+          p_device: string
+          p_game: string
+          p_scores: Json
+          p_tie_break?: Json
+          p_winners: string[]
+        }
+        Returns: undefined
+      }
       game_is_ongoing: { Args: { p_game_id: string }; Returns: boolean }
       has_permission: { Args: { p_key: string }; Returns: boolean }
       has_real_permission: { Args: { p_key: string }; Returns: boolean }
       is_admin_role: { Args: { p_role_id: string }; Returns: boolean }
       my_permissions: { Args: never; Returns: string[] }
+      release_scoring: {
+        Args: { p_device: string; p_game: string }
+        Returns: undefined
+      }
       set_game_seat_order: {
         Args: { p_game: string; p_players: string[] }
         Returns: undefined

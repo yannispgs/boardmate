@@ -11,7 +11,9 @@ import type {
 import {
   AlreadyClaimedError,
   AlreadyEndedError,
+  ScoringLockedError,
 } from "@/lib/repositories/errors";
+import type { ScoringLock } from "@/lib/repositories/types";
 import { createGameRepository } from "@/lib/supabase/repositories/games";
 import {
   authedClient,
@@ -1718,7 +1720,7 @@ describe("games adapter — listing & ending", () => {
         waitedSeconds: 0,
         staged: false,
       }),
-    ).rejects.toThrow(/Lecture de la partie/);
+    ).rejects.toThrow(/Fin de la partie/);
   });
 
   it("records a party once when two phones hand in their count together", async () => {
@@ -1767,6 +1769,237 @@ describe("games adapter — listing & ending", () => {
 
     // A shared victory the second call would have turned into a shared defeat.
     expect(populated?.players.every(p => p.isWinner)).toBe(true);
+  });
+});
+
+describe("games adapter — the score form, held by one phone", () => {
+  /** A phone of its own at the same table: same account, its own device. */
+  function phone() {
+    return createGameRepository(
+      authedClient(user.accessToken),
+      crypto.randomUUID(),
+    );
+  }
+
+  async function freshGame() {
+    const game = await repo().create({
+      boardgameId: CATAN_ID,
+      configId: null,
+      playerIds,
+    });
+    gameIds.push(game.id);
+
+    return game;
+  }
+
+  it("gives the form to the first phone and tells the second who has it", async () => {
+    const game = await freshGame();
+    const first = phone();
+    const second = phone();
+
+    const mine = await first.claimScoring(game.id);
+    const theirs = await second.claimScoring(game.id);
+
+    expect(mine.holder).toBe("me");
+    expect(mine.lockedAt).toBeInstanceOf(Date);
+    expect(theirs).toEqual({ holder: "other", lockedAt: mine.lockedAt });
+  });
+
+  it("settles two phones asking at once: one holds the form, never both", async () => {
+    const game = await freshGame();
+
+    const both = await Promise.all([
+      phone().claimScoring(game.id),
+      phone().claimScoring(game.id),
+    ]);
+
+    expect(both.map(lock => lock.holder).sort()).toEqual(["me", "other"]);
+  });
+
+  it("refuses the count of a phone that does not hold the form, and writes nothing", async () => {
+    const game = await freshGame();
+    const holder = phone();
+    const late = phone();
+
+    await holder.claimScoring(game.id);
+
+    await expect(
+      late.end(
+        game.id,
+        [playerIds[1]],
+        [{ playerId: playerIds[1], score: 20 }],
+        null,
+        {
+          elapsedSeconds: 30,
+          pauseCount: 0,
+          pauseDurationSeconds: 0,
+          overtimeSeconds: 0,
+          turnMode: "sequential",
+          blockedById: null,
+          waitedSeconds: 0,
+          staged: false,
+        },
+      ),
+    ).rejects.toBeInstanceOf(ScoringLockedError);
+
+    const populated = await repo().getPopulated(game.id);
+
+    expect(populated?.status).toBe("ongoing");
+    expect(populated?.turns).toHaveLength(0);
+    expect(populated?.players.map(p => p.score)).toEqual([null, null, null]);
+
+    await holder.end(
+      game.id,
+      [playerIds[0]],
+      [{ playerId: playerIds[0], score: 12 }],
+    );
+
+    const ended = await repo().getPopulated(game.id);
+
+    expect(ended?.status).toBe("ended");
+    expect(ended?.players.find(p => p.isWinner)?.playerId).toBe(playerIds[0]);
+  });
+
+  it("frees the form on release, for its holder only", async () => {
+    const game = await freshGame();
+    const holder = phone();
+    const other = phone();
+
+    await holder.claimScoring(game.id);
+    await other.releaseScoring(game.id);
+
+    expect((await other.claimScoring(game.id)).holder).toBe("other");
+
+    await holder.releaseScoring(game.id);
+
+    expect((await other.claimScoring(game.id)).holder).toBe("me");
+  });
+
+  it("keeps the time the form was taken when its holder asks again", async () => {
+    const game = await freshGame();
+    const holder = phone();
+
+    const first = await holder.claimScoring(game.id);
+    const again = await holder.claimScoring(game.id);
+
+    expect(again.lockedAt).toEqual(first.lockedAt);
+  });
+
+  it("lets another phone take the form over only ten minutes on", async () => {
+    const game = await freshGame();
+    const holder = phone();
+    const other = phone();
+
+    await holder.claimScoring(game.id);
+
+    expect((await other.claimScoring(game.id, { takeOver: true })).holder).toBe(
+      "other",
+    );
+
+    await serviceClient()
+      .from("games")
+      .update({
+        scoring_locked_at: new Date(Date.now() - 10 * 60_000).toISOString(),
+      })
+      .eq("id", game.id);
+
+    expect((await other.claimScoring(game.id, { takeOver: true })).holder).toBe(
+      "me",
+    );
+    await expect(holder.end(game.id, [playerIds[0]])).rejects.toBeInstanceOf(
+      ScoringLockedError,
+    );
+  });
+
+  it("lets nobody take the form of a party that is over", async () => {
+    const game = await freshGame();
+
+    await repo().end(game.id, [playerIds[0]]);
+
+    await expect(phone().claimScoring(game.id)).rejects.toBeInstanceOf(
+      AlreadyEndedError,
+    );
+  });
+
+  it("records a party whole or not at all", async () => {
+    const game = await freshGame();
+    const stranger = crypto.randomUUID() as PlayerId;
+
+    await expect(
+      repo().end(
+        game.id,
+        [playerIds[0]],
+        [
+          { playerId: playerIds[0], score: 12 },
+          { playerId: stranger, score: 3 },
+        ],
+        null,
+        {
+          elapsedSeconds: 30,
+          pauseCount: 0,
+          pauseDurationSeconds: 0,
+          overtimeSeconds: 0,
+          turnMode: "sequential",
+          blockedById: null,
+          waitedSeconds: 0,
+          staged: false,
+        },
+      ),
+    ).rejects.toThrow(/scores reached 1 of 2 players/);
+
+    const populated = await repo().getPopulated(game.id);
+
+    expect(populated?.status).toBe("ongoing");
+    expect(populated?.turns).toHaveLength(0);
+    expect(populated?.players.map(p => p.score)).toEqual([null, null, null]);
+  });
+
+  it("tells a phone opening the party who holds the form already", async () => {
+    const game = await freshGame();
+    const holder = phone();
+    const newcomer = phone();
+
+    /** The first reading the watch hands over, before any change. */
+    const firstReading = (repository: ReturnType<typeof phone>) =>
+      new Promise<ScoringLock>(resolve => {
+        const stop = repository.watchScoringLock(game.id, lock => {
+          stop();
+          resolve(lock);
+        });
+      });
+
+    expect(await firstReading(newcomer)).toEqual({
+      holder: null,
+      lockedAt: null,
+    });
+
+    const taken = await holder.claimScoring(game.id);
+
+    expect(await firstReading(newcomer)).toEqual({
+      holder: "other",
+      lockedAt: taken.lockedAt,
+    });
+    expect((await firstReading(holder)).holder).toBe("me");
+  });
+
+  it("says nothing to a screen gone before the first reading", async () => {
+    const game = await freshGame();
+    const heard: unknown[] = [];
+
+    phone().watchScoringLock(game.id, lock => heard.push(lock))();
+    // The reading the screen no longer waits for, then a beat for it to land.
+    await phone().claimScoring(game.id);
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    expect(heard).toEqual([]);
+  });
+
+  it("refuses a winner who is not at the table", async () => {
+    const game = await freshGame();
+
+    await expect(
+      repo().end(game.id, [crypto.randomUUID() as PlayerId]),
+    ).rejects.toThrow(/winners reached 0 of 1 players/);
   });
 });
 

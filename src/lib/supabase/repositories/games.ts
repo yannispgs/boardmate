@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-
+import { deviceId } from "@/lib/device-id";
 import type {
   BoardgameId,
   ConfigId,
@@ -31,6 +31,7 @@ import type {
   TieBreakRecord,
   TurnMode,
 } from "@/lib/domain";
+import { requirePublicEnv } from "@/lib/env";
 import {
   composeScoring,
   orderPlayed,
@@ -47,23 +48,21 @@ import { resolveWinTarget } from "@/lib/game/win-target";
 import {
   AlreadyClaimedError,
   AlreadyEndedError,
+  ScoringLockedError,
 } from "@/lib/repositories/errors";
 import type {
   ClosingTurn,
   GameRepository,
+  ScoringLock,
   Unsubscribe,
 } from "@/lib/repositories/types";
-import type {
-  Database,
-  Json,
-  TablesUpdate,
-} from "@/lib/supabase/database.types";
+import type { Database, Json } from "@/lib/supabase/database.types";
 import { toBoardgame } from "@/lib/supabase/repositories/boardgames";
 import { toConfig } from "@/lib/supabase/repositories/configs";
 import { toExtension } from "@/lib/supabase/repositories/extensions";
 import { UNIQUE_VIOLATION } from "@/lib/supabase/repositories/pg-error-codes";
 import { toPlayer } from "@/lib/supabase/repositories/players";
-import { watchTable } from "@/lib/supabase/repositories/watch-table";
+import { watchRow, watchTable } from "@/lib/supabase/repositories/watch-table";
 
 type GameRow = Database["public"]["Tables"]["games"]["Row"];
 type BoardgameRow = Database["public"]["Tables"]["boardgames"]["Row"];
@@ -502,6 +501,25 @@ async function recordTurn(
 }
 
 /**
+ * The turn a party ends on, as `end_game` takes it: the same figures the
+ * « Tour suivant » button records, rounded the same way.
+ */
+function closingRow(turn: ClosingTurn): Json {
+  const simultaneous = turn.turnMode === "simultaneous";
+
+  return {
+    duration_s: Math.max(0, Math.round(turn.elapsedSeconds)),
+    pause_count: Math.max(0, Math.round(turn.pauseCount)),
+    pause_duration_s: Math.max(0, Math.round(turn.pauseDurationSeconds)),
+    overtime_s: Math.max(0, Math.round(turn.overtimeSeconds)),
+    simultaneous,
+    staged: turn.staged,
+    blocked_by_player_id: simultaneous ? turn.blockedById : null,
+    waited_s: waitedOn(turn.turnMode, turn.blockedById, turn.waitedSeconds),
+  };
+}
+
+/**
  * The seconds a simultaneous round waited on somebody. Nothing is recorded when
  * nobody was waited on, or when the turn was not a shared one.
  */
@@ -841,8 +859,11 @@ async function nextState(
  */
 export function createGameRepository(
   supabase: SupabaseClient<Database>,
+  device: string = deviceId(),
 ): GameRepository {
   const games = () => supabase.from("games");
+  /** The session's token, for the release sent as the page goes away. */
+  let exitToken: string | null = null;
 
   /**
    * Writes each player's final total, and the detail behind it (`null` clears
@@ -877,69 +898,74 @@ export function createGameRepository(
   }
 
   /**
-   * Closes a game, and says how many rows that touched.
+   * Records a finished party through `end_game`, which writes the turn it ends
+   * on, the scores and the winners, and closes it last — all in one
+   * transaction.
    *
    * Counting the points is a table-wide moment and the screen is open on every
-   * phone at once: two of them recording the same party would each write their
-   * own totals over the other's, and the last one to land would win — silently,
-   * with nobody told the sheet had changed under them. The status is what
-   * settles it: a party is `ongoing` once, so the second write matches **no
-   * row**. No lock is taken and nothing is reserved — the first count through
-   * simply becomes the one that stands, and the others are refused.
+   * phone at once. Two things settle it: the score form is held by one phone
+   * (see {@link claimScoring}), and a party is `ongoing` once, so the second
+   * phone to close it finds it over. No write lands for the phone refused.
    *
-   * Returns `count === 0` for a party already over, which the callers turn into
-   * an {@link AlreadyEndedError}.
+   * The scores go in **before** the status, never after: a player's role may
+   * write a game while it is played and not once it is over, so scores written
+   * after the close reached no row for them — silently.
    */
-  function endOnce(fields: TablesUpdate<"games">, id: GameId) {
-    return games()
-      .update(fields, { count: "exact" })
-      .eq("id", id)
-      .eq("status", "ongoing");
-  }
-
-  /**
-   * Logs the turn the game ends on. It has to land **before** the game closes:
-   * the last act of a party needs `games.updateLive` alone, but a row added to
-   * an ended game asks for `games.updateDone`, which a player does not hold. So
-   * a party somebody else already closed is refused here, first, rather than
-   * given a second last turn.
-   */
-  async function recordClosingTurn(
+  async function endGame(
     id: GameId,
+    outcome: {
+      winners: PlayerId[];
+      scores: ReadonlyArray<{
+        playerId: PlayerId;
+        score: number;
+        breakdown?: Record<string, number> | null;
+      }>;
+      tieBreak: TieBreakRecord | null;
+      coopWon: boolean | null;
+    },
     closingTurn: ClosingTurn | null | undefined,
   ): Promise<void> {
-    if (!closingTurn) {
-      return;
-    }
+    const { error } = await supabase.rpc("end_game", {
+      p_game: id,
+      p_device: device,
+      p_winners: outcome.winners,
+      p_scores: outcome.scores.map(({ playerId, score, breakdown }) => ({
+        player_id: playerId,
+        score,
+        breakdown: breakdown ?? null,
+      })) as Json,
+      p_tie_break: outcome.tieBreak as Json,
+      ...(outcome.coopWon === null ? {} : { p_coop_won: outcome.coopWon }),
+      ...(closingTurn ? { p_closing_turn: closingRow(closingTurn) } : {}),
+    });
 
-    const { data: game, error } = await games()
-      .select("status, round, turn, stage, phase, current_player_id")
-      .eq("id", id)
-      .single();
-    if (error) {
-      throw new Error(`Lecture de la partie: ${error.message}`);
-    }
-
-    if (game.status !== "ongoing") {
+    if (error?.code === "BMEND") {
       throw new AlreadyEndedError();
     }
 
-    const simultaneous = closingTurn.turnMode === "simultaneous";
+    if (error?.code === "BMLCK") {
+      throw new ScoringLockedError();
+    }
 
-    await recordTurn(supabase, id, game, {
-      elapsedSeconds: closingTurn.elapsedSeconds,
-      pauseCount: closingTurn.pauseCount,
-      pauseDurationSeconds: closingTurn.pauseDurationSeconds,
-      overtimeSeconds: closingTurn.overtimeSeconds,
-      simultaneous,
-      staged: closingTurn.staged,
-      blockedById: closingTurn.blockedById,
-      waitedS: waitedOn(
-        closingTurn.turnMode,
-        closingTurn.blockedById,
-        closingTurn.waitedSeconds,
-      ),
-    });
+    if (error) {
+      throw new Error(`Fin de la partie: ${error.message}`);
+    }
+  }
+
+  /** Who holds the score form, read off the `games` row, from this phone's side. */
+  function lockOf(row: {
+    scoring_lock: string | null;
+    scoring_locked_at: string | null;
+  }): ScoringLock {
+    // The hold and its time are set and cleared together.
+    if (row.scoring_lock === null || row.scoring_locked_at === null) {
+      return { holder: null, lockedAt: null };
+    }
+
+    return {
+      holder: row.scoring_lock === device ? "me" : "other",
+      lockedAt: new Date(row.scoring_locked_at),
+    };
   }
 
   /**
@@ -1637,45 +1663,17 @@ export function createGameRepository(
       }
     },
 
-    async end(
-      id: GameId,
-      winnerIds: PlayerId[],
-      scores,
-      tieBreak,
-      closingTurn,
-    ) {
-      await recordClosingTurn(id, closingTurn);
-
-      const { count, error } = await endOnce(
-        {
-          status: "ended",
-          ended_at: new Date().toISOString(),
-          tie_break: (tieBreak ?? null) as Json,
-        },
+    async end(id: GameId, winnerIds, scores, tieBreak, closingTurn) {
+      await endGame(
         id,
+        {
+          winners: winnerIds,
+          scores: scores ?? [],
+          tieBreak: tieBreak ?? null,
+          coopWon: null,
+        },
+        closingTurn,
       );
-      if (error) {
-        throw new Error(`Fin de la partie: ${error.message}`);
-      }
-
-      if (count === 0) {
-        throw new AlreadyEndedError();
-      }
-
-      // Persist each player's final score, plus the per-category breakdown for
-      // category-scored games (scored games only).
-      await writeScores(id, scores ?? []);
-
-      // Several winners on a shared victory the tie-break rules couldn't split.
-      const { error: winnerError } = await supabase
-        .from("game_players")
-        .update({ is_winner: true })
-        .eq("game_id", id)
-        .in("player_id", winnerIds);
-      /* c8 ignore next 3 -- defensive guard: update errors surface via e2e */
-      if (winnerError) {
-        throw new Error(`Enregistrement du gagnant: ${winnerError.message}`);
-      }
     },
 
     async rescore(id: GameId, winnerIds: PlayerId[], scores, tieBreak) {
@@ -1711,29 +1709,106 @@ export function createGameRepository(
     },
 
     async endCoop(id: GameId, won: boolean, closingTurn) {
-      await recordClosingTurn(id, closingTurn);
-
-      const { count, error } = await endOnce(
-        { status: "ended", ended_at: new Date().toISOString() },
+      // Shared outcome: everyone wins together, or no one does.
+      await endGame(
         id,
+        { winners: [], scores: [], tieBreak: null, coopWon: won },
+        closingTurn,
       );
+    },
+
+    async claimScoring(id, options) {
+      // Kept for the request sent as the page goes away, which cannot wait on
+      // the session to be read.
+      const { data: session } = await supabase.auth.getSession();
+      exitToken = session.session?.access_token ?? null;
+
+      const { data, error } = await supabase.rpc("claim_scoring", {
+        p_game: id,
+        p_device: device,
+        p_take_over: options?.takeOver ?? false,
+      });
+      /* c8 ignore next 3 -- defensive guard: a healthy rpc doesn't error */
       if (error) {
-        throw new Error(`Fin de la partie: ${error.message}`);
+        throw new Error(`Comptage des points: ${error.message}`);
       }
 
-      if (count === 0) {
+      const row = data.at(0);
+
+      if (row?.status !== "ongoing") {
         throw new AlreadyEndedError();
       }
 
-      // Shared outcome: everyone wins together, or no one does.
-      const { error: coopError } = await supabase
-        .from("game_players")
-        .update({ is_winner: won })
-        .eq("game_id", id);
-      /* c8 ignore next 3 -- defensive guard: update errors surface via e2e */
-      if (coopError) {
-        throw new Error(`Enregistrement du résultat: ${coopError.message}`);
+      return lockOf({
+        scoring_lock: row.holder,
+        scoring_locked_at: row.locked_at,
+      });
+    },
+
+    async releaseScoring(id) {
+      const { error } = await supabase.rpc("release_scoring", {
+        p_game: id,
+        p_device: device,
+      });
+      /* c8 ignore next 3 -- defensive guard: a healthy rpc doesn't error */
+      if (error) {
+        throw new Error(`Comptage des points: ${error.message}`);
       }
+    },
+
+    /* c8 ignore start -- fires as the page unloads, exercised manually */
+    releaseScoringOnExit(id) {
+      if (exitToken === null) {
+        return;
+      }
+
+      const { supabaseUrl, supabaseAnonKey } = requirePublicEnv();
+
+      void fetch(`${supabaseUrl}/rest/v1/rpc/release_scoring`, {
+        method: "POST",
+        keepalive: true,
+        headers: {
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${exitToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ p_game: id, p_device: device }),
+      });
+    },
+    /* c8 ignore stop */
+
+    watchScoringLock(id, onChange) {
+      // Who holds it now, for a phone opening the party mid-count — then every
+      // change from there on.
+      let live = true;
+
+      void games()
+        .select("scoring_lock, scoring_locked_at")
+        .eq("id", id)
+        .single()
+        .then(({ data }) => {
+          if (live && data) {
+            onChange(lockOf(data));
+          }
+        });
+
+      /* c8 ignore start -- fires on a Realtime change, exercised via e2e */
+      const stop = watchRow(supabase, "games", id, row =>
+        onChange(
+          lockOf(
+            row as {
+              scoring_lock: string | null;
+              scoring_locked_at: string | null;
+            },
+          ),
+        ),
+      );
+      /* c8 ignore stop */
+
+      return () => {
+        live = false;
+        stop();
+      };
     },
 
     /* c8 ignore next 3 -- Realtime channel glue, exercised via e2e/manual */

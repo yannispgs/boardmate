@@ -152,6 +152,16 @@ export interface ClosingTurn {
   staged: boolean;
 }
 
+/**
+ * Who holds the score form of a party, from this phone's side: nobody, this
+ * phone, or another one — and since when, for the take-over offered ten
+ * minutes on.
+ */
+export interface ScoringLock {
+  holder: "me" | "other" | null;
+  lockedAt: Date | null;
+}
+
 export interface GameRepository {
   /**
    * Defaults to ongoing games only when no filter is given. Each item carries
@@ -324,12 +334,17 @@ export interface GameRepository {
    * A party ends **once**: the whole table has the screen open while the points
    * are counted, and a second phone recording its own totals would overwrite
    * the first count with nobody the wiser. The first one through stands, the
-   * others are refused.
+   * others are refused — and while a phone holds the score form (see
+   * {@link claimScoring}), only that phone may record the party.
    *
    * `closingTurn` is the turn the game ends on, which no « Tour suivant » will
    * ever record: null when the game was not in a turn.
    *
+   * The closing turn, the scores, the winners and the end are written in one
+   * go, the end last: whole or not at all.
+   *
    * @throws AlreadyEndedError when the game is already over.
+   * @throws ScoringLockedError when another phone holds the score form.
    */
   end(
     id: GameId,
@@ -348,6 +363,7 @@ export interface GameRepository {
    * winner). Scored coop games will refine this later.
    *
    * @throws AlreadyEndedError when the game is already over — see {@link end}.
+   * @throws ScoringLockedError when another phone holds the score form.
    */
   endCoop(
     id: GameId,
@@ -373,6 +389,28 @@ export interface GameRepository {
     tieBreak?: TieBreakRecord | null,
   ): Promise<void>;
   subscribe(onChange: () => void): Unsubscribe;
+  /**
+   * Takes the score form of an ongoing party for this phone, or keeps it, and
+   * says who holds it afterwards — another phone that got there first, if one
+   * did. `takeOver` takes it from that phone, which the database allows only
+   * ten minutes after it was taken.
+   */
+  claimScoring(
+    id: GameId,
+    options?: { takeOver?: boolean },
+  ): Promise<ScoringLock>;
+  /** Gives the score form back, if this phone holds it. */
+  releaseScoring(id: GameId): Promise<void>;
+  /**
+   * Gives the score form back as the page goes away (tab closed, app sent off):
+   * the request has to outlive the page, so it cannot wait on anything.
+   */
+  releaseScoringOnExit(id: GameId): void;
+  /** Follows who holds the score form of a party, as other phones take it. */
+  watchScoringLock(
+    id: GameId,
+    onChange: (lock: ScoringLock) => void,
+  ): Unsubscribe;
 }
 
 export interface FeedbackRepository {
