@@ -8,6 +8,7 @@ import { gameProgress, playProgress } from "@/lib/game/game-progress";
 import {
   advancePhase,
   currentPhase,
+  needsPhaseButton,
   playedDraft,
   turnTimerApplies,
 } from "@/lib/game/phase";
@@ -23,6 +24,7 @@ import { useOverlaysOpen } from "@/lib/hooks/use-overlays-open";
 import { useTurnTimer } from "@/lib/hooks/use-turn-timer";
 import { useWakeLock } from "@/lib/hooks/use-wake-lock";
 import { getGameRepository } from "@/lib/repositories";
+import type { ClosingTurn } from "@/lib/repositories/types";
 import { DimVeil } from "./DimVeil";
 import { EndControls } from "./EndControls";
 import { EndFlow } from "./EndFlow";
@@ -70,7 +72,7 @@ export function PlayingGame({
   const repo = getGameRepository();
   const timer = useTurnTimer();
 
-  const flow = useEndFlow(game, play);
+  const flow = useEndFlow(game, play, closingTurn);
   const live = useLiveScores(game, play);
   const dice = useDiceLog(game, play);
   const milestones = useMilestones(game);
@@ -109,14 +111,24 @@ export function PlayingGame({
     setDurationOverride(null);
   }
 
-  // The end score form replaces the timer once opened; pause the timer then so
-  // it doesn't keep ticking behind the form.
+  // Counting the points replaces the timer: the turn in progress stops where it
+  // is, and that is what gets recorded when the game ends. Frozen further down
+  // and not paused: filling in the sheet is not a pause the table took. A pause
+  // already running when the count opens stops being timed here too, which is
+  // why the clock is read now rather than when the count is handed in.
   const { entryOpen } = flow;
+  const counting = entryOpen || flow.tieOpen || flow.phase !== "play";
+  const countedClock = useRef<CountedClock | null>(null);
+  const { elapsedS: clockS, pauseStats } = timer;
   useEffect(() => {
-    if (entryOpen) {
-      timer.pause();
-    }
-  }, [entryOpen, timer.pause]);
+    countedClock.current = counting
+      ? {
+          elapsedS: clockS,
+          pauses: pauseStats(),
+          waitedSeconds: waitedFor(blockedById, blockedAtRef.current),
+        }
+      : null;
+  }, [counting, clockS, pauseStats, blockedById]);
 
   const durationS = turnDuration(game, durationOverride);
 
@@ -138,9 +150,7 @@ export function PlayingGame({
   // reading: opening the FAQ or the stats pauses the clock too, and blacking
   // out over the panel that was just asked for is the opposite of helpful.
   const overlayOpen = useOverlaysOpen();
-  const veil = useDimVeil(
-    timed && !entryOpen && !overlayOpen && !timer.running,
-  );
+  const veil = useDimVeil(timed && !counting && !overlayOpen && !timer.running);
 
   // A stage that turns over on its own does it *to* the table, not because
   // somebody asked — so the clock waits to be told the change has been seen.
@@ -152,8 +162,8 @@ export function PlayingGame({
   const stageHold = useStageHold(game.stage, announces, stageHoldMs);
   const { setFrozen } = timer;
   useEffect(() => {
-    setFrozen(stageHold.holding);
-  }, [stageHold.holding, setFrozen]);
+    setFrozen(stageHold.holding || counting);
+  }, [stageHold.holding, counting, setFrozen]);
 
   const scoring = game.boardgame.scoring;
   const direction = scoreDirectionOf(scoring);
@@ -207,18 +217,48 @@ export function PlayingGame({
     blockedAtRef.current = waitStart(id);
   }
 
+  // Overtime only exists against a countdown the table could see run out. A
+  // phase timed by a stopwatch, or by nothing, shows no countdown: its turns
+  // still record how long they took, but « over time » means nothing there.
+  function overtimeOf(elapsedS: number) {
+    return turnTimerApplies(phase) ? Math.max(0, elapsedS - durationS) : 0;
+  }
+
+  /**
+   * The turn the game is ending on, which no « Tour suivant » will ever record.
+   * Null when the table is not in a turn: nothing is timed, the manches are
+   * closed by hand, or the phase is one everybody plays at once.
+   */
+  function closingTurn(): ClosingTurn | null {
+    if (!timed || byHand || needsPhaseButton(phase)) {
+      return null;
+    }
+
+    const clock = countedClock.current ?? {
+      elapsedS: timer.elapsedS,
+      pauses: timer.pauseStats(),
+      waitedSeconds: waitedFor(blockedById, blockedAtRef.current),
+    };
+
+    return {
+      elapsedSeconds: clock.elapsedS,
+      pauseCount: clock.pauses.count,
+      pauseDurationSeconds: clock.pauses.durationS,
+      overtimeSeconds: overtimeOf(clock.elapsedS),
+      turnMode: game.boardgame.turnMode,
+      blockedById,
+      waitedSeconds: clock.waitedSeconds,
+      staged: stages?.advance !== undefined,
+    };
+  }
+
   async function handleNext(passing = false) {
     // Snapshot the finished turn's numbers, then restart the timer *immediately*
     // — the new turn's clock starts on the click, not when Supabase replies, so
     // the countdown never keeps ticking during the async persist.
     const elapsedS = timer.elapsedS;
     const pauses = timer.pauseStats();
-    // Overtime only exists against a countdown the table could see run out. A
-    // phase timed by a stopwatch, or by nothing, shows no countdown: its turns
-    // still record how long they took, but « over time » means nothing there.
-    const overtimeS = turnTimerApplies(phase)
-      ? Math.max(0, elapsedS - durationS)
-      : 0;
+    const overtimeS = overtimeOf(elapsedS);
     const waitedSeconds = waitedFor(blockedById, blockedAtRef.current);
     const blocked = blockedById;
 
@@ -491,6 +531,13 @@ function waitStart(id: PlayerId | null): number | null {
 }
 
 /** How long the table has been waiting on the player it flagged, in seconds. */
+/** Where the turn in progress stood when the table started counting. */
+interface CountedClock {
+  elapsedS: number;
+  pauses: { count: number; durationS: number };
+  waitedSeconds: number;
+}
+
 function waitedFor(blockedById: PlayerId | null, since: number | null): number {
   if (blockedById === null || since === null) {
     return 0;
