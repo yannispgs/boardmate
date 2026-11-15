@@ -131,7 +131,7 @@ test("holds the score form for the phone counting the points", async ({
   }
 });
 
-test("asks before a link takes the phone counting the points away", async ({
+test("asks before a link or the back button takes the phone counting the points away", async ({
   page,
   browser,
 }) => {
@@ -159,6 +159,16 @@ test("asks before a link takes the phone counting the points away", async ({
     await expect(page).toHaveURL(new RegExp(`/games/${gameId}/play$`));
     await expect(page.getByLabel(`Score de ${players[0]}`)).toHaveValue("100");
 
+    // The back button asks too, and staying keeps the sheet.
+    await page.goBack();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Annuler" })
+      .click();
+
+    await expect(page).toHaveURL(new RegExp(`/games/${gameId}/play$`));
+    await expect(page.getByLabel(`Score de ${players[0]}`)).toHaveValue("100");
+
     // Leaving: the page goes, and gives the form back to the table.
     await back.click();
     await page
@@ -167,6 +177,48 @@ test("asks before a link takes the phone counting the points away", async ({
       .click();
 
     await expect(page).toHaveURL(/\/games(\?.*)?$/);
+    await expect(
+      other.getByRole("button", { name: "Entrer les scores" }),
+    ).toBeEnabled();
+    await expect(other.getByText(OTHER_COUNTING)).toHaveCount(0);
+  } finally {
+    await other.context().close();
+    if (gameId) {
+      await admin.from("games").delete().eq("id", gameId);
+    }
+    await admin.from("players").delete().in("name", players);
+  }
+});
+
+test("leaves by the back button once the player says so", async ({
+  page,
+  browser,
+}) => {
+  const admin = adminClient();
+  const players = await seedPlayers(3);
+  let gameId: string | null = null;
+  const other = await secondPhone(browser);
+
+  try {
+    gameId = await dealPapayoo(page, players);
+    await other.goto(`/games/${gameId}/play`);
+
+    const open = page.getByRole("button", { name: "Entrer les scores" });
+
+    // Given back while staying: the back button leaves at once, no question.
+    await open.click();
+    await page.getByRole("button", { name: "Annuler" }).click();
+    await expect(open).toBeEnabled();
+
+    await open.click();
+    await expect(other.getByText(OTHER_COUNTING)).toBeVisible();
+    await page.goBack();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Quitter" })
+      .click();
+
+    await expect(page).not.toHaveURL(/\/play$/);
     await expect(
       other.getByRole("button", { name: "Entrer les scores" }),
     ).toBeEnabled();
