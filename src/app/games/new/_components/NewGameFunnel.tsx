@@ -273,6 +273,7 @@ function PlayersStep({
           selected={selected}
           ordered={ordered}
           onToggle={toggle}
+          onReorder={setSelected}
         />
       </ListState>
     </FunnelStep>

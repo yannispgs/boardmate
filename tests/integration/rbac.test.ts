@@ -1,5 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import type { GameId, PlayerId } from "@/lib/domain";
+import { createGameRepository } from "@/lib/supabase/repositories/games";
+
 import {
   anonClient,
   authedClient,
@@ -453,6 +456,56 @@ describe("RBAC — keys finer than CRUD", () => {
       expect(meddled.data).toEqual([]);
     } finally {
       await Promise.all([player.dispose(), archivist.dispose(), dispose()]);
+    }
+  });
+
+  it("lets a player end his game on the turn in progress", async () => {
+    const { live, dispose } = await gamesOnBothSidesOfTheSplit("Closing");
+    const service = serviceClient();
+    const { data: subject } = await service
+      .from("players")
+      .insert({ name: `Closing-${Date.now().toString(36)}` })
+      .select("*")
+      .single();
+    const playerId = subject?.id as PlayerId;
+    await service
+      .from("game_players")
+      .insert({ game_id: live, player_id: playerId, seat_order: 0 });
+    await service
+      .from("games")
+      .update({ current_player_id: playerId })
+      .eq("id", live);
+
+    const player = await userWith(["games.read", "games.updateLive"]);
+
+    try {
+      await createGameRepository(player.db).end(
+        live as GameId,
+        [playerId],
+        [],
+        null,
+        {
+          elapsedSeconds: 42,
+          pauseCount: 0,
+          pauseDurationSeconds: 0,
+          overtimeSeconds: 0,
+          turnMode: "sequential",
+          blockedById: null,
+          waitedSeconds: 0,
+          staged: false,
+        },
+      );
+
+      const { data: turns } = await service
+        .from("game_turns")
+        .select("player_id, duration_s")
+        .eq("game_id", live);
+
+      expect(turns).toEqual([{ player_id: playerId, duration_s: 42 }]);
+    } finally {
+      await player.dispose();
+      await dispose();
+      await service.from("players").delete().eq("id", playerId);
     }
   });
 
