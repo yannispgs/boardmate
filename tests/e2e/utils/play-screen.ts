@@ -55,26 +55,6 @@ export async function nudgeClock(page: Page, steps: string[]): Promise<void> {
   await expect(layer.getByRole("group")).toHaveCount(0);
 }
 
-/**
- * Sets the timer for the party being played, through ⏱️ beside the countdown:
- * each field by its label, then « Valider ».
- */
-export async function setTimer(
-  page: Page,
-  fields: Readonly<Record<string, string>>,
-): Promise<void> {
-  await page.getByRole("button", { name: "Réglages du minuteur" }).click();
-
-  const sheet = page.getByRole("dialog", { name: "Réglages du minuteur" });
-
-  for (const [label, value] of Object.entries(fields)) {
-    await sheet.getByLabel(label).fill(value);
-  }
-
-  await sheet.getByRole("button", { name: "Valider" }).click();
-  await expect(sheet).toBeHidden();
-}
-
 /** What the clock the table is looking at reads, in seconds. */
 export async function clockSeconds(page: Page): Promise<number> {
   const text =

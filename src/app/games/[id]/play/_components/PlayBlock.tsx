@@ -1,11 +1,6 @@
 "use client";
 
-import type {
-  PhaseSpec,
-  PlayerId,
-  PopulatedGame,
-  TurnSchedule,
-} from "@/lib/domain";
+import type { PhaseSpec, PlayerId, PopulatedGame } from "@/lib/domain";
 import { diceStats, diceValues } from "@/lib/game/dice";
 import { turnTimerApplies } from "@/lib/game/phase";
 import { playCalendar } from "@/lib/game/stage";
@@ -15,7 +10,6 @@ import { ClockFrame } from "./ClockFrame";
 import { DiceBar } from "./DiceBar";
 import { PhaseStopwatch } from "./PhaseStopwatch";
 import { TimerRing } from "./TimerRing";
-import { TimerSettings } from "./TimerSettings";
 import { TurnFlow } from "./turn-flow";
 import type { DiceLog } from "./use-dice-log";
 import { WaitPicker } from "./WaitPicker";
@@ -59,8 +53,6 @@ export function PlayBlock({
   game,
   timer,
   durationS,
-  timerSchedule,
-  onSchedule,
   onHoldClock,
   blockedById,
   onPickBlocked,
@@ -71,9 +63,6 @@ export function PlayBlock({
   game: PopulatedGame;
   timer: UseTurnTimer;
   durationS: number;
-  /** The settings the turns are timed on, this party's own or its config's. */
-  timerSchedule: TurnSchedule;
-  onSchedule: (schedule: TurnSchedule | null) => void;
   /** Holds the clock while it is being set by hand, and lets it go after. */
   onHoldClock: (hold: boolean) => void;
   /** Simultaneous games: the player the table is waiting on this round. */
@@ -168,21 +157,7 @@ export function PlayBlock({
           changes what they look like in no way at all. */}
       <div className="grid w-full">
         <ClockLayer show={countdown}>
-          <ClockFrame
-            durationS={durationS}
-            timer={timer}
-            onHold={onHoldClock}
-            aside={
-              <TimerSettings
-                original={game.turnSchedule}
-                schedule={timerSchedule}
-                round={game.round}
-                elapsedS={timer.elapsedS}
-                onSave={onSchedule}
-                onHold={onHoldClock}
-              />
-            }
-          >
+          <ClockFrame durationS={durationS} timer={timer} onHold={onHoldClock}>
             <TimerRing
               remainingS={durationS - timer.elapsedS}
               durationS={durationS}

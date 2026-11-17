@@ -56,7 +56,6 @@ import { useSessionGames } from "./use-session-games";
 import { useStageGoals } from "./use-stage-goals";
 import { useStageHold } from "./use-stage-hold";
 import { useStageLaps } from "./use-stage-laps";
-import { useTimerSchedule } from "./use-timer-schedule";
 
 /**
  * A game in progress. Takes the loaded game, so nothing below has to wonder
@@ -88,8 +87,6 @@ export function PlayingGame({
   // an Oceania tile still reads out by name during a game played with it.
   const catalogue = composeGoals(game.boardgame.roundGoals, game.extensions);
 
-  // The timer's settings, as set by hand for this party on this phone.
-  const timerSchedule = useTimerSchedule(game);
   // The clock is being set by hand: held until the correction is shut.
   const [settingClock, setSettingClock] = useState(false);
   // Simultaneous games: the player the table is waiting on this round (tapped),
@@ -123,7 +120,7 @@ export function PlayingGame({
       : null;
   }, [counting, clockS, pauseStats, blockedById]);
 
-  const durationS = turnDurationForRound(timerSchedule.schedule, game.round);
+  const durationS = turnDurationForRound(game.turnSchedule, game.round);
 
   // How the game turns: in plain laps, in generations somebody steps out of, on
   // a calendar of stages laid out at launch (Wingspan's manches) — or in manches
@@ -406,8 +403,6 @@ export function PlayingGame({
           game={game}
           timer={timer}
           durationS={durationS}
-          timerSchedule={timerSchedule.schedule}
-          onSchedule={timerSchedule.save}
           onHoldClock={setSettingClock}
           blockedById={blockedById}
           onPickBlocked={pickBlocked}

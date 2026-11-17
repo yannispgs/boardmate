@@ -1,12 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { funnelToPlay } from "./utils/funnel";
-import {
-  clockSeconds,
-  nudgeClock,
-  pausedBadge,
-  setTimer,
-} from "./utils/play-screen";
+import { clockSeconds, nudgeClock, pausedBadge } from "./utils/play-screen";
 import {
   adminClient,
   CATAN_ID,
@@ -35,62 +30,6 @@ test("pauses and resumes the turn timer", async ({ page }) => {
     await expect(
       page.getByRole("button", { name: "Mettre en pause" }),
     ).toBeVisible();
-  } finally {
-    const admin = adminClient();
-    if (gameId) {
-      await admin.from("games").delete().eq("id", gameId);
-    }
-    await admin.from("players").delete().in("name", players);
-  }
-});
-
-test("sets the timer for this party only, and keeps it on this phone", async ({
-  page,
-}) => {
-  const players = await seedPlayers(CATAN_MIN_PLAYERS);
-  let gameId = "";
-
-  try {
-    gameId = await funnelToPlay(page, players);
-
-    // Catan's turns grow round by round, so all three settings are offered,
-    // with the configuration's values to start from.
-    await page.getByRole("button", { name: "Réglages du minuteur" }).click();
-
-    const sheet = page.getByRole("dialog", { name: "Réglages du minuteur" });
-
-    await expect(sheet.getByLabel("Durée de la 1ʳᵉ manche")).toHaveValue("45");
-    await expect(sheet.getByLabel("Ajout par manche")).toHaveValue("5");
-    await expect(sheet.getByLabel("Plafond")).toBeVisible();
-
-    // A cap shorter than the first turn cannot be timed on.
-    await sheet.getByLabel("Plafond").fill("10");
-    await expect(sheet.getByRole("button", { name: "Valider" })).toBeDisabled();
-    await sheet.getByRole("button", { name: "Annuler" }).click();
-
-    // The turn takes its new length at once, on the time already played.
-    await setTimer(page, { "Durée de la 1ʳᵉ manche": "300", Plafond: "600" });
-    await expect.poll(() => clockSeconds(page)).toBeGreaterThan(250);
-
-    // A reload finds them again: they are kept on this phone…
-    await page.reload();
-    await expect.poll(() => clockSeconds(page)).toBeGreaterThan(250);
-
-    // …and never written to the party, whose configuration stays as launched.
-    const { data: party } = await adminClient()
-      .from("games")
-      .select("config_values")
-      .eq("id", gameId)
-      .single();
-
-    expect(JSON.stringify(party?.config_values ?? {})).not.toContain("300");
-
-    // Back to the configuration's settings in one tap.
-    await page.getByRole("button", { name: "Réglages du minuteur" }).click();
-    await sheet
-      .getByRole("button", { name: "Revenir aux réglages de la configuration" })
-      .click();
-    await expect.poll(() => clockSeconds(page)).toBeLessThanOrEqual(45);
   } finally {
     const admin = adminClient();
     if (gameId) {
@@ -191,12 +130,8 @@ test("counts overtime once the turn timer runs out", async ({ page }) => {
   try {
     gameId = await funnelToPlay(page, players);
 
-    // A one-second turn: the clock runs on once the settings are shut.
-    await setTimer(page, {
-      "Durée de la 1ʳᵉ manche": "1",
-      "Ajout par manche": "0",
-      Plafond: "1",
-    });
+    // Taken down to a few seconds, the turn runs out on its own.
+    await nudgeClock(page, ["Retirer 30 s", "Retirer 10 s"]);
 
     // Past zero, the readout flips to an overtime count-up.
     await expect(page.getByText("dépassement")).toBeVisible({ timeout: 15000 });
@@ -278,21 +213,16 @@ test("the turn timer grows each round per the schedule", async ({ page }) => {
   try {
     gameId = await funnelToPlay(page, players);
 
-    const sheet = page.getByRole("dialog", { name: "Réglages du minuteur" });
-    const settings = page.getByRole("button", { name: "Réglages du minuteur" });
-
     // Catan's schedule: 45 s base, +5 s each round.
-    await settings.click();
-    await expect(sheet.getByText("Manche 1 : ce tour dure 0:45")).toBeVisible();
-    await sheet.getByRole("button", { name: "Annuler" }).click();
+    expect(await clockSeconds(page)).toBeLessThanOrEqual(45);
 
-    // A full round of turns brings the game to round 2 → 50 s.
+    // A full round of turns brings the game to round 2 → 50 s, read as the
+    // turn starts.
     for (let i = 0; i < players.length; i++) {
       await page.getByRole("button", { name: "Tour suivant →" }).click();
     }
 
-    await settings.click();
-    await expect(sheet.getByText("Manche 2 : ce tour dure 0:50")).toBeVisible();
+    await expect.poll(() => clockSeconds(page)).toBeGreaterThan(45);
   } finally {
     const admin = adminClient();
     if (gameId) {

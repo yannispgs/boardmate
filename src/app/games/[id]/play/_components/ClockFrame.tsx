@@ -8,8 +8,7 @@ import { ClockNudge } from "./ClockNudge";
 /**
  * The clock the table watches, with what sets it by hand around it rather than
  * under it: ＋ level with the top of the disc and － level with its bottom, in
- * the margin on its left — and, on the right, whatever else a clock may carry
- * (the timer's settings, on a countdown).
+ * the margin on its left.
  *
  * Opening a correction holds the clock (`onHold`) until it is shut again, by
  * tapping anywhere else; tapping the other sign swaps one for the other.
@@ -18,15 +17,12 @@ export function ClockFrame({
   durationS,
   timer,
   onHold,
-  aside,
   children,
 }: Readonly<{
   /** The turn's allotted seconds, or `null` for a table stopwatch. */
   durationS: number | null;
   timer: UseTurnTimer;
   onHold: (hold: boolean) => void;
-  /** What sits on the clock's right, level with its top. */
-  aside?: React.ReactNode;
   children: React.ReactNode;
 }>) {
   const [open, setOpen] = useState<1 | -1 | null>(null);
@@ -72,10 +68,6 @@ export function ClockFrame({
           edge={sign > 0 ? "top" : "bottom"}
         />
       ))}
-
-      {aside ? (
-        <div className="absolute top-0 left-full ml-2">{aside}</div>
-      ) : null}
     </div>
   );
 }
