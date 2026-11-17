@@ -28,45 +28,65 @@ export async function takeStage(page: Page): Promise<void> {
   await page.getByRole("status").click();
 }
 
-/** One trip through a time-correction sheet, from opening it to applying it. */
-export interface TimeCorrection {
-  /** The button that opens the sheet, whose wording the sheet reuses as title. */
-  sheet: string;
-  /** The text box inside it. */
-  field: string;
-  /** What the table types in. */
-  typed: string;
-  /** The ± button it then taps, in the sheet's own words. */
-  step: string;
-  /** What the box has to read once that button has moved the typed time. */
-  expected: string;
+/**
+ * Moves the clock the table is looking at by the steps given, in the step
+ * buttons' own words (« Ajouter 30 s », « Retirer 1 min »), through the ＋ and
+ * － beside it — then shuts the steps by tapping outside them, as a table does.
+ *
+ * Each step lands on the clock at once; the caller checks where it ended up.
+ */
+export async function nudgeClock(page: Page, steps: string[]): Promise<void> {
+  const layer = page.locator(".clock-layer:visible");
+
+  for (const step of steps) {
+    const opener = step.startsWith("Ajouter")
+      ? "Ajouter du temps"
+      : "Retirer du temps";
+    const group = layer.getByRole("group", { name: opener });
+
+    if (!(await group.isVisible())) {
+      await layer.getByRole("button", { name: opener }).click();
+    }
+
+    await group.getByRole("button", { name: step }).click();
+  }
+
+  await page.getByRole("button", { name: "Fermer la correction" }).click();
+  await expect(layer.getByRole("group")).toHaveCount(0);
 }
 
 /**
- * Corrects one of the play screen's two clocks — the per-player countdown or
- * the table stopwatch — through the sheet that edits it.
- *
- * There is one sheet, opened on either clock, so both journeys walk the same
- * five steps and differ only in wording and figures: type a time, watch the
- * sheet echo it, nudge it by a step, watch the box follow, apply. What each
- * caller then checks is its own — the corrected countdown lands on a ring, the
- * corrected stopwatch on a disc and, later, in `game_phases`.
+ * Sets the timer for the party being played, through ⏱️ beside the countdown:
+ * each field by its label, then « Valider ».
  */
-export async function correctTime(
+export async function setTimer(
   page: Page,
-  { sheet, field, typed, step, expected }: TimeCorrection,
+  fields: Readonly<Record<string, string>>,
 ): Promise<void> {
-  await page.getByRole("button", { name: sheet }).click();
+  await page.getByRole("button", { name: "Réglages du minuteur" }).click();
 
-  const box = page.getByRole("textbox", { name: field });
+  const sheet = page.getByRole("dialog", { name: "Réglages du minuteur" });
 
-  await box.fill(typed);
+  for (const [label, value] of Object.entries(fields)) {
+    await sheet.getByLabel(label).fill(value);
+  }
 
-  await expect(page.getByRole("dialog", { name: sheet })).toContainText(typed);
+  await sheet.getByRole("button", { name: "Valider" }).click();
+  await expect(sheet).toBeHidden();
+}
 
-  await page.getByRole("button", { name: step }).click();
+/** What the clock the table is looking at reads, in seconds. */
+export async function clockSeconds(page: Page): Promise<number> {
+  const text =
+    (await page
+      .locator(".clock-layer:visible")
+      .getByText(/^\d+(:\d\d)?$/)
+      .first()
+      .textContent()) ?? "";
 
-  await expect(box).toHaveValue(expected);
-
-  await page.getByRole("button", { name: "Appliquer" }).click();
+  // Under a minute the disc reads bare seconds (« 45 secondes »).
+  return text
+    .split(":")
+    .map(Number)
+    .reduce((total, part) => total * 60 + part, 0);
 }

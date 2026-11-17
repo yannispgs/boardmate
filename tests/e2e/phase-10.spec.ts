@@ -1,6 +1,6 @@
 import { expect, type Locator, test } from "@playwright/test";
 
-import { correctTime, pausedBadge } from "./utils/play-screen";
+import { clockSeconds, nudgeClock, pausedBadge } from "./utils/play-screen";
 import { stagePoints } from "./utils/stage-prompt";
 import {
   adminClient,
@@ -145,16 +145,18 @@ test("climbs the phases, counts the laps and settles the top on points", async (
       ).toBeVisible();
 
       // The manche runs a table stopwatch, corrected like the turn timer when
-      // somebody forgot it: held still, then set to 5:00 and nudged to 5:30.
+      // somebody forgot it: held still, then nudged on by five and a half
+      // minutes.
       await page.getByRole("button", { name: "Mettre en pause" }).click();
       await expect(pausedBadge(page)).toBeVisible();
-      await correctTime(page, {
-        sheet: "Corriger le temps écoulé",
-        field: "Temps écoulé",
-        typed: "5:00",
-        step: "Ajouter 30 s",
-        expected: "5:30",
-      });
+
+      const before = await clockSeconds(page);
+
+      await nudgeClock(page, [
+        ...Array.from({ length: 5 }, () => "Ajouter 1 min"),
+        "Ajouter 30 s",
+      ]);
+      expect(await clockSeconds(page)).toBe(before + 330);
 
       // The laps are counted as they go round.
       await expect(page.getByTestId("lap-count")).toHaveText("Tour 1");

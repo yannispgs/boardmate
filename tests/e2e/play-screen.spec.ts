@@ -1,7 +1,12 @@
 import { expect, test } from "@playwright/test";
 
 import { funnelToPlay } from "./utils/funnel";
-import { correctTime, pausedBadge } from "./utils/play-screen";
+import {
+  clockSeconds,
+  nudgeClock,
+  pausedBadge,
+  setTimer,
+} from "./utils/play-screen";
 import {
   adminClient,
   CATAN_ID,
@@ -39,22 +44,53 @@ test("pauses and resumes the turn timer", async ({ page }) => {
   }
 });
 
-test("edits the turn duration mid-game", async ({ page }) => {
+test("sets the timer for this party only, and keeps it on this phone", async ({
+  page,
+}) => {
   const players = await seedPlayers(CATAN_MIN_PLAYERS);
   let gameId = "";
 
   try {
     gameId = await funnelToPlay(page, players);
 
-    await page
-      .getByRole("button", { name: /Durée du tour : \d+s — modifier/ })
-      .click();
-    await page.getByLabel("Durée du tour en secondes").fill("30");
-    await page.getByRole("button", { name: "OK", exact: true }).click();
+    // Catan's turns grow round by round, so all three settings are offered,
+    // with the configuration's values to start from.
+    await page.getByRole("button", { name: "Réglages du minuteur" }).click();
 
-    await expect(
-      page.getByRole("button", { name: "Durée du tour : 30s — modifier" }),
-    ).toBeVisible();
+    const sheet = page.getByRole("dialog", { name: "Réglages du minuteur" });
+
+    await expect(sheet.getByLabel("Durée de la 1ʳᵉ manche")).toHaveValue("45");
+    await expect(sheet.getByLabel("Ajout par manche")).toHaveValue("5");
+    await expect(sheet.getByLabel("Plafond")).toBeVisible();
+
+    // A cap shorter than the first turn cannot be timed on.
+    await sheet.getByLabel("Plafond").fill("10");
+    await expect(sheet.getByRole("button", { name: "Valider" })).toBeDisabled();
+    await sheet.getByRole("button", { name: "Annuler" }).click();
+
+    // The turn takes its new length at once, on the time already played.
+    await setTimer(page, { "Durée de la 1ʳᵉ manche": "300", Plafond: "600" });
+    await expect.poll(() => clockSeconds(page)).toBeGreaterThan(250);
+
+    // A reload finds them again: they are kept on this phone…
+    await page.reload();
+    await expect.poll(() => clockSeconds(page)).toBeGreaterThan(250);
+
+    // …and never written to the party, whose configuration stays as launched.
+    const { data: party } = await adminClient()
+      .from("games")
+      .select("config_values")
+      .eq("id", gameId)
+      .single();
+
+    expect(JSON.stringify(party?.config_values ?? {})).not.toContain("300");
+
+    // Back to the configuration's settings in one tap.
+    await page.getByRole("button", { name: "Réglages du minuteur" }).click();
+    await sheet
+      .getByRole("button", { name: "Revenir aux réglages de la configuration" })
+      .click();
+    await expect.poll(() => clockSeconds(page)).toBeLessThanOrEqual(45);
   } finally {
     const admin = adminClient();
     if (gameId) {
@@ -64,33 +100,80 @@ test("edits the turn duration mid-game", async ({ page }) => {
   }
 });
 
-test("corrects the current turn's remaining time", async ({ page }) => {
+test("corrects the time left with the steps beside the clock", async ({
+  page,
+}) => {
   const players = await seedPlayers(CATAN_MIN_PLAYERS);
   let gameId = "";
 
   try {
     gameId = await funnelToPlay(page, players);
 
-    // Editing the duration pauses the turn, which holds the countdown still for
-    // the rest of the test (and checks the correction doesn't resume it).
-    await page
-      .getByRole("button", { name: /Durée du tour : \d+s — modifier/ })
-      .click();
-    await page.getByLabel("Durée du tour en secondes").fill("300");
-    await page.getByRole("button", { name: "OK", exact: true }).click();
-    await expect(pausedBadge(page)).toBeVisible();
+    // The clock holds while a correction is open, running or not.
+    await page.getByRole("button", { name: "Retirer du temps" }).click();
 
-    // A step moves the typed time, not the time played.
-    await correctTime(page, {
-      sheet: "Corriger le temps restant",
-      field: "Temps restant",
-      typed: "1:30",
-      step: "Retirer 30 s",
-      expected: "1:00",
-    });
+    const held = await clockSeconds(page);
 
-    // The ring reads the corrected time, and the turn is still on hold.
-    await expect(page.getByText("1:00")).toBeVisible();
+    // The steps unfold beside the disc, never over the figures being set.
+    const figures = page
+      .locator(".clock-layer:visible")
+      .getByText(/^\d+(:\d\d)?$/)
+      .first();
+    const steps = page.getByRole("group", { name: "Retirer du temps" });
+    const [f, g] = [await figures.boundingBox(), await steps.boundingBox()];
+
+    expect(f && g).toBeTruthy();
+    if (f && g) {
+      const apart =
+        g.x + g.width <= f.x ||
+        f.x + f.width <= g.x ||
+        g.y + g.height <= f.y ||
+        f.y + f.height <= g.y;
+
+      expect(apart).toBe(true);
+    }
+
+    await page.waitForTimeout(2500);
+    expect(await clockSeconds(page)).toBe(held);
+
+    // A 45-second turn with under 45 s left: nothing more to add, and no
+    // minute to take off.
+    const minus = page.getByRole("group", { name: "Retirer du temps" });
+
+    await expect(
+      minus.getByRole("button", { name: "Retirer 1 min" }),
+    ).toBeDisabled();
+    await expect(
+      minus.getByRole("button", { name: "Retirer 10 s" }),
+    ).toBeEnabled();
+
+    // Each step lands at once — no « Appliquer ».
+    await minus.getByRole("button", { name: "Retirer 10 s" }).click();
+    expect(await clockSeconds(page)).toBe(held - 10);
+
+    // Tapping the other sign swaps the steps over.
+    await page.getByRole("button", { name: "Ajouter du temps" }).click();
+    await expect(minus).toHaveCount(0);
+
+    const plus = page.getByRole("group", { name: "Ajouter du temps" });
+
+    await expect(
+      plus.getByRole("button", { name: "Ajouter 10 s" }),
+    ).toBeEnabled();
+    await expect(
+      plus.getByRole("button", { name: "Ajouter 30 s" }),
+    ).toBeDisabled();
+
+    // A tap anywhere else shuts them, and the clock runs again.
+    await page.getByRole("button", { name: "Fermer la correction" }).click();
+    await expect(plus).toHaveCount(0);
+    await expect
+      .poll(() => clockSeconds(page), { timeout: 5000 })
+      .toBeLessThan(held - 10);
+
+    // Paused beforehand, it stays paused once corrected.
+    await page.getByRole("button", { name: "Mettre en pause" }).click();
+    await nudgeClock(page, ["Retirer 10 s"]);
     await expect(pausedBadge(page)).toBeVisible();
   } finally {
     const admin = adminClient();
@@ -108,16 +191,23 @@ test("counts overtime once the turn timer runs out", async ({ page }) => {
   try {
     gameId = await funnelToPlay(page, players);
 
-    // Shorten the turn to 1s (editing pauses the timer), then resume it.
-    await page
-      .getByRole("button", { name: /Durée du tour : \d+s — modifier/ })
-      .click();
-    await page.getByLabel("Durée du tour en secondes").fill("1");
-    await page.getByRole("button", { name: "OK", exact: true }).click();
-    await page.getByRole("button", { name: "Reprendre" }).click();
+    // A one-second turn: the clock runs on once the settings are shut.
+    await setTimer(page, {
+      "Durée de la 1ʳᵉ manche": "1",
+      "Ajout par manche": "0",
+      Plafond: "1",
+    });
 
     // Past zero, the readout flips to an overtime count-up.
     await expect(page.getByText("dépassement")).toBeVisible({ timeout: 15000 });
+
+    // In overtime, time can be given back but none taken off.
+    await page.getByRole("button", { name: "Retirer du temps" }).click();
+    await expect(
+      page
+        .getByRole("group", { name: "Retirer du temps" })
+        .getByRole("button", { name: "Retirer 10 s" }),
+    ).toBeDisabled();
   } finally {
     const admin = adminClient();
     if (gameId) {
@@ -188,19 +278,21 @@ test("the turn timer grows each round per the schedule", async ({ page }) => {
   try {
     gameId = await funnelToPlay(page, players);
 
+    const sheet = page.getByRole("dialog", { name: "Réglages du minuteur" });
+    const settings = page.getByRole("button", { name: "Réglages du minuteur" });
+
     // Catan's schedule: 45 s base, +5 s each round.
-    await expect(
-      page.getByRole("button", { name: "Durée du tour : 45s — modifier" }),
-    ).toBeVisible();
+    await settings.click();
+    await expect(sheet.getByText("Manche 1 : ce tour dure 0:45")).toBeVisible();
+    await sheet.getByRole("button", { name: "Annuler" }).click();
 
     // A full round of turns brings the game to round 2 → 50 s.
     for (let i = 0; i < players.length; i++) {
       await page.getByRole("button", { name: "Tour suivant →" }).click();
     }
 
-    await expect(
-      page.getByRole("button", { name: "Durée du tour : 50s — modifier" }),
-    ).toBeVisible();
+    await settings.click();
+    await expect(sheet.getByText("Manche 2 : ce tour dure 0:50")).toBeVisible();
   } finally {
     const admin = adminClient();
     if (gameId) {

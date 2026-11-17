@@ -1,56 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  clockReading,
-  elapsedForReading,
-  formatClockInput,
-  parseClock,
-} from "./turn-clock";
-
-describe("parseClock", () => {
-  it("reads a bare seconds count", () => {
-    expect(parseClock("90")).toBe(90);
-    expect(parseClock("0")).toBe(0);
-    expect(parseClock("  45  ")).toBe(45);
-  });
-
-  it("reads a m:ss clock", () => {
-    expect(parseClock("1:30")).toBe(90);
-    expect(parseClock("0:07")).toBe(7);
-    expect(parseClock("10:00")).toBe(600);
-  });
-
-  it("keeps the sign, so an overtime can be typed back", () => {
-    expect(parseClock("-0:40")).toBe(-40);
-    expect(parseClock("-15")).toBe(-15);
-    expect(parseClock("+30")).toBe(30);
-  });
-
-  it("rejects anything that is not a clock", () => {
-    expect(parseClock("")).toBeNull();
-    expect(parseClock("abc")).toBeNull();
-    expect(parseClock("1:60")).toBeNull();
-    expect(parseClock("1:5")).toBeNull();
-    expect(parseClock("1:2:3")).toBeNull();
-    expect(parseClock("1.5")).toBeNull();
-  });
-});
-
-describe("formatClockInput", () => {
-  it("writes a countdown as a clock", () => {
-    expect(formatClockInput(140)).toBe("2:20");
-    expect(formatClockInput(0)).toBe("0:00");
-  });
-
-  it("marks an overtime with a minus sign", () => {
-    expect(formatClockInput(-40)).toBe("-0:40");
-  });
-
-  it("rounds to the second", () => {
-    expect(formatClockInput(19.6)).toBe("0:20");
-    expect(formatClockInput(-19.6)).toBe("-0:20");
-  });
-});
+import { canStep, clockReading, elapsedForReading } from "./turn-clock";
 
 describe("clockReading", () => {
   it("reads a countdown as what is left of the turn", () => {
@@ -85,5 +35,31 @@ describe("elapsedForReading", () => {
 
   it("floors a stopwatch wound below zero", () => {
     expect(elapsedForReading(null, -20)).toBe(0);
+  });
+});
+
+describe("canStep", () => {
+  it("takes time off a countdown as long as some is left", () => {
+    expect(canStep(90, 25, -10)).toBe(true);
+    expect(canStep(90, 25, -25)).toBe(true);
+    expect(canStep(90, 25, -30)).toBe(false);
+  });
+
+  it("gives a countdown time back up to the turn's length", () => {
+    expect(canStep(90, 70, 10)).toBe(true);
+    expect(canStep(90, 70, 20)).toBe(true);
+    expect(canStep(90, 70, 30)).toBe(false);
+  });
+
+  it("gives an overtime its time back, but takes none off it", () => {
+    expect(canStep(90, -20, 10)).toBe(true);
+    expect(canStep(90, -20, 60)).toBe(true);
+    expect(canStep(90, -20, -10)).toBe(false);
+  });
+
+  it("winds a stopwatch on without limit, and back to nought at most", () => {
+    expect(canStep(null, 3600, 60)).toBe(true);
+    expect(canStep(null, 40, -30)).toBe(true);
+    expect(canStep(null, 40, -60)).toBe(false);
   });
 });

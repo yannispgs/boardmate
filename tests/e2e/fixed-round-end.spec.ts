@@ -73,13 +73,23 @@ test("ends automatically after the last round, then scores", async ({
     ).toBeVisible();
     // The countdown is still here — the last turn is being played.
     await expect(
-      page.getByRole("button", { name: /Durée du tour/ }),
+      page.getByRole("button", { name: "Réglages du minuteur" }),
     ).toBeVisible();
+
+    // Every turn lasts the same here: one length to set, nothing per round.
+    await page.getByRole("button", { name: "Réglages du minuteur" }).click();
+
+    const sheet = page.getByRole("dialog", { name: "Réglages du minuteur" });
+
+    await expect(sheet.getByLabel("Durée d'un tour")).toHaveValue("60");
+    await expect(sheet.getByLabel("Plafond")).toHaveCount(0);
+    await expect(sheet.getByLabel("Ajout par manche")).toHaveCount(0);
+    await sheet.getByRole("button", { name: "Annuler" }).click();
 
     await page.getByRole("button", { name: "Compter les points" }).click();
     // Opening the score form takes the timer's place.
     await expect(
-      page.getByRole("button", { name: /Durée du tour/ }),
+      page.getByRole("button", { name: "Réglages du minuteur" }),
     ).toHaveCount(0);
     // Longer than the shortest pause the clock tallies: filling in the sheet is
     // not a pause the table took.

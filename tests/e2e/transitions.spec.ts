@@ -17,7 +17,7 @@ const PLAYER_COUNT = 3;
  * closing it is what rolls the game into the next generation, which is the one
  * moment the screen has something to announce.
  */
-async function seedLastPhase(names: string[]): Promise<string> {
+async function seedLastPhase(names: string[], phase = 2): Promise<string> {
   const admin = adminClient();
   const idOf = await playerIds(names);
 
@@ -25,7 +25,7 @@ async function seedLastPhase(names: string[]): Promise<string> {
     admin,
     await boardgameId(TERRAFORMING_MARS_NAME),
     names.map(name => ({ playerId: idOf(name), score: null })),
-    { ongoing: true, stage: 1, phase: 2 },
+    { ongoing: true, stage: 1, phase },
   );
 }
 
@@ -177,18 +177,17 @@ test.describe("with the animations running", () => {
     let gameId = "";
 
     try {
-      gameId = await seedLastPhase(names);
+      // The action phase, played turn by turn, carries the timer's settings.
+      gameId = await seedLastPhase(names, 1);
 
       await page.goto(`/games/${gameId}/play`);
-      await page
-        .getByRole("button", { name: "Corriger le temps écoulé" })
-        .click();
+      await page.getByRole("button", { name: "Réglages du minuteur" }).click();
 
       // The two drawers of the play screen (FAQ, jalons) are dialogs too, and
       // they stay mounted off-screen — so the modal has to be named, not just
       // asked for by role.
       const modal = page.getByRole("dialog", {
-        name: "Corriger le temps écoulé",
+        name: "Réglages du minuteur",
       });
 
       await expect(modal).toBeVisible();
