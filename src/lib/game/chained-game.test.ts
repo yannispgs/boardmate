@@ -15,6 +15,7 @@ import {
   chainedGame,
   chainedSeats,
   justEnded,
+  ledBy,
 } from "./chained-game";
 
 const PAPAYOO: ScoringSpec = {
@@ -182,5 +183,47 @@ describe("chainedGame with a leader", () => {
     const last = players[players.length - 1];
 
     expect(chainedGame(game(), last.playerId).playerIds[0]).toBe(last.playerId);
+  });
+});
+
+describe("chainedGame with players who came or went", () => {
+  const table = ["b", "z"] as PlayerId[];
+
+  it("seats the table it is given, in its order", () => {
+    expect(chainedGame(game(), null, table).playerIds).toEqual(["b", "z"]);
+  });
+
+  it("turns that table to the drawn player", () => {
+    expect(chainedGame(game(), "z" as PlayerId, table).playerIds).toEqual([
+      "z",
+      "b",
+    ]);
+  });
+
+  it("keeps the rest of the setup as it was", () => {
+    const before = chainedGame(game());
+    const after = chainedGame(game(), null, table);
+
+    expect({ ...after, playerIds: [] }).toEqual({ ...before, playerIds: [] });
+  });
+});
+
+describe("ledBy", () => {
+  it("turns the table so the leader starts, neighbours kept", () => {
+    expect(ledBy(["a", "b", "c"], "c")).toEqual(["c", "a", "b"]);
+  });
+
+  it("leaves the table as it is with no leader, or one not at it", () => {
+    expect(ledBy(["a", "b"], null)).toEqual(["a", "b"]);
+    expect(ledBy(["a", "b"], "z")).toEqual(["a", "b"]);
+  });
+
+  it("finds the leader the way it is told to", () => {
+    const seats = [{ id: "a" }, { id: "b" }];
+
+    expect(ledBy(seats, { id: "b" }, (s, l) => s.id === l.id)).toEqual([
+      { id: "b" },
+      { id: "a" },
+    ]);
   });
 });

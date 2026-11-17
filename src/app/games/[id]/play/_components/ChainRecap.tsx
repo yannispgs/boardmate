@@ -1,8 +1,7 @@
 "use client";
 
 import { SummaryList, SummaryRow } from "@/components/SummaryList";
-import type { FieldSpec, PlayerId, PopulatedGame } from "@/lib/domain";
-import { chainedSeats } from "@/lib/game/chained-game";
+import type { FieldSpec, Player, PopulatedGame } from "@/lib/domain";
 import { configRecap } from "@/lib/game/config-recap";
 import { tracksPlayerTurns } from "@/lib/game/turn-time";
 import { FirstPlayerDraw } from "../../../_components/FirstPlayerDraw";
@@ -17,15 +16,17 @@ import { FirstPlayerDraw } from "../../../_components/FirstPlayerDraw";
  * evening. Nothing is listed because it would be reassuring to see, and anything
  * that stops being carried has to stop being printed here in the same commit.
  *
- * The seats are the reason a recap earns its place at all: chaining asks nothing
- * and changes nothing, so the one thing a table cannot check by looking at the
- * screen it is on is what the *next* party will be set up with.
+ * The seats are the reason a recap earns its place at all: chaining asks nothing,
+ * so the one thing a table cannot check by looking at the screen it is on is
+ * what the *next* party will be set up with — and the players are the one part
+ * of that it may change from here, when somebody arrives or goes home.
  */
 export function ChainRecap({
   game,
   fields,
   loading,
-  leader,
+  seated,
+  onEditPlayers,
   onDrawFirstPlayer,
 }: Readonly<{
   game: PopulatedGame;
@@ -37,18 +38,18 @@ export function ChainRecap({
    * trusted.
    */
   loading: boolean;
-  /** Who the table drew to start the next party, if it did. */
-  leader: PlayerId | null;
+  /** The next party's players, first seat first. */
+  seated: readonly Player[];
+  onEditPlayers: () => void;
   onDrawFirstPlayer: () => void;
 }>) {
   const ordered = tracksPlayerTurns(game.boardgame);
-  const seated = chainedSeats(game.players, leader);
   const names = ordered
     ? seated.map((p, i) => {
-        return `${i + 1}. ${p.player.name}`;
+        return `${i + 1}. ${p.name}`;
       })
     : seated.map(p => {
-        return p.player.name;
+        return p.name;
       });
   const attributes = configRecap(fields, game.configValues);
 
@@ -78,11 +79,16 @@ export function ChainRecap({
         </SummaryRow>
       </SummaryList>
 
+      <button
+        type="button"
+        onClick={onEditPlayers}
+        className="self-start rounded-lg border border-indigo-500/40 px-3 py-1.5 text-sm font-medium text-indigo-600 transition hover:bg-indigo-500/10 dark:text-indigo-400"
+      >
+        👥 Modifier les joueurs
+      </button>
+
       {ordered && seated.length >= 2 ? (
-        <FirstPlayerDraw
-          name={seated[0]?.player.name}
-          onDraw={onDrawFirstPlayer}
-        />
+        <FirstPlayerDraw name={seated[0]?.name} onDraw={onDrawFirstPlayer} />
       ) : null}
 
       {loading ? (

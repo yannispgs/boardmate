@@ -4,12 +4,14 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ErrorText } from "@/components/ErrorText";
-import type { PlayerId, PopulatedGame } from "@/lib/domain";
-import { chainedGame, chainedSeats } from "@/lib/game/chained-game";
+import type { Player, PlayerId, PopulatedGame } from "@/lib/domain";
+import { chainedGame, chainedSeats, ledBy } from "@/lib/game/chained-game";
 import { composeConfigFields } from "@/lib/game/extensions";
+import { tracksPlayerTurns } from "@/lib/game/turn-time";
 import { useConfigs } from "@/lib/hooks/use-configs";
 import { getGameRepository } from "@/lib/repositories";
 import { FirstPlayerWheel } from "../../../_components/FirstPlayerWheel";
+import { ChainPlayersPicker } from "./ChainPlayersPicker";
 import { ChainRecap } from "./ChainRecap";
 
 const DEAL_FAILED = "Impossible d'ouvrir la partie suivante.";
@@ -28,9 +30,11 @@ const DEAL_FAILED = "Impossible d'ouvrir la partie suivante.";
  * exactly what a party can have been launched with off the beaten track, since
  * the funnel lets a party tweak them over its named configuration.
  *
- * The one thing that can change on the way is who starts: a game that hands the
- * turn round offers the first-player wheel from the recap, for an evening where
- * the lead should not simply stay put. It is on offer and never asked for.
+ * Two things can change on the way, both on offer and never asked for: who
+ * plays — somebody arrives or goes home, and the recap opens the funnel's list
+ * of players on the table as it is — and who starts, since a game that hands
+ * the turn round offers the first-player wheel, for an evening where the lead
+ * should not simply stay put. The game itself stays as it was set up.
  *
  * The party behind this button is already recorded, so dealing twice would open
  * two: `router.push` fetches the next party before the screen moves, and that
@@ -49,6 +53,9 @@ export function ChainPartyButton({ game }: Readonly<{ game: PopulatedGame }>) {
   const [asking, setAsking] = useState(false);
   const [wheelOpen, setWheelOpen] = useState(false);
   const [leader, setLeader] = useState<PlayerId | null>(null);
+  // The table picked for the next party, when it is not this one's.
+  const [table, setTable] = useState<Player[] | null>(null);
+  const [picking, setPicking] = useState(false);
   const { template, loading } = useConfigs(game.boardgame.id);
   const [error, setError] = useState<string | null>(null);
   const dealt = useRef(false);
@@ -67,7 +74,13 @@ export function ChainPartyButton({ game }: Readonly<{ game: PopulatedGame }>) {
     setError(null);
 
     try {
-      const next = await getGameRepository().create(chainedGame(game, leader));
+      const next = await getGameRepository().create(
+        chainedGame(
+          game,
+          leader,
+          table?.map(p => p.id),
+        ),
+      );
 
       router.push(`/games/${next.id}/play`);
     } catch {
@@ -79,7 +92,16 @@ export function ChainPartyButton({ game }: Readonly<{ game: PopulatedGame }>) {
   function cancel() {
     setAsking(false);
     setLeader(null);
+    setTable(null);
   }
+
+  // The next party's seats, first seat first: the table as picked, or this
+  // party's, turned to whoever the wheel chose.
+  const sitting = table ?? chainedSeats(game.players, null).map(p => p.player);
+  const seated = ledBy(
+    sitting.map(p => p.id),
+    leader,
+  ).flatMap(id => sitting.filter(p => p.id === id));
 
   return (
     <div className="flex flex-col items-center gap-2">
@@ -101,7 +123,8 @@ export function ChainPartyButton({ game }: Readonly<{ game: PopulatedGame }>) {
               game={game}
               fields={fields}
               loading={loading}
-              leader={leader}
+              seated={seated}
+              onEditPlayers={() => setPicking(true)}
               onDrawFirstPlayer={() => setWheelOpen(true)}
             />
           }
@@ -115,12 +138,28 @@ export function ChainPartyButton({ game }: Readonly<{ game: PopulatedGame }>) {
 
       {wheelOpen ? (
         <FirstPlayerWheel
-          players={chainedSeats(game.players, leader).map(p => p.player)}
+          players={seated}
           onResult={ordered => {
             setLeader(ordered[0]?.id ?? null);
             setWheelOpen(false);
           }}
           onClose={() => setWheelOpen(false)}
+        />
+      ) : null}
+
+      {picking ? (
+        <ChainPlayersPicker
+          table={seated}
+          minPlayers={game.boardgame.minPlayers}
+          maxPlayers={game.boardgame.maxPlayers}
+          ordered={tracksPlayerTurns(game.boardgame)}
+          onDone={picked => {
+            // The order picked is the order dealt: the lead is in it already.
+            setTable(picked);
+            setLeader(null);
+            setPicking(false);
+          }}
+          onClose={() => setPicking(false)}
         />
       ) : null}
     </div>
