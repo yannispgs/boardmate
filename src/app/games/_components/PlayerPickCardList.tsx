@@ -27,7 +27,7 @@ import { PlayerPickCard } from "./PlayerPickCard";
  * how far it may wander meanwhile. Long and still on purpose: the same list is
  * scrolled and tapped all the time, and neither may ever pick a card up.
  */
-const HOLD = { delay: 1000, tolerance: 8 } as const;
+const HOLD = { delay: 500, tolerance: 8 } as const;
 
 /** The cards slide along the list, never across it. */
 const alongTheList: Modifier = ({ transform }) => ({ ...transform, x: 0 });
@@ -38,7 +38,7 @@ const alongTheList: Modifier = ({ transform }) => ({ ...transform, x: 0 });
  * list instead of being hunted for among the players left out.
  *
  * The picked ones can be put in another order without unpicking them: held
- * still for a second, a card lifts, and is dragged to its seat among the other
+ * still for half a second, a card lifts, and is dragged to its seat among the other
  * picked ones. The list scrolls on its own when the card nears its top or
  * bottom edge.
  */

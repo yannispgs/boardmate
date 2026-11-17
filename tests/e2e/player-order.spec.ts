@@ -4,7 +4,7 @@ import { adminClient, CATAN_NAME, seedPlayers } from "./utils/supabase";
 
 /**
  * Putting the picked players in another order without unpicking them
- * (full-suite only — untagged): a card held still for a second lifts and is
+ * (full-suite only — untagged): a card held still for half a second lifts and is
  * dragged to its seat; a press that moves first scrolls, and a tap still picks.
  */
 
@@ -103,8 +103,8 @@ test("moves a picked player to another seat by holding the card", async ({
     const card = (name: string) =>
       page.getByRole("button", { name: new RegExp(`^${name}`) });
 
-    // Held a second, then slid down onto the third seat.
-    await touchDrag(page, card(players[0]), card(players[2]), 1200);
+    // Held half a second, then slid down onto the third seat.
+    await touchDrag(page, card(players[0]), card(players[2]), 700);
 
     await expect
       .poll(() => seats(page, players))
@@ -121,7 +121,7 @@ test("moves a picked player to another seat by holding the card", async ({
 
     // Held, then let go where it was: the player stays picked, in their seat —
     // even once the late tap the phone sends after the finger lifts lands.
-    await touchDrag(page, card(players[2]), card(players[2]), 1200);
+    await touchDrag(page, card(players[2]), card(players[2]), 700);
     await page.waitForTimeout(300);
 
     expect(await seats(page, players)).toEqual([
@@ -183,7 +183,7 @@ test("scrolls the list under a card dragged to its edge", async ({
       });
 
     await touch("touchStart", start.y);
-    await page.waitForTimeout(1200);
+    await page.waitForTimeout(700);
     for (let y = start.y; y <= bottom; y += 15) {
       await touch("touchMove", y);
       await page.waitForTimeout(30);
