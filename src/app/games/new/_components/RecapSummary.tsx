@@ -2,6 +2,7 @@
 
 import { SummaryList, SummaryRow } from "@/components/SummaryList";
 import type { Config, Player } from "@/lib/domain";
+import { FirstPlayerDraw } from "../../_components/FirstPlayerDraw";
 
 /**
  * What the funnel already knows about the game being started — the game, the
@@ -44,21 +45,7 @@ export function RecapSummary({
       </SummaryList>
 
       {ordered && players.length >= 2 ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-black/10 bg-black/[0.02] p-4 text-sm dark:border-white/10 dark:bg-white/[0.02]">
-          <span>
-            <span className="text-zinc-500 dark:text-zinc-400">
-              Premier joueur ·{" "}
-            </span>
-            <span className="font-medium">{players[0]?.name}</span>
-          </span>
-          <button
-            type="button"
-            onClick={onDrawFirstPlayer}
-            className="rounded-lg border border-indigo-500/40 px-3 py-1.5 font-medium text-indigo-600 transition hover:bg-indigo-500/10 dark:text-indigo-400"
-          >
-            🎡 Tirer au sort
-          </button>
-        </div>
+        <FirstPlayerDraw name={players[0]?.name} onDraw={onDrawFirstPlayer} />
       ) : null}
     </>
   );

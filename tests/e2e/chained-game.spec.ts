@@ -342,3 +342,207 @@ test("stops offering the next deal once the table has got up", async ({
     await dropSeeded(admin, { games: [gameId], playerNames: players });
   }
 });
+
+/** A throwaway game, scored on a total, that offers the next deal. */
+async function seedChainableGame(
+  admin: ReturnType<typeof adminClient>,
+): Promise<string | null> {
+  const { data } = await admin
+    .from("boardgames")
+    .insert({
+      name: `E2E Chain ${Date.now().toString(36)}`,
+      min_players: 2,
+      max_players: 4,
+      is_chainable: true,
+      scoring: {
+        timing: "final",
+        entry: "total",
+        winCondition: { type: "highest" },
+      },
+    })
+    .select("id")
+    .single();
+
+  return data?.id ?? null;
+}
+
+test("hands the next party's lead to the wheel, seats turned, when asked", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const players = await seedPlayers(3);
+  const games: string[] = [];
+  let boardgameId: string | null = null;
+
+  try {
+    boardgameId = await seedChainableGame(admin);
+
+    const idOf = await playerIds(players);
+
+    games.push(
+      await seedParty(
+        admin,
+        boardgameId as string,
+        players.map((name, seat) => ({
+          playerId: idOf(name),
+          score: 10 * (seat + 1),
+          isWinner: seat === 2,
+        })),
+      ),
+    );
+
+    await page.goto(`/games/${games[0]}/play`);
+    await page
+      .getByRole("button", { name: "Enchaîner une nouvelle partie" })
+      .click();
+
+    // Nothing is drawn unless somebody asks: the lead stays where it was.
+    await expect(
+      page.getByText(new RegExp(`Premier joueur · ${players[0]}`)),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "🎡 Tirer au sort" }).click();
+
+    const wheel = page.getByRole("dialog", { name: "Roue du premier joueur" });
+
+    await wheel.getByRole("button", { name: "Tourner la roue" }).click();
+
+    const choice = wheel.getByRole("button", { name: /commence$/ });
+
+    await expect(choice).toBeVisible();
+
+    const label = (await choice.textContent()) ?? "";
+    const winner = label.replace(/\s*commence$/, "").trim();
+
+    await choice.click();
+    await expect(wheel).toBeHidden();
+
+    // The recap follows the wheel, since it is what the table is agreeing to.
+    await expect(
+      page.getByText(new RegExp(`Premier joueur · ${winner}`)),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Enchaîner", exact: true }).click();
+    await expect(page).not.toHaveURL(new RegExp(games[0]));
+    await expect(page).toHaveURL(/\/games\/[0-9a-f-]+\/play$/);
+
+    const next = page.url().match(/games\/([0-9a-f-]+)\/play/)?.[1] ?? "";
+
+    games.push(next);
+
+    const lead = players.indexOf(winner);
+    const expected = [...players.slice(lead), ...players.slice(0, lead)];
+    const { data: seats } = await admin
+      .from("game_players")
+      .select("player_id")
+      .eq("game_id", next)
+      .order("seat_order");
+
+    expect(seats?.map(s => s.player_id)).toEqual(expected.map(idOf));
+  } finally {
+    await dropSeeded(admin, {
+      games,
+      boardgames: [boardgameId],
+      playerNames: players,
+    });
+  }
+});
+
+test("deals the next party to the players who stayed, and a newcomer", async ({
+  page,
+}) => {
+  const admin = adminClient();
+  const players = await seedPlayers(4);
+  const games: string[] = [];
+  let boardgameId: string | null = null;
+
+  try {
+    boardgameId = await seedChainableGame(admin);
+
+    const idOf = await playerIds(players);
+    const [anna, bob, carl, dana] = players;
+
+    // Three at the table; the fourth arrives between two deals.
+    games.push(
+      await seedParty(
+        admin,
+        boardgameId as string,
+        [anna, bob, carl].map((name, seat) => ({
+          playerId: idOf(name),
+          score: 10 * (seat + 1),
+          isWinner: seat === 2,
+        })),
+      ),
+    );
+
+    await page.goto(`/games/${games[0]}/play`);
+    await page
+      .getByRole("button", { name: "Enchaîner une nouvelle partie" })
+      .click();
+
+    const recap = page.getByRole("dialog").first();
+    const card = (name: string) =>
+      picker.getByRole("button", { name: new RegExp(`^${name}`) });
+    const picker = page.getByRole("dialog", {
+      name: "Joueurs de la prochaine partie",
+    });
+
+    await expect(
+      recap.getByText(`1. ${anna} · 2. ${bob} · 3. ${carl}`),
+    ).toBeVisible();
+
+    // Changed, then thought better of: the table is as it was.
+    await page.getByRole("button", { name: "👥 Modifier les joueurs" }).click();
+    await card(bob).click();
+    await picker.getByRole("button", { name: "Annuler" }).click();
+    await expect(picker).toBeHidden();
+    await expect(
+      recap.getByText(`1. ${anna} · 2. ${bob} · 3. ${carl}`),
+    ).toBeVisible();
+
+    // Bob goes home, Dana sits down at the end of the table.
+    await page.getByRole("button", { name: "👥 Modifier les joueurs" }).click();
+    await card(bob).click();
+    await card(dana).click();
+    await picker.getByRole("button", { name: "Valider" }).click();
+    await expect(picker).toBeHidden();
+
+    await expect(
+      recap.getByText(`1. ${anna} · 2. ${carl} · 3. ${dana}`),
+    ).toBeVisible();
+    await expect(
+      page.getByText(new RegExp(`Premier joueur · ${anna}`)),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Enchaîner", exact: true }).click();
+    await expect(page).not.toHaveURL(new RegExp(games[0]));
+    await expect(page).toHaveURL(/\/games\/[0-9a-f-]+\/play$/);
+
+    const next = page.url().match(/games\/([0-9a-f-]+)\/play/)?.[1] ?? "";
+
+    games.push(next);
+
+    const { data: seats } = await admin
+      .from("game_players")
+      .select("player_id")
+      .eq("game_id", next)
+      .order("seat_order");
+
+    expect(seats?.map(s => s.player_id)).toEqual([anna, carl, dana].map(idOf));
+
+    // Same game, same evening: only the players changed.
+    const { data: both } = await admin
+      .from("games")
+      .select("boardgame_id, session_id")
+      .in("id", games);
+
+    expect(new Set(both?.map(g => g.session_id)).size).toBe(1);
+    expect(both?.every(g => g.boardgame_id === boardgameId)).toBe(true);
+  } finally {
+    await dropSeeded(admin, {
+      games,
+      boardgames: [boardgameId],
+      playerNames: players,
+    });
+  }
+});
