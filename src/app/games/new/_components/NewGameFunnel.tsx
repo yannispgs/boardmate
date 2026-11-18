@@ -11,19 +11,18 @@ import type {
   ExtensionScenarioId,
   GameStage,
   Player,
-  PlayerId,
 } from "@/lib/domain";
 import { initialScoreFor } from "@/lib/game/scoring";
 import { tracksPlayerTurns } from "@/lib/game/turn-time";
 import { useBoardgames } from "@/lib/hooks/use-boardgames";
 import { useConfigs } from "@/lib/hooks/use-configs";
 import { useGames } from "@/lib/hooks/use-games";
-import { usePlayers } from "@/lib/hooks/use-players";
-import { toggled } from "@/lib/ui/selection";
+import { PlayerCountNote } from "../../_components/PlayerCountNote";
+import { PlayerPickCardList } from "../../_components/PlayerPickCardList";
+import { tileClass } from "../../_components/tile-class";
+import { usePlayerPick } from "../../_components/use-player-pick";
 import { FunnelStep } from "./FunnelStep";
-import { PlayerPickCardList } from "./PlayerPickCardList";
 import { RecapStep } from "./RecapStep";
-import { tileClass } from "./tile-class";
 
 export function NewGameFunnel() {
   const router = useRouter();
@@ -209,26 +208,7 @@ function PlayersStep({
   onConfirm: (players: Player[]) => void;
   onBack: () => void;
 }>) {
-  const { players, loading } = usePlayers();
-  const [selected, setSelected] = useState<PlayerId[]>(initial.map(p => p.id));
-
-  const active = players.filter(p => p.isActive);
-
-  function toggle(id: PlayerId) {
-    setSelected(prev => toggled(prev, id));
-  }
-
-  const tooFew = minPlayers != null && selected.length < minPlayers;
-  const tooMany = maxPlayers != null && selected.length > maxPlayers;
-  const canContinue = selected.length >= 1 && !tooFew && !tooMany;
-
-  // The click order is the seat / turn order.
-  const picked = selected
-    .map(id => active.find(p => p.id === id))
-    .filter((p): p is Player => p != null);
-  // Picked players sit at the top of the list, first seat first, so the order
-  // being built is read at a glance rather than hunted for among the others.
-  const listed = [...picked, ...active.filter(p => !selected.includes(p.id))];
+  const pick = usePlayerPick({ initial, minPlayers, maxPlayers });
 
   return (
     <FunnelStep
@@ -240,22 +220,17 @@ function PlayersStep({
       onBack={onBack}
       footer={
         <>
-          <p className="text-xs text-zinc-500">
-            {selected.length} sélectionné{selected.length > 1 ? "s" : ""}
-            {minPlayers != null || maxPlayers != null
-              ? ` · recommandé ${minPlayers ?? "?"}–${maxPlayers ?? "?"}`
-              : ""}
-          </p>
-          {tooMany ? (
-            <p className="text-sm text-amber-600 dark:text-amber-400">
-              Ce jeu se joue à {maxPlayers} joueurs max.
-            </p>
-          ) : null}
+          <PlayerCountNote
+            count={pick.selected.length}
+            minPlayers={minPlayers}
+            maxPlayers={maxPlayers}
+            tooMany={pick.tooMany}
+          />
 
           <button
             type="button"
-            disabled={!canContinue}
-            onClick={() => onConfirm(picked)}
+            disabled={!pick.canContinue}
+            onClick={() => onConfirm(pick.picked)}
             className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
           >
             Continuer →
@@ -264,15 +239,16 @@ function PlayersStep({
       }
     >
       <ListState
-        loading={loading}
-        empty={active.length === 0}
+        loading={pick.loading}
+        empty={pick.active.length === 0}
         emptyLabel="Aucun joueur actif. Ajoute-en dans « Joueurs »."
       >
         <PlayerPickCardList
-          players={listed}
-          selected={selected}
+          players={pick.listed}
+          selected={pick.selected}
           ordered={ordered}
-          onToggle={toggle}
+          onToggle={pick.toggle}
+          onReorder={pick.reorder}
         />
       </ListState>
     </FunnelStep>
