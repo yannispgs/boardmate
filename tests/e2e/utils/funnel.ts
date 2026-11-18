@@ -6,15 +6,16 @@ import { CATAN_NAME } from "./supabase";
  * Walks the new-game funnel as far as the recap — jeu → config → joueurs — and
  * stops there, where a scenario can tweak what the table is about to play.
  * Pass a `configName` to pick a seeded config, or omit it to play « Sans
- * configuration ».
+ * configuration ». The game is Catan unless `gameName` says otherwise.
  */
 export async function funnelToRecap(
   page: Page,
   players: string[],
   configName?: string,
+  gameName: string = CATAN_NAME,
 ): Promise<void> {
   await page.goto("/games/new");
-  await page.getByRole("button", { name: CATAN_NAME, exact: true }).click();
+  await page.getByRole("button", { name: gameName, exact: true }).click();
 
   await page
     .getByRole("button", {
@@ -45,6 +46,15 @@ export async function funnelToPlay(
   // Recap step, then the board step Catan games get, then the final dialog.
   await page.getByRole("button", { name: "Choisis le plateau →" }).click();
   await page.getByRole("button", { name: "Valider ce plateau" }).click();
+
+  return confirmLaunch(page);
+}
+
+/**
+ * Confirms the final « Lancer » dialog and waits for the play screen. Returns
+ * the new game's id (parsed from the URL).
+ */
+export async function confirmLaunch(page: Page): Promise<string> {
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "Lancer", exact: true })

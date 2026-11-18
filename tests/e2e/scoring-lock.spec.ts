@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { type Browser, expect, type Page, test } from "@playwright/test";
 
+import { confirmLaunch, funnelToRecap } from "./utils/funnel";
 import { adminClient, seedPlayers } from "./utils/supabase";
 
 const OTHER_COUNTING =
@@ -17,23 +18,44 @@ async function secondPhone(browser: Browser): Promise<Page> {
 
 /** Deals a Papayoo party from the play funnel, and returns its id. */
 async function dealPapayoo(page: Page, players: string[]): Promise<string> {
-  await page.goto("/games/new");
-  await page.getByRole("button", { name: "Papayoo", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Sans configuration", exact: true })
-    .click();
-  for (const name of players) {
-    await page.getByRole("button", { name, exact: true }).click();
-  }
-  await page.getByRole("button", { name: "Continuer →" }).click();
+  await funnelToRecap(page, players, undefined, "Papayoo");
   await page.getByRole("button", { name: "Lancer la partie" }).click();
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "Lancer", exact: true })
-    .click();
-  await expect(page).toHaveURL(/\/games\/[0-9a-f-]+\/play$/);
 
-  return page.url().match(/games\/([0-9a-f-]+)\/play/)?.[1] ?? "";
+  return confirmLaunch(page);
+}
+
+interface Table {
+  admin: ReturnType<typeof adminClient>;
+  players: string[];
+  gameId: string;
+  other: Page;
+}
+
+/**
+ * Deals a Papayoo party for three seeded players, opens it on a second phone
+ * too, runs the scenario, then clears the party and the players away.
+ */
+async function atTable(
+  page: Page,
+  browser: Browser,
+  scenario: (table: Table) => Promise<void>,
+): Promise<void> {
+  const admin = adminClient();
+  const players = await seedPlayers(3);
+  let gameId: string | null = null;
+  const other = await secondPhone(browser);
+
+  try {
+    gameId = await dealPapayoo(page, players);
+    await other.goto(`/games/${gameId}/play`);
+    await scenario({ admin, players, gameId, other });
+  } finally {
+    await other.context().close();
+    if (gameId) {
+      await admin.from("games").delete().eq("id", gameId);
+    }
+    await admin.from("players").delete().in("name", players);
+  }
 }
 
 /**
@@ -45,15 +67,7 @@ test("holds the score form for the phone counting the points", async ({
   page,
   browser,
 }) => {
-  const admin = adminClient();
-  const players = await seedPlayers(3);
-  let gameId: string | null = null;
-  const other = await secondPhone(browser);
-
-  try {
-    gameId = await dealPapayoo(page, players);
-    await other.goto(`/games/${gameId}/play`);
-
+  await atTable(page, browser, async ({ admin, players, gameId, other }) => {
     const otherOpen = other.getByRole("button", { name: "Entrer les scores" });
 
     await expect(otherOpen).toBeEnabled();
@@ -122,27 +136,14 @@ test("holds the score form for the phone counting the points", async ({
       .order("seat_order");
 
     expect((recorded ?? []).map(r => r.score)).toEqual([100, 150, 0]);
-  } finally {
-    await other.context().close();
-    if (gameId) {
-      await admin.from("games").delete().eq("id", gameId);
-    }
-    await admin.from("players").delete().in("name", players);
-  }
+  });
 });
 
 test("asks before a link or the back button takes the phone counting the points away", async ({
   page,
   browser,
 }) => {
-  const admin = adminClient();
-  const players = await seedPlayers(3);
-  let gameId: string | null = null;
-  const other = await secondPhone(browser);
-
-  try {
-    gameId = await dealPapayoo(page, players);
-    await other.goto(`/games/${gameId}/play`);
+  await atTable(page, browser, async ({ players, gameId, other }) => {
     await page.getByRole("button", { name: "Entrer les scores" }).click();
     await page.getByLabel(`Score de ${players[0]}`).fill("100");
 
@@ -188,28 +189,14 @@ test("asks before a link or the back button takes the phone counting the points 
       other.getByRole("button", { name: "Entrer les scores" }),
     ).toBeEnabled();
     await expect(other.getByText(OTHER_COUNTING)).toHaveCount(0);
-  } finally {
-    await other.context().close();
-    if (gameId) {
-      await admin.from("games").delete().eq("id", gameId);
-    }
-    await admin.from("players").delete().in("name", players);
-  }
+  });
 });
 
 test("leaves by the back button once the player says so", async ({
   page,
   browser,
 }) => {
-  const admin = adminClient();
-  const players = await seedPlayers(3);
-  let gameId: string | null = null;
-  const other = await secondPhone(browser);
-
-  try {
-    gameId = await dealPapayoo(page, players);
-    await other.goto(`/games/${gameId}/play`);
-
+  await atTable(page, browser, async ({ other }) => {
     const open = page.getByRole("button", { name: "Entrer les scores" });
 
     // Given back while staying: the back button leaves at once, no question.
@@ -230,11 +217,5 @@ test("leaves by the back button once the player says so", async ({
       other.getByRole("button", { name: "Entrer les scores" }),
     ).toBeEnabled();
     await expect(other.getByText(OTHER_COUNTING)).toHaveCount(0);
-  } finally {
-    await other.context().close();
-    if (gameId) {
-      await admin.from("games").delete().eq("id", gameId);
-    }
-    await admin.from("players").delete().in("name", players);
-  }
+  });
 });
