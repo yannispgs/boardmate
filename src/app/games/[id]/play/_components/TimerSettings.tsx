@@ -45,6 +45,74 @@ function SecondsField({
 }
 
 /**
+ * The settings at a glance, under the countdown — indigo once the party has
+ * its own — and the way into them.
+ */
+function ScheduleChip({
+  schedule,
+  changed,
+  onClick,
+}: Readonly<{
+  schedule: TurnSchedule;
+  changed: boolean;
+  onClick: () => void;
+}>) {
+  return (
+    <button
+      type="button"
+      aria-label="Réglages du minuteur"
+      onClick={onClick}
+      className={`whitespace-nowrap rounded-full border px-3 py-1 text-sm shadow-sm transition ${
+        changed
+          ? "border-indigo-500/40 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300 dark:hover:bg-indigo-900"
+          : "border-black/10 bg-white text-zinc-600 hover:bg-zinc-50 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+      }`}
+    >
+      ⏱️ {formatDuration(schedule.baseS)}
+      {isFixedSchedule(schedule)
+        ? " par tour"
+        : ` · +${schedule.stepS} s/manche`}{" "}
+      ›
+    </button>
+  );
+}
+
+/** How long the turn being played would last, and what is left of it. */
+function TurnPreview({
+  fixed,
+  round,
+  turnS,
+  elapsedS,
+}: Readonly<{
+  fixed: boolean;
+  round: number;
+  turnS: number;
+  elapsedS: number;
+}>) {
+  return (
+    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+      {fixed ? "Ce tour" : `Manche ${round} : ce tour`} dure{" "}
+      <span className="font-semibold tabular-nums">
+        {formatDuration(turnS)}
+      </span>
+      {" · "}
+      {turnS - elapsedS >= 0 ? (
+        <>
+          il reste{" "}
+          <span className="font-semibold tabular-nums">
+            {formatDuration(turnS - elapsedS)}
+          </span>
+        </>
+      ) : (
+        <span className="font-semibold tabular-nums text-red-600 dark:text-red-400">
+          +{formatDuration(elapsedS - turnS)} de dépassement
+        </span>
+      )}
+    </p>
+  );
+}
+
+/**
  * The timer's settings, for this party only: how long a turn lasts — or, on a
  * game whose turns grow round by round, how long the first one lasts, what each
  * round adds and where it stops. The game's configuration is never touched.
@@ -111,22 +179,7 @@ export function TimerSettings({
 
   return (
     <>
-      <button
-        type="button"
-        aria-label="Réglages du minuteur"
-        onClick={start}
-        className={`whitespace-nowrap rounded-full border px-3 py-1 text-sm shadow-sm transition ${
-          changed
-            ? "border-indigo-500/40 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300 dark:hover:bg-indigo-900"
-            : "border-black/10 bg-white text-zinc-600 hover:bg-zinc-50 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
-        }`}
-      >
-        ⏱️ {formatDuration(schedule.baseS)}
-        {isFixedSchedule(schedule)
-          ? " par tour"
-          : ` · +${schedule.stepS} s/manche`}{" "}
-        ›
-      </button>
+      <ScheduleChip schedule={schedule} changed={changed} onClick={start} />
 
       {open ? (
         <Modal
@@ -166,25 +219,12 @@ export function TimerSettings({
             {turnS === null ? (
               <ErrorText message={error} />
             ) : (
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                {fixed ? "Ce tour" : `Manche ${round} : ce tour`} dure{" "}
-                <span className="font-semibold tabular-nums">
-                  {formatDuration(turnS)}
-                </span>
-                {" · "}
-                {turnS - elapsedS >= 0 ? (
-                  <>
-                    il reste{" "}
-                    <span className="font-semibold tabular-nums">
-                      {formatDuration(turnS - elapsedS)}
-                    </span>
-                  </>
-                ) : (
-                  <span className="font-semibold tabular-nums text-red-600 dark:text-red-400">
-                    +{formatDuration(elapsedS - turnS)} de dépassement
-                  </span>
-                )}
-              </p>
+              <TurnPreview
+                fixed={fixed}
+                round={round}
+                turnS={turnS}
+                elapsedS={elapsedS}
+              />
             )}
 
             {changed ? (

@@ -139,7 +139,12 @@ test("corrects the time left with the steps beside the clock", async ({
       expect(apart).toBe(true);
     }
 
-    await page.waitForTimeout(2500);
+    // Long enough for a running clock to have shown two seconds less.
+    const since = Date.now();
+
+    await expect
+      .poll(() => Date.now() - since, { timeout: 5000 })
+      .toBeGreaterThanOrEqual(2500);
     expect(await clockSeconds(page)).toBe(held);
 
     // A 45-second turn with under 45 s left: nothing more to add, and no

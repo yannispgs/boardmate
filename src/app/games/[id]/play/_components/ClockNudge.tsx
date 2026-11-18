@@ -67,8 +67,7 @@ export function ClockNudge({
       </button>
 
       {open ? (
-        <div
-          role="group"
+        <fieldset
           aria-label={sign > 0 ? "Ajouter du temps" : "Retirer du temps"}
           className={`absolute left-full ml-2 ${level} flex gap-1 rounded-xl border border-black/10 bg-white p-1 shadow-lg dark:border-white/15 dark:bg-zinc-900`}
         >
@@ -91,7 +90,7 @@ export function ClockNudge({
               </button>
             );
           })}
-        </div>
+        </fieldset>
       ) : null}
     </div>
   );

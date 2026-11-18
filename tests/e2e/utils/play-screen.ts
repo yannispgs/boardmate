@@ -38,17 +38,21 @@ export async function takeStage(page: Page): Promise<void> {
 export async function nudgeClock(page: Page, steps: string[]): Promise<void> {
   const layer = page.locator(".clock-layer:visible");
 
+  // One step after the other, as a finger would: each lands on the clock the
+  // previous one left, so none of them can be sent at once.
   for (const step of steps) {
     const opener = step.startsWith("Ajouter")
       ? "Ajouter du temps"
       : "Retirer du temps";
     const group = layer.getByRole("group", { name: opener });
 
-    if (!(await group.isVisible())) {
-      await layer.getByRole("button", { name: opener }).click();
+    const shut = !(await group.isVisible()); // NOSONAR: sequential, see above.
+
+    if (shut) {
+      await layer.getByRole("button", { name: opener }).click(); // NOSONAR
     }
 
-    await group.getByRole("button", { name: step }).click();
+    await group.getByRole("button", { name: step }).click(); // NOSONAR
   }
 
   await page.getByRole("button", { name: "Fermer la correction" }).click();
@@ -67,8 +71,9 @@ export async function setTimer(
 
   const sheet = page.getByRole("dialog", { name: "Réglages du minuteur" });
 
+  // One field after the other: the sheet takes one keyboard at a time.
   for (const [label, value] of Object.entries(fields)) {
-    await sheet.getByLabel(label).fill(value);
+    await sheet.getByLabel(label).fill(value); // NOSONAR: sequential on purpose.
   }
 
   await sheet.getByRole("button", { name: "Valider" }).click();
