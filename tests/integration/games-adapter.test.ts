@@ -1065,8 +1065,14 @@ describe("games adapter — bets written down donne by donne (Luz)", () => {
       },
     });
     expect(data?.phases).toEqual([
+      {
+        key: "deal",
+        label: "Distribution",
+        mode: "sequential",
+        clock: "stopwatch",
+      },
       { key: "bet", label: "Pari", mode: "sequential", clock: "stopwatch" },
-      { key: "tricks", label: "Pli", mode: "sequential", clock: "stopwatch" },
+      { key: "tricks", label: "Plis", mode: "sequential", clock: "stopwatch" },
     ]);
     expect(data?.scoring).toMatchObject({
       winCondition: { type: "highest" },
