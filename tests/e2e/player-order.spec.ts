@@ -41,14 +41,44 @@ function centre(box: { x: number; y: number; width: number; height: number }) {
 }
 
 /**
- * A finger held on `from` for `holdMs`, then slid onto `to` and lifted — sent
- * as raw touches, the way a phone does, through Chromium's protocol.
+ * Lets the page draw `count` frames — what a finger's next move waits for on
+ * a phone, rather than a guess at a number of milliseconds.
+ */
+async function frames(page: Page, count: number): Promise<void> {
+  await page.evaluate(
+    n =>
+      new Promise<void>(resolve => {
+        let left = n;
+        const tick = () => {
+          left -= 1;
+          if (left <= 0) {
+            resolve();
+          } else {
+            requestAnimationFrame(tick);
+          }
+        };
+
+        requestAnimationFrame(tick);
+      }),
+    count,
+  );
+}
+
+/** The card a held press has lifted, once it has. */
+function lifted(page: Page): Locator {
+  return page.locator("li[data-dragging]");
+}
+
+/**
+ * A finger held on `from` — until the card lifts, when `hold` — then slid onto
+ * `to` and lifted, sent as raw touches, the way a phone does, through
+ * Chromium's protocol. Without `hold` the finger moves at once, as to scroll.
  */
 async function touchDrag(
   page: Page,
   from: Locator,
   to: Locator,
-  holdMs: number,
+  hold: boolean,
 ): Promise<void> {
   const cdp = await page.context().newCDPSession(page);
   const start = centre((await from.boundingBox()) ?? fail());
@@ -63,7 +93,9 @@ async function touchDrag(
   const end = centre((await to.boundingBox()) ?? fail());
 
   await touch("touchStart", start.x, start.y);
-  await page.waitForTimeout(holdMs);
+  if (hold) {
+    await expect(lifted(page)).toHaveCount(1);
+  }
 
   for (let step = 1; step <= 15; step += 1) {
     await touch(
@@ -71,11 +103,21 @@ async function touchDrag(
       start.x,
       start.y + ((end.y - start.y) * step) / 15,
     );
-    await page.waitForTimeout(30);
+    await frames(page, 2);
   }
 
   await touch("touchMove", end.x, end.y);
-  await page.waitForTimeout(150);
+  if (hold) {
+    // The card has caught up with the finger, over the seat aimed at.
+    await expect
+      .poll(async () => {
+        const box = (await lifted(page).boundingBox()) ?? fail();
+
+        return Math.abs(centre(box).y - end.y);
+      })
+      .toBeLessThan(8);
+  }
+  await frames(page, 3);
   await touch("touchEnd", end.x, end.y);
 }
 
@@ -87,7 +129,9 @@ test("moves a picked player to another seat by holding the card", async ({
   page,
   browserName,
 }) => {
-  test.skip(browserName !== "chromium", "raw touches go through Chromium");
+  // Raw touches are sent through Chromium's own protocol (CDP), which WebKit
+  // does not speak: there is nothing to run there.
+  test.skip(browserName !== "chromium", "raw touches go through Chromium"); // NOSONAR
 
   const players = await seedPlayers(3);
 
@@ -104,14 +148,14 @@ test("moves a picked player to another seat by holding the card", async ({
       page.getByRole("button", { name: new RegExp(`^${name}`) });
 
     // Held half a second, then slid down onto the third seat.
-    await touchDrag(page, card(players[0]), card(players[2]), 700);
+    await touchDrag(page, card(players[0]), card(players[2]), true);
 
     await expect
       .poll(() => seats(page, players))
       .toEqual([`${players[1]}:1`, `${players[2]}:2`, `${players[0]}:3`]);
 
     // A finger that moves straight away is scrolling: nothing is lifted.
-    await touchDrag(page, card(players[1]), card(players[0]), 0);
+    await touchDrag(page, card(players[1]), card(players[0]), false);
 
     expect(await seats(page, players)).toEqual([
       `${players[1]}:1`,
@@ -121,8 +165,9 @@ test("moves a picked player to another seat by holding the card", async ({
 
     // Held, then let go where it was: the player stays picked, in their seat —
     // even once the late tap the phone sends after the finger lifts lands.
-    await touchDrag(page, card(players[2]), card(players[2]), 700);
-    await page.waitForTimeout(300);
+    await touchDrag(page, card(players[2]), card(players[2]), true);
+    // Long enough for the late tap a phone sends after a long press to land.
+    await frames(page, 20);
 
     expect(await seats(page, players)).toEqual([
       `${players[1]}:1`,
@@ -144,7 +189,9 @@ test("scrolls the list under a card dragged to its edge", async ({
   page,
   browserName,
 }) => {
-  test.skip(browserName !== "chromium", "raw touches go through Chromium");
+  // Raw touches are sent through Chromium's own protocol (CDP), which WebKit
+  // does not speak: there is nothing to run there.
+  test.skip(browserName !== "chromium", "raw touches go through Chromium"); // NOSONAR
 
   const players = await seedPlayers(8);
 
@@ -190,7 +237,7 @@ test("scrolls the list under a card dragged to its edge", async ({
 
       for (let i = 0; i < 16; i += 1) {
         await touch("touchMove", y + (i % 2));
-        await page.waitForTimeout(50);
+        await frames(page, 3);
       }
 
       const [top1, t1] = await mark();
@@ -201,10 +248,10 @@ test("scrolls the list under a card dragged to its edge", async ({
     const shallow = edge.y + edge.height - band * 0.85;
 
     await touch("touchStart", start.y);
-    await page.waitForTimeout(700);
+    await expect(lifted(page)).toHaveCount(1);
     for (let y = start.y; y <= shallow; y += 15) {
       await touch("touchMove", y);
-      await page.waitForTimeout(30);
+      await frames(page, 2);
     }
 
     // Just into the band, the list creeps; on the edge it runs — but never
@@ -218,12 +265,12 @@ test("scrolls the list under a card dragged to its edge", async ({
 
     for (let y = shallow; y <= bottom; y += 15) {
       await touch("touchMove", y);
-      await page.waitForTimeout(30);
+      await frames(page, 2);
     }
     // A finger held still on the edge still trembles: so does this one.
     for (let i = 0; i < 40; i += 1) {
       await touch("touchMove", bottom + (i % 2));
-      await page.waitForTimeout(50);
+      await frames(page, 3);
     }
     await touch("touchEnd", bottom);
 

@@ -343,6 +343,29 @@ test("stops offering the next deal once the table has got up", async ({
   }
 });
 
+/** A throwaway game, scored on a total, that offers the next deal. */
+async function seedChainableGame(
+  admin: ReturnType<typeof adminClient>,
+): Promise<string | null> {
+  const { data } = await admin
+    .from("boardgames")
+    .insert({
+      name: `E2E Chain ${Date.now().toString(36)}`,
+      min_players: 2,
+      max_players: 4,
+      is_chainable: true,
+      scoring: {
+        timing: "final",
+        entry: "total",
+        winCondition: { type: "highest" },
+      },
+    })
+    .select("id")
+    .single();
+
+  return data?.id ?? null;
+}
+
 test("hands the next party's lead to the wheel, seats turned, when asked", async ({
   page,
 }) => {
@@ -352,22 +375,7 @@ test("hands the next party's lead to the wheel, seats turned, when asked", async
   let boardgameId: string | null = null;
 
   try {
-    const { data } = await admin
-      .from("boardgames")
-      .insert({
-        name: `E2E Chain ${Date.now().toString(36)}`,
-        min_players: 2,
-        max_players: 4,
-        is_chainable: true,
-        scoring: {
-          timing: "final",
-          entry: "total",
-          winCondition: { type: "highest" },
-        },
-      })
-      .select("id")
-      .single();
-    boardgameId = data?.id ?? null;
+    boardgameId = await seedChainableGame(admin);
 
     const idOf = await playerIds(players);
 
@@ -449,22 +457,7 @@ test("deals the next party to the players who stayed, and a newcomer", async ({
   let boardgameId: string | null = null;
 
   try {
-    const { data } = await admin
-      .from("boardgames")
-      .insert({
-        name: `E2E Chain ${Date.now().toString(36)}`,
-        min_players: 2,
-        max_players: 4,
-        is_chainable: true,
-        scoring: {
-          timing: "final",
-          entry: "total",
-          winCondition: { type: "highest" },
-        },
-      })
-      .select("id")
-      .single();
-    boardgameId = data?.id ?? null;
+    boardgameId = await seedChainableGame(admin);
 
     const idOf = await playerIds(players);
     const [anna, bob, carl, dana] = players;
