@@ -443,17 +443,16 @@ test("plays a donne in three phases: the deal, the bets, then the tricks", async
     await page.goto(`/games/${party}/play`);
 
     // The points wait for the tricks: the deal and the bets only hand on.
-    await expect(page.getByText("Ensuite : Pari")).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Fin de la donne 1 →" }),
-    ).toHaveCount(0);
-    await page.getByRole("button", { name: "Phase terminée →" }).click();
+    const closeDonne1 = page.getByRole("button", {
+      name: "Fin de la donne 1 →",
+    });
 
-    await expect(page.getByText("Ensuite : Plis")).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Fin de la donne 1 →" }),
-    ).toHaveCount(0);
-    await page.getByRole("button", { name: "Phase terminée →" }).click();
+    // One phase after the other, hence the awaits in the loop.
+    for (const next of ["Pari", "Plis"]) {
+      await expect(page.getByText(`Ensuite : ${next}`)).toBeVisible(); // NOSONAR
+      await expect(closeDonne1).toHaveCount(0); // NOSONAR
+      await page.getByRole("button", { name: "Phase terminée →" }).click(); // NOSONAR
+    }
 
     const recap = await closeDonne(page, 1, [
       { name: first, points: 10 },
