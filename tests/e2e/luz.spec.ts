@@ -394,6 +394,36 @@ test("records a night typed in afterwards, donne by donne", async ({
   }
 });
 
+/** A Luz of two donnes, played in the three phases of the real one. */
+function seedPhasedLuz(admin: ReturnType<typeof adminClient>): Promise<string> {
+  return seedBoardgame(admin, {
+    name: `E2E Luz phases ${Date.now().toString(36)}`,
+    minPlayers: 2,
+    scoring: {
+      timing: "final",
+      entry: "total",
+      winCondition: { type: "highest" },
+      allowNegative: true,
+    },
+    stages: { label: "Donne", advance: "manual", count: 2, bet: BET },
+    phases: [
+      {
+        key: "deal",
+        label: "Distribution",
+        mode: "sequential",
+        clock: "stopwatch",
+      },
+      { key: "bet", label: "Pari", mode: "sequential", clock: "stopwatch" },
+      {
+        key: "tricks",
+        label: "Plis",
+        mode: "sequential",
+        clock: "stopwatch",
+      },
+    ],
+  });
+}
+
 test("plays a donne in three phases: the deal, the bets, then the tricks", async ({
   page,
 }) => {
@@ -404,32 +434,7 @@ test("plays a donne in three phases: the deal, the bets, then the tricks", async
   let bgId: string | null = null;
 
   try {
-    bgId = await seedBoardgame(admin, {
-      name: `E2E Luz phases ${Date.now().toString(36)}`,
-      minPlayers: 2,
-      scoring: {
-        timing: "final",
-        entry: "total",
-        winCondition: { type: "highest" },
-        allowNegative: true,
-      },
-      stages: { label: "Donne", advance: "manual", count: 2, bet: BET },
-      phases: [
-        {
-          key: "deal",
-          label: "Distribution",
-          mode: "sequential",
-          clock: "stopwatch",
-        },
-        { key: "bet", label: "Pari", mode: "sequential", clock: "stopwatch" },
-        {
-          key: "tricks",
-          label: "Plis",
-          mode: "sequential",
-          clock: "stopwatch",
-        },
-      ],
-    });
+    bgId = await seedPhasedLuz(admin);
 
     const idOf = await playerIds(players);
     const party = await seedParty(
