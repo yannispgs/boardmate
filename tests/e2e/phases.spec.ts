@@ -124,6 +124,14 @@ test("corrects the phase stopwatch, and banks the corrected time", async ({
 
     await page.goto(`/games/${gameId}/play`);
 
+    // A stopwatch only counts up: it has no timer to set.
+    await expect(
+      page.getByRole("button", { name: "Ajouter du temps" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Réglages du minuteur" }),
+    ).toHaveCount(0);
+
     // Hold the stopwatch still for the rest of the test, so the figures below
     // are the correction's and not the clock's own drift.
     await page.getByRole("button", { name: "Mettre en pause" }).click();

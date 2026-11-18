@@ -76,6 +76,20 @@ test("ends automatically after the last round, then scores", async ({
       page.getByRole("button", { name: "Ajouter du temps" }),
     ).toBeVisible();
 
+    // Every turn lasts the same here: one length to set, nothing per round —
+    // and the button under the disc says so.
+    const settings = page.getByRole("button", { name: "Réglages du minuteur" });
+
+    await expect(settings).toHaveText(/1:00 par tour/);
+    await settings.click();
+
+    const sheet = page.getByRole("dialog", { name: "Réglages du minuteur" });
+
+    await expect(sheet.getByLabel("Durée d'un tour")).toHaveValue("60");
+    await expect(sheet.getByLabel("Plafond")).toHaveCount(0);
+    await expect(sheet.getByLabel("Ajout par manche")).toHaveCount(0);
+    await sheet.getByRole("button", { name: "Annuler" }).click();
+
     await page.getByRole("button", { name: "Compter les points" }).click();
     // Opening the score form takes the timer's place.
     await expect(

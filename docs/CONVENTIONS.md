@@ -103,7 +103,9 @@ otherwise. **Updated on every remark from the project owner.**
 - **Always ship through a Pull Request.** Never push/merge straight to `main`.
   The owner reviews and merges every PR himself (review + ownership).
 - **PR description** must recap the change from the **user's point of view**,
-  grouped by view (see the review below); no test/validation section.
+  grouped by view (see the review below), and end with a **« Plan de test »**:
+  the manual scenarios to run in the app to check the change, step by step,
+  each with the result to expect (not a list of the automated tests).
 - **CI/CD flag (first line) + `configuration` label.** When a PR touches
   **CI/CD configuration or CI tooling configuration**, start the description with
   a short flag **and add the `configuration` label** to the PR, so the owner
@@ -364,3 +366,6 @@ server's.
   time** (`toLocaleString`/`Intl`, client-side), and file a game under its
   **local** day (`localDay`) — never the UTC one. Owner's call, after a game
   played after midnight was listed on the day before.
+- _2026-11-18_ — **« Plan de test » in PR descriptions** (§8): every PR ends with
+  the manual scenarios to run in the app to check it, replacing the former « no
+  test section » rule. Owner's call.

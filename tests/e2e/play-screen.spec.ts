@@ -1,7 +1,12 @@
 import { expect, test } from "@playwright/test";
 
 import { funnelToPlay } from "./utils/funnel";
-import { clockSeconds, nudgeClock, pausedBadge } from "./utils/play-screen";
+import {
+  clockSeconds,
+  nudgeClock,
+  pausedBadge,
+  setTimer,
+} from "./utils/play-screen";
 import {
   adminClient,
   CATAN_ID,
@@ -30,6 +35,68 @@ test("pauses and resumes the turn timer", async ({ page }) => {
     await expect(
       page.getByRole("button", { name: "Mettre en pause" }),
     ).toBeVisible();
+  } finally {
+    const admin = adminClient();
+    if (gameId) {
+      await admin.from("games").delete().eq("id", gameId);
+    }
+    await admin.from("players").delete().in("name", players);
+  }
+});
+
+test("sets the timer for this party only, and keeps it on this phone", async ({
+  page,
+}) => {
+  const players = await seedPlayers(CATAN_MIN_PLAYERS);
+  let gameId = "";
+
+  try {
+    gameId = await funnelToPlay(page, players);
+
+    // Under the disc, the settings the turns are timed on, at a glance.
+    const settings = page.getByRole("button", { name: "Réglages du minuteur" });
+
+    await expect(settings).toHaveText(/0:45 · \+5 s\/manche/);
+
+    // Catan's turns grow round by round, so all three settings are offered,
+    // with the configuration's values to start from.
+    await settings.click();
+
+    const sheet = page.getByRole("dialog", { name: "Réglages du minuteur" });
+
+    await expect(sheet.getByLabel("Durée de la 1ʳᵉ manche")).toHaveValue("45");
+    await expect(sheet.getByLabel("Ajout par manche")).toHaveValue("5");
+    await expect(sheet.getByLabel("Plafond")).toBeVisible();
+
+    // A cap shorter than the first turn cannot be timed on.
+    await sheet.getByLabel("Plafond").fill("10");
+    await expect(sheet.getByRole("button", { name: "Valider" })).toBeDisabled();
+    await sheet.getByRole("button", { name: "Annuler" }).click();
+
+    // The turn takes its new length at once, on the time already played.
+    await setTimer(page, { "Durée de la 1ʳᵉ manche": "300", Plafond: "600" });
+    await expect(settings).toHaveText(/5:00 · \+5 s\/manche/);
+    await expect.poll(() => clockSeconds(page)).toBeGreaterThan(250);
+
+    // A reload finds them again: they are kept on this phone…
+    await page.reload();
+    await expect.poll(() => clockSeconds(page)).toBeGreaterThan(250);
+
+    // …and never written to the party, whose configuration stays as launched.
+    const { data: party } = await adminClient()
+      .from("games")
+      .select("config_values")
+      .eq("id", gameId)
+      .single();
+
+    expect(JSON.stringify(party?.config_values ?? {})).not.toContain("300");
+
+    // Back to the configuration's settings in one tap.
+    await page.getByRole("button", { name: "Réglages du minuteur" }).click();
+    await sheet
+      .getByRole("button", { name: "Revenir aux réglages de la configuration" })
+      .click();
+    await expect.poll(() => clockSeconds(page)).toBeLessThanOrEqual(45);
   } finally {
     const admin = adminClient();
     if (gameId) {
