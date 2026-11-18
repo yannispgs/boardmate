@@ -29,6 +29,20 @@ import { PlayerPickCard } from "./PlayerPickCard";
  */
 const HOLD = { delay: 500, tolerance: 8 } as const;
 
+/**
+ * How the list scrolls under a card brought near its top or bottom edge: from
+ * nothing at the edge of the band (a quarter of the list's height) to
+ * `acceleration` pixels every `interval` ms at the list's own edge — 300 px a
+ * second, slow enough to let go on the right seat. The card can be pushed a
+ * little past the edge, which only adds its own height to the ramp: about
+ * 400 px a second at most.
+ */
+const AUTO_SCROLL = {
+  acceleration: 3,
+  interval: 10,
+  threshold: { x: 0, y: 0.25 },
+} as const;
+
 /** The cards slide along the list, never across it. */
 const alongTheList: Modifier = ({ transform }) => ({ ...transform, x: 0 });
 
@@ -83,6 +97,7 @@ export function PlayerPickCardList({
       // lands on one of them rather than nowhere.
       collisionDetection={closestCenter}
       modifiers={[alongTheList]}
+      autoScroll={AUTO_SCROLL}
       onDragStart={() => {
         dragging.current = true;
         navigator.vibrate?.(30);

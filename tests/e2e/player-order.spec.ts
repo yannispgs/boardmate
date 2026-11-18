@@ -182,9 +182,41 @@ test("scrolls the list under a card dragged to its edge", async ({
         touchPoints: type === "touchEnd" ? [] : [{ x: start.x, y }],
       });
 
+    // How fast the list scrolls, in px a second, while the finger rests at `y`.
+    const speedAt = async (y: number) => {
+      const mark = () =>
+        scroller.evaluate(el => [el.scrollTop, performance.now()]);
+      const [top0, t0] = await mark();
+
+      for (let i = 0; i < 16; i += 1) {
+        await touch("touchMove", y + (i % 2));
+        await page.waitForTimeout(50);
+      }
+
+      const [top1, t1] = await mark();
+
+      return ((top1 - top0) / (t1 - t0)) * 1000;
+    };
+    const band = edge.height * 0.25;
+    const shallow = edge.y + edge.height - band * 0.85;
+
     await touch("touchStart", start.y);
     await page.waitForTimeout(700);
-    for (let y = start.y; y <= bottom; y += 15) {
+    for (let y = start.y; y <= shallow; y += 15) {
+      await touch("touchMove", y);
+      await page.waitForTimeout(30);
+    }
+
+    // Just into the band, the list creeps; on the edge it runs — but never
+    // faster than the eye can follow.
+    const slow = await speedAt(shallow);
+    const fast = await speedAt(bottom);
+
+    expect(slow).toBeGreaterThan(0);
+    expect(fast).toBeGreaterThan(slow * 1.5);
+    expect(fast).toBeLessThan(500);
+
+    for (let y = shallow; y <= bottom; y += 15) {
       await touch("touchMove", y);
       await page.waitForTimeout(30);
     }
