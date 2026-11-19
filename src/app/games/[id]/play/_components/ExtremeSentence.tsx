@@ -9,6 +9,13 @@ function listed(items: readonly string[]): string {
     : `${items.slice(0, -1).join(", ")} et ${items.at(-1)}`;
 }
 
+/** « donne 3 », « donnes 2 et 4 ». */
+function ownStages(unit: string, stages: readonly number[]): string {
+  const noun = stages.length > 1 ? `${unit}s` : unit;
+
+  return `${noun} ${listed(stages.map(String))}`;
+}
+
 /** What goes before the `i`-th of `count` names: nothing, a comma, or « et ». */
 function joint(i: number, count: number): string {
   if (i === 0) {
@@ -49,9 +56,7 @@ export function ExtremeSentence({
         <Fragment key={taker.name}>
           {joint(i, who.length)}
           <span className="font-semibold">{taker.name}</span>
-          {stage === null
-            ? ` (${unit}${taker.stages.length > 1 ? "s" : ""} ${listed(taker.stages.map(String))})`
-            : ""}
+          {stage === null ? ` (${ownStages(unit, taker.stages)})` : ""}
         </Fragment>
       ))}{" "}
       {verb[who.length > 1 ? 1 : 0]} {amount}

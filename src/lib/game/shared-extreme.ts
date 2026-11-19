@@ -66,7 +66,7 @@ export function sharedExtreme(
       .sort(([a], [b]) => seat(a) - seat(b))
       .map(([id, stages]) => ({
         name: players.find(p => p.playerId === id)?.name ?? "?",
-        stages: stages.sort((a, b) => a - b),
+        stages: stages.toSorted((a, b) => a - b),
       })),
   };
 }
