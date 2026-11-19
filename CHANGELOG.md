@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.11.0](https://github.com/yannispgs/boardmate/compare/v1.10.0...v1.11.0) (2026-11-19)
+
+
+### Features
+
+* bring the timer settings back, under the countdown ([5f4bb40](https://github.com/yannispgs/boardmate/commit/5f4bb40aa34db85b698c83bb1a37f863704cd17d))
+* change who plays the next party when chaining ([9882ac7](https://github.com/yannispgs/boardmate/commit/9882ac773126cdc79be313bccac5cf4ae241c4f6))
+* choose the next party's players and first player when chaining ([97a3029](https://github.com/yannispgs/boardmate/commit/97a302994abc4a791e03324314e333394fa1f586))
+* draw the next party's first player when chaining ([c88831d](https://github.com/yannispgs/boardmate/commit/c88831d602ecef61fac6a5e6ad053a8bf8f4e241))
+* let the minus steps run a countdown into overtime ([bc0a5d0](https://github.com/yannispgs/boardmate/commit/bc0a5d055ea07fc8169c509c20f79b0f0412af54))
+* lift a picked player after half a second's hold ([4eb8fac](https://github.com/yannispgs/boardmate/commit/4eb8fac30f7002c18a5f806f51e56a4283538b14))
+* open each Luz donne on the deal, and call the trick phase « Plis » ([a473d24](https://github.com/yannispgs/boardmate/commit/a473d2489f09f5729d72372bd42993e6203b0e73))
+* open each Luz donne on the deal, and call the trick phase « Plis » ([d993a8e](https://github.com/yannispgs/boardmate/commit/d993a8e964d07f0231ddca037cd7ef98c1785915))
+* reorder the picked players by holding and dragging a card ([38eecad](https://github.com/yannispgs/boardmate/commit/38eecad1e4a9cf74ee94d8909aaa4a3652db6c71))
+* reorder the players, and change them when chaining a party ([4c9f908](https://github.com/yannispgs/boardmate/commit/4c9f908e5534455a182c416577b0afe712dd7995))
+* scroll the player list slower, the nearer the edge the faster ([779f2a7](https://github.com/yannispgs/boardmate/commit/779f2a7f8c7c1f4fd506839d5472dffb9e98c70d))
+* set the clock beside the disc, and the timer for this party only ([b9a884a](https://github.com/yannispgs/boardmate/commit/b9a884af1e92caca091cad1d0d46abe4f719a47d))
+* set the clock by hand, and the timer for this party only ([df4f1fa](https://github.com/yannispgs/boardmate/commit/df4f1fa244a34e652589686fdfa30f44b9c1b083))
+
+
+### Bug Fixes
+
+* give the timer settings chip its own room under the clock ([9fca989](https://github.com/yannispgs/boardmate/commit/9fca9894f6912b3a168c02d32592543c341ef827))
+* record the turn a game ends on ([406f017](https://github.com/yannispgs/boardmate/commit/406f01798aadd5069649e8a5434488d149ee4871))
+* record the turn a game ends on ([620416f](https://github.com/yannispgs/boardmate/commit/620416ffb9b00fdfee523b0d37c8821a4b3ba0b6))
+* settle the closing turn's checks ([33c103c](https://github.com/yannispgs/boardmate/commit/33c103c2ed4b44feaf79da5ffe7e11e3822041f1))
+
 ## [1.10.0](https://github.com/yannispgs/boardmate/compare/v1.9.0...v1.10.0) (2026-11-02)
 
 
