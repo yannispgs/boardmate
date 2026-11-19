@@ -168,7 +168,7 @@ describe("betHighlights", () => {
         2,
       ),
     ).toEqual({
-      drop: { name: "Bob", stage: 1, points: -15 },
+      drop: { points: -15, who: [{ name: "Bob", stages: [1] }] },
       perfect: ["Ann"],
     });
   });

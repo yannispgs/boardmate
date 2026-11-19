@@ -14,6 +14,7 @@ import { useGameStats } from "@/lib/hooks/use-game-stats";
 
 import { BetHighlights } from "./BetHighlights";
 import { BetPartySection } from "./BetPartySection";
+import { ExtremeSentence } from "./ExtremeSentence";
 import { PhaseTimeSection } from "./PhaseTimeSection";
 import { ScoreChart } from "./ScoreChart";
 import { TallyHighlight as Highlight } from "./TallyHighlight";
@@ -115,9 +116,13 @@ export function TallyGameStats({ game }: Readonly<{ game: PopulatedGame }>) {
           points are a prize, and the drop above is the story instead. */}
       {bet === undefined && stats.worstStage ? (
         <Highlight emoji="🪨">
-          <span className="font-semibold">{stats.worstStage.name}</span> a
-          ramassé {stats.worstStage.points} points d&apos;un coup à la manche{" "}
-          {stats.worstStage.stage} — la plus lourde de la partie.
+          <ExtremeSentence
+            extreme={stats.worstStage}
+            unit={unit}
+            verb={["a ramassé", "ont ramassé"]}
+            amount={`${stats.worstStage.points} points d'un coup`}
+            tail="la plus lourde de la partie"
+          />
         </Highlight>
       ) : null}
 

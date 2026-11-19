@@ -16,6 +16,7 @@
 import type { PlayerId, StageScore } from "@/lib/domain";
 
 import type { PlayerSeries } from "./score-series";
+import { type SharedExtreme, sharedExtreme } from "./shared-extreme";
 
 /** A player as the stats panel knows them. */
 export interface TallyPlayer {
@@ -39,12 +40,6 @@ export interface TallyPlayerStat extends TallyPlayer {
   total: number;
 }
 
-/** The heaviest manche of a game: who took it, when, and how much. */
-export interface TallyWorstStage extends TallyPlayer {
-  stage: number;
-  points: number;
-}
-
 /** The manche that ended the game: the first to push a total to the target. */
 export interface TallyFatalStage {
   stage: number;
@@ -57,7 +52,8 @@ export interface TallyStats {
   stageCount: number;
   /** One line per player, heaviest goer-out first. */
   players: TallyPlayerStat[];
-  worstStage: TallyWorstStage | null;
+  /** The heaviest manche, and everyone who took it — see {@link sharedExtreme}. */
+  worstStage: SharedExtreme | null;
   /** Points the whole table picked up per manche; null before any manche. */
   avgPointsPerStage: number | null;
   fatalStage: TallyFatalStage | null;
@@ -92,7 +88,7 @@ export function computeTallyStats({
   return {
     stageCount: stages.length,
     players: lines,
-    worstStage: worstStage(players, scores),
+    worstStage: sharedExtreme(players, scores, (points, than) => points > than),
     avgPointsPerStage:
       stages.length === 0
         ? null
@@ -132,29 +128,6 @@ function byExitsThenCost(a: TallyPlayerStat, b: TallyPlayerStat): number {
   }
 
   return (a.avgCaught ?? -1) - (b.avgCaught ?? -1);
-}
-
-/** The single heaviest manche anybody took, latest ties kept out. */
-function worstStage(
-  players: readonly TallyPlayer[],
-  scores: readonly StageScore[],
-): TallyWorstStage | null {
-  const names = new Map(players.map(p => [p.playerId, p.name]));
-  let worst: TallyWorstStage | null = null;
-
-  for (const score of scores) {
-    if (score.points > (worst?.points ?? 0)) {
-      worst = {
-        playerId: score.playerId,
-        /* c8 ignore next -- `?? "?"` guards a score whose player left the table */
-        name: names.get(score.playerId) ?? "?",
-        stage: score.stage,
-        points: score.points,
-      };
-    }
-  }
-
-  return worst;
 }
 
 /**

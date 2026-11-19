@@ -122,10 +122,8 @@ describe("computeTallyStats", () => {
     });
 
     expect(stats.worstStage).toEqual({
-      playerId: C,
-      name: "Chloé",
-      stage: 3,
       points: 9,
+      who: [{ name: "Chloé", stages: [3] }],
     });
   });
 
