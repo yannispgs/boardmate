@@ -56,6 +56,7 @@ import { useSessionGames } from "./use-session-games";
 import { useStageGoals } from "./use-stage-goals";
 import { useStageHold } from "./use-stage-hold";
 import { useStageLaps } from "./use-stage-laps";
+import { useTimerSchedule } from "./use-timer-schedule";
 
 /**
  * A game in progress. Takes the loaded game, so nothing below has to wonder
@@ -87,8 +88,9 @@ export function PlayingGame({
   // an Oceania tile still reads out by name during a game played with it.
   const catalogue = composeGoals(game.boardgame.roundGoals, game.extensions);
 
-  // A manual duration for the current turn, overriding the schedule.
-  const [durationOverride, setDurationOverride] = useState<number | null>(null);
+  // The clock is being set by hand: held until the correction is shut.
+  const timerSchedule = useTimerSchedule(game);
+  const [settingClock, setSettingClock] = useState(false);
   // Simultaneous games: the player the table is waiting on this round (tapped),
   // recorded when the round advances then cleared for the next round. The ref
   // holds when they were tapped, to time the wait (tap → advance).
@@ -100,16 +102,6 @@ export function PlayingGame({
   // phone must not lock. It sleeps again once the game ends or the screen is
   // left. Games without a timer are covered too, since they never "run".
   useWakeLock(game.status === "ongoing");
-
-  // The manual duration is a one-turn tweak: the next turn follows the schedule
-  // again. Adjusted while rendering rather than in an effect, so the new turn's
-  // countdown is right on its first paint.
-  const [tweakedTurn, setTweakedTurn] = useState(game.turn);
-
-  if (tweakedTurn !== game.turn) {
-    setTweakedTurn(game.turn);
-    setDurationOverride(null);
-  }
 
   // Counting the points replaces the timer: the turn in progress stops where it
   // is, and that is what gets recorded when the game ends. Frozen further down
@@ -130,7 +122,7 @@ export function PlayingGame({
       : null;
   }, [counting, clockS, pauseStats, blockedById]);
 
-  const durationS = turnDuration(game, durationOverride);
+  const durationS = turnDurationForRound(timerSchedule.schedule, game.round);
 
   // How the game turns: in plain laps, in generations somebody steps out of, on
   // a calendar of stages laid out at launch (Wingspan's manches) — or in manches
@@ -162,8 +154,8 @@ export function PlayingGame({
   const stageHold = useStageHold(game.stage, announces, stageHoldMs);
   const { setFrozen } = timer;
   useEffect(() => {
-    setFrozen(stageHold.holding || counting);
-  }, [stageHold.holding, counting, setFrozen]);
+    setFrozen(stageHold.holding || counting || settingClock);
+  }, [stageHold.holding, counting, settingClock, setFrozen]);
 
   const scoring = game.boardgame.scoring;
   const direction = scoreDirectionOf(scoring);
@@ -413,7 +405,9 @@ export function PlayingGame({
           game={game}
           timer={timer}
           durationS={durationS}
-          onDuration={setDurationOverride}
+          onHoldClock={setSettingClock}
+          timerSchedule={timerSchedule.schedule}
+          onSchedule={timerSchedule.save}
           blockedById={blockedById}
           onPickBlocked={pickBlocked}
           dice={dice}
@@ -515,14 +509,6 @@ export function PlayingGame({
       <DimVeil veil={veil} elapsedS={timer.elapsedS} />
     </div>
   );
-}
-
-/**
- * The current turn's countdown: the schedule's duration for this round, unless
- * the user manually overrode it for the turn.
- */
-function turnDuration(game: PopulatedGame, override: number | null): number {
-  return override ?? turnDurationForRound(game.turnSchedule, game.round);
 }
 
 /** When the wait clock starts: tapping a player starts it, untapping clears it. */

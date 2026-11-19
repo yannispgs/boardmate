@@ -1,15 +1,21 @@
 "use client";
 
-import type { PhaseSpec, PlayerId, PopulatedGame } from "@/lib/domain";
+import type {
+  PhaseSpec,
+  PlayerId,
+  PopulatedGame,
+  TurnSchedule,
+} from "@/lib/domain";
 import { diceStats, diceValues } from "@/lib/game/dice";
 import { turnTimerApplies } from "@/lib/game/phase";
 import { playCalendar } from "@/lib/game/stage";
 import { lastRound } from "@/lib/game/stop-condition";
 import type { UseTurnTimer } from "@/lib/hooks/use-turn-timer";
-import { ClockControls } from "./ClockControls";
+import { ClockFrame } from "./ClockFrame";
 import { DiceBar } from "./DiceBar";
 import { PhaseStopwatch } from "./PhaseStopwatch";
 import { TimerRing } from "./TimerRing";
+import { TimerSettings } from "./TimerSettings";
 import { TurnFlow } from "./turn-flow";
 import type { DiceLog } from "./use-dice-log";
 import { WaitPicker } from "./WaitPicker";
@@ -18,8 +24,8 @@ import { WaitPicker } from "./WaitPicker";
  * One of the two clocks a phase can run, laid in the grid's only cell.
  *
  * Both layers are mounted at all times and only their opacity changes. That is
- * what makes the swap smooth, and it is not a detail: the countdown carries a
- * duration editor the stopwatch has no use for, so the two are not the same
+ * what makes the swap smooth, and it is not a detail: the countdown carries
+ * settings the stopwatch has no use for, so the two need not be the same
  * height. Mounting one at a time meant the row resized as they traded places
  * and the whole page slid under the table's thumb — the fade was never the
  * problem, the reflow was. Kept mounted, the row is always as tall as the
@@ -53,7 +59,9 @@ export function PlayBlock({
   game,
   timer,
   durationS,
-  onDuration,
+  onHoldClock,
+  timerSchedule,
+  onSchedule,
   blockedById,
   onPickBlocked,
   dice,
@@ -63,7 +71,11 @@ export function PlayBlock({
   game: PopulatedGame;
   timer: UseTurnTimer;
   durationS: number;
-  onDuration: (seconds: number) => void;
+  /** Holds the clock while it is being set by hand, and lets it go after. */
+  onHoldClock: (hold: boolean) => void;
+  /** The settings the turns are timed on, this party's own or its config's. */
+  timerSchedule: TurnSchedule;
+  onSchedule: (schedule: TurnSchedule | null) => void;
   /** Simultaneous games: the player the table is waiting on this round. */
   blockedById: PlayerId | null;
   onPickBlocked: (id: PlayerId | null) => void;
@@ -156,40 +168,44 @@ export function PlayBlock({
           changes what they look like in no way at all. */}
       <div className="grid w-full">
         <ClockLayer show={countdown}>
-          <TimerRing
-            remainingS={durationS - timer.elapsedS}
+          <ClockFrame
             durationS={durationS}
-            running={timer.running}
-            onToggle={timer.toggle}
-            size={size}
-          />
-
-          <ClockControls
-            countdown
-            durationS={durationS}
-            onDuration={onDuration}
             timer={timer}
-          />
+            onHold={onHoldClock}
+            below={
+              <TimerSettings
+                original={game.turnSchedule}
+                schedule={timerSchedule}
+                round={game.round}
+                elapsedS={timer.elapsedS}
+                onSave={onSchedule}
+                onHold={onHoldClock}
+              />
+            }
+          >
+            <TimerRing
+              remainingS={durationS - timer.elapsedS}
+              durationS={durationS}
+              running={timer.running}
+              onToggle={timer.toggle}
+              size={size}
+            />
+          </ClockFrame>
         </ClockLayer>
 
         {/* A phase that declares no clock at all shows neither, and has nothing
             to set by hand either — but the layers stay, so the room they take is
             the room they took. */}
         <ClockLayer show={!countdown && !untimed}>
-          <PhaseStopwatch
-            elapsedS={timer.elapsedS}
-            running={timer.running}
-            onToggle={timer.toggle}
-            label={phase?.label ?? ""}
-            size={size}
-          />
-
-          <ClockControls
-            countdown={false}
-            durationS={durationS}
-            onDuration={onDuration}
-            timer={timer}
-          />
+          <ClockFrame durationS={null} timer={timer} onHold={onHoldClock}>
+            <PhaseStopwatch
+              elapsedS={timer.elapsedS}
+              running={timer.running}
+              onToggle={timer.toggle}
+              label={phase?.label ?? ""}
+              size={size}
+            />
+          </ClockFrame>
         </ClockLayer>
       </div>
 
