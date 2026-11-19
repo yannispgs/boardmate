@@ -58,6 +58,17 @@ test("sets the timer for this party only, and keeps it on this phone", async ({
 
     await expect(settings).toHaveText(/0:45 · \+5 s\/manche/);
 
+    // It takes its own room: the next-turn button sits clear below it.
+    const chip = await settings.boundingBox();
+    const next = await page
+      .getByRole("button", { name: "Tour suivant →" })
+      .boundingBox();
+
+    expect(chip && next).toBeTruthy();
+    if (chip && next) {
+      expect(next.y - (chip.y + chip.height)).toBeGreaterThanOrEqual(16);
+    }
+
     // Catan's turns grow round by round, so all three settings are offered,
     // with the configuration's values to start from.
     await settings.click();

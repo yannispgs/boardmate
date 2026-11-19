@@ -45,40 +45,40 @@ export function ClockFrame({
   }
 
   return (
-    <div className="relative w-fit">
-      {children}
-      {below ? (
-        // Centred without a transform: one would trap the fixed backdrop of
-        // a modal opened from in here inside this box.
-        <div className="absolute inset-x-0 top-full mt-1 flex justify-center">
-          {below}
-        </div>
-      ) : null}
+    // What sits under the disc takes its own room, so nothing after the clock
+    // runs into it; the steps stay level with the disc alone. Laid out without
+    // a transform: one would trap the fixed backdrop of a modal opened from in
+    // here inside this box.
+    <div className="flex flex-col items-center gap-1">
+      <div className="relative w-fit">
+        {children}
 
-      {open === null ? null : (
-        // A tap anywhere else shuts the steps — and is spent doing so, rather
-        // than also landing on whatever it hit, the disc's own pause included.
-        <button
-          type="button"
-          aria-label="Fermer la correction"
-          tabIndex={-1}
-          onClick={shut}
-          className="fixed inset-0 z-20 cursor-default"
-        />
-      )}
+        {open === null ? null : (
+          // A tap anywhere else shuts the steps — and is spent doing so, rather
+          // than also landing on whatever it hit, the disc's own pause included.
+          <button
+            type="button"
+            aria-label="Fermer la correction"
+            tabIndex={-1}
+            onClick={shut}
+            className="fixed inset-0 z-20 cursor-default"
+          />
+        )}
 
-      {([1, -1] as const).map(sign => (
-        <ClockNudge
-          key={sign}
-          sign={sign}
-          durationS={durationS}
-          readingS={readingS}
-          open={open === sign}
-          onOpen={() => toggle(sign)}
-          onStep={timer.setElapsed}
-          edge={sign > 0 ? "top" : "bottom"}
-        />
-      ))}
+        {([1, -1] as const).map(sign => (
+          <ClockNudge
+            key={sign}
+            sign={sign}
+            durationS={durationS}
+            readingS={readingS}
+            open={open === sign}
+            onOpen={() => toggle(sign)}
+            onStep={timer.setElapsed}
+            edge={sign > 0 ? "top" : "bottom"}
+          />
+        ))}
+      </div>
+      {below}
     </div>
   );
 }
