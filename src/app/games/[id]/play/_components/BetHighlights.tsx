@@ -1,10 +1,11 @@
 import { type BetParty, betHighlights } from "@/lib/game/bet-stats";
 
+import { ExtremeSentence } from "./ExtremeSentence";
 import { TallyHighlight } from "./TallyHighlight";
 
 /**
- * What stands out of a party played on bets (Luz): its biggest drop, and
- * whoever won every bet — the perfect party.
+ * What stands out of a party played on bets (Luz): its biggest drop — unless
+ * most of the table shared it — and whoever won every bet, the perfect party.
  */
 export function BetHighlights({
   party,
@@ -21,9 +22,13 @@ export function BetHighlights({
     <>
       {drop === null ? null : (
         <TallyHighlight emoji="📉">
-          <span className="font-semibold">{drop.name}</span> a perdu{" "}
-          {-drop.points} points à la {unit} {drop.stage} — la plus grosse chute
-          de la partie.
+          <ExtremeSentence
+            extreme={drop}
+            unit={unit}
+            verb={["a perdu", "ont perdu"]}
+            amount={`${-drop.points} points`}
+            tail="la plus grosse chute de la partie"
+          />
         </TallyHighlight>
       )}
 

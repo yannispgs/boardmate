@@ -17,6 +17,7 @@ import type {
 } from "@/lib/domain";
 
 import { betWon, tricksOff } from "./bet";
+import { type SharedExtreme, sharedExtreme } from "./shared-extreme";
 
 /** How often a set of bets came off, and what they paid on average. */
 export interface BetPayoff {
@@ -185,38 +186,21 @@ export function betStats(
 }
 
 /** The worst donne of a party: who took it, when, and what it cost. */
-export interface BetDrop {
-  name: string;
-  stage: number;
-  points: number;
-}
-
 /**
  * What stands out of one party played on bets: its biggest drop — the most a
- * single missed bet cost anyone, null when no bet was missed — and the players
- * who won every one of the `count` bets, the perfect party.
+ * single missed bet cost anyone, and everyone it cost that much; null when no
+ * bet was missed, or when most of the table shared it (see
+ * {@link sharedExtreme}) — and the players who won every one of the `count`
+ * bets, the perfect party.
  */
 export function betHighlights(
   party: BetParty,
   count: number,
-): { drop: BetDrop | null; perfect: string[] } {
-  const names = new Map(party.players.map(p => [p.playerId, p.name]));
+): { drop: SharedExtreme | null; perfect: string[] } {
   const scores = party.stageScores ?? [];
-  let drop: BetDrop | null = null;
-
-  for (const score of scores) {
-    if (score.points < (drop?.points ?? 0)) {
-      drop = {
-        /* c8 ignore next -- `?? "?"` guards a score whose player left the table */
-        name: names.get(score.playerId) ?? "?",
-        stage: score.stage,
-        points: score.points,
-      };
-    }
-  }
 
   return {
-    drop,
+    drop: sharedExtreme(party.players, scores, (points, than) => points < than),
     perfect: party.players
       .filter(
         p =>
