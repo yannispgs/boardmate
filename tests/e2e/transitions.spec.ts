@@ -181,14 +181,14 @@ test.describe("with the animations running", () => {
 
       await page.goto(`/games/${gameId}/play`);
       await page
-        .getByRole("button", { name: "Corriger le temps écoulé" })
+        .getByRole("button", { name: "Ouvrir les statistiques" })
         .click();
 
       // The two drawers of the play screen (FAQ, jalons) are dialogs too, and
       // they stay mounted off-screen — so the modal has to be named, not just
       // asked for by role.
       const modal = page.getByRole("dialog", {
-        name: "Corriger le temps écoulé",
+        name: "Statistiques en direct",
       });
 
       await expect(modal).toBeVisible();

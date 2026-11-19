@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { correctTime, pausedBadge } from "./utils/play-screen";
+import { clockSeconds, nudgeClock, pausedBadge } from "./utils/play-screen";
 import {
   adminClient,
   boardgameId,
@@ -124,22 +124,26 @@ test("corrects the phase stopwatch, and banks the corrected time", async ({
 
     await page.goto(`/games/${gameId}/play`);
 
+    // A stopwatch only counts up: it has no timer to set.
+    await expect(
+      page.getByRole("button", { name: "Ajouter du temps" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Réglages du minuteur" }),
+    ).toHaveCount(0);
+
     // Hold the stopwatch still for the rest of the test, so the figures below
     // are the correction's and not the clock's own drift.
     await page.getByRole("button", { name: "Mettre en pause" }).click();
     await expect(pausedBadge(page)).toBeVisible();
 
-    // A step moves the typed time, upwards on a stopwatch.
-    await correctTime(page, {
-      sheet: "Corriger le temps écoulé",
-      field: "Temps écoulé",
-      typed: "2:00",
-      step: "Ajouter 30 s",
-      expected: "2:30",
-    });
+    // Steps move the time played, upwards on a stopwatch.
+    const before = await clockSeconds(page);
+
+    await nudgeClock(page, ["Ajouter 1 min", "Ajouter 1 min", "Ajouter 30 s"]);
 
     // The disc reads the corrected time, and the phase is still on hold.
-    await expect(page.getByText("2:30")).toBeVisible();
+    expect(await clockSeconds(page)).toBe(before + 150);
     await expect(pausedBadge(page)).toBeVisible();
 
     await page.getByRole("button", { name: "Phase terminée →" }).click();
@@ -154,7 +158,7 @@ test("corrects the phase stopwatch, and banks the corrected time", async ({
       .single();
 
     expect(banked?.phase_key).toBe("discovery");
-    expect(banked?.duration_s).toBe(150);
+    expect(banked?.duration_s).toBe(before + 150);
   } finally {
     await cleanUp(gameId, names);
   }
