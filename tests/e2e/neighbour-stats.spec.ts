@@ -40,9 +40,9 @@ function circle(
  * The neighbour figures on the stats "Jeux" tab (full-suite only — untagged),
  * shown for games whose points are shared in piles. Seeds a throwaway pair-scored
  * game — never the real Splito, whose scoring is the owner's to change — plays
- * the same four seats seven evenings, then checks the section reads the circle:
- * a line per player, the per-partner detail behind it, and a pairing seen once
- * held at arm's length.
+ * the same four seats seven evenings, then checks the tabs read the circle: the
+ * duos ranked on the pile they share, a line per player, the per-partner detail
+ * behind it, and a pairing seen once held at arm's length.
  */
 test("shows what each neighbour is worth on a pair-scored game", async ({
   page,
@@ -91,6 +91,29 @@ test("shows what each neighbour is worth on a pair-scored game", async ({
     await page.getByRole("button", { name: "Jeux", exact: true }).click();
     await page.getByRole("button", { name: gameName, exact: true }).click();
 
+    // Three tabs, the players first.
+    await expect(
+      page.getByText("Statistiques des joueurs sur ce jeu"),
+    ).toBeVisible();
+    await expect(page.getByText("Ce que valent vos voisins")).toBeHidden();
+
+    // The duos: the four pairs of the regulars, best pile first, and the two
+    // pairs the newcomer sat in once left unranked.
+    await page.getByRole("button", { name: "Duos", exact: true }).click();
+
+    const duos = page.getByRole("listitem");
+    const duo = (a: string, b: string) =>
+      duos.filter({ hasText: a }).filter({ hasText: b });
+
+    await expect(duos).toHaveCount(4);
+    await expect(duos.first()).toContainText("🥇");
+    await expect(duo(names[1], names[2])).toContainText("7,0");
+    await expect(duo(names[1], names[2])).toContainText("6 parties");
+    await expect(duo(names[0], names[3])).toContainText("🪨");
+    await expect(duo(names[0], names[3])).toContainText("4,0");
+    await expect(page.getByText(/2 duos pas encore assez joués/)).toBeVisible();
+
+    await page.getByRole("button", { name: "Voisins", exact: true }).click();
     await expect(page.getByText("Ce que valent vos voisins")).toBeVisible();
 
     // Ann sat seven evenings, so she is listed; the newcomer sat one and isn't.

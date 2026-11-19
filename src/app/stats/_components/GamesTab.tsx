@@ -71,7 +71,7 @@ import { CategoryCharts } from "./CategoryCharts";
 import { GamePlayerTable } from "./GamePlayerTable";
 import { GoalStatsTable } from "./GoalStatsTable";
 import { LadderProgressChart } from "./LadderProgressChart";
-import { NeighbourStats } from "./NeighbourStats";
+import { PairStatsTabs } from "./PairStatsTabs";
 import { PhaseTimeCardList } from "./PhaseTimeCardList";
 import { RungEffortChart } from "./RungEffortChart";
 import { SeatStats } from "./SeatStats";
@@ -841,20 +841,8 @@ function GameSections({
     null,
   );
 
-  return (
+  const others = (
     <>
-      {tally ? (
-        <TallyOverallTiles
-          stats={stats}
-          averages={tally.averages}
-          stageLabel={tally.stageLabel}
-          prize={tally.bet !== null}
-        />
-      ) : (
-        <OverallTiles stats={stats} scored={scored} />
-      )}
-      <ChampionBanner champion={champion} />
-
       {rounds !== null && rounds.length > 0 ? (
         <StatsSection
           title={
@@ -896,8 +884,6 @@ function GameSections({
 
       {showSeatStats ? <SeatStats stats={seatStats} /> : null}
 
-      {neighbours === null ? null : <NeighbourStats board={neighbours} />}
-
       {categorySheet ? (
         <StatsSection title="Répartition des points">
           <CategoryCharts
@@ -919,23 +905,57 @@ function GameSections({
           <StatsDiceDistribution rolls={dice.rolls} spec={dice.spec} />
         </StatsSection>
       ) : null}
+    </>
+  );
+  const table = (
+    <StatsSection
+      title={
+        <>
+          Statistiques des joueurs sur ce jeu
+          {timed ? <TimeIndexInfo /> : null}
+        </>
+      }
+    >
+      <GamePlayerTable
+        players={stats.players}
+        scored={scored}
+        timed={timed}
+        exits={tally?.exits ?? null}
+        positions={positions}
+      />
+    </StatsSection>
+  );
 
-      <StatsSection
-        title={
-          <>
-            Statistiques des joueurs sur ce jeu
-            {timed ? <TimeIndexInfo /> : null}
-          </>
-        }
-      >
-        <GamePlayerTable
-          players={stats.players}
-          scored={scored}
-          timed={timed}
-          exits={tally?.exits ?? null}
-          positions={positions}
+  return (
+    <>
+      {tally ? (
+        <TallyOverallTiles
+          stats={stats}
+          averages={tally.averages}
+          stageLabel={tally.stageLabel}
+          prize={tally.bet !== null}
         />
-      </StatsSection>
+      ) : (
+        <OverallTiles stats={stats} scored={scored} />
+      )}
+      <ChampionBanner champion={champion} />
+
+      {neighbours === null ? (
+        <>
+          {others}
+          {table}
+        </>
+      ) : (
+        <PairStatsTabs
+          board={neighbours}
+          players={
+            <>
+              {table}
+              {others}
+            </>
+          }
+        />
+      )}
     </>
   );
 }

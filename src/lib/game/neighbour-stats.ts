@@ -42,12 +42,13 @@ export const MIN_SEATS = 4;
 export const MIN_PARTIES = 4;
 
 /**
- * Times two players must have sat side by side before their shared pile is read
- * as anything. Below it the figure is shown but **held at arm's length** by the
- * screen (greyed), never hidden: a reader who came looking for it is owed the
- * number and the reason it can't be trusted yet.
+ * Parties two players must have sat side by side before their shared pile is
+ * read as anything. Below it the figure is shown but **held at arm's length** by
+ * the neighbour detail (greyed), never hidden: a reader who came looking for it
+ * is owed the number and the reason it can't be trusted yet. The duo ranking
+ * lists a pair only from there on.
  */
-export const MIN_PARTNER_ENCOUNTERS = 6;
+export const MIN_PARTNER_ENCOUNTERS = 4;
 
 /** What one particular neighbour is worth to a player. */
 export interface NeighbourPartner {
@@ -85,9 +86,29 @@ export interface NeighbourStat {
   partners: NeighbourPartner[];
 }
 
+/** Two players who sat side by side, and what they built between them. */
+export interface Duo {
+  /** In alphabetical order: a duo has no first member. */
+  players: [
+    { playerId: PlayerId; name: string },
+    { playerId: PlayerId; name: string },
+  ];
+  /** Counted parties they spent side by side. */
+  parties: number;
+  /** Mean of the piles they built together; null when none was recorded. */
+  sharedPile: number | null;
+}
+
 /** The whole section: one line per player, and what to read a pile against. */
 export interface NeighbourBoard {
   stats: NeighbourStat[];
+  /**
+   * Every pair with {@link MIN_PARTNER_ENCOUNTERS} counted parties side by side
+   * or more, the highest shared pile first and the never-written last.
+   */
+  duos: Duo[];
+  /** Pairs that sat side by side, but not often enough yet to be ranked. */
+  thinDuos: number;
   /**
    * Mean of every pile of every counted party, each pile counted once. A shared
    * pile means nothing on its own — « 6,2 » is only low next to it.
@@ -258,6 +279,7 @@ export function computeNeighbourStats(
   minParties: number = MIN_PARTIES,
 ): NeighbourBoard {
   const tallies = new Map<PlayerId, Tally>();
+  const duos = new Map<string, DuoTally>();
   let pileSum = 0;
   let pileCount = 0;
   let parties = 0;
@@ -284,7 +306,10 @@ export function computeNeighbourStats(
       tallies.set(seat.playerId, tally);
 
       // Each pile belongs to two seats; counting it on the right-hand one only
-      // keeps the average an average of piles, not of halves of piles.
+      // keeps the average an average of piles, not of halves of piles — and
+      // the pair it belongs to, once.
+      recordDuo(duos, seat, seats[(i + 1) % n]);
+
       if (seat.right !== null) {
         pileSum += seat.right;
         pileCount += 1;
@@ -315,7 +340,62 @@ export function computeNeighbourStats(
   // list read for one name is read from the top.
   stats.sort(byPositionDesc);
 
-  return { stats, pileAverage: mean(pileSum, pileCount), parties };
+  const pairs = [...duos.values()];
+
+  return {
+    stats,
+    duos: pairs
+      .filter(d => d.parties >= MIN_PARTNER_ENCOUNTERS)
+      .map(d => ({
+        players: d.players,
+        parties: d.parties,
+        sharedPile: mean(d.pileSum, d.pileCount),
+      }))
+      .sort(byPileDesc),
+    thinDuos: pairs.filter(d => d.parties < MIN_PARTNER_ENCOUNTERS).length,
+    pileAverage: mean(pileSum, pileCount),
+    parties,
+  };
+}
+
+/** A pair's ledger across the parties, before it is averaged. */
+interface DuoTally {
+  players: Duo["players"];
+  parties: number;
+  pileSum: number;
+  pileCount: number;
+}
+
+/** Adds one party of `seat` sitting next to `next`, on the pile between them. */
+function recordDuo(duos: Map<string, DuoTally>, seat: Seat, next: Seat): void {
+  const pair = [seat, next]
+    .map(s => ({ playerId: s.playerId, name: s.name }))
+    .sort((a, b) => a.name.localeCompare(b.name)) as Duo["players"];
+  const key = pair.map(p => p.playerId).join("|");
+  const duo = duos.get(key) ?? {
+    players: pair,
+    parties: 0,
+    pileSum: 0,
+    pileCount: 0,
+  };
+
+  duo.parties += 1;
+
+  if (seat.right !== null) {
+    duo.pileSum += seat.right;
+    duo.pileCount += 1;
+  }
+
+  duos.set(key, duo);
+}
+
+/** The best pair first; a pair whose piles were never kept sinks to the end. */
+function byPileDesc(a: Duo, b: Duo): number {
+  if (a.sharedPile === null || b.sharedPile === null) {
+    return Number(a.sharedPile === null) - Number(b.sharedPile === null);
+  }
+
+  return b.sharedPile - a.sharedPile;
 }
 
 /** One player's partners, the thinnest pile first. */
