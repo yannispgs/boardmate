@@ -312,13 +312,65 @@ describe("computeNeighbourStats — one partner at a time", () => {
   });
 
   it("holds a pairing at arm's length below the encounters floor", () => {
-    const parties = [1, 2, 3, 4].map(i => evening(`g-${i}`));
-    const board = computeNeighbourStats(parties, "highest");
+    const parties = [1, 2, 3].map(i => evening(`g-${i}`));
+    const board = computeNeighbourStats(parties, "highest", 1);
     const withBob = lineOf(board, ann)?.partners.find(p => p.playerId === bob);
 
-    expect(MIN_PARTNER_ENCOUNTERS).toBe(6);
-    // Four evenings side by side is still under the bar the screen greys at.
+    expect(MIN_PARTNER_ENCOUNTERS).toBe(4);
+    // Three evenings side by side is still under the bar the screen greys at.
     expect(withBob?.encounters).toBeLessThan(MIN_PARTNER_ENCOUNTERS);
+  });
+});
+
+describe("computeNeighbourStats — the duos", () => {
+  it("ranks every pair that sat side by side often enough, best pile first", () => {
+    const parties = [1, 2, 3, 4].map(i => evening(`g-${i}`));
+    const { duos, thinDuos } = computeNeighbourStats(parties, "highest");
+
+    expect(
+      duos.map(d => [d.players.map(p => p.name).join(" + "), d.sharedPile]),
+    ).toEqual([
+      ["Ann + Eve", 9],
+      ["Ann + Bob", 5],
+      ["Bob + Cat", 4],
+      ["Cat + Dan", 2],
+      ["Dan + Eve", 1],
+    ]);
+    expect(duos.every(d => d.parties === 4)).toBe(true);
+    expect(thinDuos).toBe(0);
+  });
+
+  it("only counts the pairs below the floor", () => {
+    const parties = [1, 2, 3].map(i => evening(`g-${i}`));
+    const { duos, thinDuos } = computeNeighbourStats(parties, "highest");
+
+    expect(duos).toEqual([]);
+    expect(thinDuos).toBe(5);
+  });
+
+  it("leaves a table of three out of the duos too", () => {
+    const three = (i: number) =>
+      circle([{ id: ann }, { id: bob }, { id: cat }], [5, 4, 2], `g-${i}`);
+    const { duos, thinDuos } = computeNeighbourStats(
+      [1, 2, 3, 4].map(three),
+      "highest",
+    );
+
+    expect(duos).toEqual([]);
+    expect(thinDuos).toBe(0);
+  });
+
+  it("sinks a pair whose piles were never written down", () => {
+    const parties = [1, 2, 3, 4].map(i =>
+      circle(
+        [{ id: ann }, { id: bob }, { id: cat }, { id: dan }],
+        [9, null, 1, 3],
+        `g-${i}`,
+      ),
+    );
+    const { duos } = computeNeighbourStats(parties, "highest");
+
+    expect(duos.map(d => d.sharedPile)).toEqual([9, 3, 1, null]);
   });
 });
 
