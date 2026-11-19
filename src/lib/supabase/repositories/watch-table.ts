@@ -38,3 +38,33 @@ export function watchTable(
   };
 }
 /* c8 ignore stop */
+
+/**
+ * Follows one row of a table and hands over each new version of it, until the
+ * returned function is called. For a screen that has to hear one field change
+ * on another phone without reloading everything it shows.
+ */
+/* c8 ignore start -- Realtime channel glue, exercised via e2e/manual */
+export function watchRow(
+  supabase: SupabaseClient<Database>,
+  table: TableName,
+  id: string,
+  onChange: (row: Record<string, unknown>) => void,
+): Unsubscribe {
+  opened += 1;
+  const channel = supabase
+    .channel(`public:${table}:${id}#${opened}`)
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table, filter: `id=eq.${id}` },
+      payload => {
+        onChange(payload.new);
+      },
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+/* c8 ignore stop */

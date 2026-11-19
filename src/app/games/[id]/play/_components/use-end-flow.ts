@@ -10,10 +10,14 @@ import {
   totalOutcome,
 } from "@/lib/game/end-outcome";
 import { getGameRepository } from "@/lib/repositories";
-import { AlreadyEndedError } from "@/lib/repositories/errors";
+import {
+  AlreadyEndedError,
+  ScoringLockedError,
+} from "@/lib/repositories/errors";
 import type { ClosingTurn } from "@/lib/repositories/types";
 import type { EndOutcomeRequest } from "./stage-tallies";
 import type { PlayGame } from "./use-play-game";
+import { type ScoringLockState, useScoringLock } from "./use-scoring-lock";
 
 const END_FAILED = "Impossible de terminer la partie.";
 
@@ -34,7 +38,16 @@ export interface EndFlowState {
   /** Whether the end-of-game score form (or winner pick) is on screen — it
    * takes the timer's place while it is. */
   entryOpen: boolean;
+  /**
+   * Opens the form and asks for it, or closes it and gives it back. It opens
+   * straight away either way: a phone that lost the race finds out on the form
+   * itself, whose « Terminer » stays greyed out.
+   */
   setEntryOpen: (open: boolean) => void;
+  /** Which phone at the table is counting the points. */
+  scoring: ScoringLockState;
+  /** Takes the form from a phone that has held it ten minutes, and opens it. */
+  takeOverScoring: () => Promise<void>;
   /**
    * Opened once leaders come out level — from the reveal when there is one, and
    * from the score form itself when the table typed the totals.
@@ -94,6 +107,7 @@ export function useEndFlow(
   closingTurn: () => ClosingTurn | null,
 ): EndFlowState {
   const repo = getGameRepository();
+  const scoring = useScoringLock(game.id);
   const [phase, setPhase] = useState<EndPhase>("play");
   const [outcome, setOutcome] = useState<EndOutcome | null>(null);
   const [entryOpen, setEntryOpen] = useState(false);
@@ -116,11 +130,20 @@ export function useEndFlow(
    */
   async function recordEnd(mutate: () => Promise<void>): Promise<EndWrite> {
     let taken = false;
+    let lockedOut: ScoringLockedError | null = null;
 
     const done = await play.run(END_FAILED, async () => {
       try {
         await mutate();
       } catch (cause) {
+        // Another phone holds the form: nothing was written, and the table
+        // is told why rather than handed the generic failure.
+        if (cause instanceof ScoringLockedError) {
+          lockedOut = cause;
+
+          return;
+        }
+
         if (!(cause instanceof AlreadyEndedError)) {
           throw cause;
         }
@@ -141,6 +164,12 @@ export function useEndFlow(
 
     if (taken) {
       return "already-ended";
+    }
+
+    if (lockedOut !== null) {
+      play.setError((lockedOut as ScoringLockedError).message);
+
+      return "failed";
     }
 
     return done ? "done" : "failed";
@@ -227,11 +256,29 @@ export function useEndFlow(
     });
   }
 
+  /** Opens the form and asks for it; closing it gives it back. */
+  function toggleEntry(open: boolean) {
+    setEntryOpen(open);
+
+    void play.report(END_FAILED, () =>
+      open ? scoring.claim().then(() => undefined) : scoring.release(),
+    );
+  }
+
   return {
     phase,
     outcome,
     entryOpen,
-    setEntryOpen,
+    setEntryOpen: toggleEntry,
+    scoring,
+
+    takeOverScoring: async () => {
+      await play.report(END_FAILED, async () => {
+        if (await scoring.claim({ takeOver: true })) {
+          setEntryOpen(true);
+        }
+      });
+    },
     tieOpen,
     setTieOpen,
 

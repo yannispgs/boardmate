@@ -19,11 +19,20 @@ export function PairScoreEntry({
   onSubmit,
   onCancel,
   disabled,
+  notice = null,
+  submitBlocked = false,
 }: Readonly<{
   seats: Seat[];
   onSubmit: (piles: Record<string, number>) => void;
   onCancel: () => void;
   disabled: boolean;
+  /**
+   * Why the sheet cannot be handed in from this phone (another one is counting
+   * the points): the form stays usable, only its last button is greyed out.
+   */
+  notice?: string | null;
+  /** Greys out the last button alone, the reason shown or still on its way. */
+  submitBlocked?: boolean;
 }>) {
   const [piles, setPiles] = useState<Record<string, number>>({});
 
@@ -57,12 +66,17 @@ export function PairScoreEntry({
       <div className="border-t border-black/10 p-4 dark:border-white/10">
         <button
           type="button"
-          disabled={disabled || remaining > 0}
+          disabled={disabled || submitBlocked || remaining > 0}
           onClick={() => onSubmit(piles)}
           className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
         >
           Total final
         </button>
+        {notice === null ? null : (
+          <p className="mt-2 text-center text-xs text-amber-600 dark:text-amber-400">
+            {notice}
+          </p>
+        )}
 
         {remaining === 0 ? null : (
           <p className="mt-2 text-center text-xs text-zinc-500 dark:text-zinc-400">

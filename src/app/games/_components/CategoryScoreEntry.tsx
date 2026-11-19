@@ -27,6 +27,8 @@ export function CategoryScoreEntry({
   onSubmit,
   onCancel,
   disabled,
+  notice = null,
+  submitBlocked = false,
 }: Readonly<{
   players: { id: PlayerId; name: string }[];
   sheet: ScoreSheetItem[];
@@ -47,6 +49,13 @@ export function CategoryScoreEntry({
   onSubmit: (values: Record<string, Record<string, number>>) => void;
   onCancel: () => void;
   disabled: boolean;
+  /**
+   * Why the sheet cannot be handed in from this phone (another one is counting
+   * the points): the form stays usable, only its last button is greyed out.
+   */
+  notice?: string | null;
+  /** Greys out the last button alone, the reason shown or still on its way. */
+  submitBlocked?: boolean;
 }>) {
   const [raw, setRaw] = useState<CategoryRaw>(() => initial ?? {});
 
@@ -84,12 +93,17 @@ export function CategoryScoreEntry({
       <div className="border-t border-black/10 p-4 dark:border-white/10">
         <button
           type="button"
-          disabled={disabled || !complete}
+          disabled={disabled || submitBlocked || !complete}
           onClick={() => onSubmit(gridValues(players, sheet, raw))}
           className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
         >
           Total final
         </button>
+        {notice === null ? null : (
+          <p className="mt-2 text-center text-xs text-amber-600 dark:text-amber-400">
+            {notice}
+          </p>
+        )}
         {complete ? null : (
           <p className="mt-2 text-center text-xs text-zinc-500 dark:text-zinc-400">
             Encore {remaining} case{remaining > 1 ? "s" : ""} à remplir

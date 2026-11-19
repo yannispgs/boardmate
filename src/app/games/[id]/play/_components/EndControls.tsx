@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import type {
   MilestoneClaim,
   PlayerId,
@@ -25,17 +26,54 @@ import { namedPlayers } from "./named-players";
 import { stageTally } from "./stage-tallies";
 import type { EndFlowState } from "./use-end-flow";
 
+/** What a phone that is not counting the points is told. */
+const OTHER_COUNTING =
+  "Un autre joueur est déjà en train de compter les points.";
+
 /**
  * How the game ends depends on how it is scored: a shared outcome for a
  * cooperative game, one of the two end-of-game sheets, a plain final total, or
  * — when nothing is scored at all — a winner named by the table.
+ *
+ * Only one phone at the table counts the points at a time. On the others the
+ * button is greyed out, and a form opened before they heard of it can be
+ * filled in but not handed in.
  */
-export function EndControls({
+export function EndControls(
+  props: Readonly<{
+    game: PopulatedGame;
+    flow: EndFlowState;
+    milestoneClaims: MilestoneClaim[];
+    stageScores: StageScore[];
+    disabled: boolean;
+  }>,
+) {
+  const { scoring } = props.flow;
+  const taken = scoring.holder === "other";
+
+  return (
+    <>
+      <EndControl
+        {...props}
+        // Asked for and not given yet, or given to somebody else.
+        submitBlocked={scoring.holder !== "me"}
+        notice={taken ? OTHER_COUNTING : null}
+        closed={props.disabled || taken}
+      />
+      {taken ? <ScoringTaken flow={props.flow} /> : null}
+    </>
+  );
+}
+
+function EndControl({
   game,
   flow,
   milestoneClaims,
   stageScores,
   disabled,
+  submitBlocked,
+  notice,
+  closed,
 }: Readonly<{
   game: PopulatedGame;
   flow: EndFlowState;
@@ -51,6 +89,12 @@ export function EndControls({
    */
   stageScores: StageScore[];
   disabled: boolean;
+  /** The form's last button is greyed out: this phone is not counting. */
+  submitBlocked: boolean;
+  /** Why, when another phone is the one counting. */
+  notice: string | null;
+  /** The closed button is greyed out: busy, or another phone is counting. */
+  closed: boolean;
 }>) {
   const players = namedPlayers(game);
   const scoring = game.boardgame.scoring;
@@ -65,6 +109,8 @@ export function EndControls({
         onOpenChange={flow.setEntryOpen}
         onEnd={flow.endCoop}
         disabled={disabled}
+        submitBlocked={submitBlocked}
+        closed={closed}
       />
     );
   }
@@ -74,7 +120,7 @@ export function EndControls({
       <>
         <CountPointsButton
           onClick={() => flow.setEntryOpen(true)}
-          disabled={disabled}
+          disabled={closed}
         />
         {flow.entryOpen ? (
           <PairScoreEntry
@@ -82,6 +128,8 @@ export function EndControls({
             onSubmit={flow.finishPairs}
             onCancel={() => flow.setEntryOpen(false)}
             disabled={disabled}
+            submitBlocked={submitBlocked}
+            notice={notice}
           />
         ) : null}
       </>
@@ -93,7 +141,7 @@ export function EndControls({
       <>
         <CountPointsButton
           onClick={() => flow.setEntryOpen(true)}
-          disabled={disabled}
+          disabled={closed}
         />
         {flow.entryOpen ? (
           <CategoryScoreEntry
@@ -114,6 +162,8 @@ export function EndControls({
             onSubmit={flow.finishCategories}
             onCancel={() => flow.setEntryOpen(false)}
             disabled={disabled}
+            submitBlocked={submitBlocked}
+            notice={notice}
           />
         ) : null}
       </>
@@ -133,6 +183,7 @@ export function EndControls({
     return (
       <EndGameButton
         onClick={() => void flow.finishTally(tally.end(stageScores))}
+        disabled={closed}
       />
     );
   }
@@ -144,6 +195,8 @@ export function EndControls({
         scoring={finalScoring}
         onEnd={flow.finishTypedTotals}
         disabled={disabled}
+        submitBlocked={submitBlocked}
+        closed={closed}
         open={flow.entryOpen}
         onOpenChange={flow.setEntryOpen}
       />
@@ -155,6 +208,8 @@ export function EndControls({
       players={players}
       onPick={flow.endByHand}
       disabled={disabled}
+      submitBlocked={submitBlocked}
+      closed={closed}
       open={flow.entryOpen}
       onOpenChange={flow.setEntryOpen}
     />
@@ -165,12 +220,16 @@ function WinnerPicker({
   players,
   onPick,
   disabled,
+  submitBlocked,
+  closed,
   open,
   onOpenChange,
 }: Readonly<{
   players: { id: PlayerId; name: string }[];
   onPick: (ids: PlayerId[]) => void;
   disabled: boolean;
+  submitBlocked: boolean;
+  closed: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }>) {
@@ -181,7 +240,9 @@ function WinnerPicker({
   };
 
   if (!open) {
-    return <EndGameButton onClick={() => onOpenChange(true)} />;
+    return (
+      <EndGameButton onClick={() => onOpenChange(true)} disabled={closed} />
+    );
   }
 
   return (
@@ -212,7 +273,7 @@ function WinnerPicker({
       })}
       <button
         type="button"
-        disabled={disabled || picked.length === 0}
+        disabled={disabled || submitBlocked || picked.length === 0}
         onClick={() => onPick(picked)}
         className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
       >
@@ -234,14 +295,20 @@ function CoopEnd({
   onOpenChange,
   onEnd,
   disabled,
+  submitBlocked,
+  closed,
 }: Readonly<{
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onEnd: (won: boolean) => void;
   disabled: boolean;
+  submitBlocked: boolean;
+  closed: boolean;
 }>) {
   if (!open) {
-    return <EndGameButton onClick={() => onOpenChange(true)} />;
+    return (
+      <EndGameButton onClick={() => onOpenChange(true)} disabled={closed} />
+    );
   }
 
   return (
@@ -249,7 +316,7 @@ function CoopEnd({
       <p className="text-sm font-semibold">Résultat de la partie</p>
       <button
         type="button"
-        disabled={disabled}
+        disabled={disabled || submitBlocked}
         onClick={() => onEnd(true)}
         className="rounded-lg bg-emerald-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:opacity-60"
       >
@@ -257,7 +324,7 @@ function CoopEnd({
       </button>
       <button
         type="button"
-        disabled={disabled}
+        disabled={disabled || submitBlocked}
         onClick={() => onEnd(false)}
         className="rounded-lg border border-black/10 px-3 py-2 text-sm transition hover:border-rose-400 disabled:opacity-60 dark:border-white/10"
       >
@@ -309,6 +376,8 @@ function ScoreEntry({
   scoring,
   onEnd,
   disabled,
+  submitBlocked,
+  closed,
   open,
   onOpenChange,
 }: Readonly<{
@@ -319,6 +388,8 @@ function ScoreEntry({
     override: PlayerId | null,
   ) => void;
   disabled: boolean;
+  submitBlocked: boolean;
+  closed: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }>) {
@@ -364,7 +435,7 @@ function ScoreEntry({
       )
     : null;
   const highlighted = override ?? leader;
-  const blocked = disabled || !allEntered || refused !== null;
+  const blocked = disabled || submitBlocked || !allEntered || refused !== null;
 
   /** Hands the party in, on the scores as the form finally reads them. */
   function finish() {
@@ -381,6 +452,7 @@ function ScoreEntry({
       <EndGameButton
         label="Entrer les scores"
         onClick={() => onOpenChange(true)}
+        disabled={closed}
       />
     );
   }
@@ -440,12 +512,14 @@ function ScoreEntry({
 function EndGameButton({
   onClick,
   label = "Terminer la partie",
-}: Readonly<{ onClick: () => void; label?: string }>) {
+  disabled = false,
+}: Readonly<{ onClick: () => void; label?: string; disabled?: boolean }>) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-black transition hover:bg-amber-300"
+      disabled={disabled}
+      className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-black transition hover:bg-amber-300 disabled:opacity-60"
     >
       {label}
     </button>
@@ -461,5 +535,43 @@ function CancelLink({ onClick }: Readonly<{ onClick: () => void }>) {
     >
       Annuler
     </button>
+  );
+}
+
+/**
+ * Under the greyed-out button, on a phone that is not counting: who has the
+ * form, and — ten minutes on, for a phone that has gone quiet — the way to take
+ * it back.
+ */
+function ScoringTaken({ flow }: Readonly<{ flow: EndFlowState }>) {
+  const [asking, setAsking] = useState(false);
+
+  return (
+    <div className="flex flex-col items-center gap-1 text-center">
+      <p className="text-xs text-amber-600 dark:text-amber-400">
+        {OTHER_COUNTING}
+      </p>
+      {flow.scoring.canTakeOver ? (
+        <button
+          type="button"
+          onClick={() => setAsking(true)}
+          className="text-xs text-indigo-600 hover:underline dark:text-indigo-400"
+        >
+          Reprendre la main
+        </button>
+      ) : null}
+      {asking ? (
+        <ConfirmDialog
+          message="Un autre joueur compte les points depuis plus de 10 minutes. Reprendre la main ?"
+          warning="Ce qu'il a saisi sur son téléphone ne pourra plus être enregistré."
+          confirmLabel="Reprendre la main"
+          onConfirm={() => {
+            setAsking(false);
+            void flow.takeOverScoring();
+          }}
+          onCancel={() => setAsking(false)}
+        />
+      ) : null}
+    </div>
   );
 }

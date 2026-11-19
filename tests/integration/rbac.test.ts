@@ -459,7 +459,7 @@ describe("RBAC — keys finer than CRUD", () => {
     }
   });
 
-  it("lets a player end his game on the turn in progress", async () => {
+  it("lets a player end his game with its last turn, scores and winner", async () => {
     const { live, dispose } = await gamesOnBothSidesOfTheSplit("Closing");
     const service = serviceClient();
     const { data: subject } = await service
@@ -482,7 +482,7 @@ describe("RBAC — keys finer than CRUD", () => {
       await createGameRepository(player.db).end(
         live as GameId,
         [playerId],
-        [],
+        [{ playerId, score: 17, breakdown: { cards: 17 } }],
         null,
         {
           elapsedSeconds: 42,
@@ -502,6 +502,29 @@ describe("RBAC — keys finer than CRUD", () => {
         .eq("game_id", live);
 
       expect(turns).toEqual([{ player_id: playerId, duration_s: 42 }]);
+
+      // Written before the close, while the game was still the player's to
+      // write: after it, they reached no row and the party ended blank.
+      const { data: seat } = await service
+        .from("game_players")
+        .select("score, score_breakdown, is_winner")
+        .eq("game_id", live)
+        .single();
+
+      expect(seat).toEqual({
+        score: 17,
+        score_breakdown: { cards: 17 },
+        is_winner: true,
+      });
+
+      // And once over, the game is out of the player's reach.
+      const meddled = await player.db
+        .from("game_players")
+        .update({ score: 99 })
+        .eq("game_id", live)
+        .select("*");
+
+      expect(meddled.data).toEqual([]);
     } finally {
       await player.dispose();
       await dispose();

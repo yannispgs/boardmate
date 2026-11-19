@@ -31,6 +31,7 @@ import { EndFlow } from "./EndFlow";
 import { FaqPanel } from "./FaqPanel";
 import { GameTieBreak } from "./GameTieBreak";
 import { LastLapBanner } from "./LastLapBanner";
+import { LeaveGuard } from "./LeaveGuard";
 import { LiveScoreSection } from "./LiveScoreSection";
 import { MilestonePanel } from "./MilestonePanel";
 import { namedPlayers } from "./named-players";
@@ -349,21 +350,33 @@ export function PlayingGame({
     });
   }
 
+  // The phone counting the points asks before any link takes it away.
+  const leaveGuard = (
+    <LeaveGuard
+      active={flow.scoring.holder === "me"}
+      onLeave={flow.scoring.release}
+    />
+  );
+
   // Counting the points takes over the whole screen, up to the recap.
   if (flow.outcome !== null && flow.phase !== "play") {
     return (
-      <EndFlow
-        game={game}
-        flow={flow}
-        outcome={flow.outcome}
-        stageScores={goals.scores}
-        disabled={play.busy}
-      />
+      <>
+        {leaveGuard}
+        <EndFlow
+          game={game}
+          flow={flow}
+          outcome={flow.outcome}
+          stageScores={goals.scores}
+          disabled={play.busy}
+        />
+      </>
     );
   }
 
   return (
     <div className="flex flex-col items-center gap-8">
+      {leaveGuard}
       {stageHold.holding ? (
         <StageCard
           stage={game.stage}

@@ -47,6 +47,19 @@ export class AlreadyEndedError extends Error {
   }
 }
 
+/**
+ * Another phone holds the score form of this party: only the phone counting
+ * the points may record them.
+ */
+export class ScoringLockedError extends Error {
+  constructor(
+    message = "Un autre joueur est déjà en train de compter les points.",
+  ) {
+    super(message);
+    this.name = "ScoringLockedError";
+  }
+}
+
 /** A boardgame can't be deleted because it already has games. */
 export class BoardgameInUseError extends Error {
   constructor(message = "Ce jeu a déjà des parties enregistrées.") {
