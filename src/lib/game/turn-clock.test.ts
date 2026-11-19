@@ -39,10 +39,10 @@ describe("elapsedForReading", () => {
 });
 
 describe("canStep", () => {
-  it("takes time off a countdown as long as some is left", () => {
+  it("takes time off a countdown, into overtime if need be", () => {
     expect(canStep(90, 25, -10)).toBe(true);
     expect(canStep(90, 25, -25)).toBe(true);
-    expect(canStep(90, 25, -30)).toBe(false);
+    expect(canStep(90, 25, -30)).toBe(true);
   });
 
   it("gives a countdown time back up to the turn's length", () => {
@@ -51,10 +51,11 @@ describe("canStep", () => {
     expect(canStep(90, 70, 30)).toBe(false);
   });
 
-  it("gives an overtime its time back, but takes none off it", () => {
+  it("gives an overtime its time back, and deepens it too", () => {
     expect(canStep(90, -20, 10)).toBe(true);
     expect(canStep(90, -20, 60)).toBe(true);
-    expect(canStep(90, -20, -10)).toBe(false);
+    expect(canStep(90, -20, -10)).toBe(true);
+    expect(canStep(90, -20, -60)).toBe(true);
   });
 
   it("winds a stopwatch on without limit, and back to nought at most", () => {

@@ -147,13 +147,13 @@ test("corrects the time left with the steps beside the clock", async ({
       .toBeGreaterThanOrEqual(2500);
     expect(await clockSeconds(page)).toBe(held);
 
-    // A 45-second turn with under 45 s left: nothing more to add, and no
-    // minute to take off.
+    // A 45-second turn with under 45 s left: nothing more to add, but a whole
+    // minute can still come off — the turn then runs over.
     const minus = page.getByRole("group", { name: "Retirer du temps" });
 
     await expect(
       minus.getByRole("button", { name: "Retirer 1 min" }),
-    ).toBeDisabled();
+    ).toBeEnabled();
     await expect(
       minus.getByRole("button", { name: "Retirer 10 s" }),
     ).toBeEnabled();
@@ -208,13 +208,18 @@ test("counts overtime once the turn timer runs out", async ({ page }) => {
     // Past zero, the readout flips to an overtime count-up.
     await expect(page.getByText("dépassement")).toBeVisible({ timeout: 15000 });
 
-    // In overtime, time can be given back but none taken off.
+    // In overtime, taking time off runs the turn further over.
     await page.getByRole("button", { name: "Retirer du temps" }).click();
-    await expect(
-      page
-        .getByRole("group", { name: "Retirer du temps" })
-        .getByRole("button", { name: "Retirer 10 s" }),
-    ).toBeDisabled();
+
+    const over = await clockSeconds(page);
+
+    expect(over).toBeLessThan(0);
+    await page
+      .getByRole("group", { name: "Retirer du temps" })
+      .getByRole("button", { name: "Retirer 10 s" })
+      .click();
+    expect(await clockSeconds(page)).toBe(over - 10);
+    await expect(page.getByText("dépassement")).toBeVisible();
   } finally {
     const admin = adminClient();
     if (gameId) {

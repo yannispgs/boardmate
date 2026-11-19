@@ -31,9 +31,10 @@ export function elapsedForReading(
 
 /**
  * Whether stepping the clock's reading by `deltaS` keeps it to what the clock
- * can read: never below nought, and on a countdown never above the turn's own
- * length. A countdown already in overtime reads below nought, and may still be
- * given time back — that is the very turn a correction is for.
+ * can read. A countdown may always be wound down — past nought and deeper into
+ * overtime, a turn that ran longer than the clock saw — but never above the
+ * turn's own length. A stopwatch winds on without limit, and back to nought at
+ * most.
  */
 export function canStep(
   durationS: number | null,
@@ -42,9 +43,9 @@ export function canStep(
 ): boolean {
   const next = readingS + deltaS;
 
-  if (deltaS < 0) {
+  if (durationS === null) {
     return next >= 0;
   }
 
-  return durationS === null || next <= durationS;
+  return deltaS < 0 || next <= durationS;
 }

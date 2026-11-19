@@ -80,18 +80,25 @@ export async function setTimer(
   await expect(sheet).toBeHidden();
 }
 
-/** What the clock the table is looking at reads, in seconds. */
+/**
+ * What the clock the table is looking at reads, in seconds — below nought once
+ * a countdown has run into overtime.
+ */
 export async function clockSeconds(page: Page): Promise<number> {
   const text =
     (await page
       .locator(".clock-layer:visible")
-      .getByText(/^\d+(:\d\d)?$/)
+      .getByText(/^\+?\d+(:\d\d)?$/)
       .first()
       .textContent()) ?? "";
 
-  // Under a minute the disc reads bare seconds (« 45 secondes »).
-  return text
+  // Under a minute the disc reads bare seconds (« 45 secondes »); in overtime
+  // it counts up behind a « + ».
+  const seconds = text
+    .replace("+", "")
     .split(":")
     .map(Number)
     .reduce((total, part) => total * 60 + part, 0);
+
+  return text.startsWith("+") ? -seconds : seconds;
 }
